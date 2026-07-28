@@ -1,7 +1,9 @@
 import { StackItem } from '@patternfly/react-core'
 
-import { JsonSchemaField } from './JsonSchemaField'
-import { nodeHelp } from './shared/nodeFieldHelp'
+import { FormLabelWithHelp } from '../../../components/FormLabelWithHelp'
+
+import { PayloadValidationSection } from './PayloadValidationSection'
+import { DEFAULT_JSON_SCHEMA } from './triggerFormSchema'
 
 const EXAMPLE_INPUT_SCHEMA = JSON.stringify(
   {
@@ -20,10 +22,14 @@ export function ManualTriggerFields({
 }: Readonly<{ errors: Readonly<{ inputSchema?: { message?: string } }> }>) {
   return (
     <StackItem>
-      <JsonSchemaField
-        label="Input schema"
-        labelHelp={nodeHelp.manualInputSchema}
-        defaultCode=""
+      <PayloadValidationSection
+        label={
+          <FormLabelWithHelp
+            label="Input schema"
+            helpText="Define an input schema to allow users to input data when running the workflow manually. Use this to simulate or test workflow runs with specific parameters. Click Insert example to populate the field with a template schema."
+          />
+        }
+        defaultCode={DEFAULT_JSON_SCHEMA}
         exampleCode={EXAMPLE_INPUT_SCHEMA}
         modalTitle="Edit input schema"
         ariaLabel="Input schema editor"

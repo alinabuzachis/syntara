@@ -203,9 +203,7 @@ class ExecutionService(BaseService):
         """Apply input_schema defaults and validate trigger input data.
 
         Extracts the trigger's ``input_schema``, fills in missing default
-        values, then validates the result.  For webhook/EDA triggers the
-        schema targets ``input_data["payload"]``; for all others it targets
-        *input_data* directly.
+        values, then validates the result against *input_data* directly.
 
         Args:
             trigger_node: Trigger node dict from the workflow definition.
@@ -221,10 +219,7 @@ class ExecutionService(BaseService):
 
         trigger_type = trigger_node.get("type", "")
         trigger_node_id = trigger_node.get("id")
-        if trigger_type in (NodeType.WEBHOOK_TRIGGER, NodeType.EDA_TRIGGER):
-            target = input_data.setdefault("payload", {})
-        else:
-            target = input_data
+        target = input_data
 
         try:
             apply_schema_defaults(target, input_schema)

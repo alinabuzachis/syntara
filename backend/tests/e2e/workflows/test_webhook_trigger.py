@@ -81,7 +81,7 @@ class TestWebhookTrigger:
                                 "authorized_service_account_ids": [str(sa.id)],
                             },
                             "outputs": {
-                                "test_value": "${result.payload.test_key}",
+                                "test_value": "${result.test_key}",
                             },
                         }
                     ],

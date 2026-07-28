@@ -32,19 +32,12 @@
     "additionalProperties": false
   },
   "resultSchema": {
-    "description": "Trigger result contains the validated webhook payload wrapped as {\"payload\": <request_body>}",
+    "description": "Trigger result is the validated webhook request body passed through directly",
     "oneOf": [
       {
         "title": "Completed Result",
         "type": "object",
         "description": "Pass-through of validated webhook payload",
-        "properties": {
-          "payload": {
-            "type": "object",
-            "description": "The webhook request body",
-            "additionalProperties": true
-          }
-        },
         "additionalProperties": true
       },
       {

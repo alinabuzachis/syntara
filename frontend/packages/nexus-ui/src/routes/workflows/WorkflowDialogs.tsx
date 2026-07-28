@@ -10,9 +10,10 @@ import type { ProjectRead } from '../access/types'
 import { ProjectFormModal } from '../access-management/ProjectFormModal'
 import { RunWorkflowModal } from '../builder/components/RunWorkflowModal'
 import { PublishWorkflowDialog } from '../builder/PublishWorkflowDialog'
+import { hasNonEmptyInputSchema } from '../builder/utils/triggerReferenceCheck'
 
 import { ImportWorkflowDialog } from './ImportWorkflowDialog'
-import { hasTriggerInputSchema, resolveWorkflowRunTrigger, type WorkflowRunTrigger } from './resolveWorkflowRunTrigger'
+import { resolveWorkflowRunTrigger, type WorkflowRunTrigger } from './resolveWorkflowRunTrigger'
 
 type Workflow = WorkflowAPI.components['schemas']['WorkflowRead']
 
@@ -107,13 +108,13 @@ export function WorkflowDialogs({
             return
           }
 
-          if (hasTriggerInputSchema(trigger.inputSchema)) {
-            setPendingRunInput({ workflow: workflowToRun, trigger })
+          if (!trigger.hasTriggerReferences && !hasNonEmptyInputSchema(trigger.inputSchema)) {
+            onRunWorkflow(workflowToRun, {}, trigger.triggerNodeId)
             closeRunDialog()
             return
           }
 
-          onRunWorkflow(workflowToRun, {}, trigger.triggerNodeId)
+          setPendingRunInput({ workflow: workflowToRun, trigger })
           closeRunDialog()
         })
         .catch((error: unknown) => {

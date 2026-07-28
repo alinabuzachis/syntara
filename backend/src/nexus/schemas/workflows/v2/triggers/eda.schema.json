@@ -32,20 +32,12 @@
     "additionalProperties": false
   },
   "resultSchema": {
-    "description": "EDA trigger result contains the webhook payload from the Event-Driven Ansible event",
+    "description": "Trigger result is the EDA webhook request body passed through directly",
     "oneOf": [
       {
         "title": "Completed Result",
         "type": "object",
         "description": "Pass-through of EDA webhook payload",
-        "required": ["payload"],
-        "properties": {
-          "payload": {
-            "type": "object",
-            "description": "The webhook payload from EDA (arbitrary JSON object)",
-            "additionalProperties": true
-          }
-        },
         "additionalProperties": true
       },
       {

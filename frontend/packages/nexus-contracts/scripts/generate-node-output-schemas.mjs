@@ -107,8 +107,9 @@ for (const nodeType of catalog.node_types) {
   }
 
   // The standard structure uses oneOf[0] as the "Completed Result" variant.
-  // Some schemas (e.g. manual_trigger) have a flat resultSchema without oneOf.
-  const completedResult = resultSchema.oneOf?.[0]
+  // Some schemas (e.g. scheduled_trigger) have a flat resultSchema with
+  // properties directly on the object — fall back to that when oneOf is absent.
+  const completedResult = resultSchema.oneOf?.[0] ?? (resultSchema.properties ? resultSchema : null)
   if (!completedResult || !completedResult.properties) {
     console.warn(`  WARN: No completed result variant for "${nodeType.type}", skipping.`)
     continue

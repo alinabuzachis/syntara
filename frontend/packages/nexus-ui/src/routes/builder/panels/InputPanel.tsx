@@ -20,6 +20,7 @@ import { NxPanel } from '../../../components/layout/NxPanel'
 import { useMockDataStore } from '../../../stores/useMockDataStore'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import { selectActivities, selectTriggers } from '../../../stores/workflowStoreSelectors'
+import { parseTriggerIndex } from '../../../utils/triggerNodeIds'
 import type { WorkflowMetadata } from '../types/workflowMetadata'
 import { useIsVersionView } from '../VersionViewContext'
 
@@ -61,6 +62,12 @@ function computeEffectiveUpstream(
   const trigger = triggers?.find((t) => t.id === sourceNodeId)
   if (trigger) {
     return [{ id: trigger.id, name: trigger.name ?? trigger.id, type: trigger.type }, ...sourceAncestors]
+  }
+
+  const triggerIndex = parseTriggerIndex(sourceNodeId)
+  if (triggerIndex !== undefined && triggers?.[triggerIndex]) {
+    const resolved = triggers[triggerIndex]
+    return [{ id: resolved.id, name: resolved.name ?? resolved.id, type: resolved.type }, ...sourceAncestors]
   }
 
   return []

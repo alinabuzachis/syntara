@@ -81,9 +81,16 @@ export function PayloadValidationSection({
   error,
   label,
 }: Readonly<PayloadValidationSectionProps>) {
-  const { control } = useFormContext<TriggerFormData>()
+  const { control, getValues } = useFormContext<TriggerFormData>()
   const idPrefix = useId()
-  const [mode, setMode] = useState<ValidationMode>('simple')
+  const [mode, setMode] = useState<ValidationMode>(() => {
+    const currentCode = getValues('inputSchema')
+    if (currentCode?.trim()) {
+      const parsed = jsonSchemaToFields(currentCode)
+      if (!parsed.isSimpleSchema) return 'advanced'
+    }
+    return 'simple'
+  })
   const [switchError, setSwitchError] = useState<string | null>(null)
 
   const handleModeChange = useCallback((newMode: ValidationMode, currentCode: string | undefined) => {
@@ -145,12 +152,8 @@ type PayloadValidationContentProps = {
   idPrefix: string
 }
 
-function SimpleSchemaMode({
-  code,
-  defaultCode,
-  onCodeChange,
-}: Readonly<{ code: string; defaultCode: string; onCodeChange: (code: string) => void }>) {
-  const [localFields, setLocalFields] = useState<SimpleField[]>(() => jsonSchemaToFields(code || defaultCode).fields)
+function SimpleSchemaMode({ code, onCodeChange }: Readonly<{ code: string; onCodeChange: (code: string) => void }>) {
+  const [localFields, setLocalFields] = useState<SimpleField[]>(() => jsonSchemaToFields(code).fields)
 
   const handleFieldsChange = useCallback(
     (fields: SimpleField[]) => {
@@ -190,13 +193,13 @@ function PayloadValidationContent({
 
         {mode === 'simple' ? (
           <StackItem>
-            <SimpleSchemaMode code={code} defaultCode={defaultCode} onCodeChange={onCodeChange} />
+            <SimpleSchemaMode code={code} onCodeChange={onCodeChange} />
           </StackItem>
         ) : (
           <>
             <StackItem>
               <ExpandableCodeEditor
-                code={code || defaultCode}
+                code={code}
                 onCodeChange={onCodeChange}
                 onBlur={onBlur}
                 language="json"
@@ -205,7 +208,7 @@ function PayloadValidationContent({
                 ariaLabel={ariaLabel}
                 additionalControls={
                   <JsonEditorControls
-                    code={code || defaultCode}
+                    code={code}
                     onCodeChange={onCodeChange}
                     defaultCode={defaultCode}
                     downloadFilename={downloadFilename}

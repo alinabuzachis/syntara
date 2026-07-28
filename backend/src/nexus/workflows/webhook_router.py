@@ -182,7 +182,7 @@ async def _handle_webhook_request(
         raise TemporalUnavailableError(f"{label} triggering")  # noqa: EM102, TRY003
 
     execution_service = ExecutionService(db, user, temporal_service=temporal_service)
-    trigger_input = {"payload": payload}
+    trigger_input = payload
 
     execution = await execution_service.create_execution(
         workflow_id=trigger.workflow_id,

@@ -245,6 +245,36 @@ describe('PayloadValidationSection', () => {
     expect(screen.queryByText('Optional helper text.')).not.toBeInTheDocument()
   })
 
+  it('defaults to Advanced mode when initial schema is complex', () => {
+    const complexSchema = JSON.stringify({
+      type: 'object',
+      properties: { data: { type: 'object', properties: { nested: { type: 'string' } } } },
+    })
+
+    render(
+      <Wrapper initialSchema={complexSchema}>
+        <PayloadValidationSection {...defaultProps} />
+      </Wrapper>
+    )
+
+    expect(screen.getByRole('button', { name: 'Advanced' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('textbox', { name: 'JSON schema validation editor' })).toBeInTheDocument()
+  })
+
+  it('does not show default code placeholder in Advanced editor when schema is empty', async () => {
+    const user = userEvent.setup()
+    render(
+      <Wrapper initialSchema="">
+        <PayloadValidationSection {...defaultProps} />
+      </Wrapper>
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Advanced' }))
+
+    const editor = screen.getByRole('textbox', { name: 'JSON schema validation editor' })
+    expect(editor).toHaveValue('')
+  })
+
   it('handles empty inputSchema value', () => {
     render(
       <Wrapper>

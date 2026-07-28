@@ -266,7 +266,7 @@ class ScheduledExecutionLauncher:
                 project_id=wf_project_id,
                 temporal_workflow_id=temporal_workflow_id,
                 status=ExecutionStatus.PENDING,
-                input_data={},
+                input_data=input_data,
                 trigger_node_id=trigger_node_id,
                 trigger_type=ActivityName.SCHEDULED_TRIGGER.value,
                 interface=None,

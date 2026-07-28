@@ -57,19 +57,18 @@
     "additionalProperties": false
   },
   "resultSchema": {
-    "description": "Trigger result contains the schedule metadata passed through as output.",
+    "description": "Trigger result contains schedule timing metadata.",
     "type": "object",
     "properties": {
-      "status": {
+      "scheduled_at": {
         "type": "string",
-        "description": "Trigger completion status",
-        "const": "completed"
+        "description": "ISO 8601 timestamp of when the execution was scheduled to fire"
       },
-      "schedule_type": {
+      "triggered_at": {
         "type": "string",
-        "description": "The schedule type that triggered this execution"
+        "description": "ISO 8601 timestamp of when the execution actually started"
       }
     },
-    "additionalProperties": true
+    "additionalProperties": false
   }
 }

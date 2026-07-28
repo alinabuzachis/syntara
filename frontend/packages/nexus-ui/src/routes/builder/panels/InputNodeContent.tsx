@@ -47,7 +47,11 @@ export function InputNodeContent({
     const schema = getNodeOutputSchema(upstreamNode.type)
     const effectiveSchema = schema ?? getTriggerInputSchemaFields(upstreamNode.id, triggers)
     if (!effectiveSchema) {
-      return <InputEmptyState variant="connected-not-run" />
+      const supportsInputSchema =
+        upstreamNode.type === TriggerTypeEnum.MANUAL_TRIGGER ||
+        upstreamNode.type === TriggerTypeEnum.WEBHOOK_TRIGGER ||
+        upstreamNode.type === TriggerTypeEnum.EDA_TRIGGER
+      return <InputEmptyState variant={supportsInputSchema ? 'no-trigger-schema' : 'connected-not-run'} />
     }
     return (
       <Stack hasGutter>

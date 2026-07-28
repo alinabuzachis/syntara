@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { workflowFetchClient } from '../../client'
 
-import { hasTriggerInputSchema, resolveWorkflowRunTrigger } from './resolveWorkflowRunTrigger'
+import { resolveWorkflowRunTrigger } from './resolveWorkflowRunTrigger'
 
 type Workflow = WorkflowAPI.components['schemas']['WorkflowRead']
 
@@ -35,25 +35,6 @@ function mockWorkflow(overrides: Partial<Workflow> = {}): Workflow {
 function mockGetResponse(data: Record<string, unknown> | undefined, error?: Record<string, unknown>) {
   return { data, error, response: new Response() } as never
 }
-
-describe('hasTriggerInputSchema', () => {
-  it('returns false for nullish or empty schemas', () => {
-    expect(hasTriggerInputSchema(undefined)).toBe(false)
-    expect(hasTriggerInputSchema(null)).toBe(false)
-    expect(hasTriggerInputSchema({})).toBe(false)
-  })
-
-  it('returns false when properties exists but is empty', () => {
-    expect(hasTriggerInputSchema({ properties: {} })).toBe(false)
-    expect(hasTriggerInputSchema({ type: 'object', properties: {} })).toBe(false)
-  })
-
-  it('returns true when schema has non-empty properties, type, or other keys', () => {
-    expect(hasTriggerInputSchema({ type: 'object' })).toBe(true)
-    expect(hasTriggerInputSchema({ properties: { version: { type: 'string' } } })).toBe(true)
-    expect(hasTriggerInputSchema({ $schema: 'https://json-schema.org/draft/2020-12/schema' })).toBe(true)
-  })
-})
 
 describe('resolveWorkflowRunTrigger', () => {
   beforeEach(() => {
@@ -96,7 +77,9 @@ describe('resolveWorkflowRunTrigger', () => {
     await expect(resolveWorkflowRunTrigger(mockWorkflow({ published_version_number: 1 }))).resolves.toEqual({
       triggerNodeId: 'trigger-1',
       triggerName: 'Manual Trigger',
+      triggerType: undefined,
       inputSchema: { type: 'object', properties: { version: { type: 'string' } } },
+      hasTriggerReferences: false,
     })
     expect(workflowFetchClient.GET).toHaveBeenCalledTimes(1)
   })
@@ -135,7 +118,9 @@ describe('resolveWorkflowRunTrigger', () => {
     await expect(resolveWorkflowRunTrigger(mockWorkflow({ published_version_number: 1 }))).resolves.toEqual({
       triggerNodeId: 'published-trigger',
       triggerName: 'Published Trigger',
+      triggerType: undefined,
       inputSchema: { type: 'object', properties: { env: { type: 'string' } } },
+      hasTriggerReferences: false,
     })
     expect(workflowFetchClient.GET).toHaveBeenCalledWith('/workflows/{workflow_id}/versions/{version}', {
       params: { path: { workflow_id: 'wf-1', version: 1 } },
@@ -172,7 +157,9 @@ describe('resolveWorkflowRunTrigger', () => {
     await expect(resolveWorkflowRunTrigger(mockWorkflow())).resolves.toEqual({
       triggerNodeId: 'trigger-1',
       triggerName: 'Trigger',
+      triggerType: undefined,
       inputSchema: undefined,
+      hasTriggerReferences: false,
     })
   })
 
@@ -198,7 +185,9 @@ describe('resolveWorkflowRunTrigger', () => {
     await expect(resolveWorkflowRunTrigger(mockWorkflow({ published_version_number: 1 }))).resolves.toEqual({
       triggerNodeId: 'draft-trigger',
       triggerName: 'Draft Trigger',
+      triggerType: undefined,
       inputSchema: undefined,
+      hasTriggerReferences: false,
     })
   })
 
@@ -222,7 +211,9 @@ describe('resolveWorkflowRunTrigger', () => {
     await expect(resolveWorkflowRunTrigger(mockWorkflow())).resolves.toEqual({
       triggerNodeId: 'trigger-1',
       triggerName: 'Manual Trigger',
+      triggerType: undefined,
       inputSchema: undefined,
+      hasTriggerReferences: false,
     })
   })
 

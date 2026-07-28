@@ -1,7 +1,8 @@
 """Webhook trigger activity for v2 workflows.
 
 Receives the webhook payload forwarded from the webhook reception endpoint
-and passes it through as the trigger output. Payload validation (JSON Schema)
+and passes it through as the trigger output. The raw request body is used
+directly as trigger input (no wrapping). Payload validation (JSON Schema)
 is performed upstream in the webhook router before the workflow is started.
 """
 
@@ -28,9 +29,9 @@ async def webhook_trigger(
     Output mapping is applied internally before returning to avoid storing suppressed
     fields in Temporal.
 
-    Note: For webhook triggers, input_config contains the webhook payload wrapped
-    as {"payload": <request_body>}. JSON Schema validation happens before workflow
-    start (in the webhook router), so this is a pass-through.
+    Note: input_config is the raw webhook request body (a dict). JSON Schema
+    validation happens before workflow start (in the webhook router), so this
+    is a pass-through.
 
     Args:
         input_config: Webhook payload data (pre-validated by the webhook router)

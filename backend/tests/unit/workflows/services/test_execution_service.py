@@ -566,7 +566,7 @@ class TestCreateExecution:
 
         result = await service.create_execution(
             workflow_id=workflow_id,
-            input_data={"payload": {}},
+            input_data={},
             trigger_node_id="trigger_1",
         )
 
@@ -1700,8 +1700,8 @@ class TestApplyTriggerSchemaDefaults:
         with pytest.raises(TriggerValidationError, match="Trigger input validation failed"):
             ExecutionService._apply_trigger_schema_defaults(trigger, data)
 
-    def test_webhook_targets_payload(self) -> None:
-        """For webhook triggers, defaults are applied to input_data['payload']."""
+    def test_webhook_targets_input_directly(self) -> None:
+        """For webhook triggers, defaults are applied to input_data directly."""
         trigger = {
             "id": "t",
             "type": NodeType.WEBHOOK_TRIGGER,
@@ -1712,12 +1712,12 @@ class TestApplyTriggerSchemaDefaults:
                 },
             },
         }
-        data: dict[str, Any] = {"payload": {}}
+        data: dict[str, Any] = {}
         ExecutionService._apply_trigger_schema_defaults(trigger, data)
-        assert data["payload"] == {"event": "push"}
+        assert data == {"event": "push"}
 
-    def test_eda_targets_payload(self) -> None:
-        """For EDA triggers, defaults are applied to input_data['payload']."""
+    def test_eda_targets_input_directly(self) -> None:
+        """For EDA triggers, defaults are applied to input_data directly."""
         trigger = {
             "id": "t",
             "type": NodeType.EDA_TRIGGER,
@@ -1728,9 +1728,9 @@ class TestApplyTriggerSchemaDefaults:
                 },
             },
         }
-        data: dict[str, Any] = {"payload": {}}
+        data: dict[str, Any] = {}
         ExecutionService._apply_trigger_schema_defaults(trigger, data)
-        assert data["payload"] == {"source": "alertmanager"}
+        assert data == {"source": "alertmanager"}
 
     def test_no_input_schema_is_noop(self) -> None:
         """Trigger without input_schema leaves input_data unchanged."""
@@ -1761,8 +1761,8 @@ class TestApplyTriggerSchemaDefaults:
         with pytest.raises(TriggerValidationError):
             ExecutionService._apply_trigger_schema_defaults(trigger, {"data": "test"})
 
-    def test_webhook_missing_payload_gets_defaults(self) -> None:
-        """Webhook trigger without payload key creates it and applies defaults."""
+    def test_webhook_empty_input_gets_defaults(self) -> None:
+        """Webhook trigger with empty input gets schema defaults applied."""
         trigger = {
             "id": "t",
             "type": NodeType.WEBHOOK_TRIGGER,
@@ -1775,4 +1775,4 @@ class TestApplyTriggerSchemaDefaults:
         }
         data: dict[str, Any] = {}
         ExecutionService._apply_trigger_schema_defaults(trigger, data)
-        assert data == {"payload": {"event": "push"}}
+        assert data == {"event": "push"}

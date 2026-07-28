@@ -68,7 +68,7 @@ class TestEdaTrigger:
                                 "webhook_path": webhook_path,
                                 "authorized_service_account_ids": [str(sa.id)],
                             },
-                            "outputs": {"event_data": "${result.payload.event_type}"},
+                            "outputs": {"event_data": "${result.event_type}"},
                         },
                     ],
                     "nodes": [

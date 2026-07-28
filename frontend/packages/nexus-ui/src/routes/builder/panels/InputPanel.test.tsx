@@ -854,7 +854,7 @@ describe('InputPanel', () => {
   })
 
   describe('getTriggerInputSchemaFields', () => {
-    it('returns null when trigger parameters has no input_schema', () => {
+    it('shows no-trigger-schema empty state when trigger has no input_schema', () => {
       mockUseUpstreamNodes.mockReturnValue([{ id: 'trigger-0', name: 'Trigger', type: 'manual_trigger' }])
       mockTriggers.mockReturnValue([
         {
@@ -867,10 +867,10 @@ describe('InputPanel', () => {
 
       render(<InputPanel nodeId="node-1" />)
 
-      expect(screen.getByText('Input not available')).toBeInTheDocument()
+      expect(screen.getByText('No schema defined')).toBeInTheDocument()
     })
 
-    it('returns null when input_schema is not an object', () => {
+    it('shows no-trigger-schema empty state when input_schema is not an object', () => {
       mockUseUpstreamNodes.mockReturnValue([{ id: 'trigger-0', name: 'Trigger', type: 'manual_trigger' }])
       mockTriggers.mockReturnValue([
         {
@@ -883,10 +883,10 @@ describe('InputPanel', () => {
 
       render(<InputPanel nodeId="node-1" />)
 
-      expect(screen.getByText('Input not available')).toBeInTheDocument()
+      expect(screen.getByText('No schema defined')).toBeInTheDocument()
     })
 
-    it('returns null when input_schema has no properties', () => {
+    it('shows no-trigger-schema empty state when input_schema has no properties', () => {
       mockUseUpstreamNodes.mockReturnValue([{ id: 'trigger-0', name: 'Trigger', type: 'manual_trigger' }])
       mockTriggers.mockReturnValue([
         {
@@ -899,10 +899,10 @@ describe('InputPanel', () => {
 
       render(<InputPanel nodeId="node-1" />)
 
-      expect(screen.getByText('Input not available')).toBeInTheDocument()
+      expect(screen.getByText('No schema defined')).toBeInTheDocument()
     })
 
-    it('returns null when input_schema has empty properties', () => {
+    it('shows no-trigger-schema empty state when input_schema has empty properties', () => {
       mockUseUpstreamNodes.mockReturnValue([{ id: 'trigger-0', name: 'Trigger', type: 'manual_trigger' }])
       mockTriggers.mockReturnValue([
         {
@@ -920,7 +920,7 @@ describe('InputPanel', () => {
 
       render(<InputPanel nodeId="node-1" />)
 
-      expect(screen.getByText('Input not available')).toBeInTheDocument()
+      expect(screen.getByText('No schema defined')).toBeInTheDocument()
     })
 
     it('uses trigger ID from index when parseTriggerIndex returns a valid index', () => {
@@ -954,6 +954,15 @@ describe('InputPanel', () => {
 
       // The source trigger should appear in the expandable section
       expect(screen.getByRole('button', { name: 'Source Trigger' })).toBeInTheDocument()
+    })
+
+    it('resolves trigger display ID (trigger-0) to real trigger in effectiveUpstream', () => {
+      mockUseUpstreamNodes.mockReturnValue([])
+      mockTriggers.mockReturnValue([{ id: 'trigger_webhook_0', name: 'Webhook Trigger', type: 'webhook_trigger' }])
+
+      render(<InputPanel nodeId="" sourceNodeId="trigger-0" />)
+
+      expect(screen.getByRole('button', { name: 'Webhook Trigger' })).toBeInTheDocument()
     })
 
     it('returns empty effectiveUpstream when sourceNodeId does not match any activity or trigger', () => {

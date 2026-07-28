@@ -1,13 +1,15 @@
 import { Checkbox, Content, List, ListItem, Stack, StackItem } from '@patternfly/react-core'
-import { useEffect, useRef, useState, type Dispatch } from 'react'
+import { useMemo, useEffect, useRef, useState, type Dispatch } from 'react'
 
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 import type { DialogState } from '../../../hooks/useDialogState'
 import { useAlerts } from '../../../providers/alerts'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
+import { selectActivities, selectTriggers } from '../../../stores/workflowStoreSelectors'
 import type { BuilderAction } from '../builderReducer'
 import { useBuilderImportHandlers, type UseBuilderImportHandlersParams } from '../hooks/useBuilderImportHandlers'
 import type { PendingImportData } from '../useWorkflowImportExport'
+import { activitiesReferenceTrigger, hasNonEmptyInputSchema } from '../utils/triggerReferenceCheck'
 import type { ConflictAction, ConflictInfo } from '../VersionConflictDialog'
 import { VersionConflictDialog } from '../VersionConflictDialog'
 
@@ -66,7 +68,7 @@ type BuilderDialogsProps = Readonly<{
 
 type UseRunConfirmStateParams = {
   confirmDialogOpen: boolean
-  hasInputSchema: boolean
+  showInputDialog: boolean
   dispatch: Dispatch<BuilderAction>
   handleRunWorkflow: (inputData?: Record<string, unknown>, triggerNodeId?: string) => void
   triggerNodeId?: string
@@ -74,7 +76,7 @@ type UseRunConfirmStateParams = {
 
 function useRunConfirmState({
   confirmDialogOpen,
-  hasInputSchema,
+  showInputDialog,
   dispatch,
   handleRunWorkflow,
   triggerNodeId,
@@ -94,25 +96,22 @@ function useRunConfirmState({
 
   const skipConfirm = confirmDialogOpen && getRunConfirmDismissed()
 
-  // Auto-run when confirmation is skipped and there's no input schema
-  // Use a ref to track if we've already auto-run to prevent infinite loops
+  // Auto-run when confirmation is skipped and no input dialog is needed
   const autoRanRef = useRef(false)
   useEffect(() => {
-    if (skipConfirm && !hasInputSchema && confirmDialogOpen && !autoRanRef.current) {
+    if (skipConfirm && !showInputDialog && confirmDialogOpen && !autoRanRef.current) {
       autoRanRef.current = true
       handleRunWorkflow(undefined, triggerNodeId)
       dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
     }
-    // Reset flag when dialog closes
     if (!confirmDialogOpen) {
       autoRanRef.current = false
     }
-  }, [skipConfirm, hasInputSchema, confirmDialogOpen, handleRunWorkflow, dispatch, triggerNodeId])
+  }, [skipConfirm, showInputDialog, confirmDialogOpen, handleRunWorkflow, dispatch, triggerNodeId])
 
   return {
     showConfirmStep: confirmDialogOpen && !skipConfirm && !confirmedRun,
-    // Only show input step if there's an input schema
-    showInputStep: hasInputSchema && confirmDialogOpen && (skipConfirm || confirmedRun),
+    showInputStep: showInputDialog && confirmDialogOpen && (skipConfirm || confirmedRun),
     doNotShowAgain,
     setDoNotShowAgain,
     closeAll: () => {
@@ -122,8 +121,7 @@ function useRunConfirmState({
     },
     handleConfirmRun: () => {
       if (doNotShowAgain) setRunConfirmDismissed()
-      // If there's an input schema, show the input step; otherwise run immediately
-      if (hasInputSchema) {
+      if (showInputDialog) {
         setConfirmedRun(true)
       } else {
         handleRunWorkflow(undefined, triggerNodeId)
@@ -161,13 +159,13 @@ export function BuilderDialogs({
     pendingImport,
     setPendingImport
   )
-  // Only show input step if trigger has a non-empty input schema with properties or type defined
-  const hasInputSchema = Boolean(
-    triggerInputSchema &&
-    (triggerInputSchema.properties || triggerInputSchema.type || Object.keys(triggerInputSchema).length > 0)
-  )
+  const activities = useWorkflowStore(selectActivities)
+  const triggers = useWorkflowStore(selectTriggers)
+  const triggerNodeIds = useMemo(() => (triggers ?? []).map((t) => t.id).filter(Boolean), [triggers])
+  const showInputDialog =
+    hasNonEmptyInputSchema(triggerInputSchema) || activitiesReferenceTrigger(activities ?? [], triggerNodeIds)
   const { showConfirmStep, showInputStep, doNotShowAgain, setDoNotShowAgain, closeAll, handleConfirmRun } =
-    useRunConfirmState({ confirmDialogOpen, hasInputSchema, dispatch, handleRunWorkflow, triggerNodeId })
+    useRunConfirmState({ confirmDialogOpen, showInputDialog, dispatch, handleRunWorkflow, triggerNodeId })
   return (
     <>
       <NxConfirmationDialog
