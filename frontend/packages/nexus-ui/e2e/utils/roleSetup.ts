@@ -99,7 +99,7 @@ async function postJson(
  * that tears everything down in reverse order.
  */
 export async function setupRoleUsers(request: APIRequestContext): Promise<RoleSetupResult> {
-  const backendUrl = process.env.VITE_API_URL ?? 'http://localhost:8000'
+  const backendUrl = process.env.VITE_API_URL ?? process.env.NEXUS_E2E_BASE_URL ?? 'http://localhost:8000'
   const adminPassword = process.env.NEXUS_E2E_PASSWORD
   if (!adminPassword) throw new Error('NEXUS_E2E_PASSWORD required for real-backend role setup')
 
