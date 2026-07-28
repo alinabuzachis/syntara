@@ -65,6 +65,6 @@ class IdentityProviderLifecycleHandler(AuditEventHandler[IdentityProviderLifecyc
             event_message=f"Identity provider {event.action}: {event.provider_name}",
             source_component="nexus.identity_providers",
             structured_data=data,
-            resource_urn=f"urn:nexus:identity_provider:{event.provider_id}",
+            resource_urn=f"urn:syntara:identity_provider:{event.provider_id}",
             resource_name=event.provider_name,
         )

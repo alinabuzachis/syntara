@@ -78,7 +78,7 @@ class TestPolicyServiceCreateAuditEvents:
         assert event.event_status == EventStatus.SUCCESS
         assert event.source_component == "nexus.authz"
         assert event.event_message == "Policy created: test-policy"
-        assert event.resource_urn == f"urn:nexus:policy:{policy_id}"
+        assert event.resource_urn == f"urn:syntara:policy:{policy_id}"
         assert event.structured_data.data_type == "policy-lifecycle"
         assert event.structured_data.action == "created"
         assert event.structured_data.policy_name == "test-policy"
@@ -127,7 +127,7 @@ class TestPolicyServiceCreateAuditEvents:
         assert mock_do_emit.call_count == 1
         event: AuditEvent = mock_do_emit.call_args.args[0]
         assert event.event_action == "policy_created"
-        assert event.resource_urn == f"urn:nexus:policy:{policy_id}"
+        assert event.resource_urn == f"urn:syntara:policy:{policy_id}"
 
 
 class TestPolicyServiceUpdateAuditEvents:
@@ -175,7 +175,7 @@ class TestPolicyServiceUpdateAuditEvents:
         assert event.event_severity == EventSeverity.INFO
         assert event.event_status == EventStatus.SUCCESS
         assert event.source_component == "nexus.authz"
-        assert event.resource_urn == f"urn:nexus:policy:{policy_id}"
+        assert event.resource_urn == f"urn:syntara:policy:{policy_id}"
 
 
 class TestPolicyServiceDeleteAuditEvents:

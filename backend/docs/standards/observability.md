@@ -206,7 +206,7 @@ class MyFeatureHandler(AuditEventHandler[MyFeatureEvent]):
             event_message=f"Feature used: {event.action}",
             source_component="nexus.my_feature",
             structured_data=data,
-            resource_urn=f"urn:nexus:feature:{event.feature_id}",
+            resource_urn=f"urn:syntara:feature:{event.feature_id}",
         )
 ```
 

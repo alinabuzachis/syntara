@@ -66,7 +66,7 @@ class TestLoginAttemptHandler:
         assert result.actor_type == PrincipalType.USER
         assert result.actor_username == "alice"
         assert result.source_component == "nexus.auth.login"
-        assert result.resource_urn == "urn:nexus:user:alice"
+        assert result.resource_urn == "urn:syntara:user:alice"
         assert result.resource_name == "alice"
 
     def test_failed_login_business_error_known_user(self) -> None:
@@ -153,7 +153,7 @@ class TestLoginAttemptHandler:
         assert result.structured_data.method == LoginMethod.OIDC
         assert result.structured_data.error_type is None
         assert result.structured_data.error_message is None
-        assert result.resource_urn == "urn:nexus:user:carol"
+        assert result.resource_urn == "urn:syntara:user:carol"
         assert result.resource_name == "carol"
 
     def test_sa_login_failure_without_user_id_uses_service_account_type(self) -> None:

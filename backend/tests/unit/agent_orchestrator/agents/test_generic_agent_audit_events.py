@@ -113,7 +113,7 @@ class TestGenericAgentExecutionEvents:
         assert execution_events[0].structured_data.invocation_id == str(invocation_id)  # type: ignore[attr-defined]
         assert execution_events[0].execution_id == execution_id
         assert execution_events[0].structured_data.request_id == str(request_id)  # type: ignore[attr-defined]
-        assert execution_events[0].resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        assert execution_events[0].resource_urn == f"urn:syntara:invocation:{invocation_id}"
         assert execution_events[0].resource_name == "generic_agent"
 
         # Event 2: COMPLETED
@@ -122,7 +122,7 @@ class TestGenericAgentExecutionEvents:
         assert execution_events[1].execution_id == execution_id
         assert execution_events[1].structured_data.request_id == str(request_id)  # type: ignore[attr-defined]
         assert execution_events[1].structured_data.agent_type == "generic_agent"  # type: ignore[attr-defined]
-        assert execution_events[1].resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        assert execution_events[1].resource_urn == f"urn:syntara:invocation:{invocation_id}"
         assert execution_events[1].resource_name == "generic_agent"
 
     @pytest.mark.asyncio
@@ -201,7 +201,7 @@ class TestGenericAgentLLMInteractionEvents:
         # Verify session_id and resource_urn
         assert llm_events[0].structured_data.session_id == "[REDACTED]"  # type: ignore[attr-defined]
         assert llm_events[0].structured_data.invocation_id == str(invocation_id)  # type: ignore[attr-defined]
-        assert llm_events[0].resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        assert llm_events[0].resource_urn == f"urn:syntara:invocation:{invocation_id}"
         # Without metadata, activity_name should be None
         assert llm_events[0].resource_name is None
 
@@ -235,7 +235,7 @@ class TestGenericAgentLLMInteractionEvents:
         assert llm_events[0].structured_data.error_message is None
         # Verify session_id and resource_urn
         assert llm_events[0].structured_data.session_id == "[REDACTED]"  # type: ignore[attr-defined]
-        assert llm_events[0].resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        assert llm_events[0].resource_urn == f"urn:syntara:invocation:{invocation_id}"
 
     @pytest.mark.asyncio
     async def test_execute_structured_emits_success_event(self) -> None:
@@ -268,7 +268,7 @@ class TestGenericAgentLLMInteractionEvents:
         assert llm_events[0].structured_data.response_schema_provided is True  # type: ignore[attr-defined]
         # Verify session_id and resource_urn
         assert llm_events[0].structured_data.session_id == "[REDACTED]"  # type: ignore[attr-defined]
-        assert llm_events[0].resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        assert llm_events[0].resource_urn == f"urn:syntara:invocation:{invocation_id}"
 
     @pytest.mark.asyncio
     async def test_execute_structured_emits_error_event_on_failure(self) -> None:
@@ -399,7 +399,7 @@ class TestGenericAgentLLMInteractionEvents:
 
         assert len(llm_events) == 1
         assert llm_events[0].structured_data.status == LLMInteractionStatus.SUCCESS  # type: ignore[attr-defined]
-        assert llm_events[0].resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        assert llm_events[0].resource_urn == f"urn:syntara:invocation:{invocation_id}"
         # Verify activity context from metadata (stored in AuditEvent, not structured_data)
         assert llm_events[0].activity_id == "activity-123"
         assert llm_events[0].resource_name == "agentic_v2"

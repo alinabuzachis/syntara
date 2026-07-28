@@ -72,7 +72,7 @@ class TestInvocationServiceCreateAuditEvents:
         assert event.event_status == EventStatus.SUCCESS
         assert event.source_component == "nexus.invocations.create"
         assert event.event_message == "Invocation created for session session-123"
-        assert event.resource_urn == f"urn:nexus:invocation:{invocation.id}"
+        assert event.resource_urn == f"urn:syntara:invocation:{invocation.id}"
 
         # Verify structured data
         assert event.structured_data.invocation_id == str(invocation.id)  # type: ignore[attr-defined]
@@ -275,7 +275,7 @@ class TestInvocationServiceCancelAuditEvents:
         assert event.event_status == EventStatus.SUCCESS
         assert event.source_component == "nexus.invocations.cancel"
         assert event.event_message == "Invocation cancelled: User requested"
-        assert event.resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        assert event.resource_urn == f"urn:syntara:invocation:{invocation_id}"
 
         # Verify structured data
         assert event.structured_data.invocation_id == str(invocation_id)  # type: ignore[attr-defined]

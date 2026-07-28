@@ -276,7 +276,7 @@ class TestToolDiscoveryEventDispatch:
             assert event.structured_data.invocation_id == str(invocation_id)  # type: ignore[attr-defined]
             assert event.structured_data.request_id == str(request_id)  # type: ignore[attr-defined]
             assert event.execution_id == execution_id
-            assert event.resource_urn == f"urn:nexus:invocation:{invocation_id}"
+            assert event.resource_urn == f"urn:syntara:invocation:{invocation_id}"
 
     @pytest.mark.asyncio
     async def test_completed_event_with_zero_tools(self, mock_tool_sync_internals: Callable[..., Any]) -> None:

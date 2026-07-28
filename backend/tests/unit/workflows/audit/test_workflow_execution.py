@@ -148,7 +148,7 @@ class TestWorkflowExecutionErrorHandler:
         handler = WorkflowExecutionErrorHandler()
         audit_event = handler.handle(event)
 
-        assert audit_event.resource_urn == f"urn:nexus:workflow:{WORKFLOW_ID}"
+        assert audit_event.resource_urn == f"urn:syntara:workflow:{WORKFLOW_ID}"
         assert audit_event.resource_name == "Deploy to Production"
 
     def test_resource_fields_with_workflow_id_without_name(self) -> None:
@@ -166,7 +166,7 @@ class TestWorkflowExecutionErrorHandler:
         handler = WorkflowExecutionErrorHandler()
         audit_event = handler.handle(event)
 
-        assert audit_event.resource_urn == f"urn:nexus:workflow:{WORKFLOW_ID}"
+        assert audit_event.resource_urn == f"urn:syntara:workflow:{WORKFLOW_ID}"
         assert audit_event.resource_name is None
 
     def ***REMOVED***(self) -> None:

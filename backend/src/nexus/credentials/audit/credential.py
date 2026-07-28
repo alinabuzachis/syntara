@@ -91,7 +91,7 @@ class CredentialLifecycleHandler(AuditEventHandler[CredentialLifecycleEvent]):
             event_message=f"Credential {event.action}: {event.credential_name}",
             source_component="nexus.credentials",
             structured_data=data,
-            resource_urn=f"urn:nexus:credential:{event.credential_id}",
+            resource_urn=f"urn:syntara:credential:{event.credential_id}",
             resource_name=event.credential_name,
         )
 
@@ -116,6 +116,6 @@ class CredentialEncryptionFailureHandler(AuditEventHandler[CredentialEncryptionF
             event_message=f"Credential {event.operation} failed: {event.credential_name}",
             source_component="nexus.credentials",
             structured_data=data,
-            resource_urn=f"urn:nexus:credential:{event.credential_id}",
+            resource_urn=f"urn:syntara:credential:{event.credential_id}",
             resource_name=event.credential_name,
         )

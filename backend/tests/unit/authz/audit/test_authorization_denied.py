@@ -41,7 +41,7 @@ class TestAuthorizationDeniedHandler:
         assert result.source_component == "nexus.authz"
         assert "execute" in result.event_message
         assert "workflow" in result.event_message
-        assert result.resource_urn == "urn:nexus:workflow:123"
+        assert result.resource_urn == "urn:syntara:workflow:123"
         assert result.resource_name == "my-workflow"
 
     def test_structured_data(self) -> None:
@@ -79,5 +79,5 @@ class TestAuthorizationDeniedHandler:
 
         assert result.structured_data is not None
         assert result.structured_data.denied_by is None  # type: ignore[attr-defined]
-        assert result.resource_urn == "urn:nexus:project:123"
+        assert result.resource_urn == "urn:syntara:project:123"
         assert result.resource_name == "my-project"

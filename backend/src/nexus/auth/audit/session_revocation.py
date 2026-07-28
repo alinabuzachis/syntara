@@ -52,12 +52,12 @@ class SessionRevocationHandler(AuditEventHandler[SessionRevocationEvent]):
         encoded_identifier = quote(event.target_identifier, safe="")
 
         if event.target_type == "user":
-            resource_urn = f"urn:nexus:user:{encoded_identifier}"
+            resource_urn = f"urn:syntara:user:{encoded_identifier}"
         elif event.target_type == "idp":
-            resource_urn = f"urn:nexus:identity_provider:{encoded_identifier}"
+            resource_urn = f"urn:syntara:identity_provider:{encoded_identifier}"
         else:
             # Fallback for unknown target types
-            resource_urn = f"urn:nexus:{event.target_type}:{encoded_identifier}"
+            resource_urn = f"urn:syntara:{event.target_type}:{encoded_identifier}"
 
         return AuditEvent(
             event_category=EventCategory.SECURITY_EVENT,

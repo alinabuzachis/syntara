@@ -32,7 +32,7 @@ class TestFileIntegrityFailedHandler:
         assert audit_event.event_status == EventStatus.ERROR
         assert audit_event.event_action == "file_integrity_failed"
         assert "tampered.pdf" in audit_event.event_message
-        assert audit_event.resource_urn == f"urn:nexus:file:{file_id}"
+        assert audit_event.resource_urn == f"urn:syntara:file:{file_id}"
         assert audit_event.resource_name == "tampered.pdf"
         assert audit_event.source_component == "nexus.files.file_manager"
 

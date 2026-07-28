@@ -105,7 +105,7 @@ class WorkflowVersionCreatedHandler(AuditEventHandler[WorkflowVersionCreatedEven
             source_component="nexus.workflows",
             structured_data=data,
             workflow_id=event.workflow_id,
-            resource_urn=f"urn:nexus:workflow:{event.workflow_id}",
+            resource_urn=f"urn:syntara:workflow:{event.workflow_id}",
             resource_name=event.workflow_name,
         )
 
@@ -136,7 +136,7 @@ class WorkflowVersionPublishedHandler(AuditEventHandler[WorkflowVersionPublished
             source_component="nexus.workflows",
             structured_data=data,
             workflow_id=event.workflow_id,
-            resource_urn=f"urn:nexus:workflow:{event.workflow_id}",
+            resource_urn=f"urn:syntara:workflow:{event.workflow_id}",
             resource_name=event.workflow_name,
         )
 
@@ -167,7 +167,7 @@ class WorkflowVersionUnpublishedHandler(AuditEventHandler[WorkflowVersionUnpubli
             source_component="nexus.workflows",
             structured_data=data,
             workflow_id=event.workflow_id,
-            resource_urn=f"urn:nexus:workflow:{event.workflow_id}",
+            resource_urn=f"urn:syntara:workflow:{event.workflow_id}",
             resource_name=event.workflow_name,
         )
 
@@ -201,7 +201,7 @@ class WorkflowVersionRestoredHandler(AuditEventHandler[WorkflowVersionRestoredEv
             source_component="nexus.workflows",
             structured_data=data,
             workflow_id=event.workflow_id,
-            resource_urn=f"urn:nexus:workflow:{event.workflow_id}",
+            resource_urn=f"urn:syntara:workflow:{event.workflow_id}",
             resource_name=event.workflow_name,
         )
 
@@ -223,6 +223,6 @@ class WorkflowVersionExportedHandler(AuditEventHandler[WorkflowVersionExportedEv
                 version=event.version,
             ),
             workflow_id=event.workflow_id,
-            resource_urn=f"urn:nexus:workflow:{event.workflow_id}",
+            resource_urn=f"urn:syntara:workflow:{event.workflow_id}",
             resource_name=event.workflow_name,
         )

@@ -41,7 +41,7 @@ class TestUserPasswordChangedHandler:
         assert result.actor_username == "admin"
         assert result.source_component == "nexus.auth.account_management"
         assert "alice" in result.event_message
-        assert result.resource_urn == "urn:nexus:user:alice"
+        assert result.resource_urn == "urn:syntara:user:alice"
         assert result.resource_name == "alice"
 
     def test_structured_data(self) -> None:
@@ -91,7 +91,7 @@ class TestUserAccountStatusChangedHandler:
         assert result.source_component == "nexus.auth.account_management"
         assert "alice" in result.event_message
         assert "disabled" in result.event_message
-        assert result.resource_urn == "urn:nexus:user:alice"
+        assert result.resource_urn == "urn:syntara:user:alice"
         assert result.resource_name == "alice"
 
     def test_maps_event_to_audit_event_enabled(self) -> None:
@@ -109,7 +109,7 @@ class TestUserAccountStatusChangedHandler:
 
         assert result.event_action == "account_enabled"
         assert "enabled" in result.event_message
-        assert result.resource_urn == "urn:nexus:user:bob"
+        assert result.resource_urn == "urn:syntara:user:bob"
         assert result.resource_name == "bob"
 
     def test_structured_data(self) -> None:

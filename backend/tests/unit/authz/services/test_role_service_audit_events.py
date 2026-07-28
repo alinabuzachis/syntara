@@ -74,7 +74,7 @@ class TestRoleServiceCreateAuditEvents:
         assert event.event_status == EventStatus.SUCCESS
         assert event.source_component == "nexus.authz"
         assert event.event_message == "Role created: test-editor"
-        assert event.resource_urn == f"urn:nexus:role:{role_id}"
+        assert event.resource_urn == f"urn:syntara:role:{role_id}"
         assert event.structured_data.data_type == "role-lifecycle"
         assert event.structured_data.action == "created"
         assert event.structured_data.role_name == "test-editor"
@@ -119,7 +119,7 @@ class TestRoleServiceCreateAuditEvents:
         assert mock_do_emit.call_count == 1
         event: AuditEvent = mock_do_emit.call_args.args[0]
         assert event.event_action == "role_created"
-        assert event.resource_urn == f"urn:nexus:role:{role_id}"
+        assert event.resource_urn == f"urn:syntara:role:{role_id}"
 
 
 class TestRoleServiceUpdateAuditEvents:
@@ -167,7 +167,7 @@ class TestRoleServiceUpdateAuditEvents:
         assert event.event_severity == EventSeverity.INFO
         assert event.event_status == EventStatus.SUCCESS
         assert event.source_component == "nexus.authz"
-        assert event.resource_urn == f"urn:nexus:role:{role_id}"
+        assert event.resource_urn == f"urn:syntara:role:{role_id}"
 
 
 class TestRoleServiceDeleteAuditEvents:

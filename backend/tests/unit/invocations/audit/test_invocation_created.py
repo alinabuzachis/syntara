@@ -78,7 +78,7 @@ class TestInvocationCreatedHandler:
         assert result.event_action == "invocation_created"
         assert result.source_component == "nexus.invocations.create"
         assert result.event_message == "Invocation created for session session-123"
-        assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        assert result.resource_urn == f"urn:syntara:invocation:{invocation_id}"
         # Without activity context, resource_name should be None
         assert result.resource_name is None
 
@@ -128,7 +128,7 @@ class TestInvocationCreatedHandler:
         assert result.event_status == EventStatus.ERROR
         assert result.event_action == "invocation_created"
         assert result.event_message == "Invocation creation failed due to system error"
-        assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        assert result.resource_urn == f"urn:syntara:invocation:{invocation_id}"
         assert isinstance(result.structured_data, AuditContextData)
         assert result.structured_data.error_type == "SQLAlchemyError"
         assert result.structured_data.error_message == "Look at the Operational Logs for full diagnosis"
@@ -146,7 +146,7 @@ class TestInvocationCreatedHandler:
         result = handler.handle(event)
 
         assert result.event_status == EventStatus.SUCCESS
-        assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        assert result.resource_urn == f"urn:syntara:invocation:{invocation_id}"
         # Verify activity context (stored in AuditEvent, not structured_data)
         assert result.activity_id == "activity-456"
         assert result.resource_name == "agentic_v2"
@@ -162,7 +162,7 @@ class TestInvocationCreatedHandler:
         result = handler.handle(event)
 
         assert result.event_status == EventStatus.SUCCESS
-        assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        assert result.resource_urn == f"urn:syntara:invocation:{invocation_id}"
         # Verify no activity context (stored in AuditEvent, not structured_data)
         assert result.activity_id is None
         assert result.resource_name is None
@@ -177,9 +177,9 @@ class TestInvocationCreatedHandler:
         handler = InvocationCreatedHandler()
         result = handler.handle(event)
 
-        # Verify URN format: urn:nexus:invocation:<uuid>
-        assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"
-        assert result.resource_urn.startswith("urn:nexus:invocation:")
+        # Verify URN format: urn:syntara:invocation:<uuid>
+        assert result.resource_urn == f"urn:syntara:invocation:{invocation_id}"
+        assert result.resource_urn.startswith("urn:syntara:invocation:")
 
     def test_sensitive_metadata_fields_excluded(self) -> None:
         """Sensitive fields are excluded via audit_safe_metadata() at the emit site."""

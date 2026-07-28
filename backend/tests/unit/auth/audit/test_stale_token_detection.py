@@ -44,7 +44,7 @@ class TestStaleTokenDetectionHandler:
         handler = StaleTokenDetectionHandler()
         result = handler.handle(event)
 
-        assert result.resource_urn == f"urn:nexus:user:{user_id}"
+        assert result.resource_urn == f"urn:syntara:user:{user_id}"
         assert result.resource_name == user_id
 
     def test_resource_name_uses_user_name_when_provided(self) -> None:
@@ -59,7 +59,7 @@ class TestStaleTokenDetectionHandler:
         handler = StaleTokenDetectionHandler()
         result = handler.handle(event)
 
-        assert result.resource_urn == f"urn:nexus:user:{user_id}"
+        assert result.resource_urn == f"urn:syntara:user:{user_id}"
         assert result.resource_name == user_name
 
     def test_resource_name_falls_back_to_user_id_when_user_name_none(self) -> None:
@@ -73,7 +73,7 @@ class TestStaleTokenDetectionHandler:
         handler = StaleTokenDetectionHandler()
         result = handler.handle(event)
 
-        assert result.resource_urn == f"urn:nexus:user:{user_id}"
+        assert result.resource_urn == f"urn:syntara:user:{user_id}"
         assert result.resource_name == user_id
 
     def test_resource_fields_with_invalid_uuid(self) -> None:
@@ -88,7 +88,7 @@ class TestStaleTokenDetectionHandler:
         result = handler.handle(event)
 
         # Should still set resource fields even if user_id is not a valid UUID
-        assert result.resource_urn == f"urn:nexus:user:{user_id}"
+        assert result.resource_urn == f"urn:syntara:user:{user_id}"
         assert result.resource_name == user_id
         # actor_id should be None for invalid UUID
         assert result.actor_id is None
@@ -106,7 +106,7 @@ class TestStaleTokenDetectionHandler:
         handler = StaleTokenDetectionHandler()
         result = handler.handle(event)
 
-        assert result.resource_urn == f"urn:nexus:user:{user_id}"
+        assert result.resource_urn == f"urn:syntara:user:{user_id}"
         assert result.resource_name == user_name
         assert result.actor_id is None
 

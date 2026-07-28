@@ -52,7 +52,7 @@ class TestApprovalRequestedHandler:
         handler = ApprovalRequestedHandler()
         result = handler.handle(event)
 
-        assert result.resource_urn == f"urn:nexus:approval:{approval_id}"
+        assert result.resource_urn == f"urn:syntara:approval:{approval_id}"
         assert result.resource_name == "approve_deployment"
 
     def test_structured_data(self) -> None:
@@ -118,7 +118,7 @@ class TestApprovalDecidedHandler:
         handler = ApprovalDecidedHandler()
         result = handler.handle(event)
 
-        assert result.resource_urn == f"urn:nexus:approval:{approval_id}"
+        assert result.resource_urn == f"urn:syntara:approval:{approval_id}"
         assert result.resource_name == "approve_deployment"
 
     def test_structured_data(self) -> None:

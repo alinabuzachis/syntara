@@ -121,6 +121,6 @@ class GroupMembershipHandler(AuditEventHandler[GroupMembershipEvent]):
             event_message=f"Group member {event.action}: {event.username} -> group {event.group_name}",
             source_component="nexus.authz",
             structured_data=data,
-            resource_urn=f"urn:nexus:group-membership:{event.group_id}:{event.user_id}",
+            resource_urn=f"urn:syntara:group-membership:{event.group_id}:{event.user_id}",
             resource_name=event.group_name,
         )

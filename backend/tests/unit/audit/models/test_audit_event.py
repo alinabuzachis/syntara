@@ -18,10 +18,10 @@ class TestAuditEventResourceUrnValidation:
         [
             # Valid URNs - should be accepted as-is
             pytest.param(
-                "urn:nexus:workflow:uuid:123e4567-e89b-12d3-a456-426614174000",
-                "urn:nexus:workflow:uuid:123e4567-e89b-12d3-a456-426614174000",
+                "urn:syntara:workflow:uuid:123e4567-e89b-12d3-a456-426614174000",
+                "urn:syntara:workflow:uuid:123e4567-e89b-12d3-a456-426614174000",
                 None,
-                id="valid_urn_nexus_workflow",
+                id="valid_urn_syntara_workflow",
             ),
             pytest.param("urn:isbn:0451450523", "urn:isbn:0451450523", None, id="valid_urn_isbn"),
             pytest.param("urn:ietf:rfc:2648", "urn:ietf:rfc:2648", None, id="valid_urn_ietf"),
@@ -31,7 +31,12 @@ class TestAuditEventResourceUrnValidation:
                 None,
                 id="valid_urn_uuid",
             ),
-            pytest.param("urn:nexus:resource:12345", "urn:nexus:resource:12345", None, id="valid_urn_nexus_resource"),
+            pytest.param(
+                "urn:syntara:resource:12345",
+                "urn:syntara:resource:12345",
+                None,
+                id="valid_urn_syntara_resource",
+            ),
             pytest.param(
                 "urn:example:animal:ferret:nose",
                 "urn:example:animal:ferret:nose",
@@ -46,14 +51,14 @@ class TestAuditEventResourceUrnValidation:
             ),
             # RFC 8141 compliance - newly allowed characters (tilde, ampersand)
             pytest.param(
-                "urn:nexus:resource~1",
-                "urn:nexus:resource~1",
+                "urn:syntara:resource~1",
+                "urn:syntara:resource~1",
                 None,
                 id="valid_urn_with_tilde",
             ),
             pytest.param(
-                "urn:nexus:a&b",
-                "urn:nexus:a&b",
+                "urn:syntara:a&b",
+                "urn:syntara:a&b",
                 None,
                 id="valid_urn_with_ampersand",
             ),
@@ -65,8 +70,8 @@ class TestAuditEventResourceUrnValidation:
             ),
             # Max length validation (1024 chars)
             pytest.param(
-                "urn:nexus:" + "x" * 1013,  # Total = 11 + 1013 = 1024
-                "urn:nexus:" + "x" * 1013,
+                "urn:syntara:" + "x" * 1012,  # Total = 12 + 1012 = 1024
+                "urn:syntara:" + "x" * 1012,
                 None,
                 id="valid_urn_at_max_length_1024",
             ),
@@ -79,7 +84,7 @@ class TestAuditEventResourceUrnValidation:
                 "does not conform to RFC 8141",
                 id="invalid_missing_urn_prefix",
             ),
-            pytest.param("urn:nexus", None, "does not conform to RFC 8141", id="invalid_missing_nss"),
+            pytest.param("urn:syntara", None, "does not conform to RFC 8141", id="invalid_missing_nss"),
             pytest.param("urn:a:resource", None, "does not conform to RFC 8141", id="invalid_nid_too_short"),
             pytest.param(
                 "urn:this-is-a-very-long-namespace-identifier-over-thirty-two-chars:resource",
@@ -92,7 +97,7 @@ class TestAuditEventResourceUrnValidation:
             pytest.param("invalid-urn-format", None, "does not conform to RFC 8141", id="invalid_format"),
             # RFC 8141 compliance - hash is a fragment delimiter and not allowed in NSS
             pytest.param(
-                "urn:nexus:resource#fragment",
+                "urn:syntara:resource#fragment",
                 None,
                 "does not conform to RFC 8141",
                 id="invalid_urn_with_hash_fragment",
@@ -137,7 +142,7 @@ class TestAuditEventResourceUrnValidation:
                 event_category=EventCategory.USER_ACTION,
                 event_action="test",
                 source_component="test",
-                resource_urn="urn:nexus:" + "x" * 1015,  # Total = 1026 chars (exceeds 1024)
+                resource_urn="urn:syntara:" + "x" * 1015,  # Total = 1027 chars (exceeds 1024)
                 event_message="test",
                 structured_data=AuditContextData(data_type="test"),
             )

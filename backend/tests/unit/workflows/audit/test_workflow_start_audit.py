@@ -39,7 +39,7 @@ class TestWorkflowStartHandler:
         assert result.source_component == "nexus.workflows"
         assert result.execution_id == EXECUTION_ID
         assert result.workflow_id == WORKFLOW_ID
-        assert result.resource_urn == f"urn:nexus:workflow:{WORKFLOW_ID}"
+        assert result.resource_urn == f"urn:syntara:workflow:{WORKFLOW_ID}"
         assert result.resource_name == "Deploy to Production"
         assert isinstance(result.structured_data, AuditContextData)
         assert result.structured_data.data_type == "workflow-execution-started"

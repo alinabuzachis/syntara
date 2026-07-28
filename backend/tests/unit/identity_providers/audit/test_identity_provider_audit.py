@@ -66,7 +66,7 @@ class TestIdentityProviderLifecycleHandler:
         assert result.event_action == "identity_provider_created"
         assert result.event_message == "Identity provider created: corp-sso"
         assert result.source_component == "nexus.identity_providers"
-        assert result.resource_urn == f"urn:nexus:identity_provider:{provider_id}"
+        assert result.resource_urn == f"urn:syntara:identity_provider:{provider_id}"
         assert isinstance(result.structured_data, AuditContextData)
         assert result.structured_data.data_type == "identity-provider-lifecycle"
         assert result.structured_data.action == "created"
@@ -149,7 +149,7 @@ class TestIdentityProviderLifecycleHandler:
             action="created",
         )
         result = IdentityProviderLifecycleHandler().handle(event)
-        assert result.resource_urn == f"urn:nexus:identity_provider:{provider_id}"
+        assert result.resource_urn == f"urn:syntara:identity_provider:{provider_id}"
 
     def test_resource_name_from_provider_name(self) -> None:
         """resource_name is set from provider_name field."""
@@ -160,5 +160,5 @@ class TestIdentityProviderLifecycleHandler:
             action="created",
         )
         result = IdentityProviderLifecycleHandler().handle(event)
-        assert result.resource_urn == f"urn:nexus:identity_provider:{provider_id}"
+        assert result.resource_urn == f"urn:syntara:identity_provider:{provider_id}"
         assert result.resource_name == "okta-prod"

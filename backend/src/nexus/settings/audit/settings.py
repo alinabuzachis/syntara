@@ -72,9 +72,9 @@ class SettingChangeHandler(AuditEventHandler[SettingChangeEvent]):
             data.error_type = event.error_type
 
         resource_urn = (
-            f"urn:nexus:setting:{quote(event.category, safe='')}:{quote(event.setting, safe='')}"
+            f"urn:syntara:setting:{quote(event.category, safe='')}:{quote(event.setting, safe='')}"
             if event.category
-            else f"urn:nexus:setting:{quote(event.setting, safe='')}"
+            else f"urn:syntara:setting:{quote(event.setting, safe='')}"
         )
 
         return AuditEvent(

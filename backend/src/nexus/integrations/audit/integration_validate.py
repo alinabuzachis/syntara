@@ -95,6 +95,6 @@ class IntegrationValidateHandler(AuditEventHandler[IntegrationValidateEvent]):
             event_message=message,
             source_component="nexus.integrations.integration",
             structured_data=data,
-            resource_urn=f"urn:nexus:integration:{event.integration_id}" if event.integration_id else None,
+            resource_urn=f"urn:syntara:integration:{event.integration_id}" if event.integration_id else None,
             resource_name=event.integration_name,
         )

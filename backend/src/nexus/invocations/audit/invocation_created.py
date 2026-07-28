@@ -92,6 +92,6 @@ class InvocationCreatedHandler(AuditEventHandler[InvocationCreatedEvent]):
             source_component="nexus.invocations.create",
             structured_data=data,
             activity_id=event.activity_id,
-            resource_urn=f"urn:nexus:invocation:{event.invocation_id}",
+            resource_urn=f"urn:syntara:invocation:{event.invocation_id}",
             resource_name=event.activity_name,
         )

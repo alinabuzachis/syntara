@@ -76,7 +76,7 @@ class WebSocketConnectionHandler(AuditEventHandler[WebSocketConnectionEvent]):
         if event.replay is not None:
             data.replay = event.replay
 
-        resource_urn = f"urn:nexus:workflow:{event.workflow_id}" if event.workflow_id else None
+        resource_urn = f"urn:syntara:workflow:{event.workflow_id}" if event.workflow_id else None
         display_name = event.workflow_name or f"execution:{event.execution_id}"
 
         return AuditEvent(

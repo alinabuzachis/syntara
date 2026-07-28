@@ -90,7 +90,7 @@ class OIDCFlowHandler(AuditEventHandler[OIDCFlowEvent]):
         elif event.user_id is not None:
             resource_identifier = str(event.user_id)
 
-        resource_urn = f"urn:nexus:user:{quote(resource_identifier, safe='')}" if resource_identifier else None
+        resource_urn = f"urn:syntara:user:{quote(resource_identifier, safe='')}" if resource_identifier else None
 
         return AuditEvent(
             event_category=category,

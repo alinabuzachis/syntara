@@ -75,6 +75,6 @@ class IntegrationDeleteHandler(AuditEventHandler[IntegrationDeleteEvent]):
             event_message=message,
             source_component="nexus.integrations.integration",
             structured_data=data,
-            resource_urn=f"urn:nexus:integration:{event.integration_id}",
+            resource_urn=f"urn:syntara:integration:{event.integration_id}",
             resource_name=event.integration_name,
         )

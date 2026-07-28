@@ -111,7 +111,7 @@ class TestAsyncToolInvocationEventDispatch:
         assert completed_event.event_message == "Tool invocation completed: read_file"
         assert completed_event.structured_data.status == "completed"  # type: ignore[attr-defined]
         assert completed_event.structured_data.tool_output == "File content here"  # type: ignore[attr-defined]
-        assert completed_event.resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        assert completed_event.resource_urn == f"urn:syntara:invocation:{invocation_id}"
         assert completed_event.execution_id == execution_id
         assert completed_event.structured_data.request_id == str(request_id)  # type: ignore[attr-defined]
 
@@ -199,7 +199,7 @@ class TestAsyncToolInvocationEventDispatch:
             assert event.structured_data.session_id == "[REDACTED]"  # type: ignore[attr-defined]
             assert event.structured_data.invocation_id == str(invocation_id)  # type: ignore[attr-defined]
             assert event.execution_id is None
-            assert event.resource_urn == f"urn:nexus:invocation:{invocation_id}"
+            assert event.resource_urn == f"urn:syntara:invocation:{invocation_id}"
 
 
 class TestSyncToolInvocationEventDispatch:
@@ -381,4 +381,4 @@ class TestSyncToolInvocationEventDispatch:
         for event in invocation_events:
             assert event.structured_data.session_id == "[REDACTED]"  # type: ignore[attr-defined]
             assert event.structured_data.invocation_id == str(invocation_id)  # type: ignore[attr-defined]
-            assert event.resource_urn == f"urn:nexus:invocation:{invocation_id}"
+            assert event.resource_urn == f"urn:syntara:invocation:{invocation_id}"

@@ -68,6 +68,6 @@ class DisabledUserRejectionHandler(AuditEventHandler[DisabledUserRejectionEvent]
             structured_data=data,
             actor_id=actor_id,
             actor_type=PrincipalType.USER,
-            resource_urn=f"urn:nexus:user:{quote(event.user_id, safe='')}",
+            resource_urn=f"urn:syntara:user:{quote(event.user_id, safe='')}",
             resource_name=event.user_name or event.user_id,
         )

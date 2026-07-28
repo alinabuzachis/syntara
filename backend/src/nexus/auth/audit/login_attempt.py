@@ -123,6 +123,6 @@ class LoginAttemptHandler(AuditEventHandler[LoginAttemptEvent]):
             actor_id=event.user_id,
             actor_type=actor_type,
             actor_username=event.username,
-            resource_urn=f"urn:nexus:user:{quote(event.username, safe='')}" if event.username else None,
+            resource_urn=f"urn:syntara:user:{quote(event.username, safe='')}" if event.username else None,
             resource_name=event.username,
         )

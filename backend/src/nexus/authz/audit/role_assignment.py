@@ -93,6 +93,6 @@ class RoleAssignmentHandler(AuditEventHandler[RoleAssignmentEvent]):
             event_message=f"Role {event.action}: {event.role_name} -> {target_label}",
             source_component="nexus.authz",
             structured_data=data,
-            resource_urn=f"urn:nexus:role-assignment:{event.assignment_id}",
+            resource_urn=f"urn:syntara:role-assignment:{event.assignment_id}",
             resource_name=event.role_name,
         )

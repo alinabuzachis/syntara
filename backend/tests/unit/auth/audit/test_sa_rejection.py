@@ -49,7 +49,7 @@ class TestDisabledSARejectionHandler:
         event = DisabledSARejectionEvent(service_account_id=sa_id, sa_status="disabled", is_alive=True)
         result = DisabledSARejectionHandler().handle(event)
 
-        assert result.resource_urn == f"urn:nexus:service-account:{sa_id}"
+        assert result.resource_urn == f"urn:syntara:service-account:{sa_id}"
         assert result.resource_name == sa_id
 
     def test_structured_data(self) -> None:
@@ -92,7 +92,7 @@ class TestDisabledSACredentialRejectionHandler:
         )
         result = DisabledSACredentialRejectionHandler().handle(event)
 
-        assert result.resource_urn == f"urn:nexus:service-account:{sa_id}"
+        assert result.resource_urn == f"urn:syntara:service-account:{sa_id}"
         assert result.resource_name == sa_id
 
     def test_structured_data(self) -> None:
@@ -133,7 +133,7 @@ class TestMissingSACredentialClaimHandler:
         event = MissingSACredentialClaimEvent(service_account_id=sa_id)
         result = MissingSACredentialClaimHandler().handle(event)
 
-        assert result.resource_urn == f"urn:nexus:service-account:{sa_id}"
+        assert result.resource_urn == f"urn:syntara:service-account:{sa_id}"
         assert result.resource_name == sa_id
 
     def test_structured_data(self) -> None:
@@ -168,7 +168,7 @@ class TestStaleSATokenDetectionHandler:
         event = StaleSATokenDetectionEvent(service_account_id=sa_id, token_version=2, current_version=5)
         result = StaleSATokenDetectionHandler().handle(event)
 
-        assert result.resource_urn == f"urn:nexus:service-account:{sa_id}"
+        assert result.resource_urn == f"urn:syntara:service-account:{sa_id}"
         assert result.resource_name == sa_id
 
     def test_structured_data(self) -> None:

@@ -103,6 +103,6 @@ class ContextIntegrationHandler(AuditEventHandler[ContextIntegrationEvent]):
             actor_type=actor_type,
             execution_id=event.execution_id,
             activity_id=event.activity_id,
-            resource_urn=f"urn:nexus:invocation:{event.invocation_id}",
+            resource_urn=f"urn:syntara:invocation:{event.invocation_id}",
             resource_name=event.activity_name,
         )

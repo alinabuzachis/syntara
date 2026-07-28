@@ -23,7 +23,7 @@ Tracks credential create, update, and delete operations.
 - Category: `USER_ACTION`
 - Action: `credential_created`, `credential_updated`, `credential_deleted`
 - Severity: `WARNING` when deleting a credential used by workflows or toggling `enabled`; `ERROR` on failure; `INFO` otherwise
-- Sets `resource_urn` as `urn:nexus:credential:{credential_id}`
+- Sets `resource_urn` as `urn:syntara:credential:{credential_id}`
 
 ### CredentialEncryptionFailureEvent
 
@@ -40,7 +40,7 @@ Tracks credential decryption failures during get or update operations.
 - Category: `SECURITY_EVENT`
 - Action: `credential_encryption_failure`
 - Severity: `ERROR`
-- Sets `resource_urn` as `urn:nexus:credential:{credential_id}`
+- Sets `resource_urn` as `urn:syntara:credential:{credential_id}`
 
 ## Instrumentation Layers
 

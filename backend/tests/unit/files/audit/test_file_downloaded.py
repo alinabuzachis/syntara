@@ -28,7 +28,7 @@ class TestFileDownloadedHandler:
         assert audit_event.event_status == EventStatus.SUCCESS
         assert audit_event.event_action == "file_downloaded"
         assert "report.pdf" in audit_event.event_message
-        assert audit_event.resource_urn == f"urn:nexus:file:{file_id}"
+        assert audit_event.resource_urn == f"urn:syntara:file:{file_id}"
 
     def test_error_produces_warning(self) -> None:
         """Test that failed download produces WARNING with error_type."""

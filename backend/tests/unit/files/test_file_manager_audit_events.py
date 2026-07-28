@@ -231,7 +231,7 @@ class TestDocumentConversionServiceAuditEvents:
         assert event.event_status == EventStatus.SUCCESS
         assert event.event_message == "File converted."
         assert event.source_component == "nexus.files.document_conversion"
-        assert event.resource_urn == f"urn:nexus:file:{file_id}"
+        assert event.resource_urn == f"urn:syntara:file:{file_id}"
         assert event.resource_name == "document.pdf"
 
         # Verify structured data
@@ -293,7 +293,7 @@ class TestDocumentConversionServiceAuditEvents:
         assert event.event_status == EventStatus.ERROR
         assert event.event_message == "File conversion failed."
         assert event.source_component == "nexus.files.document_conversion"
-        assert event.resource_urn == f"urn:nexus:file:{file_id}"
+        assert event.resource_urn == f"urn:syntara:file:{file_id}"
         assert event.resource_name == "broken.pdf"
 
         assert event.structured_data.conversion_state == ConversionStateAudit.FAILED  # type: ignore[attr-defined]
@@ -333,7 +333,7 @@ class TestDocumentConversionServiceAuditEvents:
         assert event.event_status == EventStatus.SUCCESS
         assert event.event_message == "File conversion skipped."
         assert event.source_component == "nexus.files.document_conversion"
-        assert event.resource_urn == f"urn:nexus:file:{file_id}"
+        assert event.resource_urn == f"urn:syntara:file:{file_id}"
         assert event.resource_name == "already_converted.txt"
 
         assert event.structured_data.conversion_state == ConversionStateAudit.SKIPPED  # type: ignore[attr-defined]

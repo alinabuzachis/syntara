@@ -54,7 +54,7 @@ class TestInvocationLifecycleHandler:
         assert result.actor_type == PrincipalType.USER
         assert result.actor_username == test_user.username
         assert result.execution_id == execution_id
-        assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        assert result.resource_urn == f"urn:syntara:invocation:{invocation_id}"
 
         assert isinstance(result.structured_data, AuditContextData)
         assert result.structured_data.data_type == "invocation_lifecycle"

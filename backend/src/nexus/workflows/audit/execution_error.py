@@ -59,7 +59,7 @@ class WorkflowExecutionErrorHandler(AuditEventHandler[WorkflowExecutionErrorEven
             retry_reason=event.retry_reason,
         )
 
-        resource_urn = f"urn:nexus:workflow:{event.workflow_id}" if event.workflow_id else None
+        resource_urn = f"urn:syntara:workflow:{event.workflow_id}" if event.workflow_id else None
 
         return AuditEvent(
             event_category=EventCategory.WORKFLOW_EVENT,

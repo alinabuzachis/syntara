@@ -79,7 +79,7 @@ class TestAAPResourceAccessHandler:
         assert result.event_status == EventStatus.SUCCESS
         assert result.event_action == "aap_organizations_listed"
         assert result.source_component == "nexus.aap"
-        assert result.resource_urn == "urn:nexus:aap:organizations"
+        assert result.resource_urn == "urn:syntara:aap:organizations"
         assert result.actor_id == user_id
         assert result.actor_type == PrincipalType.USER
         assert result.actor_username == "testuser"
@@ -101,7 +101,7 @@ class TestAAPResourceAccessHandler:
         result = AAPResourceAccessHandler().handle(event)
 
         assert result.event_action == "aap_job_templates_retrieved"
-        assert result.resource_urn == "urn:nexus:aap:job_templates:42"
+        assert result.resource_urn == "urn:syntara:aap:job_templates:42"
         assert result.resource_name == "Deploy Playbook"
         assert "42" in result.event_message
         assert isinstance(result.structured_data, AuditContextData)
@@ -207,24 +207,24 @@ class TestAAPResourceAccessHandler:
         assert result.actor_id is None
 
     def test_resource_urn_format_list(self) -> None:
-        """List URN follows urn:nexus:aap:{resource_type} format."""
+        """List URN follows urn:syntara:aap:{resource_type} format."""
         event = AAPResourceAccessEvent(
             resource_type=AAPResourceType.WORKFLOW_JOB_TEMPLATES,
             action=AAPAccessAction.LIST,
             result_count=5,
         )
         result = AAPResourceAccessHandler().handle(event)
-        assert result.resource_urn == "urn:nexus:aap:workflow_job_templates"
+        assert result.resource_urn == "urn:syntara:aap:workflow_job_templates"
 
     def test_resource_urn_format_get(self) -> None:
-        """Get URN follows urn:nexus:aap:{resource_type}:{id} format."""
+        """Get URN follows urn:syntara:aap:{resource_type}:{id} format."""
         event = AAPResourceAccessEvent(
             resource_type=AAPResourceType.WORKFLOW_JOB_TEMPLATES,
             action=AAPAccessAction.GET,
             resource_id=99,
         )
         result = AAPResourceAccessHandler().handle(event)
-        assert result.resource_urn == "urn:nexus:aap:workflow_job_templates:99"
+        assert result.resource_urn == "urn:syntara:aap:workflow_job_templates:99"
 
     def test_structured_data_type_discriminator(self) -> None:
         """data_type is always 'aap-resource-access'."""

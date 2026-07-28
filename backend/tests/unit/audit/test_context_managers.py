@@ -393,7 +393,7 @@ class TestAuditContext:
     async def test_audit_context_with_valid_resource_urn(self, mock_emit: Mock, test_user: User) -> None:
         """Test that audit_context includes valid resource_urn and resource_name in emitted event."""
         # Arrange
-        valid_urn = "urn:nexus:test:resource:12345"
+        valid_urn = "urn:syntara:test:resource:12345"
         resource_name = "test-resource"
 
         # Act

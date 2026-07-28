@@ -356,4 +356,4 @@ class TestOrchestratorAgentContextIntegrationEvents:
         # Verify execution_id is included
         assert context_events[0].execution_id == execution_id
         # Verify resource_urn
-        assert context_events[0].resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        assert context_events[0].resource_urn == f"urn:syntara:invocation:{invocation_id}"

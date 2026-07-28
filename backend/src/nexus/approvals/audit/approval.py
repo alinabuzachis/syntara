@@ -92,7 +92,7 @@ class ApprovalRequestedHandler(AuditEventHandler[ApprovalRequestedEvent]):
             structured_data=data,
             execution_id=event.execution_id,
             activity_id=event.approval_node_id,
-            resource_urn=f"urn:nexus:approval:{event.approval_id}",
+            resource_urn=f"urn:syntara:approval:{event.approval_id}",
             resource_name=event.approval_node_id,
         )
 
@@ -117,7 +117,7 @@ class ApprovalExpiredHandler(AuditEventHandler[ApprovalExpiredEvent]):
             actor_type=PrincipalType.SYSTEM,
             execution_id=event.execution_id,
             activity_id=event.approval_node_id,
-            resource_urn=f"urn:nexus:approval:{event.approval_id}",
+            resource_urn=f"urn:syntara:approval:{event.approval_id}",
             resource_name=event.approval_node_id,
         )
 
@@ -145,6 +145,6 @@ class ApprovalDecidedHandler(AuditEventHandler[ApprovalDecidedEvent]):
             actor_type=resolve_actor_type(actor_id=event.decided_by, principal_type=event.principal_type),
             execution_id=event.execution_id,
             activity_id=event.approval_node_id,
-            resource_urn=f"urn:nexus:approval:{event.approval_id}",
+            resource_urn=f"urn:syntara:approval:{event.approval_id}",
             resource_name=event.approval_node_id,
         )

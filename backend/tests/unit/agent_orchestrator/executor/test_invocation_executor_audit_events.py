@@ -559,4 +559,4 @@ class TestInvocationExecutorLifecycleEvents:
             # Verify request_id is included (stored as string in audit structured_data)
             assert event.structured_data.request_id == str(request_id)  # type: ignore[attr-defined]
             # Verify resource_urn
-            assert event.resource_urn == f"urn:nexus:invocation:{invocation.id}"
+            assert event.resource_urn == f"urn:syntara:invocation:{invocation.id}"

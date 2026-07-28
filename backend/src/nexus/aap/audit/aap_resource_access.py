@@ -88,12 +88,12 @@ class AAPResourceAccessHandler(AuditEventHandler[AAPResourceAccessEvent]):
         if event.action == AAPAccessAction.GET:
             action_name = f"aap_{event.resource_type}_retrieved"
             message = f"AAP {event.resource_type} {event.resource_id} retrieved"
-            resource_urn = f"urn:nexus:aap:{event.resource_type}:{event.resource_id}"
+            resource_urn = f"urn:syntara:aap:{event.resource_type}:{event.resource_id}"
         else:
             action_name = f"aap_{event.resource_type}_listed"
             count = event.result_count if event.result_count is not None else 0
             message = f"AAP {event.resource_type} listed ({count} results)"
-            resource_urn = f"urn:nexus:aap:{event.resource_type}"
+            resource_urn = f"urn:syntara:aap:{event.resource_type}"
 
         if is_error:
             message = f"AAP {event.resource_type} access failed"

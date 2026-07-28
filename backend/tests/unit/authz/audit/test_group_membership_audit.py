@@ -59,7 +59,7 @@ class TestGroupMembershipHandler:
         assert result.event_action == "group_member_added"
         assert result.source_component == "nexus.authz"
         assert result.event_message == "Group member added: alice -> group developers"
-        assert result.resource_urn == f"urn:nexus:group-membership:{group_id}:{user_id}"
+        assert result.resource_urn == f"urn:syntara:group-membership:{group_id}:{user_id}"
         assert result.resource_name == "developers"
 
         assert result.structured_data.data_type == "group-membership"

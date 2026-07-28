@@ -45,7 +45,7 @@ class DisabledSARejectionHandler(AuditEventHandler[DisabledSARejectionEvent]):
             source_component=_SOURCE_COMPONENT,
             structured_data=data,
             actor_type=PrincipalType.SERVICE_ACCOUNT,
-            resource_urn=f"urn:nexus:service-account:{quote(event.service_account_id, safe='')}",
+            resource_urn=f"urn:syntara:service-account:{quote(event.service_account_id, safe='')}",
             resource_name=event.service_account_id,
         )
 
@@ -81,7 +81,7 @@ class DisabledSACredentialRejectionHandler(AuditEventHandler[DisabledSACredentia
             source_component=_SOURCE_COMPONENT,
             structured_data=data,
             actor_type=PrincipalType.SERVICE_ACCOUNT,
-            resource_urn=f"urn:nexus:service-account:{quote(event.service_account_id, safe='')}",
+            resource_urn=f"urn:syntara:service-account:{quote(event.service_account_id, safe='')}",
             resource_name=event.service_account_id,
         )
 
@@ -109,7 +109,7 @@ class MissingSACredentialClaimHandler(AuditEventHandler[MissingSACredentialClaim
             source_component=_SOURCE_COMPONENT,
             structured_data=data,
             actor_type=PrincipalType.SERVICE_ACCOUNT,
-            resource_urn=f"urn:nexus:service-account:{quote(event.service_account_id, safe='')}",
+            resource_urn=f"urn:syntara:service-account:{quote(event.service_account_id, safe='')}",
             resource_name=event.service_account_id,
         )
 
@@ -143,6 +143,6 @@ class StaleSATokenDetectionHandler(AuditEventHandler[StaleSATokenDetectionEvent]
             source_component=_SOURCE_COMPONENT,
             structured_data=data,
             actor_type=PrincipalType.SERVICE_ACCOUNT,
-            resource_urn=f"urn:nexus:service-account:{quote(event.service_account_id, safe='')}",
+            resource_urn=f"urn:syntara:service-account:{quote(event.service_account_id, safe='')}",
             resource_name=event.service_account_id,
         )

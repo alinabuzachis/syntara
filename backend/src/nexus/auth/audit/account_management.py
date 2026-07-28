@@ -67,7 +67,7 @@ class AccountEnableHandler(AuditEventHandler[AccountEnableEvent]):
             structured_data=data,
             actor_type=PrincipalType.USER,
             actor_username=event.actor_username,
-            resource_urn=f"urn:nexus:user:{quote(event.target_username, safe='')}",
+            resource_urn=f"urn:syntara:user:{quote(event.target_username, safe='')}",
             resource_name=event.target_username,
         )
 
@@ -96,6 +96,6 @@ class PasswordResetHandler(AuditEventHandler[PasswordResetEvent]):
             structured_data=data,
             actor_type=PrincipalType.USER,
             actor_username=event.actor_username,
-            resource_urn=f"urn:nexus:user:{quote(event.target_username, safe='')}",
+            resource_urn=f"urn:syntara:user:{quote(event.target_username, safe='')}",
             resource_name=event.target_username,
         )

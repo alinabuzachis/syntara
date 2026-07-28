@@ -59,6 +59,6 @@ class WorkflowStartHandler(AuditEventHandler[WorkflowStartEvent]):
             structured_data=data,
             workflow_id=event.workflow_id,
             execution_id=event.execution_id,
-            resource_urn=f"urn:nexus:workflow:{event.workflow_id}",
+            resource_urn=f"urn:syntara:workflow:{event.workflow_id}",
             resource_name=event.workflow_name,
         )

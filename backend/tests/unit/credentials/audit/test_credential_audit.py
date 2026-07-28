@@ -62,7 +62,7 @@ class TestCredentialLifecycleHandler:
         assert result.event_status == EventStatus.SUCCESS
         assert result.event_action == "credential_created"
         assert result.source_component == "nexus.credentials"
-        assert result.resource_urn == f"urn:nexus:credential:{cred_id}"
+        assert result.resource_urn == f"urn:syntara:credential:{cred_id}"
         assert isinstance(result.structured_data, AuditContextData)
         assert result.structured_data.data_type == "credential-lifecycle"
         assert result.structured_data.action == "created"
@@ -157,7 +157,7 @@ class TestCredentialLifecycleHandler:
             action="created",
         )
         result = CredentialLifecycleHandler().handle(event)
-        assert result.resource_urn == f"urn:nexus:credential:{cred_id}"
+        assert result.resource_urn == f"urn:syntara:credential:{cred_id}"
 
     def test_resource_name_from_credential_name(self) -> None:
         """resource_name is set from credential_name field."""
@@ -169,7 +169,7 @@ class TestCredentialLifecycleHandler:
             action="created",
         )
         result = CredentialLifecycleHandler().handle(event)
-        assert result.resource_urn == f"urn:nexus:credential:{cred_id}"
+        assert result.resource_urn == f"urn:syntara:credential:{cred_id}"
         assert result.resource_name == "aws-prod-creds"
 
     def test_error_type_escalates_severity(self) -> None:
@@ -228,7 +228,7 @@ class TestCredentialEncryptionFailureHandler:
         assert result.event_status == EventStatus.ERROR
         assert result.event_action == "credential_encryption_failure"
         assert result.source_component == "nexus.credentials"
-        assert result.resource_urn == f"urn:nexus:credential:{cred_id}"
+        assert result.resource_urn == f"urn:syntara:credential:{cred_id}"
         assert isinstance(result.structured_data, AuditContextData)
         assert result.structured_data.data_type == "credential-encryption-failure"
         assert result.structured_data.operation == "decrypt"
@@ -245,5 +245,5 @@ class TestCredentialEncryptionFailureHandler:
             error_type="CryptographyError",
         )
         result = CredentialEncryptionFailureHandler().handle(event)
-        assert result.resource_urn == f"urn:nexus:credential:{cred_id}"
+        assert result.resource_urn == f"urn:syntara:credential:{cred_id}"
         assert result.resource_name == "db-backup-creds"

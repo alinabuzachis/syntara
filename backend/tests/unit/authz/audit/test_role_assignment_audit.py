@@ -154,7 +154,7 @@ class TestRoleAssignmentHandler:
             action="assigned",
         )
         result = RoleAssignmentHandler().handle(event)
-        assert result.resource_urn == f"urn:nexus:role-assignment:{assignment_id}"
+        assert result.resource_urn == f"urn:syntara:role-assignment:{assignment_id}"
 
     def test_resource_name_from_role_name(self) -> None:
         """resource_name is set from role_name field."""
@@ -168,7 +168,7 @@ class TestRoleAssignmentHandler:
             action="assigned",
         )
         result = RoleAssignmentHandler().handle(event)
-        assert result.resource_urn == f"urn:nexus:role-assignment:{assignment_id}"
+        assert result.resource_urn == f"urn:syntara:role-assignment:{assignment_id}"
         assert result.resource_name == "Editor"
 
     def test_orphaned_principal_uses_fallback_label(self) -> None:

@@ -147,7 +147,7 @@ class TestWorkflowCompletedHandler:
         handler = WorkflowCompletedHandler()
         audit_event = handler.handle(event)
 
-        assert audit_event.resource_urn == f"urn:nexus:workflow:{WORKFLOW_ID}"
+        assert audit_event.resource_urn == f"urn:syntara:workflow:{WORKFLOW_ID}"
         assert audit_event.resource_name == "Deploy to Production"
 
     def test_resource_fields_without_workflow_name(self) -> None:
@@ -165,7 +165,7 @@ class TestWorkflowCompletedHandler:
         handler = WorkflowCompletedHandler()
         audit_event = handler.handle(event)
 
-        assert audit_event.resource_urn == f"urn:nexus:workflow:{WORKFLOW_ID}"
+        assert audit_event.resource_urn == f"urn:syntara:workflow:{WORKFLOW_ID}"
         assert audit_event.resource_name is None
 
     def test_trigger_type_and_interface_in_structured_data(self) -> None:

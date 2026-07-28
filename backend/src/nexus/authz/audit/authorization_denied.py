@@ -53,6 +53,6 @@ class AuthorizationDeniedHandler(AuditEventHandler[AuthorizationDeniedEvent]):
             actor_id=event.user_id,
             actor_type=resolve_actor_type(actor_id=event.user_id, principal_type=event.principal_type),
             actor_username=event.username,
-            resource_urn=f"urn:nexus:{quote(event.resource_type, safe='')}:{quote(event.resource_id, safe='')}",
+            resource_urn=f"urn:syntara:{quote(event.resource_type, safe='')}:{quote(event.resource_id, safe='')}",
             resource_name=event.resource_name,
         )

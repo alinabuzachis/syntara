@@ -23,7 +23,7 @@ Tracks role assignment and revocation — the core "who gets what permissions" o
 - Category: `SECURITY_EVENT`
 - Action: `role_assigned`, `role_revoked`
 - Severity: `ERROR` on failure; `INFO` otherwise
-- Sets `resource_urn` as `urn:nexus:role-assignment:{assignment_id}`
+- Sets `resource_urn` as `urn:syntara:role-assignment:{assignment_id}`
 
 ### RoleLifecycleEvent
 
@@ -42,7 +42,7 @@ Tracks role create, update, and delete operations. On delete, captures how many 
 - Category: `SECURITY_EVENT`
 - Action: `role_created`, `role_updated`, `role_deleted`
 - Severity: `WARNING` when deleting a role that has assignments; `ERROR` on failure; `INFO` otherwise
-- Sets `resource_urn` as `urn:nexus:role:{role_id}`
+- Sets `resource_urn` as `urn:syntara:role:{role_id}`
 
 ### GroupMembershipEvent
 
@@ -61,7 +61,7 @@ Tracks adding and removing users from groups — membership grants inherited rol
 - Category: `SECURITY_EVENT`
 - Action: `group_member_added`, `group_member_removed`
 - Severity: `ERROR` on failure; `INFO` otherwise
-- Sets `resource_urn` as `urn:nexus:group-membership:{group_id}:{user_id}`
+- Sets `resource_urn` as `urn:syntara:group-membership:{group_id}:{user_id}`
 
 **Emitted from:**
 - Admin/API membership changes (`GroupsService`, `UsersService.create_user`)
@@ -90,7 +90,7 @@ Tracks policy create, update, and delete operations. On delete, captures how man
 - Category: `SECURITY_EVENT`
 - Action: `policy_created`, `policy_updated`, `policy_deleted`
 - Severity: `WARNING` when deleting a policy referenced by roles; `ERROR` on failure; `INFO` otherwise
-- Sets `resource_urn` as `urn:nexus:policy:{policy_id}`
+- Sets `resource_urn` as `urn:syntara:policy:{policy_id}`
 
 ## Instrumentation Layers
 

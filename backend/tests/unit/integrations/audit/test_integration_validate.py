@@ -79,7 +79,7 @@ class TestIntegrationValidateHandler:
 
         audit_event = handler.handle(event)
 
-        assert audit_event.resource_urn == f"urn:nexus:integration:{integration_id}"
+        assert audit_event.resource_urn == f"urn:syntara:integration:{integration_id}"
         assert audit_event.resource_name == "Test Integration"
 
     def test_resource_fields_without_integration_id(self) -> None:

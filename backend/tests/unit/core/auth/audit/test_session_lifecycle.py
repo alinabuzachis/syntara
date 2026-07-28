@@ -110,7 +110,7 @@ class TestSessionLifecycleHandler:
         handler = SessionLifecycleHandler()
         result = handler.handle(event)
 
-        assert result.resource_urn == "urn:nexus:user:testuser"
+        assert result.resource_urn == "urn:syntara:user:testuser"
         assert result.resource_name == "testuser"
 
     def test_resource_fields_without_username(self) -> None:
@@ -120,5 +120,5 @@ class TestSessionLifecycleHandler:
         handler = SessionLifecycleHandler()
         result = handler.handle(event)
 
-        assert result.resource_urn == f"urn:nexus:user:{uid}"
+        assert result.resource_urn == f"urn:syntara:user:{uid}"
         assert result.resource_name == str(uid)

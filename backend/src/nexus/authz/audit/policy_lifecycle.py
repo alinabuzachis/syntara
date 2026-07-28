@@ -76,6 +76,6 @@ class PolicyLifecycleHandler(AuditEventHandler[PolicyLifecycleEvent]):
             event_message=f"Policy {event.action}: {event.policy_name}",
             source_component="nexus.authz",
             structured_data=data,
-            resource_urn=f"urn:nexus:policy:{event.policy_id}",
+            resource_urn=f"urn:syntara:policy:{event.policy_id}",
             resource_name=event.policy_name,
         )

@@ -72,7 +72,7 @@ class TestGroupsServiceAddMemberAuditEvents:
         assert event.event_status == EventStatus.SUCCESS
         assert event.source_component == "nexus.authz"
         assert event.event_message == "Group member added: alice -> group developers"
-        assert event.resource_urn == f"urn:nexus:group-membership:{group_id}:{user_id}"
+        assert event.resource_urn == f"urn:syntara:group-membership:{group_id}:{user_id}"
         assert event.structured_data.data_type == "group-membership"
         assert event.structured_data.action == "added"
         assert event.structured_data.username == "alice"

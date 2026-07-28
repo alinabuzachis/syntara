@@ -29,7 +29,7 @@ class TestAuditContextHandler:
                 actor_id=test_user.id, actor_username=test_user.username, actor_type=PrincipalType.USER
             ),
             event_severity=EventSeverity.INFO,
-            resource_urn="urn:nexus:test:resource:12345",
+            resource_urn="urn:syntara:test:resource:12345",
             resource_name="test-resource",
             error_type=None,
             error_message=None,
@@ -45,7 +45,7 @@ class TestAuditContextHandler:
         assert result.event_action == "test_action"
         assert result.event_message == "Operation test_action completed successfully"
         assert result.source_component == "test.component"
-        assert result.resource_urn == "urn:nexus:test:resource:12345"
+        assert result.resource_urn == "urn:syntara:test:resource:12345"
         assert result.resource_name == "test-resource"
         assert result.actor_id == test_user.id
         assert result.actor_type == PrincipalType.USER
@@ -63,7 +63,7 @@ class TestAuditContextHandler:
             source_component="test.component",
             actor_context=AuditActorContext(),
             event_severity=EventSeverity.ERROR,
-            resource_urn="urn:nexus:api:endpoint:test_endpoint",
+            resource_urn="urn:syntara:api:endpoint:test_endpoint",
             resource_name="test-endpoint",
             error_type="ValueError",
             error_message="Look at the Operational Logs for full diagnosis",
@@ -79,7 +79,7 @@ class TestAuditContextHandler:
         assert result.event_action == "test_action_error"
         assert result.event_message == "Operation test_action failed with ValueError"
         assert result.source_component == "test.component"
-        assert result.resource_urn == "urn:nexus:api:endpoint:test_endpoint"
+        assert result.resource_urn == "urn:syntara:api:endpoint:test_endpoint"
         assert result.resource_name == "test-endpoint"
         assert result.actor_id is None
         assert result.actor_type is None

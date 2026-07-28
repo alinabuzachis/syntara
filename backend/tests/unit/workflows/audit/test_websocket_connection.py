@@ -49,7 +49,7 @@ class TestWebSocketConnectionHandler:
         assert result.source_component == "nexus.workflows.ws"
         assert result.execution_id == EXECUTION_ID
         assert result.workflow_id == WORKFLOW_ID
-        assert result.resource_urn == f"urn:nexus:workflow:{WORKFLOW_ID}"
+        assert result.resource_urn == f"urn:syntara:workflow:{WORKFLOW_ID}"
         assert result.resource_name == WORKFLOW_NAME
         assert result.actor_id == USER_ID
         assert result.actor_type == PrincipalType.USER
@@ -78,7 +78,7 @@ class TestWebSocketConnectionHandler:
         assert result.event_status == EventStatus.SUCCESS
         assert result.event_action == "websocket_disconnected"
         assert result.event_message == f"WebSocket disconnected: {WORKFLOW_NAME}"
-        assert result.resource_urn == f"urn:nexus:workflow:{WORKFLOW_ID}"
+        assert result.resource_urn == f"urn:syntara:workflow:{WORKFLOW_ID}"
         assert result.resource_name == WORKFLOW_NAME
         assert result.structured_data.duration_ms == 15_000
         assert result.structured_data.close_reason == "normal_close"

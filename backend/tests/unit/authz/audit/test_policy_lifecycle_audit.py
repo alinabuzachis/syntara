@@ -113,7 +113,7 @@ class TestPolicyLifecycleHandler:
             action="created",
         )
         result = PolicyLifecycleHandler().handle(event)
-        assert result.resource_urn == f"urn:nexus:policy:{policy_id}"
+        assert result.resource_urn == f"urn:syntara:policy:{policy_id}"
 
     def test_resource_name_from_policy_name(self) -> None:
         """resource_name is set from policy_name field."""
@@ -124,7 +124,7 @@ class TestPolicyLifecycleHandler:
             action="created",
         )
         result = PolicyLifecycleHandler().handle(event)
-        assert result.resource_urn == f"urn:nexus:policy:{policy_id}"
+        assert result.resource_urn == f"urn:syntara:policy:{policy_id}"
         assert result.resource_name == "admin-policy"
 
     def test_error_type_escalates_severity(self) -> None:

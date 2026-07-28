@@ -76,6 +76,6 @@ class RoleLifecycleHandler(AuditEventHandler[RoleLifecycleEvent]):
             event_message=f"Role {event.action}: {event.role_name}",
             source_component="nexus.authz",
             structured_data=data,
-            resource_urn=f"urn:nexus:role:{event.role_id}",
+            resource_urn=f"urn:syntara:role:{event.role_id}",
             resource_name=event.role_name,
         )

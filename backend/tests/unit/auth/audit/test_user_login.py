@@ -29,7 +29,7 @@ class TestUserLoginHandler:
         assert audit.actor_username == "alice"
         assert audit.source_component == "nexus.auth.login"
         assert "local" in audit.event_message
-        assert audit.resource_urn == "urn:nexus:user:alice"
+        assert audit.resource_urn == "urn:syntara:user:alice"
         assert audit.resource_name == "alice"
 
     def test_audit_event_fields_oidc(self) -> None:

@@ -120,7 +120,7 @@ class TestSessionRevocationHandler:
         handler = SessionRevocationHandler()
         audit_event = handler.handle(event)
 
-        assert audit_event.resource_urn == "urn:nexus:user:alice"
+        assert audit_event.resource_urn == "urn:syntara:user:alice"
         assert audit_event.resource_name == "alice"
 
     def test_resource_fields_for_idp_target(self) -> None:
@@ -136,7 +136,7 @@ class TestSessionRevocationHandler:
         audit_event = handler.handle(event)
 
         # URL-encoded to comply with RFC 8141 (spaces become %20)
-        assert audit_event.resource_urn == "urn:nexus:identity_provider:Corporate%20Okta"
+        assert audit_event.resource_urn == "urn:syntara:identity_provider:Corporate%20Okta"
         assert audit_event.resource_name == "Corporate Okta"
 
     def test_resource_fields_for_unknown_target_type(self) -> None:
@@ -151,5 +151,5 @@ class TestSessionRevocationHandler:
         handler = SessionRevocationHandler()
         audit_event = handler.handle(event)
 
-        assert audit_event.resource_urn == "urn:nexus:unknown_type:test_target"
+        assert audit_event.resource_urn == "urn:syntara:unknown_type:test_target"
         assert audit_event.resource_name == "test_target"

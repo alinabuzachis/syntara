@@ -101,6 +101,6 @@ class SessionLifecycleHandler(AuditEventHandler[SessionLifecycleEvent]):
             actor_id=event.user_id,
             actor_type=PrincipalType.USER,
             actor_username=event.username,
-            resource_urn=f"urn:nexus:user:{quote(resource_identifier, safe='')}",
+            resource_urn=f"urn:syntara:user:{quote(resource_identifier, safe='')}",
             resource_name=resource_identifier,
         )

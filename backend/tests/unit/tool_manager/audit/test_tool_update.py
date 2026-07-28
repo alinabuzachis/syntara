@@ -56,7 +56,7 @@ class TestToolUpdateHandler:
 
         audit_event = handler.handle(event)
 
-        assert audit_event.resource_urn == f"urn:nexus:tool:{tool_id}"
+        assert audit_event.resource_urn == f"urn:syntara:tool:{tool_id}"
         assert audit_event.resource_name == "list_repos"
 
     def test_structured_data_fields(self) -> None:

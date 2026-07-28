@@ -86,7 +86,7 @@ class TestInvocationCancelledHandler:
         assert result.event_action == "invocation_cancelled"
         assert result.source_component == "nexus.invocations.cancel"
         assert result.event_message == "Invocation cancelled: User requested cancellation"
-        assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        assert result.resource_urn == f"urn:syntara:invocation:{invocation_id}"
         # Without activity context, resource_name should be None
         assert result.resource_name is None
 
@@ -131,7 +131,7 @@ class TestInvocationCancelledHandler:
         assert result.event_status == EventStatus.ERROR
         assert result.event_action == "invocation_cancelled"
         assert result.event_message == "Invocation cancellation failed (not found)"
-        assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        assert result.resource_urn == f"urn:syntara:invocation:{invocation_id}"
         assert isinstance(result.structured_data, AuditContextData)
         assert result.structured_data.error_message == "Invocation cancellation failed (not found)"
         assert result.structured_data.error_type is None
@@ -153,7 +153,7 @@ class TestInvocationCancelledHandler:
         assert result.event_status == EventStatus.ERROR
         assert result.event_action == "invocation_cancelled"
         assert result.event_message == f"Invocation cancellation failed (status: {InvocationStatus.COMPLETED})"
-        assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        assert result.resource_urn == f"urn:syntara:invocation:{invocation_id}"
         assert isinstance(result.structured_data, AuditContextData)
         assert result.structured_data.current_status == InvocationStatus.COMPLETED  # type: ignore[attr-defined]
         assert (
@@ -180,7 +180,7 @@ class TestInvocationCancelledHandler:
         assert result.event_status == EventStatus.ERROR
         assert result.event_action == "invocation_cancelled"
         assert result.event_message == "Invocation cancellation failed due to system error"
-        assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        assert result.resource_urn == f"urn:syntara:invocation:{invocation_id}"
         assert isinstance(result.structured_data, AuditContextData)
         assert result.structured_data.error_type == "SQLAlchemyError"
         assert result.structured_data.error_message == "Look at the Operational Logs for full diagnosis"
@@ -199,7 +199,7 @@ class TestInvocationCancelledHandler:
         result = handler.handle(event)
 
         assert result.event_status == EventStatus.SUCCESS
-        assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        assert result.resource_urn == f"urn:syntara:invocation:{invocation_id}"
         # Verify activity context (stored in AuditEvent, not structured_data)
         assert result.activity_id == "activity-789"
         assert result.resource_name == "approval_flow"
@@ -217,7 +217,7 @@ class TestInvocationCancelledHandler:
         result = handler.handle(event)
 
         assert result.event_status == EventStatus.ERROR
-        assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"
+        assert result.resource_urn == f"urn:syntara:invocation:{invocation_id}"
         # Verify no activity context (stored in AuditEvent, not structured_data)
         assert result.activity_id is None
         assert result.resource_name is None
@@ -233,6 +233,6 @@ class TestInvocationCancelledHandler:
         handler = InvocationCancelledHandler()
         result = handler.handle(event)
 
-        # Verify URN format: urn:nexus:invocation:<uuid>
-        assert result.resource_urn == f"urn:nexus:invocation:{invocation_id}"
-        assert result.resource_urn.startswith("urn:nexus:invocation:")
+        # Verify URN format: urn:syntara:invocation:<uuid>
+        assert result.resource_urn == f"urn:syntara:invocation:{invocation_id}"
+        assert result.resource_urn.startswith("urn:syntara:invocation:")

@@ -36,7 +36,7 @@ class TestWorkflowVersionCreatedHandler:
         assert audit_event.event_action == "workflow_version_created"
         assert audit_event.source_component == "nexus.workflows"
         assert audit_event.workflow_id == WORKFLOW_ID
-        assert audit_event.resource_urn == f"urn:nexus:workflow:{WORKFLOW_ID}"
+        assert audit_event.resource_urn == f"urn:syntara:workflow:{WORKFLOW_ID}"
         assert audit_event.resource_name == "test-wf"
         assert audit_event.event_message == "Workflow version 3 created"
 
@@ -91,7 +91,7 @@ class TestWorkflowVersionPublishedHandler:
         assert audit_event.event_action == "workflow_version_published"
         assert audit_event.source_component == "nexus.workflows"
         assert audit_event.workflow_id == WORKFLOW_ID
-        assert audit_event.resource_urn == f"urn:nexus:workflow:{WORKFLOW_ID}"
+        assert audit_event.resource_urn == f"urn:syntara:workflow:{WORKFLOW_ID}"
         assert audit_event.resource_name == "test-wf"
         assert audit_event.event_message == "Workflow version 2 published"
 
@@ -135,7 +135,7 @@ class TestWorkflowVersionUnpublishedHandler:
         assert audit_event.event_action == "workflow_version_unpublished"
         assert audit_event.source_component == "nexus.workflows"
         assert audit_event.workflow_id == WORKFLOW_ID
-        assert audit_event.resource_urn == f"urn:nexus:workflow:{WORKFLOW_ID}"
+        assert audit_event.resource_urn == f"urn:syntara:workflow:{WORKFLOW_ID}"
         assert audit_event.resource_name == "test-wf"
         assert audit_event.event_message == "Workflow version 4 unpublished"
 
@@ -181,7 +181,7 @@ class TestWorkflowVersionRestoredHandler:
         assert audit_event.event_action == "workflow_version_restored"
         assert audit_event.source_component == "nexus.workflows"
         assert audit_event.workflow_id == WORKFLOW_ID
-        assert audit_event.resource_urn == f"urn:nexus:workflow:{WORKFLOW_ID}"
+        assert audit_event.resource_urn == f"urn:syntara:workflow:{WORKFLOW_ID}"
         assert audit_event.resource_name == "test-wf"
         assert "version 2" in audit_event.event_message
         assert "version 6" in audit_event.event_message
@@ -237,7 +237,7 @@ class TestWorkflowVersionExportedHandler:
         assert audit_event.event_action == "workflow_version_exported"
         assert audit_event.source_component == "nexus.workflows"
         assert audit_event.workflow_id == WORKFLOW_ID
-        assert audit_event.resource_urn == f"urn:nexus:workflow:{WORKFLOW_ID}"
+        assert audit_event.resource_urn == f"urn:syntara:workflow:{WORKFLOW_ID}"
         assert audit_event.resource_name == "test-wf"
         assert audit_event.event_message == "Workflow version 2 exported"
 

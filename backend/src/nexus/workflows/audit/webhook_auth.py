@@ -49,7 +49,7 @@ class WebhookAuthSuccessHandler(AuditEventHandler[WebhookAuthSuccessEvent]):
             source_component="nexus.workflows.webhook_router",
             structured_data=data,
             workflow_id=event.workflow_id,
-            resource_urn=f"urn:nexus:webhook:{event.webhook_path}",
+            resource_urn=f"urn:syntara:webhook:{event.webhook_path}",
             resource_name=event.webhook_path,
             actor_id=event.service_account_id,
             actor_type=PrincipalType.SERVICE_ACCOUNT,
@@ -82,6 +82,6 @@ class WebhookAuthFailureHandler(AuditEventHandler[WebhookAuthFailureEvent]):
             event_message=(f"Webhook auth failed for '{event.webhook_path}': {event.failure_reason}"),
             source_component="nexus.workflows.webhook_router",
             structured_data=data,
-            resource_urn=f"urn:nexus:webhook:{event.webhook_path}",
+            resource_urn=f"urn:syntara:webhook:{event.webhook_path}",
             resource_name=event.webhook_path,
         )

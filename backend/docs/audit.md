@@ -146,7 +146,7 @@ erDiagram
 
 **Note on `AuditEvent` fields:**
 
-**`resource_urn`**: RFC 8141 compliant URN (format: `urn:<nid>:<nss>`). The field includes a Pydantic validator that checks URN format. Invalid URNs are logged as warnings and set to `None` (fail-safe behavior - audit emission never fails due to invalid URN format). PostgreSQL triggers automatically build URNs for CRUD events using the pattern `urn:nexus:<ModelName>:<uuid>`.
+**`resource_urn`**: RFC 8141 compliant URN (format: `urn:<nid>:<nss>`). The field includes a Pydantic validator that checks URN format. Invalid URNs are logged as warnings and set to `None` (fail-safe behavior - audit emission never fails due to invalid URN format). PostgreSQL triggers automatically build URNs for CRUD events using the pattern `urn:syntara:<ModelName>:<uuid>`.
 
 **`AuditContextData`:**  
 All audit events use the same structured data type (`AuditContextData`) with `model_config = {"extra": "allow"}`. This allows handlers to include domain-specific fields alongside the base fields (`data_type`, `error_type`, `error_message`).
@@ -423,7 +423,7 @@ sequenceDiagram
     PG-->>Trigger: actor_id='...', actor_username='...', actor_type='user'
 
     Trigger->>Trigger: Build changes JSON:<br/>{"name": {"old": "alice", "new": "new_name"}}
-    Trigger->>Trigger: Build AuditEvent JSON with:<br/>- event_id (gen_random_uuid())<br/>- resource_urn (urn:nexus:User:uuid)<br/>- resource_name (if 'name' field exists)<br/>- actor fields from session vars<br/>- workflow/execution/activity IDs
+    Trigger->>Trigger: Build AuditEvent JSON with:<br/>- event_id (gen_random_uuid())<br/>- resource_urn (urn:syntara:User:uuid)<br/>- resource_name (if 'name' field exists)<br/>- actor fields from session vars<br/>- workflow/execution/activity IDs
 
     Trigger->>Outbox: INSERT INTO audit_outbox<br/>(event_source='crud_event', event_payload=...)
 

@@ -43,7 +43,7 @@ class TestFileConvertedHandler:
         assert audit_event.event_status == EventStatus.SUCCESS
         assert audit_event.event_message == "File converted."
         assert audit_event.source_component == "nexus.files.document_conversion"
-        assert audit_event.resource_urn == f"urn:nexus:file:{test_file_id}"
+        assert audit_event.resource_urn == f"urn:syntara:file:{test_file_id}"
         assert audit_event.resource_name == "document.pdf"
 
     def test_failed_event_mapping(self, handler: FileConvertedHandler, test_file_id: UUID) -> None:
@@ -65,7 +65,7 @@ class TestFileConvertedHandler:
         assert audit_event.event_message == "File conversion failed."
         assert audit_event.structured_data.error_type == "ConversionFailureError"
         assert "Operational Logs" in str(audit_event.structured_data.error_message)
-        assert audit_event.resource_urn == f"urn:nexus:file:{test_file_id}"
+        assert audit_event.resource_urn == f"urn:syntara:file:{test_file_id}"
         assert audit_event.resource_name == "broken.pdf"
 
     def test_skipped_event_mapping(self, handler: FileConvertedHandler, test_file_id: UUID) -> None:
@@ -84,7 +84,7 @@ class TestFileConvertedHandler:
         assert audit_event.event_severity == EventSeverity.WARNING
         assert audit_event.event_status == EventStatus.SUCCESS
         assert audit_event.event_message == "File conversion skipped."
-        assert audit_event.resource_urn == f"urn:nexus:file:{test_file_id}"
+        assert audit_event.resource_urn == f"urn:syntara:file:{test_file_id}"
         assert audit_event.resource_name == "already_converted.txt"
 
     def test_resource_urn_format(self, handler: FileConvertedHandler, test_file_id: UUID) -> None:
@@ -99,8 +99,8 @@ class TestFileConvertedHandler:
 
         audit_event = handler.handle(event)
 
-        assert audit_event.resource_urn == f"urn:nexus:file:{test_file_id}"
-        assert audit_event.resource_urn.startswith("urn:nexus:file:")
+        assert audit_event.resource_urn == f"urn:syntara:file:{test_file_id}"
+        assert audit_event.resource_urn.startswith("urn:syntara:file:")
 
     def test_structured_data_includes_conversion_details(
         self, handler: FileConvertedHandler, test_file_id: UUID

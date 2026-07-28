@@ -75,6 +75,6 @@ class WorkflowLifecycleHandler(AuditEventHandler[WorkflowLifecycleEvent]):
             source_component="nexus.workflows",
             structured_data=data,
             workflow_id=event.workflow_id,
-            resource_urn=f"urn:nexus:workflow:{event.workflow_id}",
+            resource_urn=f"urn:syntara:workflow:{event.workflow_id}",
             resource_name=event.workflow_name,
         )

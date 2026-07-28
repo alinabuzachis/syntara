@@ -70,7 +70,7 @@ class WebSocketConnectionHandler(AuditEventHandler[WebSocketConnectionEvent]):
             actor_id=event.user_id,
             actor_type=PrincipalType.USER,
             actor_username=event.username,
-            resource_urn=f"urn:nexus:{resource_type}:{event.resource_id}",
+            resource_urn=f"urn:syntara:{resource_type}:{event.resource_id}",
             resource_name=event.channel,
         )
 
