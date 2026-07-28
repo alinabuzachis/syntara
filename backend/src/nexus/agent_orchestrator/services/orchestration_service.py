@@ -675,6 +675,36 @@ class OrchestrationService:
         elif event_type == "on_tool_end":
             await self._process_tool_end_event(event, invocation_id, stream_id, client)
 
+    async def _publish_stream_event(
+        self,
+        client: StreamClient,
+        stream_id: str,
+        event_type: str,
+        invocation_id: UUID,
+        data: dict[str, Any],
+    ) -> None:
+        """Build a streaming event dict and publish it to Redis.
+
+        Centralises the repeated pattern of constructing an event envelope
+        (event_type + invocation_id + timestamp + data) and publishing it
+        via the ``StreamClient``.
+
+        Args:
+            client: StreamClient for publishing events
+            stream_id: Redis stream ID
+            event_type: Event type string (e.g. "delta", "tool_call", "error")
+            invocation_id: Invocation UUID
+            data: Pre-serialised event payload (already a dict)
+
+        """
+        event = {
+            "event_type": event_type,
+            "invocation_id": str(invocation_id),
+            "timestamp": datetime.now(UTC).isoformat(),
+            "data": data,
+        }
+        await client.publish(stream_id, event)
+
     async def _process_chat_stream_event(
         self, event: dict[str, Any], invocation_id: UUID, stream_id: str, client: StreamClient
     ) -> None:
@@ -696,13 +726,7 @@ class OrchestrationService:
                 if content:
                     # Publish delta event to Redis
                     delta_data = DeltaEventData(delta=content)
-                    delta_event = {
-                        "event_type": "delta",
-                        "invocation_id": str(invocation_id),
-                        "timestamp": datetime.now(UTC).isoformat(),
-                        "data": delta_data.to_dict(),
-                    }
-                    await client.publish(stream_id, delta_event)
+                    await self._publish_stream_event(client, stream_id, "delta", invocation_id, delta_data.to_dict())
                     logger.debug("Published delta event", invocation_id=invocation_id)
 
     async def _process_tool_start_event(
@@ -743,13 +767,7 @@ class OrchestrationService:
 
         # Publish streaming event for real-time WebSocket
         tool_call_data = ToolCallEventData(tool_name=tool_name, tool_input=tool_input)
-        tool_call_event = {
-            "event_type": "tool_call",
-            "invocation_id": str(invocation_id),
-            "timestamp": datetime.now(UTC).isoformat(),
-            "data": tool_call_data.to_dict(),
-        }
-        await client.publish(stream_id, tool_call_event)
+        await self._publish_stream_event(client, stream_id, "tool_call", invocation_id, tool_call_data.to_dict())
 
     async def _process_tool_end_event(
         self, event: dict[str, Any], invocation_id: UUID, stream_id: str, client: StreamClient
@@ -774,13 +792,7 @@ class OrchestrationService:
 
         # Publish streaming event for real-time WebSocket
         tool_result_data = ToolResultEventData(tool_name=tool_name, tool_output=tool_output)
-        tool_result_event = {
-            "event_type": "tool_result",
-            "invocation_id": str(invocation_id),
-            "timestamp": datetime.now(UTC).isoformat(),
-            "data": tool_result_data.to_dict(),
-        }
-        await client.publish(stream_id, tool_result_event)
+        await self._publish_stream_event(client, stream_id, "tool_result", invocation_id, tool_result_data.to_dict())
 
     async def _publish_completion_event(self, invocation_id: UUID, stream_id: str, client: StreamClient) -> None:
         """Publish completion event to Redis.
@@ -792,13 +804,7 @@ class OrchestrationService:
 
         """
         completion_data = CompletionEventData()
-        completion_event = {
-            "event_type": "completion",
-            "invocation_id": str(invocation_id),
-            "timestamp": datetime.now(UTC).isoformat(),
-            "data": completion_data.to_dict(),
-        }
-        await client.publish(stream_id, completion_event)
+        await self._publish_stream_event(client, stream_id, "completion", invocation_id, completion_data.to_dict())
 
     async def _handle_streaming_error(
         self,
@@ -820,13 +826,7 @@ class OrchestrationService:
 
         # Publish error event with RFC 9457 classification
         error_data = classify_streaming_error(exception, invocation_id=invocation_id)
-        error_event = {
-            "event_type": "error",
-            "invocation_id": str(invocation_id),
-            "timestamp": datetime.now(UTC).isoformat(),
-            "data": error_data.to_dict(),
-        }
-        await client.publish(stream_id, error_event)
+        await self._publish_stream_event(client, stream_id, "error", invocation_id, error_data.to_dict())
 
     def _build_streaming_result(
         self, invocation_id: UUID, stream_id: str, final_state: AgentState | None = None
