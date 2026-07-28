@@ -47,6 +47,8 @@ const sampleResourceActions: ResourceActionMap = {
   ]),
 }
 
+const sampleCheckAccessRequest = { body: { action: 'read', resource_type: 'project', resource_project: 'default' } }
+
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
@@ -195,19 +197,22 @@ describe('CheckAccessView', () => {
     })
   })
 
-  it('shows access allowed result', () => {
+  it('shows access allowed result with project name', () => {
     mockMutationState({
       isSuccess: true,
       data: { allowed: true, denied: false, matched_policy: 'admin-policy', denial_reason: '', denied_by: '' },
+      variables: sampleCheckAccessRequest,
     })
 
     render(<CheckAccessView {...sampleResourceActions} />, { wrapper })
 
     expect(screen.getByText('Access allowed')).toBeInTheDocument()
     expect(screen.getByText('admin-policy')).toBeInTheDocument()
+    expect(screen.getByText(/in project/)).toBeInTheDocument()
+    expect(screen.getByText('default')).toBeInTheDocument()
   })
 
-  it('shows access denied result', () => {
+  it('shows access denied result with project name', () => {
     mockMutationState({
       isSuccess: true,
       data: {
@@ -217,6 +222,7 @@ describe('CheckAccessView', () => {
         denial_reason: 'Explicitly denied',
         denied_by: 'deny-policy',
       },
+      variables: sampleCheckAccessRequest,
     })
 
     render(<CheckAccessView {...sampleResourceActions} />, { wrapper })
@@ -224,9 +230,11 @@ describe('CheckAccessView', () => {
     expect(screen.getByText('Access denied')).toBeInTheDocument()
     expect(screen.getByText(/Explicitly denied/)).toBeInTheDocument()
     expect(screen.getAllByText('deny-policy')).toHaveLength(2)
+    expect(screen.getByText(/in project/)).toBeInTheDocument()
+    expect(screen.getByText('default')).toBeInTheDocument()
   })
 
-  it('shows access not granted result (warning)', () => {
+  it('shows "in any project" when no project is specified', () => {
     mockMutationState({
       isSuccess: true,
       data: {
@@ -236,11 +244,13 @@ describe('CheckAccessView', () => {
         denial_reason: '',
         denied_by: '',
       },
+      variables: { body: { action: 'read', resource_type: 'project' } },
     })
 
     render(<CheckAccessView {...sampleResourceActions} />, { wrapper })
 
     expect(screen.getByText('Access not granted')).toBeInTheDocument()
+    expect(screen.getByText(/in any project/)).toBeInTheDocument()
   })
 
   it('shows error state when API call fails', () => {

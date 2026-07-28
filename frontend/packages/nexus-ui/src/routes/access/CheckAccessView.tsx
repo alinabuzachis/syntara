@@ -43,17 +43,29 @@ function AccessResult({
   result,
   action,
   resourceType,
+  projectName,
 }: Readonly<{
   result: CanIResponse
   action: string
   resourceType: string
+  projectName: string
 }>) {
+  const projectSuffix = projectName ? (
+    <>
+      {' '}
+      in project <strong>{projectName}</strong>
+    </>
+  ) : (
+    <> in any project</>
+  )
+
   if (result.allowed) {
     return (
       <Stack hasGutter>
         <StackItem>
           <Alert variant="success" title="Access allowed" isInline customIcon={<CheckCircleIcon />}>
             You can <strong>{action}</strong> on <strong>{resourceType}</strong>
+            {projectSuffix}
           </Alert>
         </StackItem>
         {result.matched_policy && (
@@ -80,6 +92,7 @@ function AccessResult({
           customIcon={result.denied ? <TimesCircleIcon /> : <ExclamationTriangleIcon />}
         >
           You cannot <strong>{action}</strong> on <strong>{resourceType}</strong>
+          {projectSuffix}
         </Alert>
       </StackItem>
       {result.denial_reason && (
@@ -262,7 +275,14 @@ export function CheckAccessView({ resourceTypes, actionsByResource }: Readonly<R
             </StackItem>
           )}
 
-          {canIMutation.data && <AccessResult result={canIMutation.data} action={action} resourceType={resourceType} />}
+          {canIMutation.data && canIMutation.variables && (
+            <AccessResult
+              result={canIMutation.data}
+              action={canIMutation.variables.body.action}
+              resourceType={canIMutation.variables.body.resource_type}
+              projectName={canIMutation.variables.body.resource_project ?? ''}
+            />
+          )}
         </Stack>
       </FlexItem>
     </Flex>
