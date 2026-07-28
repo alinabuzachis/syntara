@@ -112,7 +112,7 @@ Standards for implementing, reviewing, and refactoring frontend code using React
 ### PR Completeness
 
 - [ ] UI changes include screenshots or screen recordings
-- [ ] New API endpoints have mock handlers in `frontend/packages/nexus-mock-api/src/handlers.ts`
+- [ ] New API endpoints have mock handlers in `frontend/packages/syntara-mock-api/src/handlers.ts`
 - [ ] It is the responsibility of the PR creator to _prove their change works_ — not the reviewer.
 
 ---

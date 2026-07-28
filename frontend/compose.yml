@@ -1,7 +1,7 @@
 ---
 services:
-  nexus-mock-api:
-    container_name: nexus-mock-api
+  syntara-mock-api:
+    container_name: syntara-mock-api
     image: ghcr.io/syntara-orchestration/syntara-mock-api:latest
     ports:
       - 3000:3000
@@ -24,7 +24,7 @@ services:
     networks:
       - nexus-net
     depends_on:
-      - nexus-mock-api
+      - syntara-mock-api
 
   nginx-proxy:
     container_name: nginx-proxy

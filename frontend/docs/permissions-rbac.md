@@ -208,7 +208,7 @@ This is the correct pattern for editor-style pages where many controls are affec
 
 ## Mock API Roles
 
-The mock API in `packages/nexus-mock-api/src/handlers.ts` defines four roles via the `POST /authz/can_i` handler. The username is extracted from the Bearer token (`mock-token-{username}`).
+The mock API in `packages/syntara-mock-api/src/handlers.ts` defines four roles via the `POST /authz/can_i` handler. The username is extracted from the Bearer token (`mock-token-{username}`).
 
 | Role                | Behavior                                                                                                                      |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------- |

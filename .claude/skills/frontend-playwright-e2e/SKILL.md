@@ -754,7 +754,7 @@ Use `app` (admin) to create resources, then `viewerApp`/`auditorApp`/`userApp` t
 
 #### Adding tests for new permission-gated features
 
-1. Add role-aware `can_i` responses in `frontend/packages/nexus-mock-api/src/handlers.ts` for all 4 roles
+1. Add role-aware `can_i` responses in `frontend/packages/syntara-mock-api/src/handlers.ts` for all 4 roles
 2. Add test cases in `e2e/permission-gating.spec.ts` using the appropriate role fixture
 3. For route guards, test both the admin positive case and the denied case for each restricted role
 4. For action buttons, verify `aria-disabled="true"` and tooltip content

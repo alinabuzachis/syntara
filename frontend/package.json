@@ -6,7 +6,7 @@
   "scripts": {
     "start": "concurrently npm:start:* -c auto",
     "start:ui": "npm run start --prefix packages/nexus-ui",
-    "start:mock-api": "npm run start --prefix packages/nexus-mock-api",
+    "start:mock-api": "npm run start --prefix packages/syntara-mock-api",
     "build": "npm run build --workspace=packages/nexus-ui",
     "test": "npm run build && concurrently --group npm:test:* npm:format:check -c auto && if [ $? -eq 0 ]; then echo 'All Tests Passed: Success' && exit 0; else echo 'Checks failed: Failure' && exit 1; fi",
     "test:ui": "npm run test --prefix packages/nexus-ui",
@@ -32,10 +32,10 @@
     "mutate": "npm run mutate --prefix packages/nexus-ui",
     "podman:build": "concurrently npm:podman:build:* -c auto",
     "podman:build:ui": "podman build -f packages/nexus-ui/Containerfile -t nexus-ui:latest -t ghcr.io/syntara-orchestration/syntara-ui:latest .",
-    "podman:build:mock-api": "podman build -f packages/nexus-mock-api/Containerfile -t nexus-mock-api:latest -t ghcr.io/syntara-orchestration/syntara-mock-api:latest .",
+    "podman:build:mock-api": "podman build -f packages/syntara-mock-api/Containerfile -t syntara-mock-api:latest -t ghcr.io/syntara-orchestration/syntara-mock-api:latest .",
     "podman:run": "concurrently npm:podman:run:* -c auto",
     "podman:run:ui": "podman run --rm -p 4000:80 --name nexus-ui ghcr.io/syntara-orchestration/syntara-ui:latest",
-    "podman:run:mock-api": "podman run --rm -p 3000:3000 --name nexus-mock-api ghcr.io/syntara-orchestration/syntara-mock-api:latest"
+    "podman:run:mock-api": "podman run --rm -p 3000:3000 --name syntara-mock-api ghcr.io/syntara-orchestration/syntara-mock-api:latest"
   },
   "workspaces": [
     "packages/*"

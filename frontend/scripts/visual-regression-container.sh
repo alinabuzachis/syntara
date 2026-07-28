@@ -105,7 +105,7 @@ podman run --rm \
 
     echo ''
     echo '--- Starting mock API and preview server ---'
-    PORT=${API_PORT} npm run start --prefix packages/nexus-mock-api &
+    PORT=${API_PORT} npm run start --prefix packages/syntara-mock-api &
     (cd packages/nexus-ui && npx vite preview --port ${UI_PORT}) &
 
     echo 'Waiting for servers...'

@@ -118,7 +118,7 @@ Check whether the changes follow:
 | Hardcoded documentation URLs      | #30 -- use `useDocLink('key')` from `frontend/packages/nexus-ui/src/utils/docs/useDocLink.ts`              |
 | `NxPageHeader` without `docLink` prop                       | #30 -- every page header should pass `docLink={useDocLink('key')}`              |
 | Hardcoded colors in CSS modules                             | ESLint can't catch these; review CSS module files manually                      |
-| `new Date()` in `nexus-mock-api/src/resources/` or `utils/` | #31 -- use `mockDate.*` from `mockDates.ts` for deterministic visual regression |
+| `new Date()` in `syntara-mock-api/src/resources/` or `utils/` | #31 -- use `mockDate.*` from `mockDates.ts` for deterministic visual regression |
 | `Button` with `onClick={() => navigate(...)}`               | §34 -- use `<Link>` for navigation, `<Button>` for actions                      |
 | Same `aria-label` on repeated checkboxes/buttons            | §35 -- each instance needs a unique label (e.g., row index or resource name)    |
 | Raw text for invalid ID or not-found states                 | §36 -- use `NxEmptyState` or `Nx*` empty state components                       |
@@ -152,7 +152,7 @@ git diff main...HEAD -- '*.ts' '*.tsx' | grep '^+' | grep -v '^+++' | grep -iE '
 | Check                                           | How to verify                                                                                                                                                      |
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **UI PRs include screenshots**                  | PRs changing visible UI must include screenshots or recordings of key states                                                                                       |
-| **New API endpoints have mock handlers**        | Check `frontend/packages/nexus-mock-api/src/handlers.ts`; note exception if backend not yet merged                                                                          |
+| **New API endpoints have mock handlers**        | Check `frontend/packages/syntara-mock-api/src/handlers.ts`; note exception if backend not yet merged                                                                          |
 | **`useQueryState` object form**                 | Verify `useQueryState(query, { title, onRetry })` -- not bare string form (see .claude/skills/frontend-coding-standards/SKILL.md §2)                                                             |
 | **Error handling consistency**                  | Verify `useQueryState` / `useMutationErrorHandler` -- no ad-hoc try/catch with custom error display                                                                |
 | **userEvent regressions**                       | Check if PR replaces existing `userEvent` calls with `fireEvent` -- that is a regression                                                                           |
@@ -162,7 +162,7 @@ git diff main...HEAD -- '*.ts' '*.tsx' | grep '^+' | grep -v '^+++' | grep -iE '
 | **Zero new ESLint warnings**                    | New code must not introduce warnings, even for rules currently set to `warn` -- they will become `error`                                                           |
 | **New routes have `requiredPermissions`**       | Every route with access requirements must set `requiredPermissions` in `navigationItems.tsx`; create/edit routes need `routePermission` for `ProtectedRoute` guard |
 | **New write actions use `DisabledWithTooltip`** | Create/edit/delete buttons must be wrapped with `DisabledWithTooltip` + domain permission hook; use `permissionTooltip()` for copy                                 |
-| **New resources have mock `can_i` handlers**    | `frontend/packages/nexus-mock-api/src/handlers.ts` must include role-aware responses for all 4 roles (admin, viewer, auditor, user)                                         |
+| **New resources have mock `can_i` handlers**    | `frontend/packages/syntara-mock-api/src/handlers.ts` must include role-aware responses for all 4 roles (admin, viewer, auditor, user)                                         |
 | **Permission hooks include `isError`**          | Any `useCanI` mock must include `isError: false`; real hook returns `{ allowed, isChecking, isError }`                                                             |
 | **Permission cache invalidation**               | After role/assignment mutations, verify `queryClient.invalidateQueries({ queryKey: ['authz', 'can_i'] })` is called                                                |
 | **New shared components have stories**          | Components in `frontend/packages/nexus-ui/src/components/` (especially `Nx*`) should have Storybook stories for documentation                                                                 |

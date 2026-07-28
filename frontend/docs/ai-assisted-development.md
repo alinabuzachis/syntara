@@ -170,7 +170,7 @@ Include vitest-axe accessibility tests and 80%+ coverage.
 
 1. Component file with PatternFly markup
 2. Test file (`*.test.tsx`) — happy path, empty states, delete flow, accessibility
-3. Mock handler in `packages/nexus-mock-api/src/handlers.ts` if needed
+3. Mock handler in `packages/syntara-mock-api/src/handlers.ts` if needed
 
 If the result differs from the mockup, use the side-by-side technique from [§2](#2-bring-your-screenshots). Then run:
 

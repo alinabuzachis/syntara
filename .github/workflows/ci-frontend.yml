@@ -299,14 +299,14 @@ jobs:
           push: false
           tags: nexus-ui:test
 
-      - name: Test build nexus-mock-api image (no push)
+      - name: Test build syntara-mock-api image (no push)
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: frontend/
-          file: frontend/packages/nexus-mock-api/Containerfile
+          file: frontend/packages/syntara-mock-api/Containerfile
           platforms: linux/amd64
           push: false
-          tags: nexus-mock-api:test
+          tags: syntara-mock-api:test
 
   shared-checks-gate:
     name: (Frontend) Shared Checks Gate

@@ -66,10 +66,10 @@ Whenever the bundled `openapi.yaml` changes, CI checks whether the generated Typ
    - If there are changes, commit them alongside the spec updates.
    - If there are no changes (common for additive nullable fields), no contract commit is needed.
 
-3. **Discard unrelated churn:** `gen-contracts` also runs `sync-examples` which copies backend test fixtures into `frontend/packages/nexus-mock-api/src/examples/`. If those changed but are unrelated to the spec fix, discard them:
+3. **Discard unrelated churn:** `gen-contracts` also runs `sync-examples` which copies backend test fixtures into `frontend/packages/syntara-mock-api/src/examples/`. If those changed but are unrelated to the spec fix, discard them:
 
    ```bash
-   git checkout -- frontend/packages/nexus-mock-api/src/examples/
+   git checkout -- frontend/packages/syntara-mock-api/src/examples/
    ```
 
 ## Reminders

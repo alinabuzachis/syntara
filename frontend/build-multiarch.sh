@@ -30,11 +30,11 @@ fi
 
 # Clean up any existing manifests
 podman manifest rm nexus-ui:multiarch 2>/dev/null || true
-podman manifest rm nexus-mock-api:multiarch 2>/dev/null || true
+podman manifest rm syntara-mock-api:multiarch 2>/dev/null || true
 
 # Create manifests
 podman manifest create nexus-ui:multiarch
-podman manifest create nexus-mock-api:multiarch
+podman manifest create syntara-mock-api:multiarch
 
 # Build for each platform
 for PLATFORM in ${PLATFORMS//,/ }; do
@@ -49,25 +49,25 @@ for PLATFORM in ${PLATFORMS//,/ }; do
         .
     podman manifest add nexus-ui:multiarch nexus-ui:${PLATFORM//\//-}
 
-    # Build nexus-mock-api
-    echo "  Building nexus-mock-api for ${PLATFORM}..."
+    # Build syntara-mock-api
+    echo "  Building syntara-mock-api for ${PLATFORM}..."
     podman build \
         --platform ${PLATFORM} \
-        -f packages/nexus-mock-api/Containerfile \
-        -t nexus-mock-api:${PLATFORM//\//-} \
+        -f packages/syntara-mock-api/Containerfile \
+        -t syntara-mock-api:${PLATFORM//\//-} \
         .
-    podman manifest add nexus-mock-api:multiarch nexus-mock-api:${PLATFORM//\//-}
+    podman manifest add syntara-mock-api:multiarch syntara-mock-api:${PLATFORM//\//-}
 done
 
 # Tag manifests
 podman tag nexus-ui:multiarch ${REGISTRY}/${REPOSITORY_OWNER}/nexus-ui:latest
-podman tag nexus-mock-api:multiarch ${REGISTRY}/${REPOSITORY_OWNER}/nexus-mock-api:latest
+podman tag syntara-mock-api:multiarch ${REGISTRY}/${REPOSITORY_OWNER}/syntara-mock-api:latest
 
 # Push if requested
 if [ "$PUSH_IMAGES" = "push" ]; then
     echo "Pushing manifests to registry..."
     podman manifest push nexus-ui:multiarch ${REGISTRY}/${REPOSITORY_OWNER}/nexus-ui:latest
-    podman manifest push nexus-mock-api:multiarch ${REGISTRY}/${REPOSITORY_OWNER}/nexus-mock-api:latest
+    podman manifest push syntara-mock-api:multiarch ${REGISTRY}/${REPOSITORY_OWNER}/syntara-mock-api:latest
 fi
 
 echo "Build complete!"

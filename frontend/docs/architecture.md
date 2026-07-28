@@ -238,7 +238,7 @@ The workflow builder is the most complex part. Understanding the flat ↔ nested
 packages/
 ├── nexus-ui/           ← The actual web app (React + Vite)
 ├── nexus-contracts/    ← Generated TypeScript types from OpenAPI
-└── nexus-mock-api/     ← Local mock server for development
+└── syntara-mock-api/     ← Local mock server for development
 ```
 
 ### Package Dependency Graph
@@ -248,7 +248,7 @@ flowchart TB
   subgraph Packages
     UI[nexus-ui<br/>Main App]
     Contracts[nexus-contracts<br/>API Types]
-    Mock[nexus-mock-api<br/>Dev Server]
+    Mock[syntara-mock-api<br/>Dev Server]
   end
 
   UI --> Contracts

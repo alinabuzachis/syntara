@@ -66,7 +66,7 @@ npm start
 
 - `packages/nexus-ui`: Main React application
 - `packages/nexus-contracts`: OpenAPI TypeScript types
-- `packages/nexus-mock-api`: MSW-based mock API server
+- `packages/syntara-mock-api`: MSW-based mock API server
 
 ### Key Architectural Patterns
 
@@ -120,7 +120,7 @@ npx openapi-typescript /path/to/nexus/src/nexus/schemas/tool_manager/metrics.yam
   --output ./src/tool-manager-metrics.ts --default-non-nullable false
 
 # Copy example workflows to mock API
-cp -r /path/to/nexus/tests/integration/workflow/examples ../nexus-mock-api/src/
+cp -r /path/to/nexus/tests/integration/workflow/examples ../syntara-mock-api/src/
 
 # Format the generated files
 cd ../..

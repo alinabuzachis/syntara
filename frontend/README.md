@@ -120,12 +120,12 @@ frontend/
 ├── packages/
 │   ├── nexus-ui/              # Main React 19 application
 │   ├── nexus-contracts/       # OpenAPI TypeScript types
-│   └── nexus-mock-api/        # MSW-based mock API server
+│   └── syntara-mock-api/        # MSW-based mock API server
 ├── docs/                      # Architecture and design documentation
 ├── tools/                     # Developer utilities (workflow creator, CI scripts)
 ├── package.json               # Root workspace configuration
 ├── packages/nexus-ui/Containerfile        # UI container image
-└── packages/nexus-mock-api/Containerfile  # Mock API container image
+└── packages/syntara-mock-api/Containerfile  # Mock API container image
 ```
 
 ## Development
@@ -196,11 +196,11 @@ All local container operations use Podman:
 
 # Single-architecture builds (faster for development)
 podman build -f packages/nexus-ui/Containerfile -t nexus-ui:latest .
-podman build -f packages/nexus-mock-api/Containerfile -t nexus-mock-api:latest .
+podman build -f packages/syntara-mock-api/Containerfile -t syntara-mock-api:latest .
 
 # Run containers
 podman run -p 4000:80 nexus-ui:latest
-podman run -p 3000:3000 nexus-mock-api:latest
+podman run -p 3000:3000 syntara-mock-api:latest
 ```
 
 ### Custom Registry Configuration
@@ -253,7 +253,7 @@ We welcome contributions! Please read our [Contributing Guidelines](CONTRIBUTING
 - Generated from the backend OpenAPI specs at `../backend/src/nexus/schemas/`
 - Shared types for UI and mock API
 
-### Nexus Mock API (Development Server)
+### Syntara Mock API (Development Server)
 
 - MSW (Mock Service Worker)
 - @mswjs/http-middleware (Node.js server)

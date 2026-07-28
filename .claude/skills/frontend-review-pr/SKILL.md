@@ -27,6 +27,6 @@ Start by:
 - Duplicated dialog/logic patterns across files
 - Inconsistent `useQueryState` / mutation error-handler usage vs project patterns
 - UI changes without screenshots or screen recordings
-- New API endpoints without mock API handlers in `frontend/packages/nexus-mock-api/src/handlers.ts`
+- New API endpoints without mock API handlers in `frontend/packages/syntara-mock-api/src/handlers.ts`
 
 Provide a structured review with the deliverables outlined in step 9.

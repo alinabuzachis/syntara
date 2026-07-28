@@ -1583,7 +1583,7 @@ queryClient.invalidateQueries({ queryKey: ['authz', 'can_i'] })
 
 ### Mock API
 
-When adding new permission-gated features, add role-aware responses in `frontend/packages/nexus-mock-api/src/handlers.ts` for all 4 roles (admin, viewer, auditor, user) and E2E tests in `permission-gating.spec.ts`.
+When adding new permission-gated features, add role-aware responses in `frontend/packages/syntara-mock-api/src/handlers.ts` for all 4 roles (admin, viewer, auditor, user) and E2E tests in `permission-gating.spec.ts`.
 
 ---
 
