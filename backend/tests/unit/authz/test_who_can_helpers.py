@@ -14,6 +14,7 @@ from nexus.authz.router import (
     _build_page_cursors,
     _check_batch_authorization,
     _check_user_authorized,
+    _count_batch_authorized,
 )
 from nexus.core.models.user import User
 from nexus.core.utils.cursor import PaginationDirection, SortDirection
@@ -332,3 +333,98 @@ class TestCheckBatchAuthorization:
 
         assert len(authorized) == 2
         assert len(checked) == 2
+
+
+# ---------------------------------------------------------------------------
+# _count_batch_authorized
+# ---------------------------------------------------------------------------
+
+
+class TestCountBatchAuthorized:
+    """Tests for _count_batch_authorized."""
+
+    def _make_user(self) -> MagicMock:
+        user = MagicMock(spec=User)
+        user.id = uuid4()
+        user.labels = {}
+        user.authz_metadata = {}
+        return user
+
+    @pytest.mark.asyncio
+    async def test_counts_authorized_users(self) -> None:
+        db = AsyncMock()
+        evaluator = AsyncMock()
+        u1 = self._make_user()
+        u2 = self._make_user()
+        body = WhoCanRequest(action="read", resource_type="workflow")
+
+        with patch("nexus.authz.router._check_user_authorized", side_effect=[True, False]):
+            count, scanned, cap_exceeded = await _count_batch_authorized(
+                db, evaluator, [u1, u2], body, "proj", set(), 0, 0
+            )
+
+        assert count == 1
+        assert scanned == 2
+        assert cap_exceeded is False
+
+    @pytest.mark.asyncio
+    async def test_skips_already_checked_users(self) -> None:
+        db = AsyncMock()
+        evaluator = AsyncMock()
+        u1 = self._make_user()
+        u2 = self._make_user()
+        body = WhoCanRequest(action="read", resource_type="workflow")
+        already_checked = {u1.id}
+
+        with patch("nexus.authz.router._check_user_authorized", return_value=True) as mock_check:
+            count, scanned, cap_exceeded = await _count_batch_authorized(
+                db, evaluator, [u1, u2], body, "proj", already_checked, 0, 0
+            )
+
+        assert count == 1
+        assert scanned == 2
+        assert cap_exceeded is False
+        mock_check.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_accumulates_from_initial_count(self) -> None:
+        db = AsyncMock()
+        evaluator = AsyncMock()
+        u1 = self._make_user()
+        body = WhoCanRequest(action="read", resource_type="workflow")
+
+        with patch("nexus.authz.router._check_user_authorized", return_value=True):
+            count, _scanned, cap_exceeded = await _count_batch_authorized(
+                db, evaluator, [u1], body, "proj", set(), 5, 0
+            )
+
+        assert count == 6
+        assert cap_exceeded is False
+
+    @pytest.mark.asyncio
+    async def test_returns_cap_exceeded_when_scan_limit_hit(self) -> None:
+        db = AsyncMock()
+        evaluator = AsyncMock()
+        u1 = self._make_user()
+        body = WhoCanRequest(action="read", resource_type="workflow")
+
+        with patch("nexus.authz.router._log_scan_cap_exceeded") as mock_log:
+            count, _scanned, cap_exceeded = await _count_batch_authorized(
+                db, evaluator, [u1], body, "proj", set(), 3, 10_000
+            )
+
+        assert cap_exceeded is True
+        assert count == 3
+        mock_log.assert_called_once_with(3)
+
+    @pytest.mark.asyncio
+    async def test_empty_batch_returns_unchanged(self) -> None:
+        db = AsyncMock()
+        evaluator = AsyncMock()
+        body = WhoCanRequest(action="read", resource_type="workflow")
+
+        count, scanned, cap_exceeded = await _count_batch_authorized(db, evaluator, [], body, "proj", set(), 2, 5)
+
+        assert count == 2
+        assert scanned == 5
+        assert cap_exceeded is False

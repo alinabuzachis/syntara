@@ -496,6 +496,32 @@ def _log_scan_cap_exceeded(count_so_far: int) -> None:
     )
 
 
+async def _count_batch_authorized(
+    db: AsyncSession,
+    evaluator: AuthzEvaluator,
+    batch: Sequence[User],
+    body: WhoCanRequest,
+    resource_project: str,
+    already_checked: set[UUID],
+    count: int,
+    users_scanned: int,
+) -> tuple[int, int, bool]:
+    """Count authorized users in a single batch.
+
+    Returns (updated_count, updated_users_scanned, cap_exceeded).
+    """
+    for user in batch:
+        users_scanned += 1
+        if users_scanned > _WHO_CAN_MAX_TOTAL_SCAN:
+            _log_scan_cap_exceeded(count)
+            return count, users_scanned, True
+        if user.id in already_checked:
+            continue
+        if await _check_user_authorized(db, evaluator, user, body, resource_project):
+            count += 1
+    return count, users_scanned, False
+
+
 async def _count_authorized_users(
     db: AsyncSession,
     evaluator: AuthzEvaluator,
@@ -539,15 +565,11 @@ async def _count_authorized_users(
         if not batch:
             break
 
-        for user in batch:
-            users_scanned += 1
-            if users_scanned > _WHO_CAN_MAX_TOTAL_SCAN:
-                _log_scan_cap_exceeded(count)
-                return None
-            if user.id in already_checked:
-                continue
-            if await _check_user_authorized(db, evaluator, user, body, resource_project):
-                count += 1
+        count, users_scanned, cap_exceeded = await _count_batch_authorized(
+            db, evaluator, batch, body, resource_project, already_checked, count, users_scanned
+        )
+        if cap_exceeded:
+            return None
 
         scan_cursor = batch[-1].id
 
