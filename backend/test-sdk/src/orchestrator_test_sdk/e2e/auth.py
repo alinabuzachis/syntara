@@ -58,8 +58,6 @@ REQUEST_ID_HEADER = "X-Request-Id"
 # TLS / secrets helpers
 # ---------------------------------------------------------------------------
 
-_CA_CERT_PATH = Path(os.environ.get("APP_S2S_TLS_CA_CERT_PATH", ".secrets/certs/ca.pem"))
-
 
 def admin_password() -> str:
     """Return the built-in admin password from the configured secrets file."""
@@ -74,11 +72,6 @@ def admin_password() -> str:
         raise RuntimeError(msg)
 
     return password
-
-
-def e2e_tls_verify() -> str | bool:
-    """Return the CA cert path for TLS verification, or False if unavailable."""
-    return str(_CA_CERT_PATH) if _CA_CERT_PATH.exists() else False
 
 
 # ---------------------------------------------------------------------------
