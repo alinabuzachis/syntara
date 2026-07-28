@@ -374,19 +374,22 @@ class TestWorkflowExecution:
             execution_ids.append(execution.id)
             expected_failed += 1
 
-        # Wait for all executions to complete (either successfully or with failure)
+        # Wait for all executions to reach a terminal state
         max_polls = 30
         poll_interval = 2
+        terminal_states = {"completed", "failed", "cancelled"}
 
         for exec_id in execution_ids:
-            for _ in range(max_polls):
+            for _poll in range(max_polls):
                 execution = nexus_api.executions.get(execution_id=UUID(str(exec_id))).assert_and_get()
-                if str(execution.status) in ["completed", "failed", "cancelled"]:
+                if str(execution.status) in terminal_states:
                     break
                 time.sleep(poll_interval)
-
-        # Give a small buffer for all to settle
-        time.sleep(1)
+            else:
+                pytest.fail(
+                    f"Execution {exec_id} did not reach a terminal state "
+                    f"within {max_polls * poll_interval}s (last status: {execution.status})"
+                )
 
         # Step 2: List all executions for the workflow (no status filter)
         all_executions_list = nexus_api.executions.list(
