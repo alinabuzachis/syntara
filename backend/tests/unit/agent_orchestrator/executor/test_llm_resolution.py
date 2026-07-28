@@ -210,7 +210,7 @@ class TestResolveLlmApiKey:
     async def test_invalid_uuid(self) -> None:
         executor, _ = _make_executor()
 
-        with pytest.raises(LLMConfigurationError, match="Invalid credential ID"):
+        with pytest.raises(LLMConfigurationError, match="Invalid LLM credential ID"):
             await executor._resolve_llm_api_key("not-a-uuid")
 
     @pytest.mark.asyncio
@@ -257,12 +257,71 @@ class TestResolveLlmApiKey:
         session.get = AsyncMock(return_value=mock_credential)
 
         cred_id = str(uuid4())
+        with patch("nexus.agent_orchestrator.executor.invocation_executor.create_secret_service") as mock_secret_svc:
+            mock_secret_svc.return_value.retrieve_secret = AsyncMock(side_effect=RuntimeError("decrypt failed"))
+
+            with pytest.raises(LLMConfigurationError, match=r"Failed to decrypt.*key rotation"):
+                await executor._resolve_llm_api_key(cred_id)
+
+    @pytest.mark.asyncio
+    async def test_credential_type_not_found(self) -> None:
+        executor, session = _make_executor()
+
+        mock_credential = MagicMock()
+        mock_credential.enabled = True
+        mock_credential.secret_id = uuid4()
+        mock_credential.credential_type_id = uuid4()
+
+        async def mock_get(model_class: type, pk: object) -> object:
+            from nexus.credentials.models.credential import Credential
+
+            if model_class is Credential:
+                return mock_credential
+            return None
+
+        session.get = AsyncMock(side_effect=mock_get)
+
+        cred_id = str(uuid4())
+        with patch("nexus.agent_orchestrator.executor.invocation_executor.create_secret_service") as mock_secret_svc:
+            mock_secret_svc.return_value.retrieve_secret = AsyncMock(return_value={"api_key": "encrypted"})
+
+            with pytest.raises(LLMConfigurationError, match="Credential type for"):
+                await executor._resolve_llm_api_key(cred_id)
+
+    @pytest.mark.asyncio
+    async def test_injector_resolution_failure(self) -> None:
+        executor, session = _make_executor()
+
+        mock_credential = MagicMock()
+        mock_credential.enabled = True
+        mock_credential.secret_id = uuid4()
+        mock_credential.credential_type_id = uuid4()
+
+        mock_cred_type = MagicMock()
+        mock_cred_type.injectors = {}
+
+        async def mock_get(model_class: type, pk: object) -> object:
+            from nexus.credentials.models.credential import Credential
+            from nexus.credentials.models.credential_type import CredentialType
+
+            if model_class is Credential:
+                return mock_credential
+            if model_class is CredentialType:
+                return mock_cred_type
+            return None
+
+        session.get = AsyncMock(side_effect=mock_get)
+
+        cred_id = str(uuid4())
         with (
             patch("nexus.agent_orchestrator.executor.invocation_executor.create_secret_service") as mock_secret_svc,
-            pytest.raises(LLMConfigurationError, match="Failed to decrypt"),
+            patch("nexus.agent_orchestrator.executor.invocation_executor.InjectorResolver") as mock_injector,
         ):
-            mock_secret_svc.return_value.retrieve_secret = AsyncMock(side_effect=RuntimeError("decrypt failed"))
-            await executor._resolve_llm_api_key(cred_id)
+            mock_secret_svc.return_value.retrieve_secret = AsyncMock(return_value={"api_key": "encrypted"})
+            mock_injector.resolve.side_effect = RuntimeError("template error")
+
+            with pytest.raises(LLMConfigurationError, match="Failed to resolve"):
+                await executor._resolve_llm_api_key(cred_id)
 
     @pytest.mark.asyncio
     async def test_no_api_key_in_resolved(self) -> None:
@@ -295,8 +354,9 @@ class TestResolveLlmApiKey:
         with (
             patch("nexus.agent_orchestrator.executor.invocation_executor.create_secret_service") as mock_secret_svc,
             patch("nexus.agent_orchestrator.executor.invocation_executor.InjectorResolver") as mock_injector,
-            pytest.raises(LLMConfigurationError, match="contains no API key"),
         ):
             mock_secret_svc.return_value.retrieve_secret = AsyncMock(return_value={"api_key": "encrypted"})
             mock_injector.resolve.return_value = mock_resolved
-            await executor._resolve_llm_api_key(cred_id)
+
+            with pytest.raises(LLMConfigurationError, match="contains no API key"):
+                await executor._resolve_llm_api_key(cred_id)

@@ -854,62 +854,101 @@ class InvocationExecutor:
 
         return resolver
 
-    async def _resolve_mcp_execution_credential(self, credential_id: str) -> str | None:
-        """Resolve the bearer token from a Nexus execution credential for MCP tool calls.
+    async def _resolve_credential(
+        self,
+        credential_id: str,
+        *,
+        error_class: type[Exception],
+        field_name: str,
+        label: str,
+        decrypt_hint: str = "",
+    ) -> str | None:
+        """Resolve a credential value by looking up, decrypting, and extracting a field.
 
-        Mirrors _resolve_llm_api_key but extracts ``bearer_token`` from extra_vars
-        rather than ``llm_api_key``. Returns None when the credential resolves
-        without a bearer_token (unauthenticated path).
+        Handles the common flow shared by MCP execution credentials and LLM API
+        keys: parse UUID, open session, fetch Credential, check exists/enabled/has
+        secret, decrypt secret, fetch CredentialType, resolve injectors, and
+        extract a named value from ``extra_vars``.
+
+        Args:
+            credential_id: UUID string of the Credential record.
+            error_class: Exception class to raise on any failure.
+            field_name: Key to extract from resolved ``extra_vars``.
+            label: Human-readable label for error messages (e.g. "execution credential").
+            decrypt_hint: Optional hint appended to the decrypt-failure message.
+
+        Returns:
+            The extracted value, or ``None`` if the field is absent in extra_vars.
 
         Raises:
-            CredentialResolutionError: If the credential cannot be found, decrypted, or resolved.
+            error_class: If the credential cannot be found, decrypted, or resolved.
 
         """
+        # Sentence-start form of the label for messages that begin with it.
+        cap_label = f"{label[0].upper()}{label[1:]}"
+
         try:
             cred_uuid = UUID(credential_id)
         except ValueError as e:
-            msg = f"Invalid execution credential ID '{credential_id}'."
+            msg = f"Invalid {label} ID '{credential_id}'."
             logger.debug("Credential resolution failed: invalid UUID", credential_id=credential_id)
-            raise CredentialResolutionError(msg) from e
+            raise error_class(msg) from e
 
         async with self.get_async_session_context() as session:
             credential = await session.get(Credential, cred_uuid)
             if not credential:
-                msg = f"Execution credential '{credential_id}' not found."
+                msg = f"{cap_label} '{credential_id}' not found."
                 logger.debug("Credential resolution failed: not found", credential_id=credential_id)
-                raise CredentialResolutionError(msg)
+                raise error_class(msg)
             if not credential.enabled:
-                msg = f"Execution credential '{credential_id}' is disabled."
+                msg = f"{cap_label} '{credential_id}' is disabled."
                 logger.debug("Credential resolution failed: disabled", credential_id=credential_id)
-                raise CredentialResolutionError(msg)
+                raise error_class(msg)
             if not credential.secret_id:
-                msg = f"Execution credential '{credential_id}' has no stored secret data."
+                msg = f"{cap_label} '{credential_id}' has no stored secret data."
                 logger.debug("Credential resolution failed: no secret data", credential_id=credential_id)
-                raise CredentialResolutionError(msg)
+                raise error_class(msg)
 
             try:
                 secret_service = create_secret_service(session)
                 decrypted = await secret_service.retrieve_secret(credential.secret_id)
             except Exception as e:
-                msg = f"Failed to decrypt execution credential '{credential_id}'."
+                msg = f"Failed to decrypt {label} '{credential_id}'.{decrypt_hint}"
                 logger.debug("Credential resolution failed: decryption error", credential_id=credential_id)
-                raise CredentialResolutionError(msg) from e
+                raise error_class(msg) from e
 
             cred_type = await session.get(CredentialType, credential.credential_type_id)
             if not cred_type:
-                msg = f"Credential type for execution credential '{credential_id}' not found."
+                msg = f"Credential type for {label} '{credential_id}' not found."
                 logger.debug("Credential resolution failed: credential type not found", credential_id=credential_id)
-                raise CredentialResolutionError(msg)
+                raise error_class(msg)
 
             try:
                 resolved = InjectorResolver.resolve(cred_type.injectors, decrypted)
             except Exception as e:
-                msg = f"Failed to resolve execution credential '{credential_id}' injector templates."
+                msg = f"Failed to resolve {label} '{credential_id}' injector templates."
                 logger.debug("Credential resolution failed: injector error", credential_id=credential_id)
-                raise CredentialResolutionError(msg) from e
+                raise error_class(msg) from e
 
-            logger.debug("Execution credential resolved", credential_id=credential_id)
-            return resolved.extra_vars.get("bearer_token")
+            logger.debug("Credential resolved", credential_id=credential_id, label=label)
+            return resolved.extra_vars.get(field_name)
+
+    async def _resolve_mcp_execution_credential(self, credential_id: str) -> str | None:
+        """Resolve the bearer token from a Nexus execution credential for MCP tool calls.
+
+        Returns None when the credential resolves without a bearer_token
+        (unauthenticated path).
+
+        Raises:
+            CredentialResolutionError: If the credential cannot be found, decrypted, or resolved.
+
+        """
+        return await self._resolve_credential(
+            credential_id,
+            error_class=CredentialResolutionError,
+            field_name="bearer_token",
+            label="execution credential",
+        )
 
     async def _resolve_llm_model_and_integration(self, llm_model_id: str) -> tuple[str, str | None, str | None]:
         """Resolve an LLM model UUID to (model_id, base_url, provider_hint) in a single session.
@@ -969,55 +1008,24 @@ class InvocationExecutor:
     async def _resolve_llm_api_key(self, credential_id: str) -> str:
         """Decrypt LLM API key from credential at execution time.
 
-        Resolves the credential from the database, decrypts its secret inputs,
-        and applies injector templates to extract the ``llm_api_key``.
-        This avoids storing the plaintext key in invocation context_data.
+        Delegates to :meth:`_resolve_credential` for the common lookup/decrypt
+        flow, then validates that the resolved key is non-empty.
 
         Raises:
             LLMConfigurationError: If the credential is not found, disabled, or has no API key.
 
         """
-        try:
-            cred_uuid = UUID(credential_id)
-        except ValueError as e:
-            msg = f"Invalid credential ID '{credential_id}'."
-            raise LLMConfigurationError(msg) from e
-
-        async with self.get_async_session_context() as session:
-            credential = await session.get(Credential, cred_uuid)
-            if not credential:
-                msg = f"LLM credential '{credential_id}' not found."
-                raise LLMConfigurationError(msg)
-            if not credential.enabled:
-                msg = f"LLM credential '{credential_id}' is disabled."
-                raise LLMConfigurationError(msg)
-            if not credential.secret_id:
-                msg = f"LLM credential '{credential_id}' has no stored secret data."
-                raise LLMConfigurationError(msg)
-
-            try:
-                secret_service = create_secret_service(session)
-                decrypted = await secret_service.retrieve_secret(credential.secret_id)
-            except Exception as e:
-                msg = f"Failed to decrypt credential '{credential_id}'. It may need to be re-saved after key rotation."
-                raise LLMConfigurationError(msg) from e
-
-            cred_type = await session.get(CredentialType, credential.credential_type_id)
-            if not cred_type:
-                msg = f"Credential type for credential '{credential_id}' not found."
-                raise LLMConfigurationError(msg)
-
-            try:
-                resolved = InjectorResolver.resolve(cred_type.injectors, decrypted)
-            except Exception as e:
-                msg = f"Failed to resolve credential '{credential_id}' injector templates."
-                raise LLMConfigurationError(msg) from e
-
-            api_key: str | None = resolved.extra_vars.get("llm_api_key")
-            if not api_key:
-                msg = f"LLM credential '{credential_id}' resolved but contains no API key."
-                raise LLMConfigurationError(msg)
-            return api_key
+        api_key = await self._resolve_credential(
+            credential_id,
+            error_class=LLMConfigurationError,
+            field_name="llm_api_key",
+            label="LLM credential",
+            decrypt_hint=" It may need to be re-saved after key rotation.",
+        )
+        if not api_key:
+            msg = f"LLM credential '{credential_id}' resolved but contains no API key."
+            raise LLMConfigurationError(msg)
+        return api_key
 
 
 # ===================================================
