@@ -33,6 +33,10 @@ def _reset_otel_state() -> Generator[None, None, None]:
         audit_logger = logging.getLogger(OTEL_AUDIT_LOGGER_NAME)
         for handler in audit_logger.handlers[:]:
             audit_logger.removeHandler(handler)
+        # Re-enable the logger in case another test (e.g. an Alembic migration
+        # running fileConfig) left it disabled; a disabled logger silently drops
+        # records, breaking the stdout-emission assertions.
+        audit_logger.disabled = False
 
     yield
 
@@ -42,6 +46,7 @@ def _reset_otel_state() -> Generator[None, None, None]:
         audit_logger = logging.getLogger(OTEL_AUDIT_LOGGER_NAME)
         for handler in audit_logger.handlers[:]:
             audit_logger.removeHandler(handler)
+        audit_logger.disabled = False
 
 
 class TestConfigureAuditLogging:

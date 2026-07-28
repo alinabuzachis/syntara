@@ -82,7 +82,6 @@ def test_app() -> FastAPI:
 class TestEndToEndMiddleware:
     """Test that AuditMiddleware + APICallTelemetryHandler emits api_call events."""
 
-    @pytest.mark.anyio
     async def test_get_request_emits_event(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
         with (
@@ -102,7 +101,6 @@ class TestEndToEndMiddleware:
         assert event.response_time_ms >= 0
         assert event.request_payload_size == 0
 
-    @pytest.mark.anyio
     async def test_post_request_captures_payload_size(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
         with (
@@ -121,7 +119,6 @@ class TestEndToEndMiddleware:
         assert event.http_method == "POST"
         assert event.request_payload_size > 0
 
-    @pytest.mark.anyio
     async def test_event_contains_all_required_fields(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
         with (
@@ -144,7 +141,6 @@ class TestEndToEndMiddleware:
         }
         assert set(props.keys()) == required_fields
 
-    @pytest.mark.anyio
     async def test_resource_id_in_endpoint_path(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
         workflow_id = "550e8400-e29b-41d4-a716-446655440000"
@@ -162,7 +158,6 @@ class TestEndToEndMiddleware:
 class TestExcludedPathsIntegration:
     """Test that excluded paths produce no events end-to-end."""
 
-    @pytest.mark.anyio
     async def test_health_check_no_event(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
         with (
@@ -175,7 +170,6 @@ class TestExcludedPathsIntegration:
         assert response.status_code == 200
         mock_registry.send_event.assert_not_called()
 
-    @pytest.mark.anyio
     async def test_root_no_event(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
         with (
@@ -188,7 +182,6 @@ class TestExcludedPathsIntegration:
         assert response.status_code == 200
         mock_registry.send_event.assert_not_called()
 
-    @pytest.mark.anyio
     async def test_docs_no_event(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
         with (
@@ -204,7 +197,6 @@ class TestExcludedPathsIntegration:
 class TestUnmatchedRoutes:
     """Test 404 responses still generate analytics events."""
 
-    @pytest.mark.anyio
     async def test_404_generates_event(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
         with (
@@ -225,7 +217,6 @@ class TestUnmatchedRoutes:
 class TestPrivacyIntegration:
     """Test privacy guarantees end-to-end."""
 
-    @pytest.mark.anyio
     async def test_sensitive_headers_not_in_event(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
         with (
@@ -244,7 +235,6 @@ class TestPrivacyIntegration:
         assert "secret-token" not in all_values_str
         assert "Bearer" not in all_values_str
 
-    @pytest.mark.anyio
     async def test_query_params_not_in_event(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
         with (
@@ -260,7 +250,6 @@ class TestPrivacyIntegration:
         assert "John" not in all_values_str
         assert "secret" not in all_values_str
 
-    @pytest.mark.anyio
     async def test_request_body_not_in_event(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
         with (
@@ -284,7 +273,6 @@ class TestPrivacyIntegration:
 class TestErrorResilienceIntegration:
     """Test that analytics failures don't affect API operation."""
 
-    @pytest.mark.anyio
     async def test_api_works_when_analytics_fails(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         mock_registry.send_event.side_effect = RuntimeError("Segment down")
 
@@ -299,7 +287,6 @@ class TestErrorResilienceIntegration:
         assert response.status_code == 200
         assert response.json() == {"status": "ok"}
 
-    @pytest.mark.anyio
     async def test_multiple_requests_work_with_failing_analytics(
         self, test_app: FastAPI, mock_registry: MagicMock
     ) -> None:
@@ -319,7 +306,6 @@ class TestErrorResilienceIntegration:
 class TestHighVolumeEventsDisabled:
     """Test that api_call events are suppressed when the flag is off."""
 
-    @pytest.mark.anyio
     async def test_no_event_emitted_when_disabled(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
         with (

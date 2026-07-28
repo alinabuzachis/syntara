@@ -8,6 +8,7 @@ engine/cache tests that use a mocked authz evaluator.
 import json
 import shutil
 import subprocess
+from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -15,13 +16,18 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.authz import resource_actions as _resource_actions
 from nexus.authz.resource_actions import _set_registry
 from nexus.authz.seed import seed_authz_data
 
 # ---------------------------------------------------------------------------
 # Resource-actions registry — integration tests bypass app startup, so we
-# initialise the module-level registry here with the pairs that appear in
-# test statements.
+# install a registry with the pairs that appear in test statements. This is
+# done per-test with save/restore (see ``_install_test_resource_actions``)
+# rather than at import time: the registry is a process-global, and a permanent
+# module-level mutation here leaks into other tests sharing the worker process
+# under xdist (notably the unit ``test_resource_actions`` suite, which validates
+# against the full application registry and fails when it sees this stub).
 # ---------------------------------------------------------------------------
 _TEST_RESOURCE_ACTIONS: dict[str, list[str]] = {
     "execution": ["create", "delete", "read", "run", "write"],
@@ -33,10 +39,33 @@ _TEST_RESOURCE_ACTIONS: dict[str, list[str]] = {
     "workflow": ["create", "delete", "read", "run", "write"],
 }
 
-_set_registry(
-    _TEST_RESOURCE_ACTIONS,
-    project_eligible=frozenset({"workflow", "execution", "project"}),
-)
+
+@pytest.fixture(autouse=True)
+def _install_test_resource_actions() -> Generator[None, None, None]:
+    """Install the test resource-actions registry for one test, then restore.
+
+    Snapshots the process-global registry state, installs the test registry for
+    the duration of the test, and restores the previous state on teardown so the
+    stub never leaks into other tests running in the same process.
+    """
+    saved = (
+        _resource_actions._registry,
+        _resource_actions._all_pairs,
+        _resource_actions._project_eligible,
+    )
+    _set_registry(
+        _TEST_RESOURCE_ACTIONS,
+        project_eligible=frozenset({"workflow", "execution", "project"}),
+    )
+    try:
+        yield
+    finally:
+        (
+            _resource_actions._registry,
+            _resource_actions._all_pairs,
+            _resource_actions._project_eligible,
+        ) = saved
+
 
 # Path to the rego policy file
 _REGO_POLICY_PATH = Path(__file__).resolve().parents[3] / "src" / "nexus" / "authz" / "rego" / "authz.rego"

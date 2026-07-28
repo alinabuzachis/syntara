@@ -183,8 +183,11 @@ test-fast: check-deps ## Run tests with fail-fast and short traceback
 	$(call run-tests,tests/ -x --tb=short)
 
 .PHONY: test-all
-test-all: check-deps ## Run all tests
-	$(call run-tests,tests/ -v -n auto -m "not mcp" --cov=src --cov-config=pyproject.toml)
+test-all: check-deps ## Run all tests (unit + integration; E2E runs separately via test-e2e)
+	# E2E tests require a full running stack (API, Temporal, MCP server) and are
+	# run by the dedicated `test-e2e` target; ignore them here so this target can
+	# run against the testcontainers-only environment.
+	$(call run-tests,tests/ -v -n auto -m "not mcp" --ignore=tests/e2e --cov=src --cov-config=pyproject.toml)
 
 # _e2e-run: shared infrastructure setup for all e2e targets.
 # Starts mock Segment, database, Temporal, and the API server,
