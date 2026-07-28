@@ -30,21 +30,22 @@ function groupErrors(errors: ValidationError[]): ErrorGroup[] {
   for (const error of errors) {
     const parsed = parseValidationMessage(error.message)
     const groupKey = error.nodeId ?? parsed.key
+    const humanized = parsed.messages.map((msg) => humanizeValidationMessage(msg, error.fieldPath))
     const existing = groups.get(groupKey)
     if (existing) {
-      existing.messages.push(...parsed.messages)
+      existing.messages.push(...humanized)
     } else {
       groups.set(groupKey, {
         displayKey: error.nodeName ?? parsed.displayKey,
         nodeId: error.nodeId,
-        messages: [...parsed.messages],
+        messages: [...humanized],
       })
     }
   }
 
   return [...groups.values()].map((group) => ({
     ...group,
-    messages: mergeHumanizedMessages(group.messages.map(humanizeValidationMessage)),
+    messages: mergeHumanizedMessages(group.messages),
   }))
 }
 

@@ -11,6 +11,7 @@ export type ValidationError = {
   nodeId: string | null
   nodeName?: string
   severity?: ValidationSeverity
+  fieldPath?: string | null
 }
 
 // Builder state interface

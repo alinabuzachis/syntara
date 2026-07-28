@@ -9,7 +9,7 @@ from nexus.workflows.models.validation_finding import (
     ValidationCategory,
     ValidationSeverity,
 )
-from nexus.workflows.validators.workflow_definition import WorkflowValidator
+from nexus.workflows.validators.workflow_definition import WorkflowValidator, _best_branch_messages
 
 
 @pytest.fixture
@@ -599,6 +599,35 @@ class TestCollectFindings:
         empty_findings = [f for f in result.findings if "at least one step" in f.message]
         assert len(empty_findings) == 0
 
+    def test_unrecognized_node_type_produces_finding(self, validator: WorkflowValidator) -> None:
+        """Unknown node type falls back to the top-level oneOf message."""
+        definition: dict[str, Any] = {
+            "schema_version": "2.0.0",
+            "name": "test",
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [{"id": "n1", "type": "totally_fake_type", "parameters": {}}],
+            "edges": [{"from": "t1", "to": "n1"}],
+        }
+        result = validator.collect_findings(definition)
+        assert result.is_valid is False
+        schema_findings = [f for f in result.findings if f.category == ValidationCategory.schema_violation]
+        assert any("not valid under any of the given schemas" in f.message for f in schema_findings)
+
+    def test_empty_string_field_includes_field_path(self, validator: WorkflowValidator) -> None:
+        """Empty-string schema violations carry field_path (AAP-82550 regression)."""
+        definition: dict[str, Any] = {
+            "schema_version": "2.0.0",
+            "name": "test",
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [{"id": "n1", "type": "script", "parameters": {"code": "", "language": "python"}}],
+            "edges": [{"from": "t1", "to": "n1"}],
+        }
+        result = validator.collect_findings(definition)
+        code_findings = [f for f in result.findings if "non-empty" in f.message]
+        assert len(code_findings) == 1
+        assert code_findings[0].node_id == "n1"
+        assert code_findings[0].field_path == "parameters.code"
+
     def test_json_serialization_shape(self, validator: WorkflowValidator) -> None:
         definition: dict[str, Any] = {
             "schema_version": "2.0.0",
@@ -868,3 +897,28 @@ class TestApprovalNodeValidation:
         warnings = [f for f in result.findings if f.category == ValidationCategory.approval_configuration]
         assert len(warnings) == 1
         assert warnings[0].node_id == "approval_1"
+
+
+class TestBestBranchMessages:
+    """Direct tests for _best_branch_messages edge cases."""
+
+    def test_no_context_returns_parent_message_and_path(self) -> None:
+        """Error with no oneOf context returns the error's own message and path."""
+        definition: dict[str, Any] = {
+            "schema_version": "2.0.0",
+            "name": "test",
+            "triggers": [{"id": "t1", "type": "manual_trigger", "parameters": {}}],
+            "nodes": [{"id": "n1", "type": "script", "parameters": {"language": "python", "code": "x"}}],
+            "edges": [{"from": "t1", "to": "n1", "color": "red"}],
+        }
+        from nexus.workflows.validators.workflow_definition import _get_validator
+
+        for error in _get_validator().iter_errors(definition):
+            if not error.context:
+                result = _best_branch_messages(error)
+                assert len(result) == 1
+                msg, path = result[0]
+                assert "color" in msg
+                assert path == list(error.absolute_path)
+                return
+        pytest.fail("Expected a no-context error for additional property")

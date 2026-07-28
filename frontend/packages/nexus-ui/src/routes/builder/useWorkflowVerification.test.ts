@@ -155,8 +155,8 @@ describe('useWorkflowVerification', () => {
       expect(mockDispatch).toHaveBeenCalledWith({
         type: 'SET_VALIDATION_ERRORS',
         payload: [
-          { message: 'Node A is disconnected', nodeId: 'node-1', severity: 'error' },
-          { message: 'Missing condition branch', nodeId: null, severity: 'error' },
+          { message: 'Node A is disconnected', nodeId: 'node-1', severity: 'error', fieldPath: null },
+          { message: 'Missing condition branch', nodeId: null, severity: 'error', fieldPath: null },
         ],
       })
       expect(mockShowError).not.toHaveBeenCalled()
@@ -192,8 +192,8 @@ describe('useWorkflowVerification', () => {
       expect(mockDispatch).toHaveBeenCalledWith({
         type: 'SET_VALIDATION_ERRORS',
         payload: [
-          { message: 'Workflow must have at least one trigger', nodeId: null, severity: 'error' },
-          { message: 'Node config invalid', nodeId: 'node-2', severity: 'error' },
+          { message: 'Workflow must have at least one trigger', nodeId: null, severity: 'error', fieldPath: null },
+          { message: 'Node config invalid', nodeId: 'node-2', severity: 'error', fieldPath: null },
         ],
       })
     })
@@ -340,8 +340,8 @@ describe('useWorkflowVerification', () => {
       expect(mockDispatch).toHaveBeenCalledWith({
         type: 'SET_VALIDATION_ERRORS',
         payload: [
-          { message: 'Node is disconnected', nodeId: 'n1', nodeName: 'Step 1', severity: 'error' },
-          { message: 'Missing trigger', nodeId: null, severity: 'error' },
+          { message: 'Node is disconnected', nodeId: 'n1', nodeName: 'Step 1', severity: 'error', fieldPath: null },
+          { message: 'Missing trigger', nodeId: null, severity: 'error', fieldPath: null },
         ],
       })
     })
@@ -709,8 +709,8 @@ describe('extractValidationErrors', () => {
     }
     const result = extractValidationErrors(err)
     expect(result).toEqual([
-      { message: 'Error 1', nodeId: 'node-1', severity: 'error' },
-      { message: 'Error 2', nodeId: null, severity: 'error' },
+      { message: 'Error 1', nodeId: 'node-1', severity: 'error', fieldPath: null },
+      { message: 'Error 2', nodeId: null, severity: 'error', fieldPath: null },
     ])
   })
 
@@ -741,8 +741,8 @@ describe('extractValidationErrors', () => {
     }
     const result = extractValidationErrors(err)
     expect(result).toEqual([
-      { message: 'Some warning', nodeId: 'node-5', severity: 'warning' },
-      { message: 'Some error', nodeId: null, severity: 'error' },
+      { message: 'Some warning', nodeId: 'node-5', severity: 'warning', fieldPath: null },
+      { message: 'Some error', nodeId: null, severity: 'error', fieldPath: null },
     ])
   })
 })
@@ -858,12 +858,14 @@ describe('verification of incomplete nodes', () => {
             nodeId: 'script-1',
             nodeName: 'Empty Script',
             severity: 'error',
+            fieldPath: null,
           },
           {
             message: 'Node configuration is incomplete',
             nodeId: 'script-2',
             nodeName: 'Empty Script2',
             severity: 'error',
+            fieldPath: null,
           },
         ],
       })
@@ -894,12 +896,19 @@ describe('verification of incomplete nodes', () => {
       expect(mockDispatch).toHaveBeenCalledWith({
         type: 'SET_VALIDATION_ERRORS',
         payload: [
-          { message: 'Missing required field: code', nodeId: 'script-1', nodeName: 'Empty Script', severity: 'error' },
+          {
+            message: 'Missing required field: code',
+            nodeId: 'script-1',
+            nodeName: 'Empty Script',
+            severity: 'error',
+            fieldPath: null,
+          },
           {
             message: 'Script has no error handling',
             nodeId: 'script-2',
             nodeName: 'Empty Script2',
             severity: 'warning',
+            fieldPath: null,
           },
         ],
       })

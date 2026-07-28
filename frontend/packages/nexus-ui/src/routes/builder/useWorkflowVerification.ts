@@ -12,7 +12,7 @@ import { formatValidationFindingMessage } from './utils/validation/formatValidat
 import { validateMinimumWorkflow } from './utils/validation/rules/validateMinimumWorkflow'
 import { buildWorkflowDefinition } from './utils/workflowDefinitionBuilder'
 
-type ValidationFinding = { message: string; node_id?: string | null; severity?: string }
+type ValidationFinding = { message: string; node_id?: string | null; severity?: string; field_path?: string | null }
 
 function lookupNodeName(nodeId: string | null): string | undefined {
   if (!nodeId) return undefined
@@ -33,6 +33,7 @@ function mapFindings(findings: ValidationFinding[] | undefined): ValidationError
       nodeId,
       nodeName,
       severity,
+      fieldPath: f.field_path ?? null,
     }
   })
 }

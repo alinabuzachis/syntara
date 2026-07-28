@@ -256,7 +256,7 @@ def _check_approval_node_findings(
 
 def _select_best_branch(
     context_errors: list[jsonschema.ValidationError],
-) -> tuple[Any, dict[Any, list[str]]]:
+) -> tuple[Any, dict[Any, list[jsonschema.ValidationError]]]:
     """Pick the best-matching ``oneOf`` branch from context errors.
 
     Groups by ``schema_path[0]`` (the branch index), prefers branches
@@ -266,11 +266,11 @@ def _select_best_branch(
     Returns ``(best_branch_index, branches_dict)``.  The caller decides
     how to handle the ``branch_all_type_const`` fallback.
     """
-    branches: dict[Any, list[str]] = defaultdict(list)
+    branches: dict[Any, list[jsonschema.ValidationError]] = defaultdict(list)
     branch_has_type_const: dict[Any, bool] = defaultdict(bool)
     for ctx in context_errors:
         branch_idx = ctx.schema_path[0]
-        branches[branch_idx].append(ctx.message)
+        branches[branch_idx].append(ctx)
         if ctx.validator == "const" and list(ctx.relative_path) == ["type"]:
             branch_has_type_const[branch_idx] = True
 
@@ -280,8 +280,8 @@ def _select_best_branch(
     return best_idx, branches
 
 
-def _best_branch_messages(error: jsonschema.ValidationError) -> list[str]:
-    """Extract error messages from the best-matching ``oneOf`` branch.
+def _best_branch_messages(error: jsonschema.ValidationError) -> list[tuple[str, list[Any]]]:
+    """Extract error messages and paths from the best-matching ``oneOf`` branch.
 
     Groups context errors by their ``schema_path[0]`` (the ``oneOf`` branch
     index) and picks the branch with the fewest errors — this is the branch
@@ -290,17 +290,17 @@ def _best_branch_messages(error: jsonschema.ValidationError) -> list[str]:
 
     When every branch fails only on the type discriminator ``const``, the
     node type is unrecognised — fall back to the top-level ``oneOf`` message.
+
+    Returns a list of ``(message, path_parts)`` tuples so that each finding
+    carries its own JSON-pointer path rather than inheriting the parent's.
     """
     if not error.context:
-        return [error.message]
+        return [(error.message, list(error.absolute_path))]
     best_idx, branches = _select_best_branch(error.context)
-    if len(branches[best_idx]) == 1 and any(
-        ctx.validator == "const" and list(ctx.relative_path) == ["type"]
-        for ctx in error.context
-        if ctx.schema_path[0] == best_idx
-    ):
-        return [error.message]
-    return branches[best_idx]
+    best_errors = branches[best_idx]
+    if len(best_errors) == 1 and best_errors[0].validator == "const" and list(best_errors[0].relative_path) == ["type"]:
+        return [(error.message, list(error.absolute_path))]
+    return [(ctx.message, list(ctx.absolute_path)) for ctx in best_errors]
 
 
 _NODE_BASE_PROPERTIES = frozenset(
@@ -311,16 +311,19 @@ _NODE_BASE_PROPERTIES = frozenset(
 def _get_nested_parameter_errors(
     error: jsonschema.ValidationError,
     workflow_definition: dict[str, Any],
-    best_messages: list[str],
-) -> list[str]:
+    best_messages: list[tuple[str, list[Any]]],
+) -> list[tuple[str, list[Any]]]:
     """When ``parameters`` is required but missing, discover what it should contain.
 
     Patches the element with ``parameters: {}`` and validates just the element
     against its sub-schema to surface nested required-field errors (e.g.
     ``'language' is a required property``) without re-validating the entire
     workflow definition.
+
+    Returns ``(message, path_parts)`` tuples with paths prefixed by the
+    element's position in the workflow (e.g. ``['nodes', 0, ...]``).
     """
-    if "'parameters' is a required property" not in best_messages:
+    if not any(msg == "'parameters' is a required property" for msg, _ in best_messages):
         return []
     path_parts = list(error.absolute_path)
     _min_len = 2
@@ -339,14 +342,19 @@ def _get_nested_parameter_errors(
     patched_element = {k: v for k, v in original.items() if k in _NODE_BASE_PROPERTIES}
     patched_element["parameters"] = {}
 
-    original_set = set(best_messages)
-    supplementary: list[str] = []
+    original_set = {msg for msg, _ in best_messages}
+    path_prefix: list[Any] = [collection, idx]
+    supplementary: list[tuple[str, list[Any]]] = []
     element_validator = _get_element_validator(collection)
     for err in element_validator.iter_errors(patched_element):
         if not err.context:
             continue
         best_idx, branches = _select_best_branch(err.context)
-        supplementary.extend(msg for msg in branches[best_idx] if msg not in original_set)
+        supplementary.extend(
+            (ctx.message, path_prefix + list(ctx.absolute_path))
+            for ctx in branches[best_idx]
+            if ctx.message not in original_set
+        )
     return supplementary
 
 
@@ -521,13 +529,11 @@ class WorkflowValidator:
         """Convert JSON Schema errors into individual ValidationFinding objects."""
         findings: list[ValidationFinding] = []
         for error in _get_validator().iter_errors(workflow_definition):
-            path_parts = list(error.absolute_path)
-
             if error.context:
-                best_msgs = _best_branch_messages(error)
-                best_msgs.extend(_get_nested_parameter_errors(error, workflow_definition, best_msgs))
-                for leaf_msg in best_msgs:
-                    node_id, field_path = _extract_node_id_and_field(path_parts, workflow_definition)
+                best = _best_branch_messages(error)
+                best.extend(_get_nested_parameter_errors(error, workflow_definition, best))
+                for leaf_msg, leaf_path in best:
+                    node_id, field_path = _extract_node_id_and_field(leaf_path, workflow_definition)
                     findings.append(
                         ValidationFinding(
                             severity=ValidationSeverity.error,
@@ -538,6 +544,7 @@ class WorkflowValidator:
                         )
                     )
             else:
+                path_parts = list(error.absolute_path)
                 node_id, field_path = _extract_node_id_and_field(path_parts, workflow_definition)
                 findings.append(
                     ValidationFinding(

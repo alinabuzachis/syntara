@@ -86,6 +86,24 @@ describe('humanizeValidationMessage', () => {
     expect(result).toBe('This field must not be empty')
   })
 
+  it('includes field name from fieldPath for non-empty errors', () => {
+    const result = humanizeValidationMessage("'' should be non-empty", 'parameters.code')
+
+    expect(result).toBe('"code" must not be empty')
+  })
+
+  it('uses last segment of dotted fieldPath for non-empty errors', () => {
+    const result = humanizeValidationMessage("'' should be non-empty", 'parameters.language')
+
+    expect(result).toBe('"language" must not be empty')
+  })
+
+  it('falls back to generic message when fieldPath is null', () => {
+    const result = humanizeValidationMessage("'' should be non-empty", null)
+
+    expect(result).toBe('This field must not be empty')
+  })
+
   it('passes through unrecognized messages unchanged', () => {
     const result = humanizeValidationMessage("'approval' was expected")
 
@@ -310,6 +328,26 @@ describe('ValidationBanner', () => {
     expect(
       screen.getByText('"123_bad_id" is not a valid ID. Use letters, numbers, and underscores only (e.g., "my_node_1")')
     ).toBeInTheDocument()
+  })
+
+  it('displays field name from fieldPath for non-empty validation errors', async () => {
+    const onNavigateToNode = vi.fn()
+    const errors: ValidationError[] = [
+      {
+        message: "'' should be non-empty",
+        nodeId: 'node-1',
+        nodeName: 'Script1',
+        fieldPath: 'parameters.code',
+      },
+    ]
+
+    render(
+      <ValidationBanner errors={errors} dismissed={false} dispatch={mockDispatch} onNavigateToNode={onNavigateToNode} />
+    )
+    await expandAlert()
+
+    expect(screen.getByRole('button', { name: 'Script1' })).toBeInTheDocument()
+    expect(screen.getByText('"code" must not be empty')).toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {

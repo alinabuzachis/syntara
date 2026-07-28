@@ -22,7 +22,13 @@ const REQUIRED_PROPERTY_PATTERN = /^'([^']+)' is a required property$/
 const NON_EMPTY_PATTERN = /^'' should be non-empty$/
 const HUMANIZED_MISSING_FIELD = /^Missing required field "([^"]+)"$/
 
-export function humanizeValidationMessage(raw: string): string {
+function extractFieldName(fieldPath: string | null | undefined): string | null {
+  if (!fieldPath) return null
+  const segments = fieldPath.split('.')
+  return segments.at(-1) || null
+}
+
+export function humanizeValidationMessage(raw: string, fieldPath?: string | null): string {
   const idMatch = ID_PATTERN.exec(raw)
   if (idMatch) {
     return `"${idMatch[1]}" is not a valid ID. Use letters, numbers, and underscores only (e.g., "my_node_1")`
@@ -34,6 +40,10 @@ export function humanizeValidationMessage(raw: string): string {
   }
 
   if (NON_EMPTY_PATTERN.test(raw)) {
+    const fieldName = extractFieldName(fieldPath)
+    if (fieldName) {
+      return `"${fieldName}" must not be empty`
+    }
     return 'This field must not be empty'
   }
 
@@ -43,7 +53,7 @@ export function humanizeValidationMessage(raw: string): string {
 function joinWithAnd(items: string[]): string {
   if (items.length <= 1) return items.join('')
   if (items.length === 2) return `${items[0]} and ${items[1]}`
-  return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`
+  return `${items.slice(0, -1).join(', ')}, and ${items.at(-1)}`
 }
 
 export function mergeHumanizedMessages(messages: string[]): string[] {
