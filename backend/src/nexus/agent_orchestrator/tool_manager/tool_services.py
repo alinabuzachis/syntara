@@ -267,11 +267,10 @@ async def _retrieve_base_tools_from_integrations(
     """
     namespaced_tools: list[NamespacedBaseTool] = []
 
-    async for provider_factory in get_provider_factory():
-        for integration in all_integrations:
-            integration_tools = await _process_single_integration(integration, provider_factory, credential_resolver)
-            namespaced_tools.extend(integration_tools)
-        break  # Exit the async generator after first iteration
+    provider_factory = await get_provider_factory()
+    for integration in all_integrations:
+        integration_tools = await _process_single_integration(integration, provider_factory, credential_resolver)
+        namespaced_tools.extend(integration_tools)
 
     logger.info(
         "Retrieved total tools from integrations",
