@@ -992,6 +992,20 @@ SETTINGS_CATALOG: list[SettingDefinition] = [
         helper_text="Minimum 1 second. Default: 10 seconds.",
         validation_schema={"min": 1},
     ),
+    SettingDefinition(
+        key="integrations.health_check_batch_size",
+        name="Health check batch size",
+        category=SettingCategory.INTEGRATIONS,
+        value_type=SettingValueType.INTEGER,
+        default_value=500,
+        description=(
+            "Maximum number of integrations validated per health-check "
+            "run. Higher values clear the fleet faster but add more load "
+            "per run; remaining integrations are picked up on the next run."
+        ),
+        helper_text="Minimum 1. Default: 500.",
+        validation_schema={"min": 1},
+    ),
     # Rate Limiting
     SettingDefinition(
         key="rate_limiting.requests_per_window",

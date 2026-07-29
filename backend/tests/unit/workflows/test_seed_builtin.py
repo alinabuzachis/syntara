@@ -8,10 +8,12 @@ from uuid import uuid4
 
 import pytest
 
+from nexus.workflows.exceptions import ScheduledTriggerSyncError
 from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.models.workflow_publish_event import WorkflowPublishEvent
 from nexus.workflows.models.workflow_version import WorkflowVersion
 from nexus.workflows.seed_builtin import _BUILTIN_DEFINITIONS, seed_builtin_workflows
+from nexus.workflows.validators import workflow_validator as real_workflow_validator
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -54,6 +56,16 @@ class TestSeedBuiltinWorkflows:
         with patch("nexus.workflows.seed_builtin.workflow_validator") as mock_v:
             self.mock_validator = mock_v
             yield mock_v
+
+    @pytest.fixture(autouse=True)
+    def _patch_scheduled_trigger_service(self) -> Generator[MagicMock, None, None]:
+        """Prevent real Temporal connection attempts during unit tests."""
+        with patch("nexus.workflows.seed_builtin.ScheduledTriggerService") as mock_cls:
+            mock_instance = MagicMock()
+            mock_instance.sync_scheduled_triggers = AsyncMock(return_value=0)
+            mock_cls.return_value = mock_instance
+            self.mock_scheduler = mock_instance
+            yield mock_instance
 
     @pytest.mark.asyncio
     async def test_raises_when_no_admin_user(self) -> None:
@@ -177,3 +189,121 @@ class TestSeedBuiltinWorkflows:
             assert "triggers" in defn
             assert "nodes" in defn
             assert "edges" in defn
+
+    @pytest.mark.asyncio
+    async def test_sync_builtin_schedules_called_on_create(self) -> None:
+        """Every newly-created builtin workflow gets schedule-synced."""
+        admin, project = _mock_admin(), _mock_project()
+        session = _mock_session(admin, project, *[None] * len(_BUILTIN_DEFINITIONS))
+
+        await seed_builtin_workflows(session)
+
+        assert self.mock_scheduler.sync_scheduled_triggers.await_count == len(_BUILTIN_DEFINITIONS)
+        synced_definitions = [
+            call.kwargs["workflow_definition"] for call in self.mock_scheduler.sync_scheduled_triggers.await_args_list
+        ]
+        synced_names = {d["name"] for d in synced_definitions}
+        assert synced_names == {d["name"] for d in _BUILTIN_DEFINITIONS}
+
+        # Verify builtins route to background task queue
+        sync_calls = self.mock_scheduler.sync_scheduled_triggers.await_args_list
+        assert all(call.kwargs.get("is_builtin") is True for call in sync_calls)
+
+    @pytest.mark.asyncio
+    async def test_sync_builtin_schedules_called_on_unchanged_skip(self) -> None:
+        """Schedule sync runs even when the definition is unchanged (idempotent)."""
+        first_def = _BUILTIN_DEFINITIONS[0]
+        existing = MagicMock(spec=Workflow)
+        existing.id = uuid4()
+        existing.current_version = 1
+        existing.project_id = uuid4()
+
+        cur_ver = MagicMock(spec=WorkflowVersion)
+        cur_ver.workflow_definition = first_def
+
+        session = _mock_session(
+            _mock_admin(), _mock_project(), existing, cur_ver, *[None] * (len(_BUILTIN_DEFINITIONS) - 1)
+        )
+
+        await seed_builtin_workflows(session)
+
+        # First definition took the "unchanged, skip" branch but must still
+        # have triggered a schedule sync call for that workflow's ID.
+        synced_workflow_ids = {
+            call.kwargs["workflow_id"] for call in self.mock_scheduler.sync_scheduled_triggers.await_args_list
+        }
+        assert str(existing.id) in synced_workflow_ids
+
+    @pytest.mark.asyncio
+    async def test_sync_error_does_not_abort_seeding(self) -> None:
+        """A Temporal-unreachable ScheduledTriggerSyncError must not fail the whole seed pass.
+
+        Mirrors WorkflowService's own degrade-gracefully behaviour on
+        publish: the workflow row is still seeded correctly even if
+        Temporal is down at startup.
+        """
+        self.mock_scheduler.sync_scheduled_triggers = AsyncMock(
+            side_effect=ScheduledTriggerSyncError("some-workflow-id", 1)
+        )
+        admin, project = _mock_admin(), _mock_project()
+        session = _mock_session(admin, project, *[None] * len(_BUILTIN_DEFINITIONS))
+
+        # Must not raise even though every sync call fails.
+        await seed_builtin_workflows(session)
+
+        workflows_added = [c[0][0] for c in session.add.call_args_list if isinstance(c[0][0], Workflow)]
+        assert len(workflows_added) == len(_BUILTIN_DEFINITIONS)
+        session.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_health_check_definition_has_scheduled_trigger(self) -> None:
+        """Health check workflow uses a scheduled_trigger, not manual_trigger."""
+        hc_def = next(d for d in _BUILTIN_DEFINITIONS if d["name"] == "Integration Health Check")
+        assert hc_def["triggers"][0]["type"] == "scheduled_trigger"
+        assert hc_def["triggers"][0]["parameters"]["schedule_type"] == "interval"
+        assert hc_def["nodes"][0]["type"] == "internal_activity"
+        assert hc_def["nodes"][0]["parameters"]["activity"] == "integration_health_check"
+
+    @pytest.mark.asyncio
+    async def test_health_check_definition_passes_real_schema_validation(self) -> None:
+        """Health check definition passes real schema validation (not mocked)."""
+        hc_def = next(d for d in _BUILTIN_DEFINITIONS if d["name"] == "Integration Health Check")
+
+        real_workflow_validator.validate_workflow_definition(hc_def)
+
+    def test_health_check_node_timeout_fits_within_schedule_interval(self) -> None:
+        """Worst-case execution time (all retries + backoff) must fit within one schedule interval."""
+        hc_def = next(d for d in _BUILTIN_DEFINITIONS if d["name"] == "Integration Health Check")
+        node_settings = hc_def["nodes"][0]["settings"]
+        node_timeout = node_settings["timeout"]
+        retry_policy = node_settings.get("retry_policy") or {}
+
+        # Mirrors node_settings_resolver.resolve_retry_policy's fallbacks for any
+        # field left unset here, so this stays a true worst case even if a future
+        # edit sets max_retries without also setting initial_interval/backoff_coefficient.
+        max_retries = retry_policy.get("max_retries", 3)
+        initial_interval = retry_policy.get("initial_interval", 1)
+        max_interval = retry_policy.get("max_interval", 60)
+        backoff_coefficient = retry_policy.get("backoff_coefficient", 2.0)
+
+        total_worst_case = node_timeout  # first attempt
+        backoff = initial_interval
+        for _ in range(max_retries):
+            total_worst_case += backoff + node_timeout
+            backoff = min(backoff * backoff_coefficient, max_interval)
+
+        interval_spec = hc_def["triggers"][0]["parameters"]["interval"]
+        # ISO 8601 recurring interval, e.g. "R/2024-01-01T00:00:00Z/PT5M" — the
+        # last component is the ISO 8601 duration. Parsed narrowly here (not a
+        # general ISO 8601 duration parser) since this builtin's interval is a
+        # fixed, known constant, not user-configurable input.
+        duration_str = interval_spec.rsplit("/", 1)[-1]
+        parse_error_msg = f"Expected a PT<n>M duration, got {duration_str!r} — update parsing if format changed"
+        assert duration_str.startswith("PT"), parse_error_msg
+        assert duration_str.endswith("M"), parse_error_msg
+        interval_seconds = int(duration_str[2:-1]) * 60
+
+        assert total_worst_case < interval_seconds, (
+            f"Worst-case total time ({total_worst_case}s with max_retries={max_retries}) "
+            f"exceeds schedule interval ({interval_seconds}s)"
+        )

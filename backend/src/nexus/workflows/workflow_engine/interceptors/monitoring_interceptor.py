@@ -1,8 +1,14 @@
 """Workflow interceptor for automatically scheduling activity monitoring.
 
-This interceptor ensures that activity monitoring is started for every workflow
-execution, even if the temporal worker restarts. It replaces the signal-based
-approach which could be lost on worker restart.
+Ensures activity monitoring starts for every workflow execution, even if the
+worker restarts. Replaces the signal-based approach, which could be lost on
+restart.
+
+Scoped to ``nexus_workflow`` only. This interceptor runs globally on the
+worker, so without that scope check it would also fire for
+``scheduled_workflow_launcher`` (whose ``args[1]`` is a trigger_node_id
+string, not a UUID) and fail with ``ValueError: badly formed hexadecimal
+UUID string`` on every scheduled tick.
 """
 
 from datetime import timedelta
@@ -20,6 +26,11 @@ from temporalio.worker import (
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 
 logger = structlog.stdlib.get_logger(__name__)
+
+# Only NexusWorkflow's run() signature carries execution_id at args[1] (see
+# module docstring). Other workflow types registered on the same worker (e.g.
+# ScheduledWorkflowLauncher) must be skipped.
+_MONITORED_WORKFLOW_TYPES = frozenset({"nexus_workflow"})
 
 
 class _MonitoringWorkflowInboundInterceptor(WorkflowInboundInterceptor):
@@ -43,11 +54,12 @@ class _MonitoringWorkflowInboundInterceptor(WorkflowInboundInterceptor):
             Workflow execution result
 
         """
-        # Get execution_id and request_id from workflow args (DynamicWorkflow.run)
         # Args: [workflow_def_dict, execution_id, trigger_node_id, trigger_inputs,
         #        include_node_results, request_id, pre_resolved_outputs, stop_after_nodes]
+        # Only valid for nexus_workflow — see module docstring for why other
+        # workflow types must be excluded.
         min_args_for_monitoring = 2
-        if len(input.args) >= min_args_for_monitoring:
+        if len(input.args) >= min_args_for_monitoring and workflow.info().workflow_type in _MONITORED_WORKFLOW_TYPES:
             execution_id = input.args[1]
             temporal_workflow_id = workflow.info().workflow_id
             # request_id is the 6th argument (index 5), optional

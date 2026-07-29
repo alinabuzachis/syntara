@@ -68,17 +68,14 @@ ACTIVITY_REGISTRY: dict[ActivityName, Callable[..., Any]] = {
     for fn in _TEMPORAL_ACTIVITIES
 }
 
-# Subset of activities needed by built-in workflows only.
-# Built-in workflows (Document Conversion, Agent Execution) use manual_trigger
-# and execute_internal_activity — nothing else. The background worker runs a
-# smaller, more secure footprint that excludes user-facing executor activities.
-# Note: execution_tracker functions (create_activity_execution etc.) are utility
-# functions called directly by the workflow engine, not Temporal @activity.defn
-# decorated activities.
+# Activities for built-in workflows only. Background worker runs a smaller
+# footprint excluding user-facing executor activities. Both trigger types
+# required: manual_trigger and scheduled_trigger.
 _BACKGROUND_ACTIVITIES: list[Callable[..., Any]] = [
     register_activity_monitoring,
     fetch_workflow_runtime_settings,
     manual_trigger,
+    scheduled_trigger,
     execute_internal_activity,
 ]
 

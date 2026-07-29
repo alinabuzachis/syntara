@@ -129,6 +129,42 @@ class TestSyncScheduledTriggers:
         schedule = client.create_schedule.call_args[0][1]
         assert schedule.action.workflow == "scheduled_workflow_launcher"
 
+    async def test_sync_defaults_to_general_task_queue(self) -> None:
+        """Regression guard for the task-queue routing fix below.
+
+        Default (is_builtin not passed) must stay on the general task queue —
+        this is the existing behaviour for user-authored workflows and must
+        not change as a side effect of the fix.
+        """
+        client = _make_mock_client()
+        service = ScheduledTriggerService(temporal_client=client)
+
+        definition = _make_workflow_definition(triggers=[_make_scheduled_trigger("trigger_1")])
+
+        await service.sync_scheduled_triggers(
+            workflow_id="wf-123",
+            workflow_definition=definition,
+        )
+
+        schedule = client.create_schedule.call_args[0][1]
+        assert schedule.action.task_queue == "nexus-workflow-queue"
+
+    async def test_sync_builtin_routes_to_background_task_queue(self) -> None:
+        """Builtin workflows route to background task queue, not general queue."""
+        client = _make_mock_client()
+        service = ScheduledTriggerService(temporal_client=client)
+
+        definition = _make_workflow_definition(triggers=[_make_scheduled_trigger("trigger_1")])
+
+        await service.sync_scheduled_triggers(
+            workflow_id="wf-123",
+            workflow_definition=definition,
+            is_builtin=True,
+        )
+
+        schedule = client.create_schedule.call_args[0][1]
+        assert schedule.action.task_queue == "nexus-background-queue"
+
     async def test_sync_updates_existing_schedule(self) -> None:
         """Should update an existing Temporal Schedule when trigger config changes."""
         client = _make_mock_client()

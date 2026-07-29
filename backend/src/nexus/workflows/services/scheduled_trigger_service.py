@@ -125,6 +125,8 @@ class ScheduledTriggerService:
         self,
         workflow_id: str,
         workflow_definition: dict[str, Any],
+        *,
+        is_builtin: bool = False,
     ) -> int:
         """Synchronise Temporal Schedules from a workflow definition.
 
@@ -136,6 +138,10 @@ class ScheduledTriggerService:
         Args:
             workflow_id: The workflow UUID (as string).
             workflow_definition: The full workflow definition dict.
+            is_builtin: When True, routes to ``settings.background_task_queue``
+                instead of ``settings.task_queue`` — same branch
+                ``TemporalExecutionService`` uses for manually-triggered
+                builtin executions.
 
         Returns:
             Number of scheduled triggers processed.
@@ -165,7 +171,7 @@ class ScheduledTriggerService:
             return 0
 
         settings = get_settings()
-        task_queue = settings.task_queue
+        task_queue = settings.background_task_queue if is_builtin else settings.task_queue
         processed = 0
 
         try:

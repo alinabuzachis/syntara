@@ -18,8 +18,10 @@ from sqlmodel import col, select
 from nexus.authz.models import Project
 from nexus.core.models import User
 from nexus.workflows.constants import BUILTIN_PROJECT_NAME
+from nexus.workflows.exceptions import ScheduledTriggerSyncError
 from nexus.workflows.models import Workflow, WorkflowVersion
 from nexus.workflows.models.workflow_publish_event import PublishAction, WorkflowPublishEvent
+from nexus.workflows.services.scheduled_trigger_service import ScheduledTriggerService
 from nexus.workflows.validators import workflow_validator
 
 if TYPE_CHECKING:
@@ -80,6 +82,45 @@ _BUILTIN_DEFINITIONS: list[dict[str, Any]] = [
         ],
         "edges": [{"from": "trigger_api", "to": "execute"}],
     },
+    {
+        "schema_version": "2.0.0",
+        "name": "Integration Health Check",
+        "description": (
+            "Scheduled workflow that validates integrations on a recurring interval. "
+            "Checks all integrations due for validation based on health_check_interval_seconds."
+        ),
+        "triggers": [
+            {
+                "id": "trigger_schedule",
+                "type": "scheduled_trigger",
+                "parameters": {
+                    "schedule_type": "interval",
+                    "interval": "R/2024-01-01T00:00:00Z/PT5M",
+                    "missed_schedule_policy": "skip",
+                },
+            }
+        ],
+        "nodes": [
+            {
+                "id": "health_check",
+                "type": "internal_activity",
+                "name": "Run Integration Health Checks",
+                "parameters": {
+                    "activity": "integration_health_check",
+                    # Batch mode: check all stale integrations
+                    "input": {"batch": True},
+                },
+                "settings": {
+                    # No retries: next scheduled tick serves as implicit retry.
+                    "timeout": 280,
+                    "retry_policy": {
+                        "max_retries": 0,
+                    },
+                },
+            }
+        ],
+        "edges": [{"from": "trigger_schedule", "to": "health_check"}],
+    },
 ]
 
 
@@ -126,6 +167,39 @@ async def seed_builtin_workflows(session: AsyncSession) -> None:
 
     await session.commit()
     logger.info("Builtin workflow seeding complete")
+
+
+async def _sync_builtin_schedules(workflow_id: UUID, workflow_dict: dict[str, Any], name: str) -> None:
+    """Create/update Temporal Schedules for scheduled_trigger nodes in a builtin workflow.
+
+    Builtin workflows are seeded directly, bypassing WorkflowService's normal
+    publish flow — so they'd never get a real Temporal Schedule without this.
+    Called on every seed pass (not just first creation) so a pod restart
+    re-syncs idempotently; sync_scheduled_triggers() is a no-op on repeat
+    calls with an unchanged definition.
+    """
+    try:
+        scheduled_service = ScheduledTriggerService()
+        count = await scheduled_service.sync_scheduled_triggers(
+            workflow_id=str(workflow_id),
+            workflow_definition=workflow_dict,
+            is_builtin=True,
+        )
+        if count:
+            logger.info(
+                "Synced scheduled triggers for builtin workflow",
+                workflow_name=name,
+                trigger_count=count,
+            )
+    except ScheduledTriggerSyncError as exc:
+        # Non-fatal: the workflow row itself is still seeded correctly even
+        # if Temporal is unreachable at startup. Mirrors the same
+        # degrade-gracefully behaviour WorkflowService uses on publish.
+        logger.warning(
+            "Scheduled trigger sync failed for builtin workflow — schedule not created/updated",
+            workflow_name=name,
+            error=str(exc),
+        )
 
 
 async def _seed_one(
@@ -181,6 +255,7 @@ async def _seed_one(
         )
         session.add(publish_event)
         logger.info("Created builtin workflow", workflow_name=name)
+        await _sync_builtin_schedules(workflow.id, workflow_dict, name)
     else:
         current_version_result = await session.exec(
             select(WorkflowVersion).where(
@@ -196,6 +271,8 @@ async def _seed_one(
 
         if current_version and current_version.workflow_definition == workflow_dict:
             logger.info("Builtin workflow unchanged, skipping", workflow_name=name)
+            # Still re-sync schedules even when unchanged (see docstring).
+            await _sync_builtin_schedules(existing.id, workflow_dict, name)
             return
 
         new_version_num = existing.increment_version()
@@ -221,3 +298,4 @@ async def _seed_one(
         )
         session.add(publish_event)
         logger.info("Updated builtin workflow", workflow_name=name, new_version=new_version_num)
+        await _sync_builtin_schedules(existing.id, workflow_dict, name)

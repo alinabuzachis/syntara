@@ -12,6 +12,7 @@ sandbox warnings that can interfere with other activities.
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from typing import TYPE_CHECKING, Any, TypedDict
 from uuid import UUID
 
@@ -73,9 +74,19 @@ async def _run_invocation_execution(operation_input: InvocationExecutionInput) -
     return {"output": {"status": "completed"}}
 
 
+async def _run_integration_health_check(operation_input: dict[str, Any]) -> dict[str, Any]:  # noqa: ARG001
+    """Run health checks on all integrations due for validation (batch mode)."""
+    # Batch mode only: operation_input is reserved for a future single-integration path.
+    from nexus.integrations.services.health_check import run_health_checks  # noqa: PLC0415
+
+    result = await run_health_checks()
+    return {"output": asdict(result)}
+
+
 _DISPATCH: dict[str, Callable[..., Awaitable[dict[str, Any]]]] = {
     "document_conversion": _run_document_conversion,
     "invocation_execution": _run_invocation_execution,
+    "integration_health_check": _run_integration_health_check,
 }
 
 

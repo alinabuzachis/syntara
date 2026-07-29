@@ -41,6 +41,7 @@ class TestMonitoringWorkflowInboundInterceptor:
 
         mock_workflow_info = Mock()
         mock_workflow_info.workflow_id = temporal_workflow_id
+        mock_workflow_info.workflow_type = "nexus_workflow"
 
         mock_start_activity = Mock()
 
@@ -91,6 +92,34 @@ class TestMonitoringWorkflowInboundInterceptor:
             assert result == "workflow_result"
 
     @pytest.mark.asyncio
+    async def test_execute_workflow_skips_non_nexus_workflow_types(self) -> None:
+        """Interceptor must skip non-nexus_workflow types (e.g. scheduled_workflow_launcher)."""
+        mock_input = Mock(spec=WorkflowInterceptorClassInput)
+        mock_input.args = ["workflow-id-string", "trigger_schedule"]
+
+        mock_workflow_info = Mock()
+        mock_workflow_info.workflow_id = "scheduled_workflow_launcher-abc123"
+        mock_workflow_info.workflow_type = "scheduled_workflow_launcher"
+
+        interceptor = _MonitoringWorkflowInboundInterceptor(Mock())
+
+        with (
+            patch("temporalio.workflow.info", return_value=mock_workflow_info),
+            patch("temporalio.workflow.start_activity") as mock_start,
+        ):
+            mock_next_execute = AsyncMock(return_value="launcher_result")
+            interceptor.next = Mock()
+            interceptor.next.execute_workflow = mock_next_execute
+
+            result = await interceptor.execute_workflow(mock_input)
+
+            # Must NOT attempt to schedule monitoring for this workflow type —
+            # args[1] ("trigger_schedule") is not a valid execution_id UUID.
+            mock_start.assert_not_called()
+            mock_next_execute.assert_awaited_once_with(mock_input)
+            assert result == "launcher_result"
+
+    @pytest.mark.asyncio
     async def test_execute_workflow_continues_on_monitoring_failure(self) -> None:
         """Test execute_workflow continues normal execution even if monitoring setup fails."""
         execution_id = str(uuid4())
@@ -101,6 +130,7 @@ class TestMonitoringWorkflowInboundInterceptor:
 
         mock_workflow_info = Mock()
         mock_workflow_info.workflow_id = temporal_workflow_id
+        mock_workflow_info.workflow_type = "nexus_workflow"
 
         interceptor = _MonitoringWorkflowInboundInterceptor(Mock())
 
@@ -128,6 +158,7 @@ class TestMonitoringWorkflowInboundInterceptor:
 
         mock_workflow_info = Mock()
         mock_workflow_info.workflow_id = temporal_workflow_id
+        mock_workflow_info.workflow_type = "nexus_workflow"
 
         mock_start_activity = Mock()
 
@@ -157,6 +188,7 @@ class TestMonitoringWorkflowInboundInterceptor:
 
         mock_workflow_info = Mock()
         mock_workflow_info.workflow_id = temporal_workflow_id
+        mock_workflow_info.workflow_type = "nexus_workflow"
 
         mock_start_activity = Mock()
 
@@ -187,6 +219,7 @@ class TestMonitoringWorkflowInboundInterceptor:
 
         mock_workflow_info = Mock()
         mock_workflow_info.workflow_id = temporal_workflow_id
+        mock_workflow_info.workflow_type = "nexus_workflow"
 
         mock_start_activity = Mock()
 
@@ -217,6 +250,7 @@ class TestMonitoringWorkflowInboundInterceptor:
 
         mock_workflow_info = Mock()
         mock_workflow_info.workflow_id = "workflow-123"
+        mock_workflow_info.workflow_type = "nexus_workflow"
 
         interceptor = _MonitoringWorkflowInboundInterceptor(Mock())
 

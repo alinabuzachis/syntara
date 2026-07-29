@@ -18,4 +18,6 @@ pytest_plugins = [
     # which are consumed by both unit and integration tests.
     "tests.integration.fixtures.workflows",
     "tests.integration.fixtures.tools",
+    # Live-deployment fixtures (nexus_base_url, nexus_api, ...) for performance/e2e tests.
+    "orchestrator_test_sdk.app.live",
 ]

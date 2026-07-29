@@ -121,6 +121,7 @@ class Integration(NamedResource, UserOwnedResource, table=True):
         default=None,
         description="Timestamp of last validation check",
         sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
+        index=True,
     )
 
     validation_error: str | None = Field(

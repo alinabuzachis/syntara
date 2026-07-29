@@ -2,6 +2,7 @@
 
 from typing import ClassVar
 
+from nexus.workflows.seed_builtin import _BUILTIN_DEFINITIONS
 from nexus.workflows.workflow_engine.activities.registry import (
     ACTIVITY_REGISTRY,
     BACKGROUND_ACTIVITY_REGISTRY,
@@ -15,6 +16,7 @@ class TestBackgroundActivityRegistry:
         "register_activity_monitoring",
         "fetch_workflow_runtime_settings",
         "manual_trigger",
+        "scheduled_trigger",
         "execute_internal_activity",
     }
 
@@ -29,3 +31,17 @@ class TestBackgroundActivityRegistry:
         """User-facing executor activities must not leak into the background registry."""
         user_activities = {"execute_agentic_activity", "execute_script_activity", "execute_http_request_activity"}
         assert BACKGROUND_ACTIVITY_REGISTRY.keys().isdisjoint(user_activities)
+
+    def test_every_builtin_trigger_type_has_a_registered_background_activity(self) -> None:
+        """Ensure all builtin trigger types have registered background activities.
+
+        Missing activities cause workflows to fail with NotFoundError on every tick.
+        """
+        trigger_types = {
+            trigger["type"] for workflow_dict in _BUILTIN_DEFINITIONS for trigger in workflow_dict["triggers"]
+        }
+        missing = trigger_types - BACKGROUND_ACTIVITY_REGISTRY.keys()
+        assert not missing, (
+            f"Builtin workflow trigger type(s) {missing} have no matching activity in "
+            "BACKGROUND_ACTIVITY_REGISTRY — workflows using these triggers will fail."
+        )
