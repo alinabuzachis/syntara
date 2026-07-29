@@ -8,7 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.models import Project
 from nexus.core.models import User
-from nexus.integrations.models.integration import IntegrationType
+from nexus.integrations.models.integration import IntegrationStatus, IntegrationType
 from tests.integration.api.conftest import make_admin, make_project_user, mcp_payload
 from tests.integration.helpers.integration import IntegrationFactory
 
@@ -176,6 +176,104 @@ class TestIntegrationsList:
         assert "total" in data
         assert isinstance(data["total"], int)
         assert data["total"] >= 3
+
+    async def test_list_filter_by_validation_status(
+        self,
+        auth_client: AsyncClient,
+        test_db_session: AsyncSession,
+        integration_factory: IntegrationFactory,
+    ) -> None:
+        """Filter by validation_status returns only matching integrations."""
+        available = await integration_factory.create(name=f"avail-{uuid4().hex[:8]}")
+        available.validation_status = IntegrationStatus.AVAILABLE
+        error = await integration_factory.create(name=f"err-{uuid4().hex[:8]}")
+        error.validation_status = IntegrationStatus.ERROR
+        unknown = await integration_factory.create(name=f"unk-{uuid4().hex[:8]}")
+        unknown.validation_status = IntegrationStatus.UNKNOWN
+        await test_db_session.commit()
+
+        response = await auth_client.get(BASE_URL, params={"validation_status": "available"})
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["resources"]) >= 1
+        returned_names = {r["name"] for r in data["resources"]}
+        assert available.name in returned_names
+        assert error.name not in returned_names
+        for resource in data["resources"]:
+            assert resource["validation_status"] == "available"
+
+        response_err = await auth_client.get(BASE_URL, params={"validation_status": "error"})
+        assert response_err.status_code == 200
+        err_data = response_err.json()
+        err_names = {r["name"] for r in err_data["resources"]}
+        assert error.name in err_names
+        assert available.name not in err_names
+
+    async def test_list_sort_by_name(
+        self,
+        auth_client: AsyncClient,
+        test_db_session: AsyncSession,
+        integration_factory: IntegrationFactory,
+    ) -> None:
+        """Sort parameter orders results correctly."""
+        prefix = f"sort-{uuid4().hex[:6]}"
+        await integration_factory.create(name=f"{prefix}-charlie")
+        await integration_factory.create(name=f"{prefix}-alpha")
+        await integration_factory.create(name=f"{prefix}-bravo")
+        await test_db_session.commit()
+
+        asc_resp = await auth_client.get(BASE_URL, params={"sort": "name", "limit": "100"})
+        assert asc_resp.status_code == 200
+        asc_names = [r["name"] for r in asc_resp.json()["resources"] if r["name"].startswith(prefix)]
+        assert asc_names == sorted(asc_names)
+
+        desc_resp = await auth_client.get(BASE_URL, params={"sort": "-name", "limit": "100"})
+        assert desc_resp.status_code == 200
+        desc_names = [r["name"] for r in desc_resp.json()["resources"] if r["name"].startswith(prefix)]
+        assert desc_names == sorted(desc_names, reverse=True)
+
+    async def test_list_combined_filters(
+        self,
+        auth_client: AsyncClient,
+        test_db_session: AsyncSession,
+        integration_factory: IntegrationFactory,
+    ) -> None:
+        """Multiple filters applied simultaneously narrow results correctly."""
+        mcp_enabled = await integration_factory.create(
+            name=f"combo-mcp-on-{uuid4().hex[:8]}",
+            integration_type=IntegrationType.MCP_SERVER,
+            enabled=True,
+        )
+        mcp_disabled = await integration_factory.create(
+            name=f"combo-mcp-off-{uuid4().hex[:8]}",
+            integration_type=IntegrationType.MCP_SERVER,
+            enabled=False,
+        )
+        llm_enabled = await integration_factory.create(
+            name=f"combo-llm-on-{uuid4().hex[:8]}",
+            integration_type=IntegrationType.LLM_PROVIDER,
+            enabled=True,
+        )
+        await test_db_session.commit()
+
+        response = await auth_client.get(
+            BASE_URL,
+            params={
+                "integration_type[eq]": "mcp_server",
+                "enabled[eq]": "true",
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        returned_names = {r["name"] for r in data["resources"]}
+
+        assert mcp_enabled.name in returned_names
+        assert mcp_disabled.name not in returned_names
+        assert llm_enabled.name not in returned_names
+
+        for resource in data["resources"]:
+            assert resource["integration_type"] == "mcp_server"
+            assert resource["enabled"] is True
 
 
 async def _create_project(session: AsyncSession, name: str | None = None) -> Project:

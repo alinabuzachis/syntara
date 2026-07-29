@@ -303,6 +303,23 @@ describe('Integrations Component', () => {
       // Multiple "Configure integration" buttons exist (header + empty state), so use getAllByText
       expect(screen.getAllByText('Configure integration').length).toBeGreaterThan(0)
     })
+
+    it('displays filter-empty state when filters are active but no results match', () => {
+      mockSearchParams.set('validation_status', 'error')
+
+      vi.mocked(integrationsClient.useQuery).mockReturnValueOnce({
+        data: { resources: [] },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      } as never)
+
+      render(<Integrations />, { wrapper })
+
+      expect(screen.getByText('No results found')).toBeInTheDocument()
+      expect(screen.queryByText('No integrations have been configured yet.')).not.toBeInTheDocument()
+    })
   })
 
   describe('Table Columns', () => {
