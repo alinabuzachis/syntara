@@ -9,7 +9,6 @@ import {
   Icon,
   SimpleList,
   SimpleListGroup,
-  SimpleListItem,
   Stack,
   StackItem,
   Title,
@@ -137,14 +136,15 @@ export function ExecutionHistoryRow({ execution, onSelect, isSelected }: Executi
 
   /* v8 ignore start -- phantom branches from compiled JSX props/ternaries in history row layout */
   return (
-    <SimpleListItem itemId={execution.id} isActive={isSelected} onClick={onSelect}>
-      <Stack className={styles.historyRowStack}>
-        <Flex
-          justifyContent={{ default: 'justifyContentSpaceBetween' }}
-          alignItems={{ default: 'alignItemsCenter' }}
-          flexWrap={{ default: 'nowrap' }}
-          gap={{ default: 'gapSm' }}
-        >
+    // eslint-disable-next-line syntara/prefer-pf-list-components -- SimpleListItem renders a <button> wrapper, causing invalid nested <button> with the kebab menu (https://github.com/patternfly/patternfly-react/issues/11368)
+    <li className={`pf-v6-c-simple-list__item ${styles.historyRowItem}`}>
+      <button
+        type="button"
+        className={`pf-v6-c-simple-list__item-link ${isSelected ? 'pf-m-current' : ''}`}
+        onClick={onSelect}
+        data-item-id={execution.id}
+      >
+        <Stack className={styles.historyRowStack}>
           <FlexItem className={styles.historyRowTitle}>
             {execution.created_at && (
               <Content component={ContentVariants.p} className={styles.historyRowDatetime}>
@@ -152,47 +152,47 @@ export function ExecutionHistoryRow({ execution, onSelect, isSelected }: Executi
               </Content>
             )}
           </FlexItem>
-          {retryable && (
-            <FlexItem className={styles.historyRowKebab}>
-              <HistoryRowRetryAction execution={execution} />
-            </FlexItem>
-          )}
-        </Flex>
-        <Stack className={styles.historyMetaStack}>
-          <Content component={ContentVariants.small} className={styles.historyRowMeta}>
-            {elapsedLabel}
-          </Content>
-          {truncatedId && (
+          <Stack className={styles.historyMetaStack}>
             <Content component={ContentVariants.small} className={styles.historyRowMeta}>
-              {`Run ID: ${truncatedId}`}
+              {elapsedLabel}
             </Content>
-          )}
-          {execution.workflow_version != null && execution.workflow_id && (
-            <Content component={ContentVariants.small} className={styles.historyRowMeta}>
-              {'Version: '}
-              <NxLink
-                to={`/workflow-builder/${execution.workflow_id}?version=${String(execution.workflow_version)}`}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Truncate
-                  content={execution.workflow_version_name ?? formatDateTime(execution.workflow_version_created_at)}
-                />
-              </NxLink>
-            </Content>
-          )}
-          {execution.retried_from_execution_id && (
-            <Content component={ContentVariants.small} className={`${styles.historyRowMeta} ${styles.retriedFrom}`}>
-              {`Retried from: ${execution.retried_from_execution_id.slice(0, TRUNCATED_ID_LENGTH)}`}
-            </Content>
-          )}
+            {truncatedId && (
+              <Content component={ContentVariants.small} className={styles.historyRowMeta}>
+                {`Run ID: ${truncatedId}`}
+              </Content>
+            )}
+            {execution.workflow_version != null && execution.workflow_id && (
+              <Content component={ContentVariants.small} className={styles.historyRowMeta}>
+                {'Version: '}
+                <NxLink
+                  to={`/workflow-builder/${execution.workflow_id}?version=${String(execution.workflow_version)}`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Truncate
+                    content={execution.workflow_version_name ?? formatDateTime(execution.workflow_version_created_at)}
+                  />
+                </NxLink>
+              </Content>
+            )}
+            {execution.retried_from_execution_id && (
+              <Content component={ContentVariants.small} className={`${styles.historyRowMeta} ${styles.retriedFrom}`}>
+                {`Retried from: ${execution.retried_from_execution_id.slice(0, TRUNCATED_ID_LENGTH)}`}
+              </Content>
+            )}
+          </Stack>
+          <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }} flexWrap={{ default: 'wrap' }}>
+            {execution.status && <StatusLabel status={execution.status} />}
+            <ApprovalPendingBadge approvalPending={execution.approval_pending} />
+            {isTestRun && <NxLabel color="purple">Test run</NxLabel>}
+          </Flex>
         </Stack>
-        <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }} flexWrap={{ default: 'wrap' }}>
-          {execution.status && <StatusLabel status={execution.status} />}
-          <ApprovalPendingBadge approvalPending={execution.approval_pending} />
-          {isTestRun && <NxLabel color="purple">Test run</NxLabel>}
-        </Flex>
-      </Stack>
-    </SimpleListItem>
+      </button>
+      {retryable && (
+        <div className={styles.historyRowKebab}>
+          <HistoryRowRetryAction execution={execution} />
+        </div>
+      )}
+    </li>
   )
   /* v8 ignore stop */
 }

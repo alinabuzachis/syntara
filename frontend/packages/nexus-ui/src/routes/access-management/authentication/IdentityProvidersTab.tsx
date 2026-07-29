@@ -219,6 +219,10 @@ function ProviderRow({
 
 export function IdentityProvidersTab() {
   const [aapSetupOpen, setAapSetupOpen] = useState(false)
+  const openAapSetup = useCallback(() => {
+    ;(document.activeElement as HTMLElement | null)?.blur?.()
+    setAapSetupOpen(true)
+  }, [])
   const permissions = useIdentityProviderPermissions()
   const deleteDialog = useDialogState<IdentityProvider>()
   const revokeDialog = useDialogState<IdentityProvider>()
@@ -307,11 +311,7 @@ export function IdentityProvidersTab() {
         hasActiveFilters={hasActiveFilters}
         onClearAllFilters={() => handleFilterChange([])}
         noDataState={
-          <NoProvidersEmptyState
-            showAapButton={!hasAapProvider}
-            onAapSetup={() => setAapSetupOpen(true)}
-            permissions={permissions}
-          />
+          <NoProvidersEmptyState showAapButton={!hasAapProvider} onAapSetup={openAapSetup} permissions={permissions} />
         }
         toolbar={
           providers.length > 0 || cursor || hasActiveFilters ? (
@@ -326,7 +326,7 @@ export function IdentityProvidersTab() {
                       <Button
                         variant="secondary"
                         isAriaDisabled={!permissions.canCreate}
-                        onClick={permissions.canCreate ? () => setAapSetupOpen(true) : undefined}
+                        onClick={permissions.canCreate ? openAapSetup : undefined}
                       >
                         Add Ansible Automation Platform
                       </Button>

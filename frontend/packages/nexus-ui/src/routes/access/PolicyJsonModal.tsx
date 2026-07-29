@@ -1,6 +1,7 @@
 import { Button, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/react-core'
 
 import { NxCodeBlock } from '../../components/details/NxCodeBlock'
+import { useBlurOnOpen } from '../../hooks/useBlurOnOpen'
 
 import { buildPolicyDefinitionJson } from './policyUtils'
 import type { PolicyRead } from './types'
@@ -12,6 +13,7 @@ export type PolicyJsonModalProps = {
 }
 
 export function PolicyJsonModal({ isOpen, policy, onClose }: Readonly<PolicyJsonModalProps>) {
+  useBlurOnOpen(isOpen)
   // Only name, description, and statements are the policy definition; scope/type/ids appear in sidebar details.
   const policyJson = buildPolicyDefinitionJson(policy)
 

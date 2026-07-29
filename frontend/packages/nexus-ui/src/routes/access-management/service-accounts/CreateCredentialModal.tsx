@@ -1,6 +1,8 @@
 import { Button, Content, Form, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/react-core'
 import { useCallback } from 'react'
 
+import { useBlurOnOpen } from '../../../hooks/useBlurOnOpen'
+
 import styles from './CreateCredentialModal.module.css'
 import { CredentialExpirationField } from './CredentialExpirationField'
 import { useCredentialExpirationDate } from './useCredentialExpirationDate'
@@ -61,6 +63,7 @@ export function CreateCredentialModal({
   isPending,
   maxLifetimeDays,
 }: Readonly<CreateCredentialModalProps>) {
+  useBlurOnOpen(isOpen)
   return (
     <Modal isOpen={isOpen} onClose={onClose} variant="small">
       <ModalHeader title="Create credential" />

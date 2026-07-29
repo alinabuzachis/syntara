@@ -25,7 +25,7 @@ export function useFetchApprovalForNode(executionId: string): UseFetchApprovalFo
   const { refetch } = approvalsClient.useQuery('get', '/approvals', {
     params: {
       query: {
-        execution_id: executionId,
+        ...(executionId ? { execution_id: executionId } : {}),
         status: 'pending',
       },
     },
@@ -34,6 +34,7 @@ export function useFetchApprovalForNode(executionId: string): UseFetchApprovalFo
 
   const fetchForNode = useCallback(
     async (approvalNodeId: string): Promise<Approval | null> => {
+      if (!executionId) return null
       setIsLoading(true)
       try {
         const result = await refetch()
@@ -45,7 +46,7 @@ export function useFetchApprovalForNode(executionId: string): UseFetchApprovalFo
         setIsLoading(false)
       }
     },
-    [refetch]
+    [executionId, refetch]
   )
 
   const clear = useCallback(() => {

@@ -14,6 +14,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 
 import { workflowFetchClient } from '../../../client'
 import { FlowNodeType } from '../../../constants'
+import { useBlurOnOpen } from '../../../hooks/useBlurOnOpen'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import { schemaToTemplateData } from '../../../utils/jsonSchemaTemplate'
@@ -380,6 +381,7 @@ export function RunStepDialog({
   triggerInputSchema,
   triggerNodeId,
 }: RunStepDialogProps) {
+  useBlurOnOpen(isOpen)
   const [dialogView, setDialogView] = useState<DialogView>('choice')
   const [mockJson, setMockJson] = useState('')
   const [jsonError, setJsonError] = useState<string | null>(null)

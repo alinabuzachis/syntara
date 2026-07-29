@@ -39,6 +39,15 @@ vi.mock('../../../hooks/routing/useSearchParams', () => ({
   useSearchParams: () => [currentSearchParams, vi.fn()],
 }))
 
+vi.mock('./identity-providers/AAPSetupModal', () => ({
+  AAPSetupModal: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) =>
+    isOpen ? (
+      <dialog open>
+        <button onClick={onClose}>Close</button>
+      </dialog>
+    ) : null,
+}))
+
 vi.mock('./useIdentityProviderPermissions', () => ({
   useIdentityProviderPermissions: () => ({
     canCreate: true,
@@ -197,6 +206,16 @@ describe('IdentityProvidersTab', () => {
       })
     })
 
+    it('opens AAP setup modal when Add Ansible Automation Platform button is clicked', async () => {
+      setupEmptyProviders()
+      const user = userEvent.setup()
+      render(<IdentityProvidersTab />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: /Add Ansible Automation Platform/ }))
+
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+    })
+
     it('has no accessibility violations in empty state', async () => {
       setupEmptyProviders()
       const { container } = render(<IdentityProvidersTab />, { wrapper })
@@ -231,6 +250,29 @@ describe('IdentityProvidersTab', () => {
       render(<IdentityProvidersTab />, { wrapper })
 
       expect(screen.getByRole('button', { name: /Add OIDC provider/ })).toBeInTheDocument()
+    })
+
+    it('opens AAP setup modal from toolbar button', async () => {
+      setupProviders()
+      const user = userEvent.setup()
+      render(<IdentityProvidersTab />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: /Add Ansible Automation Platform/ }))
+
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+    })
+
+    it('hides Add Ansible Automation Platform button when AAP provider exists', () => {
+      const aapProvider = {
+        ...mockProvider,
+        id: 'aap-1',
+        name: 'AAP',
+        configuration: { ...mockProvider.configuration, idp_type: 'aap' },
+      }
+      setupProviders([aapProvider])
+      render(<IdentityProvidersTab />, { wrapper })
+
+      expect(screen.queryByRole('button', { name: /Add Ansible Automation Platform/ })).not.toBeInTheDocument()
     })
 
     it('shows provider count in footer', () => {
@@ -843,5 +885,12 @@ describe('IdentityProvidersTab', () => {
 
       expect(identityProvidersClient.useMutation).toHaveBeenCalledWith('patch', '/identity_providers/{provider_id}')
     })
+  })
+
+  it('handles stable re-render without data changes', () => {
+    setupProviders()
+    const { rerender } = render(<IdentityProvidersTab />, { wrapper })
+    rerender(<IdentityProvidersTab />)
+    expect(screen.getByText('Azure AD')).toBeInTheDocument()
   })
 })

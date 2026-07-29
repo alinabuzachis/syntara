@@ -51,10 +51,12 @@ export function NodeTypeOptionsList(props: NodeTypeOptionsListProps) {
             cursor: 'pointer',
             ...(accentColor
               ? {
-                  border: 'none',
                   borderTopWidth: 4,
                   borderTopStyle: 'solid',
                   borderTopColor: accentColor,
+                  borderRightWidth: 0,
+                  borderBottomWidth: 0,
+                  borderLeftWidth: 0,
                 }
               : {}),
           }}

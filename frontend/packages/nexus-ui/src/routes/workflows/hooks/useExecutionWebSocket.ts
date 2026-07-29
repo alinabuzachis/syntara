@@ -139,11 +139,7 @@ export function useExecutionWebSocket(
   }, [isReconnecting, lastEventId, replayFromBeginning])
 
   // Build channel configuration with replay support
-  const channel = useMemo(() => {
-    const channelPath = buildExecutionChannelPath(executionId, replayParam)
-    // console.debug('[WebSocket] Channel config:', { executionId, replayParam, channelPath, enabled, isComplete })
-    return channelPath
-  }, [executionId, replayParam])
+  const channel = useMemo(() => buildExecutionChannelPath(executionId, replayParam), [executionId, replayParam])
 
   // Handle incoming WebSocket messages
   const handleMessage = useCallback(
@@ -205,8 +201,6 @@ export function useExecutionWebSocket(
   // Handle connection state changes
   const handleStateChange = useCallback(
     (state: 'connecting' | 'connected' | 'disconnected' | 'reconnecting' | 'failed') => {
-      // console.debug('[WebSocket] State change:', state)
-
       switch (state) {
         case 'connected':
           setConnectionState(true, false)
@@ -264,7 +258,6 @@ export function useExecutionWebSocket(
   // Disconnect when execution completes
   useEffect(() => {
     if (isComplete && wsConnected) {
-      // console.debug('[WebSocket] Execution complete, disconnecting')
       disconnect()
     }
   }, [isComplete, wsConnected, disconnect])

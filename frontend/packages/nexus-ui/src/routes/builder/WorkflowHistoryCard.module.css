@@ -29,8 +29,14 @@
   margin: 0;
 }
 
+.historyRowItem {
+  position: relative;
+}
+
 .historyRowKebab {
-  flex-shrink: 0;
+  position: absolute;
+  top: var(--pf-t--global--spacer--md);
+  right: var(--pf-t--global--spacer--md);
 }
 
 .simpleList {

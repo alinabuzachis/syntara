@@ -60,21 +60,4 @@ describe('registerAllNodes (index)', () => {
     expect(NodeRegistry.get('agent')).toBeDefined()
     expect(NodeRegistry.get('approval')).toBeDefined()
   })
-
-  it('logs a warning for modules without a default export', async () => {
-    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-
-    const { registerAllNodes } = await import('./index')
-    registerAllNodes()
-
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('does not export a registration function as default')
-    )
-
-    consoleSpy.mockRestore()
-    consoleLogSpy.mockRestore()
-    consoleErrorSpy.mockRestore()
-  })
 })

@@ -110,4 +110,11 @@ describe('SessionTimeoutWarning', () => {
     const results = await axe(container)
     expect(results).toHaveNoViolations()
   })
+
+  it('handles re-render with unchanged phase', () => {
+    mockSessionTimeout({ phase: 'warning', remainingSeconds: 30 })
+    const { rerender } = render(<SessionTimeoutWarning />)
+    rerender(<SessionTimeoutWarning />)
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+  })
 })

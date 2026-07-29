@@ -4,6 +4,7 @@ import { RhUiExternalLinkIcon } from '@patternfly/react-icons'
 import type { KeyboardEvent } from 'react'
 import { forwardRef, useCallback, useImperativeHandle, useState } from 'react'
 
+import { useBlurOnOpen } from '../../../hooks/useBlurOnOpen'
 import { useDropTarget } from '../../../hooks/useDropTarget'
 import { useMonacoBlur } from '../../../hooks/useMonacoBlur'
 import { useColorScheme } from '../../../providers/theme/useColorScheme'
@@ -105,6 +106,7 @@ export const ExpandableCodeEditor = forwardRef<ExpandableCodeEditorHandle, Expan
     const effectiveTheme = isDarkTheme ?? colorScheme === 'dark'
 
     const [isModalOpen, setIsModalOpen] = useState(false)
+    useBlurOnOpen(isModalOpen)
     const monacoLanguage = languageMap[language]
     const { getValue, focus, handleEditorDidMount, setValue, editorRef } = useMonacoBlur(code, onBlur)
 

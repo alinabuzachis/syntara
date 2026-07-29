@@ -13,6 +13,9 @@ export const SESSION_EXPIRED_KEY = 'ao_session_expired'
 /** `sessionStorage` key used to preserve the user's location across a timeout logout. */
 export const RETURN_TO_KEY = 'ao_return_to'
 
+/** `sessionStorage` key set on explicit logout to suppress bootstrap refresh on page reload. */
+export const EXPLICIT_LOGOUT_KEY = 'ao_explicit_logout'
+
 /** DOM events that count as user activity for idle detection. */
 export const ACTIVITY_EVENTS: ReadonlyArray<keyof DocumentEventMap> = [
   'mousemove',

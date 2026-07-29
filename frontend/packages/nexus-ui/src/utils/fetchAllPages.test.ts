@@ -67,4 +67,54 @@ describe('fetchAllPages', () => {
     await expect(fetchAllPages(fetchPage)).rejects.toThrow(`Pagination exceeded safety limit of ${MAX_PAGES} pages`)
     expect(fetchPage).toHaveBeenCalledTimes(MAX_PAGES)
   })
+
+  it('stops and warns when MAX_ITEMS cap is reached', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const bigPage = Array.from({ length: MAX_ITEMS + 1 }, (_, i) => ({ id: String(i) }))
+    const fetchPage = vi.fn().mockResolvedValueOnce({
+      data: { resources: bigPage, next: 'more' },
+    })
+
+    const result = await fetchAllPages(fetchPage)
+
+    expect(result).toHaveLength(MAX_ITEMS)
+    expect(fetchPage).toHaveBeenCalledTimes(1)
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining(`reached ${MAX_ITEMS} items`))
+    warnSpy.mockRestore()
+  })
+
+  it('throws when response has no data', async () => {
+    const fetchPage = vi.fn().mockResolvedValue({ data: undefined })
+
+    await expect(fetchAllPages(fetchPage)).rejects.toThrow('Empty response')
+  })
+
+  it('handles pages with undefined resources field', async () => {
+    const fetchPage = vi.fn().mockResolvedValue({
+      data: { resources: undefined, next: null },
+    })
+
+    const result = await fetchAllPages(fetchPage)
+
+    expect(result).toEqual([])
+  })
+
+  it('clamps exactly at MAX_ITEMS across multiple pages', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const halfMax = Math.ceil(MAX_ITEMS / 2)
+    const page1 = Array.from({ length: halfMax }, (_, i) => ({ id: `a-${i}` }))
+    const page2 = Array.from({ length: halfMax }, (_, i) => ({ id: `b-${i}` }))
+
+    const fetchPage = vi
+      .fn()
+      .mockResolvedValueOnce({ data: { resources: page1, next: 'c1' } })
+      .mockResolvedValueOnce({ data: { resources: page2, next: 'c2' } })
+
+    const result = await fetchAllPages(fetchPage)
+
+    expect(result).toHaveLength(MAX_ITEMS)
+    expect(fetchPage).toHaveBeenCalledTimes(2)
+    expect(warnSpy).toHaveBeenCalled()
+    warnSpy.mockRestore()
+  })
 })

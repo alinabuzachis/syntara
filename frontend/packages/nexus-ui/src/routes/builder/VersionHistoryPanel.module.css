@@ -24,8 +24,14 @@
   color: var(--pf-t--global--text--color--subtle);
 }
 
+.versionRowItem {
+  position: relative;
+}
+
 .kebabFlexItem {
-  flex-shrink: 0;
+  position: absolute;
+  top: var(--pf-t--global--spacer--md);
+  right: var(--pf-t--global--spacer--md);
 }
 
 .labelsRow {

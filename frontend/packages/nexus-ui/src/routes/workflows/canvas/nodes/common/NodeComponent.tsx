@@ -87,9 +87,7 @@ const isWideTaskNode = (nodeProps: NodeProps) => {
   }
 
   const data = nodeProps.data as TaskActivity | undefined
-  if (!data) {
-    return false
-  }
+  if (!data) return false
 
   // In v2, activity.type IS the executor directly (no task.executor wrapper)
   if (data.type === ExecutorTypeEnum.AGENTIC) {
@@ -177,7 +175,7 @@ export function NodeComponent(props: {
     ...WORKFLOW_NODE_PANEL_RADIUS_STYLE,
     ...(isSemanticZoom
       ? {
-          border: 'none',
+          borderWidth: 0,
           ...props.style,
         }
       : {
@@ -185,23 +183,26 @@ export function NodeComponent(props: {
           // selection so the border geometry stays fixed and toggling selection causes no layout shift).
           ...(props.topBarColor &&
             !props.hasDashedBorder && {
-              border: 'none',
               borderTopWidth: 4,
-              borderTopStyle: 'solid',
+              borderTopStyle: 'solid' as const,
               borderTopColor: props.topBarColor,
+              borderRightWidth: 0,
+              borderBottomWidth: 0,
+              borderLeftWidth: 0,
             }),
           // Dashed placeholder (e.g. GenericNode): full dashed border, no type-colored top bar.
           ...(props.hasDashedBorder &&
             !isSelected && {
-              border: '2px dashed rgba(196, 181, 253, 0.5)',
-              borderWidth: '2px',
-              borderStyle: 'dashed',
+              borderWidth: 2,
+              borderStyle: 'dashed' as const,
               borderColor: 'rgba(196, 181, 253, 0.5)',
             }),
           // Dashed selected: color change only — width stays 2px so no layout shift.
           ...(isSelected &&
             props.hasDashedBorder && {
-              border: '2px dashed var(--pf-t--global--color--brand--default)',
+              borderWidth: 2,
+              borderStyle: 'dashed' as const,
+              borderColor: 'var(--pf-t--global--color--brand--default)',
             }),
           // Normal selected: outline instead of a full border swap — doesn't affect box model.
           ...(isSelected &&
@@ -210,18 +211,22 @@ export function NodeComponent(props: {
               outlineOffset: -2,
             }),
           // Disabled node: dashed gray border + reduced opacity (matches skipped execution state).
-          // Individual border-side properties avoid CSS shorthand so React can diff
-          // borderTop* correctly when toggling back to enabled.
           ...(isDisabled && {
             borderTopWidth: 2,
             borderTopStyle: 'dashed' as const,
             borderTopColor: 'var(--pf-t--global--color--nonstatus--gray--default)',
-            borderRight: '2px dashed var(--pf-t--global--color--nonstatus--gray--default)',
-            borderBottom: '2px dashed var(--pf-t--global--color--nonstatus--gray--default)',
-            borderLeft: '2px dashed var(--pf-t--global--color--nonstatus--gray--default)',
+            borderRightWidth: 2,
+            borderRightStyle: 'dashed' as const,
+            borderRightColor: 'var(--pf-t--global--color--nonstatus--gray--default)',
+            borderBottomWidth: 2,
+            borderBottomStyle: 'dashed' as const,
+            borderBottomColor: 'var(--pf-t--global--color--nonstatus--gray--default)',
+            borderLeftWidth: 2,
+            borderLeftStyle: 'dashed' as const,
+            borderLeftColor: 'var(--pf-t--global--color--nonstatus--gray--default)',
             opacity: 0.5,
           }),
-          ...props.style, // Merge with custom styles (will override borders if specified)
+          ...props.style,
         }),
   }
 

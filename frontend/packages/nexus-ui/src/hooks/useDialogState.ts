@@ -41,6 +41,11 @@ export function useDialogState<T>(): DialogState<T> {
   const [item, setItem] = useState<T | null>(null)
 
   const open = useCallback((newItem: T) => {
+    // Blur the trigger element before React re-renders with the dialog open.
+    // PF Modal sets aria-hidden on #root in a child layout effect; blurring
+    // here (synchronously during the event handler) ensures no element inside
+    // #root retains focus when aria-hidden is applied.
+    ;(document.activeElement as HTMLElement | null)?.blur?.()
     setItem(newItem)
     setIsOpen(true)
   }, [])

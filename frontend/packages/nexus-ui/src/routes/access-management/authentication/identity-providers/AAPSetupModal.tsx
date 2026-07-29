@@ -22,6 +22,7 @@ import { Controller, type Control, useForm, useWatch } from 'react-hook-form'
 
 import { identityProvidersClient } from '../../../../client'
 import { NxSelect } from '../../../../components/NxSelect'
+import { useBlurOnOpen } from '../../../../hooks/useBlurOnOpen'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../../providers/alerts'
 
@@ -122,6 +123,7 @@ const defaultValues: AAPSetupFormData = {
 }
 
 export function AAPSetupModal({ isOpen, onClose, onSuccess }: Readonly<AAPSetupModalProps>) {
+  useBlurOnOpen(isOpen)
   const { showSuccess } = useAlerts()
   const [isSelectOpen, setIsSelectOpen] = useState(false)
 

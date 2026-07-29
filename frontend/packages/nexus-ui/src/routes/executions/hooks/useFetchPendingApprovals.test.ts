@@ -211,4 +211,19 @@ describe('useFetchPendingApprovals', () => {
       })
     )
   })
+
+  it('returns empty array without fetching when executionId is empty', async () => {
+    const { result } = renderHook(() => useFetchPendingApprovals(''), {
+      wrapper: createWrapper(),
+    })
+
+    let fetchedApprovals: unknown
+    await act(async () => {
+      fetchedApprovals = await result.current.fetchApprovals()
+    })
+
+    expect(fetchedApprovals).toEqual([])
+    expect(mockRefetch).not.toHaveBeenCalled()
+    expect(result.current.isLoading).toBe(false)
+  })
 })

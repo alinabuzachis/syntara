@@ -15,7 +15,6 @@ import {
   type MenuToggleElement,
   SimpleList,
   SimpleListGroup,
-  SimpleListItem,
   Stack,
   StackItem,
   Title,
@@ -250,15 +249,16 @@ function VersionRow({
   const showSecondaryDatetime = shouldShowSecondaryVersionDatetime(version.name, version.created_at)
 
   return (
-    <SimpleListItem itemId={version.id} isActive={isSelected} onClick={onSelect}>
-      <span ref={scrollRef} />
-      <Stack className={styles.versionRowStack}>
-        <Flex
-          justifyContent={{ default: 'justifyContentSpaceBetween' }}
-          alignItems={{ default: 'alignItemsCenter' }}
-          flexWrap={{ default: 'nowrap' }}
-          fullWidth={{ default: 'fullWidth' }}
-        >
+    // eslint-disable-next-line syntara/prefer-pf-list-components -- SimpleListItem renders a <button> wrapper, causing invalid nested <button> with the kebab menu (https://github.com/patternfly/patternfly-react/issues/11368)
+    <li className={`pf-v6-c-simple-list__item ${styles.versionRowItem}`}>
+      <button
+        type="button"
+        className={`pf-v6-c-simple-list__item-link ${isSelected ? 'pf-m-current' : ''}`}
+        onClick={onSelect}
+        data-item-id={version.id}
+      >
+        <span ref={scrollRef} />
+        <Stack className={styles.versionRowStack}>
           <FlexItem style={{ minWidth: 0 }}>
             <Tooltip content={version.name || (version.created_at ? formatHistoryDateTime(version.created_at) : '')}>
               <Content component={ContentVariants.p} className={styles.versionTimestamp}>
@@ -266,50 +266,50 @@ function VersionRow({
               </Content>
             </Tooltip>
           </FlexItem>
-          <FlexItem className={styles.kebabFlexItem} onClick={(e) => e.stopPropagation()}>
-            <VersionKebabMenu
-              version={version}
-              isOpen={isKebabOpen}
-              onToggle={onKebabToggle}
-              onClose={onKebabClose}
-              onRestore={onRestore}
-              onExport={onExport}
-              onOpenInNewWindow={onOpenInNewWindow}
-              onPublish={onPublish}
-              onViewRunHistory={onViewRunHistory}
-              hasRunHistory={hasRunHistory}
-              onEdit={onEdit}
-              onDuplicate={onDuplicate}
-              canEdit={canEdit}
-              editTooltip={editTooltip}
-            />
-          </FlexItem>
-        </Flex>
-        {(showSecondaryDatetime && version.created_at) || version.created_by_username ? (
-          <Stack className={styles.versionMetaStack}>
-            {showSecondaryDatetime && version.created_at ? (
-              <Content component={ContentVariants.small} className={styles.secondaryDatetime}>
-                {formatHistoryDateTime(version.created_at)}
-              </Content>
-            ) : null}
-            {version.created_by_username ? (
-              <NxLink
-                to={AppRoute.AccessManagement.UserDetail.replace(':userId', version.created_by)}
-                className={styles.usernameLink}
-                onClick={(e) => e.stopPropagation()}
-              >
-                {version.created_by_username}
-              </NxLink>
-            ) : null}
-          </Stack>
-        ) : null}
-        {badgeStatus ? (
-          <div className={styles.labelsRow}>
-            <VersionStatusBadge status={badgeStatus} />
-          </div>
-        ) : null}
-      </Stack>
-    </SimpleListItem>
+          {(showSecondaryDatetime && version.created_at) || version.created_by_username ? (
+            <Stack className={styles.versionMetaStack}>
+              {showSecondaryDatetime && version.created_at ? (
+                <Content component={ContentVariants.small} className={styles.secondaryDatetime}>
+                  {formatHistoryDateTime(version.created_at)}
+                </Content>
+              ) : null}
+              {version.created_by_username ? (
+                <NxLink
+                  to={AppRoute.AccessManagement.UserDetail.replace(':userId', version.created_by)}
+                  className={styles.usernameLink}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {version.created_by_username}
+                </NxLink>
+              ) : null}
+            </Stack>
+          ) : null}
+          {badgeStatus ? (
+            <div className={styles.labelsRow}>
+              <VersionStatusBadge status={badgeStatus} />
+            </div>
+          ) : null}
+        </Stack>
+      </button>
+      <div className={styles.kebabFlexItem}>
+        <VersionKebabMenu
+          version={version}
+          isOpen={isKebabOpen}
+          onToggle={onKebabToggle}
+          onClose={onKebabClose}
+          onRestore={onRestore}
+          onExport={onExport}
+          onOpenInNewWindow={onOpenInNewWindow}
+          onPublish={onPublish}
+          onViewRunHistory={onViewRunHistory}
+          hasRunHistory={hasRunHistory}
+          onEdit={onEdit}
+          onDuplicate={onDuplicate}
+          canEdit={canEdit}
+          editTooltip={editTooltip}
+        />
+      </div>
+    </li>
   )
 }
 

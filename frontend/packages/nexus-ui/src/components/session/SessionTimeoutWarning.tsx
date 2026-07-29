@@ -1,5 +1,6 @@
 import { Button, Content, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/react-core'
 
+import { useBlurOnOpen } from '../../hooks/useBlurOnOpen'
 import { useSessionTimeout } from '../../hooks/useSessionTimeout'
 
 const TITLE_ID = 'session-timeout-title'
@@ -22,6 +23,7 @@ export function SessionTimeoutWarning() {
   const { phase, remainingSeconds, continueSession, logOut } = useSessionTimeout()
 
   const isOpen = phase === 'warning'
+  useBlurOnOpen(isOpen)
 
   return (
     <Modal

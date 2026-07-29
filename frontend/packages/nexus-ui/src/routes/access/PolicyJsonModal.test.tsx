@@ -63,6 +63,17 @@ describe('PolicyJsonModal', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
+  it('does not render dialog content when closed', () => {
+    render(<PolicyJsonModal isOpen={false} policy={samplePolicy} onClose={onClose} />)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('handles re-render with unchanged props', () => {
+    const { rerender } = render(<PolicyJsonModal isOpen policy={samplePolicy} onClose={onClose} />)
+    rerender(<PolicyJsonModal isOpen policy={samplePolicy} onClose={onClose} />)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
   it('has no accessibility violations', async () => {
     const { container } = render(<PolicyJsonModal isOpen policy={samplePolicy} onClose={onClose} />)
     const results = await axe(container)

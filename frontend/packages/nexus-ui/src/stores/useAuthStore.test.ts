@@ -52,6 +52,7 @@ function mockLoginSuccess(tokenOverrides?: Partial<{ access_token: string; expir
 describe('useAuthStore', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    sessionStorage.clear()
     useAuthStore.getState().reset()
     // Ensure no cached permission/data state leaks between tests
     queryClient.clear()
@@ -150,6 +151,17 @@ describe('useAuthStore', () => {
       expect(state.isAuthenticated).toBe(false)
       expect(state.error).toBe('Invalid credentials')
       expect(state.csrfToken).toBeNull()
+    })
+
+    it('preserves logoutCount on login failure to prevent form remount', async () => {
+      useAuthStore.setState({ logoutCount: 1, accessToken: null })
+      mockFetchError('Invalid credentials', 401)
+
+      await expect(useAuthStore.getState().login({ username: 'admin', password: 'wrong' })).rejects.toThrow(
+        'Invalid credentials'
+      )
+
+      expect(useAuthStore.getState().logoutCount).toBe(1)
     })
 
     it('succeeds and remains authenticated when CSRF endpoint returns 404 (JWT-only backend)', async () => {
@@ -325,6 +337,17 @@ describe('useAuthStore', () => {
       expect(useAuthStore.getState().isRefreshing).toBe(false)
       expect(useAuthStore.getState().isAuthenticated).toBe(false)
       expect(useAuthStore.getState().accessToken).toBeNull()
+    })
+
+    it('skips CSRF fetch when refreshEpoch > 0 (active session refresh after previous logout)', async () => {
+      useAuthStore.setState({ logoutCount: 1, accessToken: 'still-valid', csrfToken: null })
+      mockFetchSuccess(createTokenResponse({ access_token: 'refreshed-token' }))
+
+      await useAuthStore.getState().refresh()
+
+      const csrfCalls = mockFetch.mock.calls.filter((call) => String(call[0]).includes('csrf_token'))
+      expect(csrfCalls).toHaveLength(0)
+      expect(useAuthStore.getState().accessToken).toBe('refreshed-token')
     })
   })
 
@@ -698,6 +721,104 @@ describe('useAuthStore', () => {
       )
 
       expect(queryClient.getQueryCache().getAll()).toHaveLength(1)
+    })
+  })
+
+  describe('refresh skip guards', () => {
+    it('skips refresh when logoutCount > 0 and no accessToken', async () => {
+      // Simulate post-logout state: logoutCount incremented, accessToken cleared
+      useAuthStore.setState({ logoutCount: 1, accessToken: null })
+
+      await useAuthStore.getState().refresh()
+
+      // No fetch calls should have been made
+      expect(mockFetch).not.toHaveBeenCalled()
+    })
+
+    it('skips refresh when sessionStorage has explicit logout key', async () => {
+      sessionStorage.setItem('ao_explicit_logout', '1')
+
+      await useAuthStore.getState().refresh()
+
+      expect(mockFetch).not.toHaveBeenCalled()
+    })
+
+    it('does NOT skip refresh when logoutCount > 0 but accessToken exists', async () => {
+      useAuthStore.setState({ logoutCount: 1, accessToken: 'still-valid' })
+      mockFetchSuccess({ csrf_token: 'csrf' })
+      mockFetchSuccess(createTokenResponse())
+
+      await useAuthStore.getState().refresh()
+
+      expect(mockFetch).toHaveBeenCalled()
+    })
+  })
+
+  describe('logout auth_error handling', () => {
+    it('redirects to login with auth_error param when backend returns auth_error', async () => {
+      mockLoginSuccess()
+      await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
+
+      const hrefSetter = vi.fn()
+      const locationSpy = vi.spyOn(window, 'location', 'get').mockReturnValue({
+        ...window.location,
+        origin: 'http://localhost',
+        href: 'http://localhost/',
+      } as Location)
+      Object.defineProperty(window.location, 'href', { set: hrefSetter, configurable: true })
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ detail: 'Logged out', auth_error: 'end_session_failed' }),
+      })
+
+      await useAuthStore.getState().logout()
+
+      expect(hrefSetter).toHaveBeenCalledWith(expect.stringContaining('auth_error=end_session_failed'))
+
+      locationSpy.mockRestore()
+    })
+  })
+
+  describe('JWT parsing', () => {
+    function fakeJwt(payload: Record<string, unknown>): string {
+      const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
+      const body = btoa(JSON.stringify(payload))
+      return `${header}.${body}.fake-signature`
+    }
+
+    it('parses username and userId from a JWT access token', async () => {
+      const token = fakeJwt({ preferred_username: 'alice', sub: 'user-42' })
+      mockFetchSuccess(createTokenResponse({ access_token: token }))
+      mockFetchSuccess({ csrf_token: 'csrf' })
+
+      await useAuthStore.getState().login({ username: 'alice', password: 'pass' })
+
+      expect(useAuthStore.getState().username).toBe('alice')
+      expect(useAuthStore.getState().userId).toBe('user-42')
+    })
+
+    it('handles token without preferred_username gracefully', async () => {
+      const token = fakeJwt({ sub: 'user-99' })
+      mockFetchSuccess(createTokenResponse({ access_token: token }))
+      mockFetchSuccess({ csrf_token: 'csrf' })
+
+      await useAuthStore.getState().login({ username: 'admin', password: 'pass' })
+
+      expect(useAuthStore.getState().username).toBeNull()
+      expect(useAuthStore.getState().userId).toBe('user-99')
+    })
+
+    it('returns null for malformed JWT payload', async () => {
+      const malformed = 'header.!!!invalid-base64!!!.sig'
+      mockFetchSuccess(createTokenResponse({ access_token: malformed }))
+      mockFetchSuccess({ csrf_token: 'csrf' })
+
+      await useAuthStore.getState().login({ username: 'admin', password: 'pass' })
+
+      expect(useAuthStore.getState().username).toBeNull()
+      expect(useAuthStore.getState().userId).toBeNull()
     })
   })
 })

@@ -8,6 +8,7 @@
 
 import { create } from 'zustand'
 
+import { EXPLICIT_LOGOUT_KEY } from '../components/session/sessionTimeoutConstants'
 import { queryClient } from '../queryClient'
 import { nexusUiClientHeaders } from '../utils/nexusClientHeader'
 
@@ -254,6 +255,7 @@ function applyTokenResponse(
   data: LoginResponse,
   refreshFn: () => Promise<void>
 ): void {
+  sessionStorage.removeItem(EXPLICIT_LOGOUT_KEY)
   set({
     accessToken: data.access_token,
     expiresAt: Date.now() + data.expires_in * 1000,
@@ -308,6 +310,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     } catch (err) {
       set({
         ...INITIAL_STATE,
+        logoutCount: get().logoutCount,
         error: err instanceof Error ? err.message : String(err),
       })
       throw err
@@ -321,6 +324,21 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       return
     }
 
+    // After explicit logout (logoutCount > 0), the session cookie is revoked.
+    // Skip the refresh entirely to avoid pointless 403/401 network errors in
+    // the console. On OIDC re-auth the page reloads, resetting logoutCount to 0.
+    const { logoutCount, accessToken } = get()
+    if (logoutCount > 0 && !accessToken) {
+      return
+    }
+
+    // On page refresh after explicit logout, Zustand resets (logoutCount === 0)
+    // but sessionStorage retains the signal. Skip the bootstrap refresh to avoid
+    // network 403s against the revoked session cookie.
+    if (!accessToken && sessionStorage.getItem(EXPLICIT_LOGOUT_KEY)) {
+      return
+    }
+
     set({ isRefreshing: true, error: null })
     // `logout` increments `logoutCount` so we can drop stale refresh results after sign-out.
     const refreshEpoch = get().logoutCount
@@ -331,15 +349,22 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       try {
         let { csrfToken } = get()
         if (!csrfToken) {
-          try {
-            csrfToken = await fetchCsrfToken()
-            set({ csrfToken })
-          } catch {
-            // OIDC bootstrap: the CSRF cookie may not exist yet on the first
-            // page load after an IdP redirect, so this fetch can legitimately
-            // 403. Refresh proceeds without the X-CSRF-Token header — the
-            // server enforces CSRF validation and will reject the request if
-            // the token is actually required, so security is not weakened.
+          // Only attempt CSRF fetch when a session likely exists:
+          // - refreshEpoch === 0: first page load / OIDC bootstrap (cookie from IdP redirect)
+          // After explicit logout (refreshEpoch > 0, no accessToken), the session
+          // cookie is revoked so the CSRF endpoint will always 403.
+          const shouldFetchCsrf = refreshEpoch === 0
+          if (shouldFetchCsrf) {
+            try {
+              csrfToken = await fetchCsrfToken()
+              set({ csrfToken })
+            } catch {
+              // OIDC bootstrap: the CSRF cookie may not exist yet on the first
+              // page load after an IdP redirect, so this fetch can legitimately
+              // 403. Refresh proceeds without the X-CSRF-Token header — the
+              // server enforces CSRF validation and will reject the request if
+              // the token is actually required, so security is not weakened.
+            }
           }
         }
         const csrfHeaders: Record<string, string> = csrfToken ? { 'X-CSRF-Token': csrfToken } : {}
@@ -381,17 +406,16 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     // never leave the loading state. Stale refresh completions are ignored via `logoutCount` / epoch.
     refreshPromise = null
 
-    // Revoke the session server-side FIRST so the HttpOnly cookie is cleared
-    // before we reset local state. Otherwise AppLoginForm mounts and its
-    // bootstrap useEffect fires a refresh() that races the logout POST —
-    // the cookie is still present, so the refresh succeeds and the user
-    // appears logged back in.
-    const { error, redirectUrl, authError } = await revokeServerSession(accessToken, csrfToken)
-
-    // Always clear local state, even if the server call failed
+    // Clear local state BEFORE the async revocation so that any concurrent
+    // refresh() call (e.g. from authMiddleware responding to a 401 on an
+    // in-flight request) sees logoutCount > 0 and bails out immediately.
+    // The captured accessToken/csrfToken locals are used for the revocation.
+    sessionStorage.setItem(EXPLICIT_LOGOUT_KEY, '1')
     set({ ...INITIAL_STATE, logoutCount: logoutCount + 1 })
     // Prevent stale permission/data cache from leaking to the next user session
     queryClient.clear()
+
+    const { error, redirectUrl, authError } = await revokeServerSession(accessToken, csrfToken)
 
     if (error) {
       throw error

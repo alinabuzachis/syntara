@@ -1,7 +1,7 @@
 import { Divider, Dropdown, DropdownItem, DropdownList, MenuToggle } from '@patternfly/react-core'
 import type { MenuToggleElement, TooltipProps } from '@patternfly/react-core'
 import { RhUiEllipsisVerticalFillIcon } from '@patternfly/react-icons'
-import { useCallback, useEffect, useId, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 
 export type KebabAction = {
   /** Unique identifier for this action, used as the React `key`. */
@@ -52,6 +52,7 @@ function KebabToggle({
 export function NxKebabMenu({ actions, 'aria-label': ariaLabel }: NxKebabMenuProps) {
   const menuId = useId()
   const [isOpen, setIsOpen] = useState(false)
+  const toggleRef = useRef<MenuToggleElement>(null)
 
   useEffect(() => {
     openMenuClosers.set(menuId, () => setIsOpen(false))
@@ -75,15 +76,36 @@ export function NxKebabMenu({ actions, 'aria-label': ariaLabel }: NxKebabMenuPro
   )
 
   const renderToggle = useCallback(
-    (toggleRef: React.Ref<MenuToggleElement>) => (
+    (ref: React.Ref<MenuToggleElement>) => (
       <KebabToggle
-        toggleRef={toggleRef}
+        toggleRef={(node: MenuToggleElement | null) => {
+          ;(toggleRef as React.MutableRefObject<MenuToggleElement | null>).current = node
+          if (typeof ref === 'function') ref(node)
+          else if (ref && typeof ref === 'object')
+            (ref as React.MutableRefObject<MenuToggleElement | null>).current = node
+        }}
         isExpanded={isOpen}
         ariaLabel={ariaLabel}
         onToggle={() => handleOpenChange(!isOpen)}
       />
     ),
     [isOpen, ariaLabel, handleOpenChange]
+  )
+
+  const handleItemClick = useCallback(
+    (action: KebabAction) => {
+      if (action.isAriaDisabled) return
+      action.onClick?.()
+      handleOpenChange(false)
+      // PF Dropdown asynchronously returns focus to the toggle on close.
+      // If the action opened a modal (which sets aria-hidden on #root),
+      // this async focus-return triggers a browser warning. Blur the toggle
+      // to prevent focus from landing inside the aria-hidden subtree.
+      requestAnimationFrame(() => {
+        toggleRef.current?.blur()
+      })
+    },
+    [handleOpenChange]
   )
 
   return (
@@ -100,11 +122,7 @@ export function NxKebabMenu({ actions, 'aria-label': ariaLabel }: NxKebabMenuPro
               isDisabled={action.isDisabled}
               isAriaDisabled={action.isAriaDisabled}
               tooltipProps={action.tooltipProps}
-              onClick={() => {
-                if (action.isAriaDisabled) return
-                action.onClick?.()
-                handleOpenChange(false)
-              }}
+              onClick={() => handleItemClick(action)}
             >
               {action.title}
             </DropdownItem>

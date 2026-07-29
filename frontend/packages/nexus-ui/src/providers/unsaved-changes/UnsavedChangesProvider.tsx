@@ -2,6 +2,7 @@ import { Button, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/
 import { useBlocker, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
+import { useBlurOnOpen } from '../../hooks/useBlurOnOpen'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
 import { detachPromise } from '../../utils/detachPromise'
 
@@ -52,6 +53,7 @@ export function UnsavedChangesProvider({ children }: Readonly<UnsavedChangesProv
   const tsNavigate = useNavigate()
 
   const [isModalOpen, setIsModalOpen] = useState(false)
+  useBlurOnOpen(isModalOpen)
   const [isSaving, setIsSaving] = useState(false)
   const [saveHandler, setSaveHandler] = useState<(() => Promise<boolean>) | null>(null)
 

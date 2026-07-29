@@ -102,6 +102,37 @@ describe('NxKebabMenu', () => {
     expect(await axe(container)).toHaveNoViolations()
   })
 
+  it('does not invoke onClick for aria-disabled actions', async () => {
+    const user = userEvent.setup()
+    const onDisabledClick = vi.fn()
+    const actions: KebabAction[] = [
+      { key: 'disabled-action', title: 'Cannot do this', isAriaDisabled: true, onClick: onDisabledClick },
+      { key: 'normal', title: 'Normal action', onClick: vi.fn() },
+    ]
+    render(<NxKebabMenu actions={actions} aria-label="Row actions" />)
+
+    await user.click(screen.getByRole('button', { name: 'Row actions' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Cannot do this' }))
+
+    expect(onDisabledClick).not.toHaveBeenCalled()
+  })
+
+  it('schedules toggle blur via requestAnimationFrame after item click', async () => {
+    const user = userEvent.setup()
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      cb(0)
+      return 0
+    })
+
+    render(<NxKebabMenu actions={buildActions()} aria-label="Row actions" />)
+
+    await user.click(screen.getByRole('button', { name: 'Row actions' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Edit' }))
+
+    expect(rafSpy).toHaveBeenCalled()
+    rafSpy.mockRestore()
+  })
+
   it('closes the previously open menu when another kebab is opened', async () => {
     const user = userEvent.setup()
     render(
@@ -124,5 +155,12 @@ describe('NxKebabMenu', () => {
     const expandedToggles = screen.getAllByRole('button', { expanded: true })
     expect(expandedToggles).toHaveLength(1)
     expect(expandedToggles[0]).toHaveAccessibleName('Actions for run B')
+  })
+
+  it('handles stable re-render without prop changes', () => {
+    const actions = buildActions()
+    const { rerender } = render(<NxKebabMenu actions={actions} aria-label="Row actions" />)
+    rerender(<NxKebabMenu actions={actions} aria-label="Row actions" />)
+    expect(screen.getByRole('button', { name: 'Row actions' })).toBeInTheDocument()
   })
 })

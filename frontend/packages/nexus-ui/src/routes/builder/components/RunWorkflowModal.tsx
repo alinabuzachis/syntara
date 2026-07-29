@@ -2,6 +2,7 @@ import { Button, HelperText, HelperTextItem, Modal, ModalBody, ModalFooter, Moda
 import { useCallback, useMemo, useState } from 'react'
 
 import { executionsClient } from '../../../client'
+import { useBlurOnOpen } from '../../../hooks/useBlurOnOpen'
 import { useAlerts } from '../../../providers/alerts'
 import { schemaToTemplateJson } from '../../../utils/jsonSchemaTemplate'
 
@@ -116,6 +117,7 @@ export function RunWorkflowModal({
   inputSchema,
   workflowId,
 }: RunWorkflowModalProps) {
+  useBlurOnOpen(isOpen)
   const { showError } = useAlerts()
 
   const latestExecQuery = executionsClient.useQuery(

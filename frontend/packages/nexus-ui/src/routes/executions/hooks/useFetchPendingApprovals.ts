@@ -38,7 +38,7 @@ export function useFetchPendingApprovals(executionId: string): UseFetchPendingAp
   const { refetch } = approvalsClient.useQuery('get', '/approvals', {
     params: {
       query: {
-        execution_id: executionId,
+        ...(executionId ? { execution_id: executionId } : {}),
         status: 'pending',
       },
     },
@@ -46,6 +46,7 @@ export function useFetchPendingApprovals(executionId: string): UseFetchPendingAp
   })
 
   const fetchApprovals = useCallback(async (): Promise<Approval[]> => {
+    if (!executionId) return []
     setIsLoading(true)
     try {
       const result = await refetch()
@@ -54,7 +55,7 @@ export function useFetchPendingApprovals(executionId: string): UseFetchPendingAp
     } finally {
       setIsLoading(false)
     }
-  }, [refetch])
+  }, [executionId, refetch])
 
   /** Cancels the loading indicator when a fetch is in-flight (e.g., on execution change or panel close). */
   const clear = useCallback(() => {

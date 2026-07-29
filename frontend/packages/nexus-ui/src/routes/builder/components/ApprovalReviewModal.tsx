@@ -1,6 +1,7 @@
 import type { Approval } from '@ansible/nexus-contracts'
 import { Modal, ModalBody, ModalHeader } from '@patternfly/react-core'
 
+import { useBlurOnOpen } from '../../../hooks/useBlurOnOpen'
 import { ApprovalReviewView } from '../../executions/ApprovalReviewView'
 
 type ApprovalReviewModalProps = Readonly<{
@@ -11,6 +12,7 @@ type ApprovalReviewModalProps = Readonly<{
 }>
 
 export function ApprovalReviewModal({ approval, isOpen, activityNameMap, onClose }: ApprovalReviewModalProps) {
+  useBlurOnOpen(isOpen)
   return (
     <Modal isOpen={isOpen && !!approval} onClose={onClose} variant="large" aria-label="Review approval">
       <ModalHeader title="Review approval" />

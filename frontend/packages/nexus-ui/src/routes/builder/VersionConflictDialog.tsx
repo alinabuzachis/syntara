@@ -1,5 +1,7 @@
 import { Button, Content, List, ListItem, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/react-core'
 
+import { useBlurOnOpen } from '../../hooks/useBlurOnOpen'
+
 export type ConflictAction = 'save' | 'publish' | 'run'
 
 export type ConflictInfo = {
@@ -67,6 +69,7 @@ export function VersionConflictDialog({
   onRefreshToLatest,
   isLoading = false,
 }: VersionConflictDialogProps) {
+  useBlurOnOpen(isOpen)
   const copy = COPY[conflictAction]
 
   return (

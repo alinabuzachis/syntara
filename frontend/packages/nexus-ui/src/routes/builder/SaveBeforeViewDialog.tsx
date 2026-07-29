@@ -1,6 +1,8 @@
 import { Button, Content, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/react-core'
 import { useCallback, useState } from 'react'
 
+import { useBlurOnOpen } from '../../hooks/useBlurOnOpen'
+
 type SaveBeforeViewDialogProps = Readonly<{
   isOpen: boolean
   onSave: () => Promise<boolean>
@@ -9,6 +11,7 @@ type SaveBeforeViewDialogProps = Readonly<{
 }>
 
 export function SaveBeforeViewDialog({ isOpen, onSave, onViewWithoutSaving, onCancel }: SaveBeforeViewDialogProps) {
+  useBlurOnOpen(isOpen)
   const [isSaving, setIsSaving] = useState(false)
 
   const handleSave = useCallback(async () => {

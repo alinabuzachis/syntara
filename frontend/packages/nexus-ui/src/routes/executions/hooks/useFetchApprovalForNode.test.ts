@@ -129,4 +129,17 @@ describe('useFetchApprovalForNode', () => {
       enabled: false,
     })
   })
+
+  it('returns null without fetching when executionId is empty', async () => {
+    const { result } = renderHook(() => useFetchApprovalForNode(''))
+
+    let fetchedApproval: unknown
+    await act(async () => {
+      fetchedApproval = await result.current.fetchForNode('node-abc')
+    })
+
+    expect(fetchedApproval).toBeNull()
+    expect(mockRefetch).not.toHaveBeenCalled()
+    expect(result.current.isLoading).toBe(false)
+  })
 })

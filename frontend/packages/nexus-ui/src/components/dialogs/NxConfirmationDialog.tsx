@@ -1,6 +1,8 @@
 import { Button, Checkbox, Modal, ModalBody, ModalFooter, ModalHeader, Stack, StackItem } from '@patternfly/react-core'
 import { useState, type ReactNode } from 'react'
 
+import { useBlurOnOpen } from '../../hooks/useBlurOnOpen'
+
 type NxConfirmationDialogProps = {
   /** Whether the dialog is open */
   isOpen: boolean
@@ -84,6 +86,7 @@ export function NxConfirmationDialog({
   'aria-labelledby': ariaLabelledby,
   'aria-describedby': ariaDescribedby,
 }: Readonly<NxConfirmationDialogProps>) {
+  useBlurOnOpen(isOpen)
   const [destructiveAcknowledged, setDestructiveAcknowledged] = useState(false)
 
   // Reset acknowledgement state when the dialog is not visible, so reopening starts clean.
