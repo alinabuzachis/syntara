@@ -60,7 +60,7 @@ dependencies = [
     "cryptography>=48.0.1",
     "jmespath>=1.0.0",
     "jsonschema>=4.0.0",
-    "typer>=0.9.0",
+    "typer>=0.9.0,<0.27.0",  # openapi-python-client>=0.29.0 requires typer<0.27; pin both until upstream resolves the conflict
     "idna>=3.15",
     "langsmith>=0.8.18",
     "opentelemetry-api>=1.39.1",
@@ -96,7 +96,7 @@ dev = [
     "types-python-dateutil>=2.8.0",  # type stubs for python-dateutil
     "psutil>=5.9.0",  # for memory monitoring in performance tests
     "scikit-learn-stubs>=0.0.3",  # type stubs for scikit-learn
-    "openapi-python-client>=0.28.3",  # for API client code generation
+    "openapi-python-client>=0.28.3,<0.29.0",  # for API client code generation. 0.29+ requires typer<0.27, conflicts with our typer>=0.27.0
     "moto[s3]>=5.0.0",  # for S3 mock testing
     "boto3-stubs[s3]>=1.35.0",  # type stubs for boto3 S3
     # MCP testing infrastructure
@@ -107,6 +107,7 @@ dev = [
     "azure-identity>=1.19.0",  # ClientSecretCredential for Azure AD fixture
     "msgraph-sdk>=1.0.0",  # GraphServiceClient and graph models for Azure AD fixture
     "orchestrator-cli",  # local CLI for the Orchestrator API
+    "orchestrator-test-sdk",  # shared pytest plugin for E2E tests
     "beautifulsoup4>=4.12.0",  # for parsing HTML in external auth client fixture
     # Static analysis tools
     "vulture>=2.16",  # dead code detection
@@ -120,11 +121,13 @@ constraint-dependencies = [
     "aiohttp>=3.14.1",
     "joserfc>=1.6.8",
     "starlette>=1.3.1",
+    "websockets<16",  # langgraph-sdk<=0.4.2 requires websockets<16
 ]
 
 [tool.uv.sources]
 nexus-api-client = { path = "src/api_client", editable = true }
 orchestrator-cli = { path = "src/cli", editable = true }
+orchestrator-test-sdk = { path = "test-sdk", editable = true }
 
 [project.scripts]
 orchestrator-admin = "nexus.orchestrator_admin:app"

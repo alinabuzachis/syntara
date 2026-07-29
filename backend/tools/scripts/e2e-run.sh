@@ -32,7 +32,6 @@ cleanup() {
 trap cleanup EXIT
 
 ${MAKE} _deps-install-dev
-${MAKE} install-test-sdk
 
 # Fix SELinux context if running on SELinux-enabled system
 if command -v chcon >/dev/null 2>&1 && getenforce 2>/dev/null | grep -qi enforcing; then

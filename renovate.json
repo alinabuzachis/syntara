@@ -17,14 +17,12 @@
       "groupName": "python dependencies",
       "matchFileNames": ["backend/**"],
       "schedule": ["before 6am"],
-      "rangeStrategy": "bump"
+      "rangeStrategy": "in-range-only"
     },
     {
-      "matchManagers": ["pip_requirements"],
-      "groupName": "python dependencies",
-      "matchFileNames": ["backend/**"],
-      "schedule": ["before 6am"],
-      "enabled": true
+      "matchManagers": ["pep621"],
+      "matchDepTypes": ["requires-python"],
+      "enabled": false
     },
     {
       "matchManagers": ["npm"],

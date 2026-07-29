@@ -49,7 +49,7 @@ WORKER_BASE_URL = https://localhost:8000/api/v1
 # ========================================================
 
 .PHONY: install
-install: _deps-install-dev install-test-sdk _deps-install-pre-commit ## Complete setup from scratch
+install: _deps-install-dev _deps-install-pre-commit ## Complete setup from scratch
 	@echo ""
 	@echo "🎉 Nexus setup complete!"
 	@echo ""
@@ -65,14 +65,8 @@ _deps-install-dev: _check-uv
 	uv sync --extra dev
 	@echo "✅ Development dependencies installed successfully"
 
-.PHONY: install-test-sdk
-install-test-sdk: _check-uv ## Install orchestrator-test-sdk pytest plugin (not managed by uv.lock)
-	@echo "📦 Installing orchestrator-test-sdk..."
-	uv pip install --no-deps --editable test-sdk/
-	@echo "✅ orchestrator-test-sdk installed successfully"
-
 .PHONY: install-integration
-install-integration: _deps-install-dev install-test-sdk ## Install integration test dependencies
+install-integration: _deps-install-dev ## Install integration test dependencies
 	@echo "📦 Installing integration dependencies with uv..."
 	uv sync --extra dev --extra integration
 	@echo "✅ Integration dependencies installed successfully"
@@ -203,7 +197,7 @@ E2E_TARGET ?=
 E2E_ARGS :=
 
 .PHONY: test-e2e
-test-e2e: check-deps install-test-sdk ## Run E2E tests (Usage: make test-e2e [E2E_TARGET=path] [PHASE=pr-check | EXCLUDE=pr-check])
+test-e2e: check-deps ## Run E2E tests (Usage: make test-e2e [E2E_TARGET=path] [PHASE=pr-check | EXCLUDE=pr-check])
 	$(eval E2E_ARGS := $(if $(PHASE),--test-phase=$(PHASE),$(if $(EXCLUDE),--exclude-test-phase=$(EXCLUDE),)))
 ifndef APP_BASE_URL
 	$(call _e2e-run,tests/e2e/$(E2E_TARGET) -v -m "not global_revocation" $(E2E_ARGS))
@@ -213,7 +207,7 @@ else
 endif
 
 .PHONY: test-e2e-global-revocation
-test-e2e-global-revocation: check-deps install-test-sdk ## Run global revocation E2E tests in an isolated session
+test-e2e-global-revocation: check-deps ## Run global revocation E2E tests in an isolated session
 ifndef APP_BASE_URL
 	$(call _e2e-run,tests/e2e/ -v -m global_revocation)
 else
@@ -234,7 +228,7 @@ test-e2e-exclude-pr-check: ## Run E2E tests excluding PR checks (alias for: make
 	@$(MAKE) test-e2e EXCLUDE=pr-check
 
 .PHONY: test-e2e-telemetry
-test-e2e-telemetry: check-deps install-test-sdk ## Run telemetry E2E tests only
+test-e2e-telemetry: check-deps ## Run telemetry E2E tests only
 ifndef APP_BASE_URL
 	$(call _e2e-run,tests/e2e/telemetry/ -v -n auto --dist loadscope --ignore=tests/e2e/telemetry/test_performance_and_resilience.py && APP_BASE_URL=$${APP_BASE_URL:-http://localhost:8000} uv run --no-sync pytest tests/e2e/telemetry/test_performance_and_resilience.py -v)
 else
