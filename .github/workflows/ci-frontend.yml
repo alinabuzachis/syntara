@@ -388,7 +388,7 @@ jobs:
             const startupWindow = 30 * 60 * 1000; // 30 minutes for runner allocation
             const interval = 30 * 1000; // poll every 30s
             const start = Date.now();
-            const required = ['E2E Tests (UI)'];
+            const required = ['E2E Tests UI (AO Operator)'];
 
             // Phase 1: wait for E2E to post a commit status (pending/success/failure).
             // The e2e-ui workflow posts 'pending' as its first step once a runner is
