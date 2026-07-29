@@ -101,4 +101,5 @@ async def _resolve_integration(session: AsyncSession, integration_id: str) -> di
     return {
         "base_url": base_url,
         "verify_ssl": verify_ssl,
+        "ca_certificate": config.ca_certificate,
     }

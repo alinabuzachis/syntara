@@ -153,7 +153,7 @@ def _prepare_config_params(integration: IntegrationRead, api_key: str | None = N
     parameters on the adapter implementations.
     """
     config = integration.configuration
-    excluded_fields = frozenset({"integration_type", "discovered_models"})
+    excluded_fields = frozenset({"integration_type", "discovered_models", "allow_http"})
     config_params = {k: v for k, v in config.model_dump().items() if k not in excluded_fields and v is not None}
     config_params["integration_id"] = integration.id
     config_params["integration_name"] = integration.name

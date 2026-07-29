@@ -31794,6 +31794,22 @@ components:
           format: uri
           title: Base Url
           description: Base URL for the MCP server
+        allow_http:
+          type: boolean
+          title: Allow Http
+          description: Allow HTTP (unencrypted) connections. Loopback addresses are always permitted over HTTP.
+          default: false
+        insecure_skip_tls_verify:
+          type: boolean
+          title: Insecure Skip Tls Verify
+          description: Disable TLS certificate verification for connections to this integration.
+          default: false
+        ca_certificate:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Ca Certificate
+          description: PEM-encoded CA certificate to trust for this integration's TLS connections.
       required:
         - base_url
       title: MCPServerConfigurationInput
@@ -31827,6 +31843,22 @@ components:
           format: uri
           title: Base Url
           description: Base URL for the LLM provider API. Required for red_hat_ai and custom providers.
+        allow_http:
+          type: boolean
+          title: Allow Http
+          description: Allow HTTP (unencrypted) connections. Loopback addresses are always permitted over HTTP.
+          default: false
+        insecure_skip_tls_verify:
+          type: boolean
+          title: Insecure Skip Tls Verify
+          description: Disable TLS certificate verification for connections to this integration.
+          default: false
+        ca_certificate:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Ca Certificate
+          description: PEM-encoded CA certificate to trust for this integration's TLS connections.
       required:
         - provider_hint
       title: LLMProviderConfiguration
@@ -31845,11 +31877,22 @@ components:
           format: uri
           title: AAP URL
           description: URL of the Ansible Automation Platform
+        allow_http:
+          type: boolean
+          title: Allow Http
+          description: Allow HTTP (unencrypted) connections. Loopback addresses are always permitted over HTTP.
+          default: false
         insecure_skip_tls_verify:
           type: boolean
           title: Insecure Skip Tls Verify
-          description: Disable TLS certificate verification. Insecure; do not enable in production.
+          description: Disable TLS certificate verification for connections to this integration.
           default: false
+        ca_certificate:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Ca Certificate
+          description: PEM-encoded CA certificate to trust for this integration's TLS connections.
       required:
         - aap_url
       title: AAPConfiguration

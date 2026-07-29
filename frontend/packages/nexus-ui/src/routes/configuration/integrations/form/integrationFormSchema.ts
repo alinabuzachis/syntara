@@ -3,6 +3,12 @@ import { z } from 'zod'
 
 import { PROVIDERS_REQUIRING_BASE_URL } from '../integrationFilters'
 
+const securityFields = {
+  allow_http: z.boolean(),
+  insecure_skip_tls_verify: z.boolean(),
+  ca_certificate: z.string().optional().nullable(),
+}
+
 const sharedFields = {
   name: z.string().min(1, 'Server name / ID is required'),
   description: z.string().optional().nullable(),
@@ -11,31 +17,59 @@ const sharedFields = {
   project_ids: z.array(z.string()).default([]),
 }
 
+function isLoopback(hostname: string): boolean {
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '[::1]'
+}
+
+function isAllowedScheme(url: string, allowHttp: boolean): boolean {
+  if (allowHttp) return url.startsWith('http://') || url.startsWith('https://')
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol === 'http:' && isLoopback(parsed.hostname)) return true
+  } catch {
+    return false
+  }
+  return url.startsWith('https://')
+}
+
 const mcpServerSchema = z.object({
   ...sharedFields,
   integration_type: z.literal(IntegrationTypeEnum.MCP_SERVER),
-  configuration: z.object({
-    integration_type: z.literal(IntegrationTypeEnum.MCP_SERVER),
-    base_url: z
-      .string()
-      .min(1, 'Base URL is required')
-      .url('Base URL must be a valid URL')
-      .refine((url) => url.startsWith('http://') || url.startsWith('https://'), 'Must be an HTTP or HTTPS URL'),
-  }),
+  configuration: z
+    .object({
+      integration_type: z.literal(IntegrationTypeEnum.MCP_SERVER),
+      base_url: z.string().min(1, 'API URL is required').url('API URL must be a valid URL'),
+      ...securityFields,
+    })
+    .superRefine((data, ctx) => {
+      if (!isAllowedScheme(data.base_url, data.allow_http)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: data.allow_http ? 'Must be an HTTP or HTTPS URL' : 'Must be an HTTPS URL',
+          path: ['base_url'],
+        })
+      }
+    }),
 })
 
 const aapSchema = z.object({
   ...sharedFields,
   integration_type: z.literal(IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM),
-  configuration: z.object({
-    integration_type: z.literal(IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM),
-    aap_url: z
-      .string()
-      .min(1, 'AAP URL is required')
-      .url('Must be a valid URL')
-      .refine((url) => url.startsWith('https://'), 'Must be an HTTPS URL'),
-    insecure_skip_tls_verify: z.boolean(),
-  }),
+  configuration: z
+    .object({
+      integration_type: z.literal(IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM),
+      aap_url: z.string().min(1, 'AAP URL is required').url('Must be a valid URL'),
+      ...securityFields,
+    })
+    .superRefine((data, ctx) => {
+      if (!isAllowedScheme(data.aap_url, data.allow_http)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: data.allow_http ? 'Must be an HTTP or HTTPS URL' : 'Must be an HTTPS URL',
+          path: ['aap_url'],
+        })
+      }
+    }),
 })
 
 const llmProviderSchema = z.object({
@@ -45,18 +79,21 @@ const llmProviderSchema = z.object({
     .object({
       integration_type: z.literal(IntegrationTypeEnum.LLM_PROVIDER),
       provider_hint: z.enum([LLMProviderHintEnum.RED_HAT_AI, LLMProviderHintEnum.OPENAI, LLMProviderHintEnum.CUSTOM]),
-      base_url: z
-        .string()
-        .url('Must be a valid URL')
-        .refine((url) => url.startsWith('http://') || url.startsWith('https://'), 'Must be an HTTP or HTTPS URL')
-        .optional()
-        .or(z.literal('')),
+      base_url: z.string().url('Must be a valid URL').optional().or(z.literal('')),
+      ...securityFields,
     })
     .superRefine((data, ctx) => {
       if (PROVIDERS_REQUIRING_BASE_URL.has(data.provider_hint) && (!data.base_url || data.base_url === '')) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: 'Base URL is required for this provider',
+          path: ['base_url'],
+        })
+      }
+      if (data.base_url && data.base_url !== '' && !isAllowedScheme(data.base_url, data.allow_http)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: data.allow_http ? 'Must be an HTTP or HTTPS URL' : 'Must be an HTTPS URL',
           path: ['base_url'],
         })
       }
@@ -82,6 +119,12 @@ export const integrationFormSchema = z
 
 export type IntegrationFormData = z.infer<typeof integrationFormSchema>
 
+const SECURITY_DEFAULTS = {
+  allow_http: false,
+  insecure_skip_tls_verify: false,
+  ca_certificate: null,
+} as const
+
 /** Fields validated on step 1 (Integration details) before advancing. Type-specific because each integration type has a different URL field. */
 export function getStep1Fields(integrationType: string, scope?: string): string[] {
   const shared = ['name']
@@ -101,15 +144,20 @@ export function getStep1Fields(integrationType: string, scope?: string): string[
 export function getDefaultConfiguration(integrationType: string): IntegrationFormData['configuration'] {
   switch (integrationType) {
     case IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM:
-      return { integration_type: 'ansible_automation_platform' as const, aap_url: '', insecure_skip_tls_verify: false }
+      return {
+        integration_type: 'ansible_automation_platform' as const,
+        aap_url: '',
+        ...SECURITY_DEFAULTS,
+      }
     case IntegrationTypeEnum.LLM_PROVIDER:
       return {
         integration_type: 'llm_provider' as const,
         provider_hint: LLMProviderHintEnum.RED_HAT_AI,
         base_url: '',
+        ...SECURITY_DEFAULTS,
       }
     default:
-      return { integration_type: 'mcp_server' as const, base_url: '' }
+      return { integration_type: 'mcp_server' as const, base_url: '', ...SECURITY_DEFAULTS }
   }
 }
 

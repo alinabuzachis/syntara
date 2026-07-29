@@ -54,7 +54,7 @@ def mock_relevancy_checker() -> Generator[AsyncMock, None, None]:
     ) as mock_get_checker_llm:
         mock_llm = AsyncMock()
         mock_llm.ainvoke.return_value = AIMessage(content="Relevancy Score: 0.85\n\nHighly relevant document.")
-        mock_get_checker_llm.return_value = mock_llm
+        mock_get_checker_llm.return_value = (mock_llm, None)
         yield mock_llm
 
 

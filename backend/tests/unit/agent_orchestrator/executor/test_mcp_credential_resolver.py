@@ -212,7 +212,7 @@ class TestInitOrchestrationToolSelectionExtraction:
         with (
             patch(
                 "nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm",
-                return_value=mock_llm,
+                return_value=(mock_llm, None),
             ),
             patch("nexus.agent_orchestrator.executor.invocation_executor.ContextManagerPlanner"),
             patch(
@@ -247,7 +247,7 @@ class TestInitOrchestrationToolSelectionExtraction:
         with (
             patch(
                 "nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm",
-                return_value=mock_llm,
+                return_value=(mock_llm, None),
             ),
             patch("nexus.agent_orchestrator.executor.invocation_executor.ContextManagerPlanner"),
             patch(

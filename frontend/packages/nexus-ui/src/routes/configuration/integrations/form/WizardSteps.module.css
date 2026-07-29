@@ -42,6 +42,12 @@
   width: var(--pf-t--global--spacer--3xl);
 }
 
+.securityFields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-t--global--spacer--md);
+}
+
 .wizardPanel {
   padding: 0;
   display: flex;

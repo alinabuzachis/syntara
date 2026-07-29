@@ -27,6 +27,7 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 from mcp.shared.exceptions import McpError
 
+from nexus.core.lib.tls_utils import build_integration_httpx_verify
 from nexus.core.utils.exceptions import extract_all_exceptions
 from nexus.integrations.adapters.factory import register_health_check_adapter
 from nexus.integrations.adapters.protocol import (
@@ -96,10 +97,16 @@ class MCPServerAdapter:
         )
 
         try:
+            verify = build_integration_httpx_verify(
+                insecure_skip_tls_verify=self._config.insecure_skip_tls_verify,
+                ca_certificate=self._config.ca_certificate,
+            )
+
             async with (
                 httpx.AsyncClient(
                     headers=http_headers,
                     timeout=httpx.Timeout(timeout_seconds),
+                    verify=verify,
                 ) as http_client,
                 streamable_http_client(
                     url=self._config.base_url,
@@ -268,6 +275,8 @@ class MCPServerAdapter:
         adapter = MCPProvider(
             base_url=self._config.base_url,
             api_key=api_key,
+            insecure_skip_tls_verify=self._config.insecure_skip_tls_verify,
+            ca_certificate=self._config.ca_certificate,
         )
         try:
             tools_metadata = await asyncio.wait_for(adapter.refresh_tools(), timeout=timeout_seconds)

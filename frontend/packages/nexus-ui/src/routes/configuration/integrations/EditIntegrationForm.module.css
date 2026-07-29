@@ -13,3 +13,9 @@
 .credentialDescription {
   color: var(--pf-t--global--text--color--subtle);
 }
+
+.securityFields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-t--global--spacer--md);
+}

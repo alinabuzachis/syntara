@@ -352,7 +352,7 @@ class TestValidateIntegration:
             IntegrationCreate(
                 name=unique_name("e2e-mcp-real"),
                 integration_type=IntegrationType.MCP_SERVER,
-                configuration=MCPServerConfigurationInput(base_url=MCP_PROVIDER_URL),
+                configuration=MCPServerConfigurationInput(base_url=MCP_PROVIDER_URL, allow_http=True),
             )
         )
         integration_id = UUID(created["id"])

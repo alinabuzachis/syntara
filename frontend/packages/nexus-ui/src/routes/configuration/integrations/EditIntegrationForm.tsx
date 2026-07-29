@@ -39,10 +39,10 @@ import { detachPromise } from '../../../utils/detachPromise'
 import { useDocLink } from '../../../utils/docs/useDocLink'
 import { CredentialSelector } from '../../builder/components/CredentialSelector'
 
-import { AapConfigurationFields } from './AapConfigurationFields'
 import styles from './EditIntegrationForm.module.css'
 import type { EditIntegrationFormValues, IntegrationRead } from './editIntegrationFormSchema'
 import { buildConfiguration, buildEditSchema, editIntegrationSchema } from './editIntegrationFormSchema'
+import { EditSecurityFields } from './EditSecurityFields'
 import { ScopeFields } from './form/ScopeFields'
 import {
   CREDENTIAL_REQUIRED_TYPES,
@@ -176,7 +176,34 @@ function EditIntegrationFormFields({
         </FormGroup>
       )}
 
-      {isAnsibleAutomationPlatform && <AapConfigurationFields control={control} errors={errors} />}
+      {isAnsibleAutomationPlatform && (
+        <FormGroup label="API URL" isRequired fieldId="edit-aap-url">
+          <Controller
+            name="aap_url"
+            control={control}
+            render={({ field }) => (
+              <TextInput
+                id="edit-aap-url"
+                isRequired
+                placeholder="e.g. https://aap.example.com"
+                validated={errors.aap_url ? 'error' : 'default'}
+                {...field}
+              />
+            )}
+          />
+          {errors.aap_url && (
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                  {errors.aap_url.message}
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          )}
+        </FormGroup>
+      )}
+
+      <EditSecurityFields control={control} />
 
       <ScopeFields
         control={control}
@@ -309,7 +336,9 @@ export function EditIntegrationForm() {
       integration_type: integration.integration_type ?? IntegrationTypeEnum.MCP_SERVER,
       base_url: 'base_url' in config ? String(config.base_url ?? '') : '',
       aap_url: 'aap_url' in config ? String(config.aap_url ?? '') : '',
+      allow_http: 'allow_http' in config ? Boolean(config.allow_http) : false,
       insecure_skip_tls_verify: 'insecure_skip_tls_verify' in config ? Boolean(config.insecure_skip_tls_verify) : false,
+      ca_certificate: 'ca_certificate' in config ? ((config.ca_certificate as string | null) ?? null) : null,
       scope: (integration.scope as 'global' | 'project') ?? 'global',
       project_ids: projectIds,
       management_credential_id: integration.management_credential_id ?? null,
@@ -332,7 +361,9 @@ export function EditIntegrationForm() {
       integration_type: '',
       base_url: '',
       aap_url: '',
+      allow_http: false,
       insecure_skip_tls_verify: false,
+      ca_certificate: null,
       scope: 'global',
       project_ids: [],
       management_credential_id: null,

@@ -205,7 +205,7 @@ class TestMCPProviderIntegration:
                         name=unique_name("test-mcp-unauthorised"),
                         description="Test MCP integration with unauthorised user",
                         integration_type=IntegrationType.MCP_SERVER,
-                        configuration=MCPServerConfigurationInput(base_url=provider_url),
+                        configuration=MCPServerConfigurationInput(base_url=provider_url, allow_http=True),
                     ),
                 )
             )
@@ -242,7 +242,7 @@ class TestMCPProviderIntegration:
                         name=unique_name("test-mcp-forbidden"),
                         description="Test MCP integration with forbidden user",
                         integration_type=IntegrationType.MCP_SERVER,
-                        configuration=MCPServerConfigurationInput(base_url=provider_url),
+                        configuration=MCPServerConfigurationInput(base_url=provider_url, allow_http=True),
                     ),
                 )
             )

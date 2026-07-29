@@ -344,7 +344,7 @@ def mcp_integration_id(nexus_api: NexusApiRegistry) -> str:
         nexus_api.integrations.update(
             integration_id=UUID(integration_id),
             body=IntegrationPatch(
-                configuration=MCPServerConfigurationInput(base_url=MCP_PROVIDER_URL),
+                configuration=MCPServerConfigurationInput(base_url=MCP_PROVIDER_URL, allow_http=True),
             ),
         )
     else:
@@ -353,7 +353,7 @@ def mcp_integration_id(nexus_api: NexusApiRegistry) -> str:
                 name=MCP_PROVIDER_NAME,
                 description="MCP server for E2E tests",
                 integration_type=IntegrationType.MCP_SERVER,
-                configuration=MCPServerConfigurationInput(base_url=MCP_PROVIDER_URL),
+                configuration=MCPServerConfigurationInput(base_url=MCP_PROVIDER_URL, allow_http=True),
             )
         )
         integration = create_resp.assert_and_get()

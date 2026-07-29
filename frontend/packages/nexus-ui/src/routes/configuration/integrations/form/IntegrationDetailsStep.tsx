@@ -1,8 +1,9 @@
 import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
 import {
-  Alert,
+  Checkbox,
   Content,
   ContentVariants,
+  ExpandableSection,
   Form,
   FormGroup,
   FormHelperText,
@@ -12,7 +13,7 @@ import {
   type MenuToggleElement,
   SelectList,
   SelectOption,
-  Switch,
+  TextArea,
   TextInput,
   Title,
 } from '@patternfly/react-core'
@@ -178,6 +179,86 @@ function ProviderHintSelect({
   )
 }
 
+function SecurityFields({ control }: Readonly<{ control: Control<IntegrationFormData> }>) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const skipTlsVerify = useWatch({ control, name: 'configuration.insecure_skip_tls_verify' })
+
+  return (
+    <ExpandableSection
+      toggleText="Security"
+      isExpanded={isExpanded}
+      onToggle={(_e, expanded) => setIsExpanded(expanded)}
+      isIndented
+    >
+      <div className={styles.securityFields}>
+        <Controller
+          name="configuration.allow_http"
+          control={control}
+          render={({ field }) => (
+            <Checkbox
+              id="allow-http"
+              label="Allow HTTP connections"
+              description="Permits unencrypted HTTP URLs for this integration"
+              isChecked={field.value}
+              onChange={(_event, checked) => field.onChange(checked)}
+            />
+          )}
+        />
+        <Controller
+          name="configuration.insecure_skip_tls_verify"
+          control={control}
+          render={({ field }) => (
+            <Checkbox
+              id="insecure-skip-tls-verify"
+              label="Disable TLS certificate verification"
+              description="Skips validation of the server's TLS certificate on connections"
+              isChecked={field.value}
+              onChange={(_event, checked) => field.onChange(checked)}
+              body={
+                skipTlsVerify ? (
+                  <HelperText>
+                    <HelperTextItem variant="warning">
+                      The server's TLS certificate will not be verified. Only enable in trusted networks.
+                    </HelperTextItem>
+                  </HelperText>
+                ) : undefined
+              }
+            />
+          )}
+        />
+        {!skipTlsVerify && (
+          <FormGroup label="CA certificate" fieldId="ca-certificate">
+            <Controller
+              name="configuration.ca_certificate"
+              control={control}
+              render={({ field }) => (
+                <TextArea
+                  id="ca-certificate"
+                  placeholder={'-----BEGIN CERTIFICATE-----\n\n-----END CERTIFICATE-----'}
+                  aria-label="CA certificate"
+                  resizeOrientation="vertical"
+                  rows={4}
+                  value={field.value ?? ''}
+                  onChange={(_event, value) => field.onChange(value || null)}
+                  onBlur={field.onBlur}
+                  name={field.name}
+                />
+              )}
+            />
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem>
+                  PEM-encoded CA certificate to trust for this integration's TLS connections.
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          </FormGroup>
+        )}
+      </div>
+    </ExpandableSection>
+  )
+}
+
 type IntegrationDetailsStepProps = Readonly<{
   control: Control<IntegrationFormData>
   setValue: UseFormSetValue<IntegrationFormData>
@@ -309,7 +390,7 @@ export function IntegrationDetailsStep({ control, setValue, onTypeChange }: Inte
           <ControlledTextField
             control={control}
             name="configuration.base_url"
-            label="Base URL"
+            label="API URL"
             fieldId="base-url"
             placeholder={typeConfig.baseUrlPlaceholder}
             isRequired={typeConfig.requireBaseUrl}
@@ -317,40 +398,17 @@ export function IntegrationDetailsStep({ control, setValue, onTypeChange }: Inte
         )}
 
         {isAAP && (
-          <>
-            <ControlledTextField
-              control={control}
-              name="configuration.aap_url"
-              label="AAP URL"
-              fieldId="aap-url"
-              placeholder="e.g. https://aap.example.com"
-              isRequired
-            />
-            <FormGroup label="Verify SSL certificate" fieldId="tls-verify">
-              <Controller
-                name="configuration.insecure_skip_tls_verify"
-                control={control}
-                render={({ field }) => (
-                  <>
-                    <Switch
-                      id="tls-verify"
-                      label={field.value ? 'SSL verification disabled' : 'SSL verification enabled'}
-                      aria-label="SSL verification"
-                      hasCheckIcon
-                      isChecked={!field.value}
-                      onChange={(_event, checked) => field.onChange(!checked)}
-                    />
-                    {field.value && (
-                      <Alert variant="warning" isInline isPlain title="Insecure connection">
-                        Disabling TLS verification is insecure and not recommended for production environments.
-                      </Alert>
-                    )}
-                  </>
-                )}
-              />
-            </FormGroup>
-          </>
+          <ControlledTextField
+            control={control}
+            name="configuration.aap_url"
+            label="API URL"
+            fieldId="aap-url"
+            placeholder="e.g. https://aap.example.com"
+            isRequired
+          />
         )}
+
+        <SecurityFields control={control} />
 
         <ScopeFields
           control={control}

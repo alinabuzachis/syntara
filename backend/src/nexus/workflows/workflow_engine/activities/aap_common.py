@@ -573,6 +573,7 @@ class AAPResolvedAuth:
     auth_headers: dict[str, str]
     basic_auth: httpx.BasicAuth | None
     verify_ssl: bool
+    ca_certificate: str | None = None
 
 
 def resolve_aap_auth(input_config: dict[str, Any], settings: Settings) -> AAPResolvedAuth:
@@ -590,6 +591,7 @@ def resolve_aap_auth(input_config: dict[str, Any], settings: Settings) -> AAPRes
 
     base_url = resolved_integration["base_url"]
     verify_ssl = resolved_integration["verify_ssl"]
+    ca_certificate = resolved_integration.get("ca_certificate")
 
     try:
         if resolved_creds:
@@ -604,7 +606,7 @@ def resolve_aap_auth(input_config: dict[str, Any], settings: Settings) -> AAPRes
         logger.warning("AAP auth resolution failed", error=str(e), exc_info=True)
         msg = "Authentication failed — verify AAP credentials"
         raise ApplicationError(msg, type="ConfigError", non_retryable=True) from None
-    return AAPResolvedAuth(base_url, auth_headers, basic_auth, verify_ssl)
+    return AAPResolvedAuth(base_url, auth_headers, basic_auth, verify_ssl, ca_certificate)
 
 
 def check_timeout(elapsed: float, timeout_seconds: int, job_id: int, *, configured_timeout: int | None = None) -> None:

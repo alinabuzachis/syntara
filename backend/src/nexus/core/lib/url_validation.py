@@ -6,6 +6,7 @@ Delegates SSRF IP/hostname checks to langchain-core's validate_safe_url.
 
 from __future__ import annotations
 
+import ipaddress
 from urllib.parse import ParseResult, urlparse
 
 from langchain_core._security._ssrf_protection import validate_safe_url
@@ -14,6 +15,8 @@ from nexus.core.config.base import get_settings
 
 _ALLOWED_SCHEMES = frozenset({"https", "http"})
 _HTTPS_ONLY = frozenset({"https"})
+_LOOPBACK_V4_NETWORK = ipaddress.IPv4Network("127.0.0.0/8")
+_LOOPBACK_V6 = ipaddress.IPv6Address("::1")
 _DEFAULT_PORTS: dict[str, int] = {"https": 443, "http": 80}
 
 
@@ -53,6 +56,19 @@ def _normalize_host(parsed: ParseResult) -> str:
     return f"{parsed.scheme}://{host}"
 
 
+def _is_loopback(hostname: str) -> bool:
+    """Return True if *hostname* is a loopback address (127.0.0.0/8, ::1, or ``localhost``)."""
+    if hostname == "localhost":
+        return True
+    try:
+        addr = ipaddress.ip_address(hostname)
+    except ValueError:
+        return False
+    if isinstance(addr, ipaddress.IPv4Address):
+        return addr in _LOOPBACK_V4_NETWORK
+    return addr == _LOOPBACK_V6
+
+
 def _parse_and_validate(url: str, *, label: str, allow_http: bool) -> ParseResult:
     """Parse a URL and validate scheme and hostname."""
     url = url.strip() if url else ""
@@ -66,7 +82,11 @@ def _parse_and_validate(url: str, *, label: str, allow_http: bool) -> ParseResul
         msg = f"{label} must include a scheme (e.g., https://). Got: '{url}'"
         raise ValueError(msg)
 
-    allowed = _ALLOWED_SCHEMES if allow_http else _HTTPS_ONLY
+    effective_allow_http = allow_http
+    if not effective_allow_http and parsed.hostname and _is_loopback(parsed.hostname):
+        effective_allow_http = True
+
+    allowed = _ALLOWED_SCHEMES if effective_allow_http else _HTTPS_ONLY
     if parsed.scheme not in allowed:
         schemes = ", ".join(sorted(allowed))
         msg = f"{label} scheme must be {schemes}. Got: '{parsed.scheme}'"

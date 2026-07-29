@@ -70,7 +70,7 @@ class TestLLMRelevancyCheckerIntegration:
 
         with patch(
             "nexus.agent_orchestrator.context_manager.retriever_service.checkers.llm_relevancy_checker.get_openrouter_llm",
-            return_value=mock_llm,
+            return_value=(mock_llm, None),
         ):
             checker = LLMRelevancyChecker()
             query = "Explain Python programming language features"
@@ -121,7 +121,7 @@ class TestLLMRelevancyCheckerIntegration:
 
         with patch(
             "nexus.agent_orchestrator.context_manager.retriever_service.checkers.llm_relevancy_checker.get_openrouter_llm",
-            return_value=mock_llm,
+            return_value=(mock_llm, None),
         ):
             checker = LLMRelevancyChecker()
             query = "Explain machine learning algorithms"
@@ -171,7 +171,7 @@ class TestLLMRelevancyCheckerIntegration:
 
         with patch(
             "nexus.agent_orchestrator.context_manager.retriever_service.checkers.llm_relevancy_checker.get_openrouter_llm",
-            return_value=mock_llm,
+            return_value=(mock_llm, None),
         ):
             checker = LLMRelevancyChecker()
             query = "artificial intelligence research papers"
@@ -226,7 +226,7 @@ class TestLLMRelevancyCheckerIntegration:
 
         with patch(
             "nexus.agent_orchestrator.context_manager.retriever_service.checkers.llm_relevancy_checker.get_openrouter_llm",
-            return_value=mock_llm,
+            return_value=(mock_llm, None),
         ):
             checker = LLMRelevancyChecker()
             query = "database performance optimization"
@@ -319,7 +319,7 @@ class TestLLMRelevancyCheckerIntegration:
 
         with patch(
             "nexus.agent_orchestrator.context_manager.retriever_service.checkers.llm_relevancy_checker.get_openrouter_llm",
-            return_value=mock_llm,
+            return_value=(mock_llm, None),
         ) as mock_get_llm:
             checker = LLMRelevancyChecker()
             query = "LangChain integration testing"
@@ -338,6 +338,59 @@ class TestLLMRelevancyCheckerIntegration:
                 temperature=0.3,
                 api_key=_TEST_CREDENTIAL.api_key,
                 base_url=_TEST_CREDENTIAL.base_url,
+                insecure_skip_tls_verify=False,
+                ca_certificate=None,
+            )
+
+    @pytest.mark.asyncio
+    async def test_tls_params_forwarded_to_openrouter_llm(self) -> None:
+        """TLS settings from LLMCredentialConfig are forwarded to get_openrouter_llm()."""
+        file_metadata = FileMetadata(
+            file_id=str(uuid4()),
+            filename="tls_test.txt",
+            size_bytes=512,
+            mime_type="text/plain",
+            file_path="/path/to/tls_test.txt",
+            status="converted",
+        )
+        document = RelevantDocument(
+            content="Test content for TLS parameter forwarding.",
+            relevancy_score=1.0,
+            file_metadata=file_metadata,
+            source_type="uploaded_file",
+            retrieval_metadata={},
+        )
+        config_manager = ConfigurationManager()
+        config = config_manager.get_llm_configuration()
+        config.algorithm_parameters["max_tokens"] = 100
+
+        tls_credential = LLMCredentialConfig(
+            api_key="test-key",
+            base_url="https://custom-llm.internal",
+            model="custom-model",
+            insecure_skip_tls_verify=True,
+            ca_certificate="-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
+        )
+
+        mock_llm = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.content = "0.75"
+        mock_llm.ainvoke.return_value = mock_response
+
+        with patch(
+            "nexus.agent_orchestrator.context_manager.retriever_service.checkers.llm_relevancy_checker.get_openrouter_llm",
+            return_value=(mock_llm, None),
+        ) as mock_get_llm:
+            checker = LLMRelevancyChecker()
+            await checker.check_relevancy(document, "test query", config, llm_credential_config=tls_credential)
+
+            mock_get_llm.assert_called_once_with(
+                model="custom-model",
+                temperature=0.3,
+                api_key="test-key",
+                base_url="https://custom-llm.internal",
+                insecure_skip_tls_verify=True,
+                ca_certificate="-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
             )
 
     @pytest.mark.asyncio
@@ -372,7 +425,7 @@ class TestLLMRelevancyCheckerIntegration:
 
         with patch(
             "nexus.agent_orchestrator.context_manager.retriever_service.checkers.llm_relevancy_checker.get_openrouter_llm",
-            return_value=mock_llm,
+            return_value=(mock_llm, None),
         ):
             checker = LLMRelevancyChecker()
             query = "machine learning algorithms"

@@ -263,7 +263,7 @@ def mock_tool_aware_llm() -> Generator[MagicMock, None, None]:
     with (
         patch(
             "nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm",
-            return_value=mock_llm,
+            return_value=(mock_llm, None),
         ),
         patch(
             "nexus.agent_orchestrator.context_manager.compressor.CompressorService",

@@ -38,6 +38,7 @@ function TestWrapper({
           configuration: {
             integration_type: IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM,
             aap_url: '',
+            allow_http: false,
             insecure_skip_tls_verify: false,
           },
           scope: 'global',
@@ -47,7 +48,12 @@ function TestWrapper({
           name: '',
           description: '',
           integration_type: IntegrationTypeEnum.MCP_SERVER,
-          configuration: { integration_type: IntegrationTypeEnum.MCP_SERVER, base_url: '' },
+          configuration: {
+            integration_type: IntegrationTypeEnum.MCP_SERVER,
+            base_url: '',
+            allow_http: false,
+            insecure_skip_tls_verify: false,
+          },
           scope: 'global',
           project_ids: [],
         }
@@ -62,15 +68,23 @@ function TestWrapper({
           integration_type: 'llm_provider' as const,
           provider_hint: LLMProviderHintEnum.RED_HAT_AI,
           base_url: '',
+          allow_http: false,
+          insecure_skip_tls_verify: false,
         }
       } else if (newType === IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM) {
         newConfig = {
           integration_type: 'ansible_automation_platform' as const,
           aap_url: '',
+          allow_http: false,
           insecure_skip_tls_verify: false,
         }
       } else {
-        newConfig = { integration_type: 'mcp_server' as const, base_url: '' }
+        newConfig = {
+          integration_type: 'mcp_server' as const,
+          base_url: '',
+          allow_http: false,
+          insecure_skip_tls_verify: false,
+        }
       }
       setValue('configuration', newConfig, { shouldValidate: false })
       setValue('integration_type', newType as IntegrationFormData['integration_type'])
@@ -109,16 +123,12 @@ describe('IntegrationDetailsStep', () => {
     expect(screen.getByRole('textbox', { name: /description/i })).toBeInTheDocument()
   })
 
-  it('renders base URL field for MCP Server', () => {
+  it('renders API URL field for MCP Server with correct placeholder', () => {
     render(<TestWrapper />)
 
-    expect(screen.getByRole('textbox', { name: /base url/i })).toBeInTheDocument()
-  })
-
-  it('does not render AAP URL field for MCP Server', () => {
-    render(<TestWrapper />)
-
-    expect(screen.queryByRole('textbox', { name: /aap url/i })).not.toBeInTheDocument()
+    const apiUrlField = screen.getByRole('textbox', { name: /api url/i })
+    expect(apiUrlField).toBeInTheDocument()
+    expect(apiUrlField).toHaveAttribute('placeholder', 'https://mcp-server.example.com/mcp')
   })
 
   it('allows typing in name field', async () => {
@@ -132,37 +142,30 @@ describe('IntegrationDetailsStep', () => {
   })
 
   describe('Ansible Automation Platform', () => {
-    it('renders AAP URL field for Ansible Automation Platform', () => {
+    it('renders API URL field for Ansible Automation Platform', () => {
       render(<TestWrapper defaultType={IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM} />)
 
-      expect(screen.getByRole('textbox', { name: /aap url/i })).toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: /api url/i })).toBeInTheDocument()
     })
 
-    it('does not render base URL field for Ansible Automation Platform', () => {
+    it('renders security section for Ansible Automation Platform', () => {
       render(<TestWrapper defaultType={IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM} />)
 
-      expect(screen.queryByRole('textbox', { name: /base url/i })).not.toBeInTheDocument()
+      expect(screen.getByText('Security')).toBeInTheDocument()
     })
 
-    it('renders TLS verification switch for Ansible Automation Platform', () => {
+    it('hides base URL and shows only AAP URL with correct placeholder', () => {
       render(<TestWrapper defaultType={IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM} />)
 
-      expect(screen.getByRole('switch', { name: /ssl verification/i })).toBeInTheDocument()
+      const apiUrlFields = screen.getAllByRole('textbox', { name: /api url/i })
+      expect(apiUrlFields).toHaveLength(1)
+      expect(apiUrlFields[0]).toHaveAttribute('placeholder', 'e.g. https://aap.example.com')
     })
 
-    it('shows TLS warning when verification is disabled', async () => {
-      const user = userEvent.setup()
+    it('uses "Server name / ID" label for AAP', () => {
       render(<TestWrapper defaultType={IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM} />)
 
-      await user.click(screen.getByRole('switch', { name: /ssl verification/i }))
-
-      expect(screen.getByText(/disabling tls verification/i)).toBeInTheDocument()
-    })
-
-    it('hides TLS warning when verification is enabled', () => {
-      render(<TestWrapper defaultType={IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM} />)
-
-      expect(screen.queryByText(/disabling tls verification/i)).not.toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: /server name/i })).toBeInTheDocument()
     })
   })
 
@@ -196,7 +199,13 @@ describe('IntegrationDetailsStep', () => {
           name: '',
           description: '',
           integration_type: 'llm_provider',
-          configuration: { integration_type: 'llm_provider', provider_hint: 'red_hat_ai', base_url: '' },
+          configuration: {
+            integration_type: 'llm_provider',
+            provider_hint: 'red_hat_ai',
+            base_url: '',
+            allow_http: false,
+            insecure_skip_tls_verify: false,
+          },
           scope: 'global',
         },
       })
@@ -218,7 +227,7 @@ describe('IntegrationDetailsStep', () => {
     it('shows base URL field for red_hat_ai provider', () => {
       render(<LLMTestWrapper />)
 
-      expect(screen.getByRole('textbox', { name: /base url/i })).toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: /api url/i })).toBeInTheDocument()
     })
 
     it('switching from LLM Provider to MCP Server resets configuration', async () => {
@@ -236,7 +245,7 @@ describe('IntegrationDetailsStep', () => {
       await user.click(screen.getByRole('option', { name: 'MCP Server' }))
 
       expect(screen.queryByText('Red Hat AI')).not.toBeInTheDocument()
-      expect(screen.getByRole('textbox', { name: /base url/i })).toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: /api url/i })).toBeInTheDocument()
     })
 
     it('changes provider hint when selecting a different provider', async () => {
@@ -253,12 +262,25 @@ describe('IntegrationDetailsStep', () => {
       const user = userEvent.setup()
       render(<LLMTestWrapper />)
 
-      expect(screen.getByRole('textbox', { name: /base url/i })).toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: /api url/i })).toBeInTheDocument()
 
       await user.click(screen.getByText('Red Hat AI'))
       await user.click(screen.getByRole('option', { name: 'OpenAI' }))
 
-      expect(screen.queryByRole('textbox', { name: /base url/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('textbox', { name: /api url/i })).not.toBeInTheDocument()
+    })
+
+    it('restores base URL field when switching from hidden-URL to requiring provider', async () => {
+      const user = userEvent.setup()
+      render(<LLMTestWrapper />)
+
+      await user.click(screen.getByText('Red Hat AI'))
+      await user.click(screen.getByRole('option', { name: 'OpenAI' }))
+      expect(screen.queryByRole('textbox', { name: /api url/i })).not.toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'OpenAI' }))
+      await user.click(screen.getByRole('option', { name: 'Custom' }))
+      expect(screen.getByRole('textbox', { name: /api url/i })).toBeInTheDocument()
     })
 
     it('has no accessibility violations with LLM Provider selected', async () => {
@@ -269,6 +291,116 @@ describe('IntegrationDetailsStep', () => {
         results = await axe(container)
       })
       expect(results!).toHaveNoViolations()
+    })
+  })
+
+  describe('SecurityFields', () => {
+    it('expands to show all security controls', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper />)
+
+      await user.click(screen.getByText('Security'))
+
+      expect(screen.getByRole('checkbox', { name: /allow http connections/i })).toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: /disable tls certificate verification/i })).toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: /ca certificate/i })).toBeInTheDocument()
+      expect(screen.getByText(/PEM-encoded CA certificate/)).toBeInTheDocument()
+    })
+
+    it('collapses when toggled again', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper />)
+
+      await user.click(screen.getByText('Security'))
+      expect(screen.getByRole('checkbox', { name: /allow http connections/i })).toBeInTheDocument()
+
+      await user.click(screen.getByText('Security'))
+      expect(screen.queryByRole('checkbox', { name: /allow http connections/i })).not.toBeInTheDocument()
+    })
+
+    it('toggles Allow HTTP checkbox', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper />)
+
+      await user.click(screen.getByText('Security'))
+      const checkbox = screen.getByRole('checkbox', { name: /allow http connections/i })
+      expect(checkbox).not.toBeChecked()
+
+      await user.click(checkbox)
+      expect(checkbox).toBeChecked()
+    })
+
+    it('toggles Disable TLS certificate verification checkbox', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper />)
+
+      await user.click(screen.getByText('Security'))
+      const checkbox = screen.getByRole('checkbox', { name: /disable tls certificate verification/i })
+      expect(checkbox).not.toBeChecked()
+
+      await user.click(checkbox)
+      expect(checkbox).toBeChecked()
+    })
+
+    it('accepts CA certificate input and clears to empty', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper />)
+
+      await user.click(screen.getByText('Security'))
+      const textarea = screen.getByRole('textbox', { name: /ca certificate/i })
+      expect(textarea).toHaveValue('')
+
+      await user.type(textarea, 'cert-data')
+      expect(textarea).toHaveValue('cert-data')
+
+      await user.clear(textarea)
+      expect(textarea).toHaveValue('')
+    })
+
+    it('renders security section for AAP type', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper defaultType={IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM} />)
+
+      await user.click(screen.getByText('Security'))
+
+      expect(screen.getByRole('checkbox', { name: /allow http connections/i })).toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: /disable tls certificate verification/i })).toBeInTheDocument()
+    })
+
+    it('hides CA certificate field when TLS verification is disabled', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper />)
+
+      await user.click(screen.getByText('Security'))
+      expect(screen.getByRole('textbox', { name: /ca certificate/i })).toBeInTheDocument()
+
+      await user.click(screen.getByRole('checkbox', { name: /disable tls certificate verification/i }))
+      expect(screen.queryByRole('textbox', { name: /ca certificate/i })).not.toBeInTheDocument()
+      expect(screen.queryByText(/PEM-encoded CA certificate/)).not.toBeInTheDocument()
+    })
+
+    it('shows warning when TLS verification is disabled', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper />)
+
+      await user.click(screen.getByText('Security'))
+      expect(screen.queryByText(/will not be verified/)).not.toBeInTheDocument()
+
+      await user.click(screen.getByRole('checkbox', { name: /disable tls certificate verification/i }))
+      expect(screen.getByText(/will not be verified. Only enable in trusted networks/)).toBeInTheDocument()
+    })
+
+    it('restores CA certificate field when TLS verification is re-enabled', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper />)
+
+      await user.click(screen.getByText('Security'))
+      await user.click(screen.getByRole('checkbox', { name: /disable tls certificate verification/i }))
+      expect(screen.queryByRole('textbox', { name: /ca certificate/i })).not.toBeInTheDocument()
+
+      await user.click(screen.getByRole('checkbox', { name: /disable tls certificate verification/i }))
+      expect(screen.getByRole('textbox', { name: /ca certificate/i })).toBeInTheDocument()
+      expect(screen.queryByText(/will not be verified/)).not.toBeInTheDocument()
     })
   })
 

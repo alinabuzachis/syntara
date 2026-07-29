@@ -1,5 +1,9 @@
 """Unit tests for integration models and configuration types."""
 
+import subprocess
+import tempfile
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
@@ -17,6 +21,36 @@ from nexus.integrations.models.integration_configuration import (
     LLMProviderConfiguration,
     MCPServerConfiguration,
 )
+
+
+@pytest.fixture(scope="module")
+def sample_ca_cert() -> str:
+    """Generate a valid self-signed CA certificate for testing."""
+    with (
+        tempfile.NamedTemporaryFile(suffix=".pem", delete=False) as key_f,
+        tempfile.NamedTemporaryFile(suffix=".pem", delete=False) as cert_f,
+    ):
+        subprocess.run(  # noqa: S603
+            [  # noqa: S607
+                "openssl",
+                "req",
+                "-x509",
+                "-newkey",
+                "rsa:2048",
+                "-keyout",
+                key_f.name,
+                "-out",
+                cert_f.name,
+                "-days",
+                "1",
+                "-nodes",
+                "-subj",
+                "/CN=test-nexus-ca",
+            ],
+            capture_output=True,
+            check=True,
+        )
+        return Path(cert_f.name).read_text()
 
 
 class TestIntegrationConfigurationModels:
@@ -56,6 +90,132 @@ class TestIntegrationConfigurationModels:
     def test_aap_rejects_extra_fields(self) -> None:
         with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
             AAPConfiguration(aap_url="https://gw.example.com", extra_field="val")
+
+
+class TestIntegrationSecurityMixin:
+    """Tests for the IntegrationSecurityMixin fields on all config types."""
+
+    def test_mcp_defaults_secure(self) -> None:
+        """MCP config defaults: allow_http=False, insecure_skip=False, ca_cert=None."""
+        config = MCPServerConfiguration(base_url="https://mcp.example.com")
+        assert config.allow_http is False
+        assert config.insecure_skip_tls_verify is False
+        assert config.ca_certificate is None
+
+    def test_llm_defaults_secure(self) -> None:
+        config = LLMProviderConfiguration(base_url="https://llm.example.com", provider_hint="custom")
+        assert config.allow_http is False
+        assert config.insecure_skip_tls_verify is False
+        assert config.ca_certificate is None
+
+    def test_aap_defaults_secure(self) -> None:
+        config = AAPConfiguration(aap_url="https://gateway.example.com")
+        assert config.allow_http is False
+        assert config.insecure_skip_tls_verify is False
+        assert config.ca_certificate is None
+
+    def test_mcp_allow_http(self) -> None:
+        """MCP config with allow_http=True accepts HTTP for non-loopback."""
+        config = MCPServerConfiguration(base_url="http://remote.example.com:8080", allow_http=True)
+        assert config.allow_http is True
+        assert config.base_url == "http://remote.example.com:8080"
+
+    def test_mcp_rejects_http_non_loopback(self) -> None:
+        """MCP config rejects HTTP for non-loopback when allow_http=False."""
+        with pytest.raises(ValidationError, match="scheme must be"):
+            MCPServerConfiguration(base_url="http://remote.example.com:8080")
+
+    def test_aap_allow_http(self) -> None:
+        config = AAPConfiguration(aap_url="http://gateway.example.com", allow_http=True)
+        assert config.allow_http is True
+        assert config.aap_url == "http://gateway.example.com"
+
+    def test_aap_ca_certificate(self, sample_ca_cert: str) -> None:
+        config = AAPConfiguration(aap_url="https://gateway.example.com", ca_certificate=sample_ca_cert)
+        assert config.ca_certificate == sample_ca_cert.strip()
+
+    def test_ca_certificate_rejects_arbitrary_text(self) -> None:
+        with pytest.raises(ValidationError, match="BEGIN CERTIFICATE"):
+            AAPConfiguration(aap_url="https://gateway.example.com", ca_certificate="not-a-cert")
+
+    def test_ca_certificate_rejects_invalid_pem_data(self) -> None:
+        invalid_pem = "-----BEGIN CERTIFICATE-----\ninvalid\n-----END CERTIFICATE-----"
+        with pytest.raises(ValidationError, match="invalid PEM data"):
+            AAPConfiguration(aap_url="https://gateway.example.com", ca_certificate=invalid_pem)
+
+    @pytest.mark.parametrize("blank", [None, "", "   ", "  \n  "])
+    def test_ca_certificate_none_for_empty_or_whitespace(self, blank: str | None) -> None:
+        config = AAPConfiguration(aap_url="https://gateway.example.com", ca_certificate=blank)
+        assert config.ca_certificate is None
+
+    def test_llm_insecure_skip_tls(self) -> None:
+        config = LLMProviderConfiguration(
+            base_url="https://llm.example.com", provider_hint="custom", insecure_skip_tls_verify=True
+        )
+        assert config.insecure_skip_tls_verify is True
+
+    def test_mcp_loopback_http_allowed_without_allow_http(self) -> None:
+        """Loopback addresses are allowed over HTTP even without allow_http=True."""
+        config = MCPServerConfiguration(base_url="http://localhost:8080")
+        assert config.base_url == "http://localhost:8080"
+        assert config.allow_http is False
+
+    def test_security_fields_round_trip_via_model_dump(self, sample_ca_cert: str) -> None:
+        """Security fields survive model_dump/model_validate round-trip."""
+        config = AAPConfiguration(
+            aap_url="https://gw.example.com",
+            allow_http=True,
+            insecure_skip_tls_verify=False,
+            ca_certificate=sample_ca_cert,
+        )
+        dumped = config.model_dump()
+        restored = AAPConfiguration.model_validate(dumped)
+        assert restored.allow_http is True
+        assert restored.insecure_skip_tls_verify is False
+        assert restored.ca_certificate == sample_ca_cert.strip()
+
+    def test_insecure_skip_nullifies_ca_certificate_aap(self, sample_ca_cert: str) -> None:
+        """ca_certificate is normalized to None when insecure_skip_tls_verify is True."""
+        config = AAPConfiguration(
+            aap_url="https://gw.example.com",
+            insecure_skip_tls_verify=True,
+            ca_certificate=sample_ca_cert,
+        )
+        assert config.ca_certificate is None
+
+    def test_insecure_skip_nullifies_ca_certificate_mcp(self, sample_ca_cert: str) -> None:
+        config = MCPServerConfiguration(
+            base_url="https://mcp.example.com",
+            insecure_skip_tls_verify=True,
+            ca_certificate=sample_ca_cert,
+        )
+        assert config.ca_certificate is None
+
+    def test_insecure_skip_nullifies_ca_certificate_llm(self, sample_ca_cert: str) -> None:
+        config = LLMProviderConfiguration(
+            base_url="https://llm.example.com",
+            provider_hint="custom",
+            insecure_skip_tls_verify=True,
+            ca_certificate=sample_ca_cert,
+        )
+        assert config.ca_certificate is None
+
+    def test_ca_certificate_preserved_when_verify_enabled(self, sample_ca_cert: str) -> None:
+        config = AAPConfiguration(
+            aap_url="https://gw.example.com",
+            insecure_skip_tls_verify=False,
+            ca_certificate=sample_ca_cert,
+        )
+        assert config.ca_certificate == sample_ca_cert.strip()
+
+    def test_insecure_skip_without_ca_cert_is_noop(self) -> None:
+        config = AAPConfiguration(
+            aap_url="https://gw.example.com",
+            insecure_skip_tls_verify=True,
+            ca_certificate=None,
+        )
+        assert config.ca_certificate is None
+        assert config.insecure_skip_tls_verify is True
 
 
 class TestURLValidation:

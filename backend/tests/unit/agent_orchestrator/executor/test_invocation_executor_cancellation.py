@@ -48,7 +48,10 @@ class TestInvocationExecutorCancellationRaceCondition:
         mock_session.get.return_value = mock_invocation
 
         with (
-            patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm"),
+            patch(
+                "nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm",
+                return_value=(MagicMock(), None),
+            ),
             patch("nexus.agent_orchestrator.executor.invocation_executor.ContextManagerPlanner"),
             patch("nexus.agent_orchestrator.executor.invocation_executor.OrchestrationService") as mock_orchestration,
             patch.object(executor, "_update_invocation_status", new=AsyncMock()) as mock_update,
@@ -98,7 +101,10 @@ class TestInvocationExecutorCancellationRaceCondition:
         mock_session.get.return_value = mock_invocation
 
         with (
-            patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm"),
+            patch(
+                "nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm",
+                return_value=(MagicMock(), None),
+            ),
             patch("nexus.agent_orchestrator.executor.invocation_executor.ContextManagerPlanner"),
             patch("nexus.agent_orchestrator.executor.invocation_executor.OrchestrationService") as mock_orchestration,
             patch.object(executor, "_update_invocation_status", new=AsyncMock()) as mock_update,
@@ -189,7 +195,10 @@ class TestInvocationExecutorCancellationRaceCondition:
         from nexus.agent_orchestrator.exceptions import InvocationCancelledError
 
         with (
-            patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm"),
+            patch(
+                "nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm",
+                return_value=(MagicMock(), None),
+            ),
             patch("nexus.agent_orchestrator.executor.invocation_executor.ContextManagerPlanner"),
             patch("nexus.agent_orchestrator.executor.invocation_executor.OrchestrationService") as mock_orchestration,
         ):
@@ -235,7 +244,10 @@ class TestInvocationExecutorCancellationRaceCondition:
         mock_session.get.return_value = mock_invocation
 
         with (
-            patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm"),
+            patch(
+                "nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm",
+                return_value=(MagicMock(), None),
+            ),
             patch("nexus.agent_orchestrator.executor.invocation_executor.ContextManagerPlanner"),
             patch("nexus.agent_orchestrator.executor.invocation_executor.OrchestrationService") as mock_orchestration,
             patch.object(executor, "_update_invocation_status", new=AsyncMock()) as mock_update,

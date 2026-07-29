@@ -208,6 +208,8 @@ describe('useCreateIntegration', () => {
         integration_type: 'llm_provider',
         provider_hint: 'red_hat_ai',
         base_url: 'https://api.example.com',
+        allow_http: false,
+        insecure_skip_tls_verify: false,
       },
     })
     const discoveredModels = [
@@ -237,6 +239,8 @@ describe('useCreateIntegration', () => {
         integration_type: 'llm_provider',
         provider_hint: 'openai',
         base_url: '',
+        allow_http: false,
+        insecure_skip_tls_verify: false,
       },
     })
     const { result } = renderHook(() => useCreateIntegration({ handleError: mockHandleError }))

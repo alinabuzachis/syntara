@@ -131,7 +131,7 @@ class TestInvocationExecutorLifecycleEvents:
         patches = [
             patch("nexus.audit.emitter._do_emit_audit_event"),
             patch.object(executor, "get_async_session_context", side_effect=lambda: mock_session_context()),
-            patch.object(executor, "_init_orchestration", return_value=mock_orchestration_service),
+            patch.object(executor, "_init_orchestration", return_value=(mock_orchestration_service, None)),
             patch.object(
                 executor,
                 "_complete_invocation_if_not_cancelled",
@@ -421,7 +421,7 @@ class TestInvocationExecutorLifecycleEvents:
         with (
             patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit,
             patch.object(executor, "get_async_session_context", side_effect=lambda: mock_session_context()),
-            patch.object(executor, "_init_orchestration", return_value=mock_orchestration_service),
+            patch.object(executor, "_init_orchestration", return_value=(mock_orchestration_service, None)),
             patch(
                 "nexus.agent_orchestrator.executor.invocation_executor.WorkflowSignalClient.send_failure_signal",
                 new_callable=AsyncMock,
@@ -501,7 +501,7 @@ class TestInvocationExecutorLifecycleEvents:
         with (
             patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit,
             patch.object(executor, "get_async_session_context", side_effect=lambda: mock_session_context()),
-            patch.object(executor, "_init_orchestration", return_value=mock_orchestration_service),
+            patch.object(executor, "_init_orchestration", return_value=(mock_orchestration_service, None)),
             patch(
                 "nexus.agent_orchestrator.executor.invocation_executor.WorkflowSignalClient.send_failure_signal",
                 new_callable=AsyncMock,

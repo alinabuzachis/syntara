@@ -16,6 +16,7 @@ from temporalio import activity
 from temporalio.exceptions import ApplicationError, CancelledError
 
 from nexus.core.config.base import get_settings
+from nexus.core.lib.tls_utils import build_integration_httpx_verify
 from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.models import AAPWorkflowJobTemplateExecutorParameters
 from nexus.workflows.workflow_engine.models.aap_types import AAPResourceType
@@ -327,7 +328,10 @@ async def execute_aap_workflow_job_template_activity(
     base_url = resolved_auth.base_url
     auth_headers = resolved_auth.auth_headers
     basic_auth = resolved_auth.basic_auth
-    verify_ssl = resolved_auth.verify_ssl
+    verify = build_integration_httpx_verify(
+        insecure_skip_tls_verify=not resolved_auth.verify_ssl,
+        ca_certificate=resolved_auth.ca_certificate,
+    )
 
     if not base_url:
         msg = "AAP host not configured. Attach an AAP credential."
@@ -341,7 +345,7 @@ async def execute_aap_workflow_job_template_activity(
         # Increase timeout for AAP connections (default 5s can be too short for remote AAP servers)
         timeout = httpx.Timeout(30.0, connect=10.0)
         async with httpx.AsyncClient(
-            verify=verify_ssl,
+            verify=verify,
             timeout=timeout,
         ) as client:
             job_id = await _launch_aap_workflow_job(client, config, auth_headers, basic_auth, base_url)

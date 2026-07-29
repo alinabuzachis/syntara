@@ -573,8 +573,20 @@ export const integrationWizardPages: PageEntry[] = [
     setup: async (page) => {
       await page.getByText('MCP Server').click()
       await page.getByRole('option', { name: 'Ansible Automation Platform' }).click()
-      await expect(page.getByRole('textbox', { name: /AAP URL/i })).toBeVisible()
-      await expect(page.getByRole('switch', { name: /SSL verification/i })).toBeVisible()
+      await expect(page.getByRole('textbox', { name: /API URL/i })).toBeVisible()
+      await expect(page.getByText('Security')).toBeVisible()
+    },
+  },
+  {
+    section: 'configuration/integrations',
+    name: 'integration-configure-security',
+    path: AppRoute.Configuration.Integrations.Configure,
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Configure integration' })).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.getByText('Security').click()
+      await expect(page.getByText('Allow HTTP connections')).toBeVisible()
     },
   },
   {
@@ -587,7 +599,7 @@ export const integrationWizardPages: PageEntry[] = [
     setup: async (page) => {
       // Fill required step 1 fields then advance with Next
       await page.getByRole('textbox', { name: /Server name/i }).fill('Test Server')
-      await page.getByRole('textbox', { name: /Base URL/i }).fill('https://example.com')
+      await page.getByRole('textbox', { name: /API URL/i }).fill('https://example.com')
       await page.getByRole('button', { name: 'Next' }).click()
       await expect(page.getByRole('heading', { name: 'Connection credential' })).toBeVisible()
     },
@@ -602,7 +614,7 @@ export const integrationWizardPages: PageEntry[] = [
     setup: async (page) => {
       // Fill step 1, advance to step 2
       await page.getByRole('textbox', { name: /Server name/i }).fill('Test Server')
-      await page.getByRole('textbox', { name: /Base URL/i }).fill('https://example.com')
+      await page.getByRole('textbox', { name: /API URL/i }).fill('https://example.com')
       await page.getByRole('button', { name: 'Next' }).click()
       await expect(page.getByRole('heading', { name: 'Connection credential' })).toBeVisible()
       // Wait for credentials to load, then select one to enable step 3
@@ -613,6 +625,49 @@ export const integrationWizardPages: PageEntry[] = [
       // Advance to step 3
       await page.getByRole('button', { name: 'Next' }).click()
       await expect(page.getByRole('heading', { name: 'Enable tools' })).toBeVisible()
+    },
+  },
+]
+
+// ---------------------------------------------------------------------------
+// Integration edit form — Security section expanded
+// ---------------------------------------------------------------------------
+export const integrationSecurityPages: PageEntry[] = [
+  {
+    section: 'configuration/integrations',
+    name: 'integration-edit-security',
+    path: AppRoute.Configuration.Integrations.Edit.replace(':integrationId', '1'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Edit integration' })).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.getByText('Security').click()
+      await expect(page.getByText('Allow HTTP connections')).toBeVisible()
+    },
+  },
+  {
+    section: 'configuration/integrations',
+    name: 'llm-provider-edit-security',
+    path: AppRoute.Configuration.Integrations.Edit.replace(':integrationId', '10'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Edit integration' })).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.getByText('Security').click()
+      await expect(page.getByText('Allow HTTP connections')).toBeVisible()
+    },
+  },
+  {
+    section: 'configuration/integrations',
+    name: 'aap-edit-security',
+    path: AppRoute.Configuration.Integrations.Edit.replace(':integrationId', '12'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { name: 'Edit integration' })).toBeVisible()
+      await expect(page.locator('input[value="https://aap.prod.example.com"]')).toBeVisible()
+    },
+    setup: async (page) => {
+      await page.getByText('Security').click()
+      await expect(page.getByText('Allow HTTP connections')).toBeVisible()
     },
   },
 ]

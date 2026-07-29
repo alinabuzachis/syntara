@@ -13,6 +13,8 @@ from nexus.audit.utils import escalate_actor_type
 from nexus.core.models.principal import service_principal_id
 
 if TYPE_CHECKING:
+    import httpx
+
     from nexus.agent_orchestrator.context_manager.compressor import CompressorService
     from nexus.workflows.workflow_engine.models.workflow_definition import IntegrationConnectionConfig
 
@@ -324,9 +326,11 @@ class InvocationExecutor:
         await self._log_conversion_failures(invocation, ctx)
 
         # Initialize OrchestrationService - fail immediately if LLM not configured
-        orchestration_service = await self._init_orchestration(invocation, ctx)
-        if orchestration_service is None:
+        init_result = await self._init_orchestration(invocation, ctx)
+        if init_result is None:
             return
+
+        orchestration_service, llm_http_client = init_result
 
         # Execute orchestration with error handling
         workflow_id: UUID | None = extract_workflow_id(ctx)
@@ -335,14 +339,18 @@ class InvocationExecutor:
         request_id: UUID | None = extract_request_id(ctx)
         if actor_context is None:
             actor_context = await self._get_actor_context_for_invocation(invocation)
-        with audit_actor_context(
-            actor=actor_context,
-            workflow_id=workflow_id,
-            activity_id=activity_id,
-            execution_id=execution_id,
-            request_id=request_id,
-        ):
-            await self._execute_orchestration(invocation, orchestration_service, ctx, actor_context)
+        try:
+            with audit_actor_context(
+                actor=actor_context,
+                workflow_id=workflow_id,
+                activity_id=activity_id,
+                execution_id=execution_id,
+                request_id=request_id,
+            ):
+                await self._execute_orchestration(invocation, orchestration_service, ctx, actor_context)
+        finally:
+            if llm_http_client is not None:
+                await llm_http_client.aclose()
 
     async def _execute_orchestration(
         self,
@@ -557,13 +565,15 @@ class InvocationExecutor:
 
     async def _init_orchestration(
         self, invocation: Invocation, ctx: InvocationContextData
-    ) -> "OrchestrationService | None":
+    ) -> "tuple[OrchestrationService, httpx.AsyncClient | None] | None":
         """Initialise LLM and OrchestrationService, handling configuration failures.
 
         Extracts LLM credentials from invocation context_data (injected by the
         credential system via agentic_activity) and falls back to env vars.
 
-        Returns the OrchestrationService instance or ``None`` on failure.
+        Returns ``(OrchestrationService, optional httpx client)`` or ``None``
+        on failure.  The caller must close the httpx client when orchestration
+        completes.
         """
         meta = ctx.metadata
 
@@ -580,20 +590,28 @@ class InvocationExecutor:
             resolved_model: str | None = None
             integration_base_url: str | None = None
             provider_hint: str | None = None
+            insecure_skip_tls_verify = False
+            ca_certificate: str | None = None
             if meta and meta.llm_model_id:
-                resolved_model, integration_base_url, provider_hint = await self._resolve_llm_model_and_integration(
-                    meta.llm_model_id
-                )
+                (
+                    resolved_model,
+                    integration_base_url,
+                    provider_hint,
+                    insecure_skip_tls_verify,
+                    ca_certificate,
+                ) = await self._resolve_llm_model_and_integration(meta.llm_model_id)
             else:
                 logger.warning(
                     "No llm_model_id configured, falling back to global LLM settings",
                     invocation_id=invocation.id,
                 )
 
-            llm = await get_openrouter_llm(
+            llm, llm_http_client = await get_openrouter_llm(
                 api_key=credential_api_key,
                 base_url=integration_base_url,
                 model=resolved_model,
+                insecure_skip_tls_verify=insecure_skip_tls_verify,
+                ca_certificate=ca_certificate,
             )
 
             llm_credential_config = LLMCredentialConfig(
@@ -601,6 +619,8 @@ class InvocationExecutor:
                 base_url=str(llm.openai_api_base or ""),
                 model=llm.model_name,
                 provider_hint=provider_hint,
+                insecure_skip_tls_verify=insecure_skip_tls_verify,
+                ca_certificate=ca_certificate,
             )
 
             # Pass the credential-configured LLM to the compressor so it doesn't
@@ -623,7 +643,7 @@ class InvocationExecutor:
                 tool_selections=list(meta.tool_selections) if meta else [],
             )
             logger.info("LLM initialized successfully for invocation", invocation_id=invocation.id)
-            return service
+            return service, llm_http_client
         except (LLMConfigurationError, CredentialResolutionError) as e:
             logger.exception("LLM configuration failed for invocation", invocation_id=invocation.id)
             now = datetime.now(UTC)
@@ -921,8 +941,10 @@ class InvocationExecutor:
             label="execution credential",
         )
 
-    async def _resolve_llm_model_and_integration(self, llm_model_id: str) -> tuple[str, str | None, str | None]:
-        """Resolve an LLM model UUID to (model_id, base_url, provider_hint) in a single session.
+    async def _resolve_llm_model_and_integration(
+        self, llm_model_id: str
+    ) -> tuple[str, str | None, str | None, bool, str | None]:
+        """Resolve an LLM model UUID to (model_id, base_url, provider_hint, insecure_skip_tls_verify, ca_certificate).
 
         Fetches the LLMModel record and its parent Integration in one DB session,
         eliminating a second connection checkout and the TOCTOU window between them.
@@ -931,7 +953,7 @@ class InvocationExecutor:
             llm_model_id: UUID string of the LLMModel record.
 
         Returns:
-            Tuple of (provider model_id e.g. 'gpt-4o', base_url, provider_hint).
+            Tuple of (provider model_id, base_url, provider_hint, insecure_skip_tls_verify, ca_certificate).
 
         Raises:
             LLMConfigurationError: If the model or integration is not found, disabled, or misconfigured.
@@ -974,7 +996,7 @@ class InvocationExecutor:
                 integration_id=integration_id,
                 provider_hint=provider_hint,
             )
-            return model.model_id, base_url, provider_hint
+            return model.model_id, base_url, provider_hint, config.insecure_skip_tls_verify, config.ca_certificate
 
     async def _resolve_llm_api_key(self, credential_id: str) -> str:
         """Decrypt LLM API key from credential at execution time.

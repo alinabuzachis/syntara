@@ -158,6 +158,9 @@ const mockIntegration: IntegrationRead = {
   configuration: {
     integration_type: 'mcp_server',
     base_url: 'https://mcp.example.com',
+    allow_http: false,
+    insecure_skip_tls_verify: false,
+    ca_certificate: null,
   },
   management_credential_id: 'cred-1',
   last_validated_at: '2026-01-01T00:00:00Z',
@@ -365,8 +368,9 @@ describe('IntegrationDetail', () => {
     it('shows enabled/disabled toggle switch', () => {
       render(<IntegrationDetail />, { wrapper })
 
-      expect(screen.getByLabelText(/toggle my mcp server/i)).toBeInTheDocument()
-      expect(screen.getByText('Enabled')).toBeInTheDocument()
+      const toggle = screen.getByLabelText(/toggle my mcp server/i)
+      expect(toggle).toBeInTheDocument()
+      expect(toggle).toBeChecked()
     })
 
     it('shows disabled label when integration is disabled', () => {
@@ -676,7 +680,9 @@ describe('IntegrationDetail', () => {
       configuration: {
         integration_type: 'ansible_automation_platform',
         aap_url: 'https://aap.example.com',
+        allow_http: false,
         insecure_skip_tls_verify: false,
+        ca_certificate: null,
       },
       enabled_tool_count: 0,
       total_tool_count: 0,
@@ -704,6 +710,17 @@ describe('IntegrationDetail', () => {
       expect(screen.getByText('https://aap.example.com')).toBeInTheDocument()
     })
 
+    it('shows Security section with field values', () => {
+      setupDefaultMocks({ integration: mockAapIntegration })
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.getByText('Security')).toBeInTheDocument()
+      expect(screen.getByText('HTTP connections')).toBeInTheDocument()
+      expect(screen.getByText('HTTPS only')).toBeInTheDocument()
+      expect(screen.getByText('TLS certificate verification')).toBeInTheDocument()
+      expect(screen.queryByText(/TLS verification disabled/i)).not.toBeInTheDocument()
+    })
+
     it('shows TLS warning when insecure_skip_tls_verify is true', () => {
       setupDefaultMocks({
         integration: {
@@ -711,20 +728,40 @@ describe('IntegrationDetail', () => {
           configuration: {
             integration_type: 'ansible_automation_platform',
             aap_url: 'https://aap.example.com',
+            allow_http: false,
             insecure_skip_tls_verify: true,
+            ca_certificate: null,
           },
         },
       })
       render(<IntegrationDetail />, { wrapper })
 
-      expect(screen.getByText(/SSL verification disabled/i)).toBeInTheDocument()
+      expect(screen.getByText(/TLS verification disabled/i)).toBeInTheDocument()
+    })
+
+    it('shows HTTP allowed warning when allow_http is true', () => {
+      setupDefaultMocks({
+        integration: {
+          ...mockAapIntegration,
+          configuration: {
+            integration_type: 'ansible_automation_platform',
+            aap_url: 'https://aap.example.com',
+            allow_http: true,
+            insecure_skip_tls_verify: false,
+            ca_certificate: null,
+          },
+        },
+      })
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.getByText(/HTTP allowed/i)).toBeInTheDocument()
     })
 
     it('does not show TLS warning when insecure_skip_tls_verify is false', () => {
       setupDefaultMocks({ integration: mockAapIntegration })
       render(<IntegrationDetail />, { wrapper })
 
-      expect(screen.queryByText(/SSL verification disabled/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/TLS verification disabled/i)).not.toBeInTheDocument()
     })
 
     it('does not show enabled resources count for Ansible Automation Platform', () => {
@@ -948,7 +985,7 @@ describe('IntegrationDetail', () => {
 
       const toggle = screen.getByRole('switch')
       expect(toggle).toBeDisabled()
-      expect(screen.getByText('Enabled')).toBeInTheDocument()
+      expect(toggle).toBeChecked()
     })
 
     it('disables validate kebab action when canUpdate is false', async () => {
@@ -1043,13 +1080,15 @@ describe('IntegrationDetail', () => {
       expect(within(resourcesTab).queryByText('0')).not.toBeInTheDocument()
     })
 
-    it('does not show TLS warning for non-AAP integration', () => {
+    it('renders Security section for MCP integration with security fields', () => {
       render(<IntegrationDetail />, { wrapper })
 
-      expect(screen.queryByText(/SSL verification disabled/i)).not.toBeInTheDocument()
+      expect(screen.getByText('Security')).toBeInTheDocument()
+      expect(screen.getByText('HTTPS only')).toBeInTheDocument()
+      expect(screen.queryByText(/TLS verification disabled/i)).not.toBeInTheDocument()
     })
 
-    it('does not show TLS warning for AAP without configuration', () => {
+    it('does not show Security section without configuration', () => {
       setupDefaultMocks({
         integration: {
           ...mockIntegration,
@@ -1059,10 +1098,10 @@ describe('IntegrationDetail', () => {
       })
       render(<IntegrationDetail />, { wrapper })
 
-      expect(screen.queryByText(/SSL verification disabled/i)).not.toBeInTheDocument()
+      expect(screen.queryByText('Security')).not.toBeInTheDocument()
     })
 
-    it('does not show TLS warning for AAP without insecure_skip_tls_verify key', () => {
+    it('does not show Security section without security fields in configuration', () => {
       setupDefaultMocks({
         integration: {
           ...mockIntegration,
@@ -1075,7 +1114,7 @@ describe('IntegrationDetail', () => {
       })
       render(<IntegrationDetail />, { wrapper })
 
-      expect(screen.queryByText(/SSL verification disabled/i)).not.toBeInTheDocument()
+      expect(screen.queryByText('Security')).not.toBeInTheDocument()
     })
   })
 

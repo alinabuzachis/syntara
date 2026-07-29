@@ -29,6 +29,9 @@ class MockMCPProvider(ToolProviderAdapter):
         api_key: str | None = None,
         integration_id: UUID | None = None,
         integration_name: str | None = "mcp-integration",
+        *,
+        insecure_skip_tls_verify: bool = False,
+        ca_certificate: str | None = None,
     ) -> None:
         """Initialize MCP provider with configuration."""
         self.integration_id = integration_id or uuid4()

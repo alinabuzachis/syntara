@@ -2,6 +2,8 @@
 
 import asyncio
 import logging
+import ssl
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
@@ -14,6 +16,7 @@ from langchain_core.tools import BaseTool
 # See https://github.com/langchain-ai/langchain-mcp-adapters/issues/319
 from langchain_mcp_adapters.client import MultiServerMCPClient  # type: ignore[import-untyped]
 
+from nexus.core.lib.tls_utils import build_integration_httpx_verify
 from nexus.core.utils.exceptions import extract_all_exceptions
 from nexus.tool_manager.exceptions import ToolNotFoundError
 from nexus.tool_manager.lib.providers.base import ToolProviderAdapter
@@ -28,6 +31,16 @@ from nexus.tool_manager.models import (
 )
 
 logger = structlog.stdlib.get_logger(__name__)
+
+
+def _make_httpx_client_factory(
+    *,
+    verify: bool | ssl.SSLContext,
+) -> Callable[..., httpx.AsyncClient]:
+    """Return an httpx.AsyncClient factory that pins the given TLS verify setting."""
+    return lambda headers=None, timeout=None, auth=None: httpx.AsyncClient(
+        headers=headers, timeout=timeout, auth=auth, verify=verify
+    )
 
 
 class MCPProvider(ToolProviderAdapter):
@@ -48,6 +61,9 @@ class MCPProvider(ToolProviderAdapter):
         api_key: str | None = None,
         integration_id: UUID | None = None,
         integration_name: str | None = "mcp-integration",
+        *,
+        insecure_skip_tls_verify: bool = False,
+        ca_certificate: str | None = None,
     ) -> None:
         """Initialize MCP provider with configuration.
 
@@ -56,6 +72,8 @@ class MCPProvider(ToolProviderAdapter):
             api_key: Authentication key for the MCP server (optional)
             integration_id: Unique identifier for this integration instance (optional for factory)
             integration_name: Human-readable name for the integration (optional for factory)
+            insecure_skip_tls_verify: Disable TLS certificate verification (optional)
+            ca_certificate: PEM-encoded CA certificate for custom trust (optional)
 
         Raises:
             ValueError: If configuration is invalid
@@ -68,6 +86,8 @@ class MCPProvider(ToolProviderAdapter):
         # Store connection parameters directly — api_key is never serialized
         self._base_url = base_url
         self._api_key = api_key
+        self._insecure_skip_tls_verify = insecure_skip_tls_verify
+        self._ca_certificate = ca_certificate
 
         # Initialize langchain MCP client
         self._client: MultiServerMCPClient | None = None
@@ -99,6 +119,13 @@ class MCPProvider(ToolProviderAdapter):
                 # Add API key as Authorization header if provided
                 if self._api_key:
                     server_config[server_key]["headers"] = {"Authorization": f"Bearer {self._api_key}"}
+
+                if self._insecure_skip_tls_verify or self._ca_certificate:
+                    verify = build_integration_httpx_verify(
+                        insecure_skip_tls_verify=self._insecure_skip_tls_verify,
+                        ca_certificate=self._ca_certificate,
+                    )
+                    server_config[server_key]["httpx_client_factory"] = _make_httpx_client_factory(verify=verify)
 
                 # Initialize the MultiServerMCPClient
                 self._client = MultiServerMCPClient(server_config)

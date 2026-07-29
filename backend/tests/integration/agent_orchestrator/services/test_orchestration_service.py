@@ -51,7 +51,7 @@ async def _create_test_integration(
     test_db_session: AsyncSession,
     test_user,
     name: str = "test-mcp-integration",
-    base_url: str = "http://fake-mcp-server:8000/mcp",
+    base_url: str = "https://fake-mcp-server:8000/mcp",
     *,
     enabled: bool = True,
     status: IntegrationStatus = IntegrationStatus.AVAILABLE,
@@ -244,7 +244,7 @@ class TestOrchestrationServiceGetTools:
             test_db_session,
             test_user,
             name="unreachable-integration",
-            base_url="http://unreachable-server:8000/mcp",
+            base_url="https://unreachable-server:8000/mcp",
         )
         integration_id = str(integration.id)
 

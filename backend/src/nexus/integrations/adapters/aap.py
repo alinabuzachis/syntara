@@ -22,6 +22,7 @@ import httpx
 import structlog
 from httpx import HTTPStatusError
 
+from nexus.core.lib.tls_utils import build_integration_httpx_verify
 from nexus.core.utils.exceptions import extract_all_exceptions
 from nexus.integrations.adapters.factory import register_health_check_adapter
 from nexus.integrations.adapters.protocol import (
@@ -120,13 +121,18 @@ class AAPAdapter:
                 aap_url=self._config.aap_url,
             )
 
+        verify = build_integration_httpx_verify(
+            insecure_skip_tls_verify=self._config.insecure_skip_tls_verify,
+            ca_certificate=self._config.ca_certificate,
+        )
+
         success = True
         error_msg: str | None = None
         error_type: HealthCheckErrorType | None = None
 
         try:
             async with httpx.AsyncClient(
-                verify=not self._config.insecure_skip_tls_verify,
+                verify=verify,
                 timeout=timeout_seconds,
             ) as client:
                 response = await client.get(url, headers=headers, auth=basic_auth)

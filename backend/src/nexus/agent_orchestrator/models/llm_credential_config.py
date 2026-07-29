@@ -15,3 +15,5 @@ class LLMCredentialConfig:
     base_url: str
     model: str
     provider_hint: str | None = None
+    insecure_skip_tls_verify: bool = False
+    ca_certificate: str | None = None

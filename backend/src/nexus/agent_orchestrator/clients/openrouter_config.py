@@ -6,11 +6,13 @@ OpenRouter provides API gateway to multiple LLMs (Claude, GPT-4, etc.).
 
 from typing import Any
 
+import httpx
 import structlog
 from langchain_openai import ChatOpenAI
 
 from nexus.agent_orchestrator.exceptions import LLMConfigurationError
 from nexus.core.config.base import get_settings
+from nexus.core.lib.tls_utils import build_integration_httpx_verify
 from nexus.settings.cache.settings_cache import get_runtime_settings
 from nexus.settings.exceptions import SettingError
 
@@ -24,7 +26,9 @@ async def get_openrouter_llm(
     temperature: float | None = None,
     max_tokens: int | None = None,
     base_url: str | None = None,
-) -> ChatOpenAI:
+    insecure_skip_tls_verify: bool = False,
+    ca_certificate: str | None = None,
+) -> tuple[ChatOpenAI, httpx.AsyncClient | None]:
     """Configure LangChain ChatOpenAI for an LLM provider endpoint.
 
     Despite the name, this function supports any OpenAI-compatible endpoint —
@@ -44,9 +48,13 @@ async def get_openrouter_llm(
         max_tokens: Maximum tokens in response. If None, falls back to the ``agentic.max_completion_tokens``
             runtime setting; a value of 0 (the default) means no cap.
         base_url: Base URL of the LLM provider endpoint. If None, uses settings default.
+        insecure_skip_tls_verify: Disable TLS certificate verification.
+        ca_certificate: PEM-encoded CA certificate to trust.
 
     Returns:
-        Configured ChatOpenAI instance
+        Tuple of (ChatOpenAI instance, optional httpx.AsyncClient that the caller
+        must close when the LLM is no longer needed — ``None`` when no custom TLS
+        client was created).
 
     Raises:
         LLMConfigurationError: If no API key is provided
@@ -87,6 +95,15 @@ async def get_openrouter_llm(
     if effective_max_tokens is not None and effective_max_tokens > 0:
         kwargs["max_completion_tokens"] = effective_max_tokens
 
+    http_client: httpx.AsyncClient | None = None
+    if insecure_skip_tls_verify or ca_certificate:
+        verify = build_integration_httpx_verify(
+            insecure_skip_tls_verify=insecure_skip_tls_verify,
+            ca_certificate=ca_certificate,
+        )
+        http_client = httpx.AsyncClient(verify=verify)
+        kwargs["http_async_client"] = http_client
+
     logger.info(
         "Initializing OpenRouter LLM",
         model=kwargs["model"],
@@ -94,4 +111,4 @@ async def get_openrouter_llm(
         max_completion_tokens=kwargs.get("max_completion_tokens"),
     )
 
-    return ChatOpenAI(**kwargs)
+    return ChatOpenAI(**kwargs), http_client

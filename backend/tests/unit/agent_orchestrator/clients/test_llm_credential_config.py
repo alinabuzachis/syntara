@@ -29,6 +29,24 @@ class TestLLMCredentialConfig:
         with pytest.raises(AttributeError):
             config.api_key = "new-key"  # type: ignore[misc]
 
+    def test_tls_fields_default_values(self) -> None:
+        """TLS fields default to safe values when not specified."""
+        config = LLMCredentialConfig(api_key="sk-123", base_url="https://api.example.com", model="gpt-4")
+        assert config.insecure_skip_tls_verify is False
+        assert config.ca_certificate is None
+
+    def test_tls_fields_explicit_values(self) -> None:
+        """TLS fields can be set explicitly."""
+        config = LLMCredentialConfig(
+            api_key="sk-123",
+            base_url="https://api.example.com",
+            model="gpt-4",
+            insecure_skip_tls_verify=True,
+            ca_certificate="-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
+        )
+        assert config.insecure_skip_tls_verify is True
+        assert config.ca_certificate is not None
+
     def test_importable_from_models_package(self) -> None:
         """LLMCredentialConfig is re-exported from the models package."""
         from nexus.agent_orchestrator.models import LLMCredentialConfig as Imported

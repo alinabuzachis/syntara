@@ -156,9 +156,22 @@ class TestValidateEndpointUrl:
         assert validate_endpoint_url("http://localhost:8080", allow_http=True) == "http://localhost:8080"
 
     def test_http_rejected_by_default(self) -> None:
-        """HTTP scheme rejected when allow_http=False (default)."""
+        """HTTP scheme rejected when allow_http=False (default) for non-loopback hosts."""
         with pytest.raises(ValueError, match="scheme must be"):
-            validate_endpoint_url("http://localhost:8080")
+            validate_endpoint_url("http://remote.example.com:8080")
+
+    def test_http_loopback_exemption_localhost(self) -> None:
+        """HTTP allowed for localhost even when allow_http=False."""
+        assert validate_endpoint_url("http://localhost:8080") == "http://localhost:8080"
+
+    def test_http_loopback_exemption_127_range(self) -> None:
+        """HTTP allowed for 127.x.x.x range even when allow_http=False."""
+        assert validate_endpoint_url("http://127.0.0.1:8080") == "http://127.0.0.1:8080"
+        assert validate_endpoint_url("http://127.0.0.2:9090") == "http://127.0.0.2:9090"
+
+    def test_http_loopback_exemption_ipv6(self) -> None:
+        """HTTP allowed for ::1 even when allow_http=False."""
+        assert validate_endpoint_url("http://[::1]:8080") == "http://[::1]:8080"
 
     def test_empty_url_rejected(self) -> None:
         """Empty URL is rejected."""

@@ -76,7 +76,7 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 function advanceToStep2(user: ReturnType<typeof userEvent.setup>) {
   return async () => {
     await user.type(screen.getByRole('textbox', { name: /name/i }), 'Test MCP')
-    await user.type(screen.getByRole('textbox', { name: /base url/i }), 'http://localhost:8765/mcp')
+    await user.type(screen.getByRole('textbox', { name: /api url/i }), 'http://localhost:8765/mcp')
     await user.click(screen.getByRole('button', { name: 'Next' }))
   }
 }
@@ -120,7 +120,7 @@ describe('IntegrationForm', () => {
     expect(screen.getByText('MCP Server')).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: /name/i })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: /description/i })).toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: /base url/i })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: /api url/i })).toBeInTheDocument()
   })
 
   it('shows MCP Server as selected integration type', () => {
@@ -144,7 +144,7 @@ describe('IntegrationForm', () => {
     await user.click(screen.getByRole('button', { name: 'Next' }))
 
     expect(screen.getByText('Server name / ID is required')).toBeInTheDocument()
-    expect(screen.getByText('Base URL is required')).toBeInTheDocument()
+    expect(screen.getByText('API URL is required')).toBeInTheDocument()
   })
 
   it('advances to step 2 when required fields are filled', async () => {
@@ -152,7 +152,7 @@ describe('IntegrationForm', () => {
     render(<IntegrationForm />, { wrapper })
 
     await user.type(screen.getByRole('textbox', { name: /name/i }), 'Test MCP')
-    await user.type(screen.getByRole('textbox', { name: /base url/i }), 'http://localhost:8765/mcp')
+    await user.type(screen.getByRole('textbox', { name: /api url/i }), 'http://localhost:8765/mcp')
     await user.click(screen.getByRole('button', { name: 'Next' }))
 
     expect(screen.getByText(/credential is used to discover/i)).toBeInTheDocument()
@@ -164,7 +164,7 @@ describe('IntegrationForm', () => {
     render(<IntegrationForm />, { wrapper })
 
     await user.type(screen.getByRole('textbox', { name: /name/i }), 'Test MCP')
-    await user.type(screen.getByRole('textbox', { name: /base url/i }), 'http://localhost:8765/mcp')
+    await user.type(screen.getByRole('textbox', { name: /api url/i }), 'http://localhost:8765/mcp')
     await user.click(screen.getByRole('button', { name: 'Next' }))
 
     expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument()
@@ -183,7 +183,7 @@ describe('IntegrationForm', () => {
 
     const nameInput = screen.getByRole('textbox', { name: /name/i })
     const descriptionInput = screen.getByRole('textbox', { name: /description/i })
-    const baseUrlInput = screen.getByRole('textbox', { name: /base url/i })
+    const baseUrlInput = screen.getByRole('textbox', { name: /api url/i })
 
     await user.type(nameInput, 'My MCP Server')
     await user.type(descriptionInput, 'A test integration')
@@ -199,11 +199,34 @@ describe('IntegrationForm', () => {
     render(<IntegrationForm />, { wrapper })
 
     await user.type(screen.getByRole('textbox', { name: /name/i }), 'Test MCP')
-    await user.type(screen.getByRole('textbox', { name: /base url/i }), 'not-a-url')
+    await user.type(screen.getByRole('textbox', { name: /api url/i }), 'not-a-url')
     await user.click(screen.getByRole('button', { name: 'Next' }))
 
     expect(screen.getByText(/must be a valid url/i)).toBeInTheDocument()
     expect(screen.queryByText(/credential is used to discover/i)).not.toBeInTheDocument()
+  })
+
+  it('does not advance when MCP URL is non-loopback HTTP without allow_http', async () => {
+    const user = userEvent.setup()
+    render(<IntegrationForm />, { wrapper })
+
+    await user.type(screen.getByRole('textbox', { name: /name/i }), 'Test MCP')
+    await user.type(screen.getByRole('textbox', { name: /api url/i }), 'http://remote-server.example.com:8765/mcp')
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+
+    expect(screen.queryByText(/credential is used to discover/i)).not.toBeInTheDocument()
+    expect(screen.getByText('Must be an HTTPS URL')).toBeInTheDocument()
+  })
+
+  it('allows loopback HTTP URLs for MCP without allow_http (localhost exemption)', async () => {
+    const user = userEvent.setup()
+    render(<IntegrationForm />, { wrapper })
+
+    await user.type(screen.getByRole('textbox', { name: /name/i }), 'Test MCP')
+    await user.type(screen.getByRole('textbox', { name: /api url/i }), 'http://localhost:8765/mcp')
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+
+    expect(screen.getByText(/credential is used to discover/i)).toBeInTheDocument()
   })
 
   it('navigates to integrations list when Cancel is clicked', async () => {
@@ -222,7 +245,7 @@ describe('IntegrationForm', () => {
     render(<IntegrationForm />, { wrapper })
 
     await user.type(screen.getByRole('textbox', { name: /name/i }), 'Test MCP')
-    await user.type(screen.getByRole('textbox', { name: /base url/i }), 'http://localhost:8765/mcp')
+    await user.type(screen.getByRole('textbox', { name: /api url/i }), 'http://localhost:8765/mcp')
     await user.click(screen.getByRole('button', { name: 'Next' }))
 
     expect(screen.getByText(/credential is used to discover/i)).toBeInTheDocument()
@@ -237,7 +260,7 @@ describe('IntegrationForm', () => {
     render(<IntegrationForm />, { wrapper })
 
     await user.type(screen.getByRole('textbox', { name: /name/i }), 'Test MCP')
-    await user.type(screen.getByRole('textbox', { name: /base url/i }), 'http://localhost:8765/mcp')
+    await user.type(screen.getByRole('textbox', { name: /api url/i }), 'http://localhost:8765/mcp')
     await user.click(screen.getByRole('button', { name: 'Next' }))
     await user.click(screen.getByTestId('select-credential'))
     await user.click(screen.getByRole('button', { name: 'Next' }))
@@ -259,7 +282,7 @@ describe('IntegrationForm', () => {
     render(<IntegrationForm />, { wrapper })
 
     await user.type(screen.getByRole('textbox', { name: /name/i }), 'Test MCP')
-    await user.type(screen.getByRole('textbox', { name: /base url/i }), 'http://localhost:8765/mcp')
+    await user.type(screen.getByRole('textbox', { name: /api url/i }), 'http://localhost:8765/mcp')
     await user.click(screen.getByRole('button', { name: 'Next' }))
     await user.click(screen.getByTestId('select-credential'))
     await user.click(screen.getByRole('button', { name: 'Next' }))
@@ -321,7 +344,7 @@ describe('IntegrationForm', () => {
     async function advanceAapToStep2(user: ReturnType<typeof userEvent.setup>) {
       await selectAnsibleAutomationPlatform(user)
       await user.type(screen.getByRole('textbox', { name: /name/i }), 'My Ansible Automation Platform')
-      await user.type(screen.getByRole('textbox', { name: /aap url/i }), 'https://aap.example.com')
+      await user.type(screen.getByRole('textbox', { name: /api url/i }), 'https://aap.example.com')
       await user.click(screen.getByRole('button', { name: 'Next' }))
     }
 
@@ -334,24 +357,23 @@ describe('IntegrationForm', () => {
       expect(screen.getByText('Ansible Automation Platform')).toBeInTheDocument()
     })
 
-    it('shows AAP URL field after selecting Ansible Automation Platform', async () => {
+    it('shows API URL field after selecting Ansible Automation Platform', async () => {
       const user = userEvent.setup()
       render(<IntegrationForm />, { wrapper })
 
       await selectAnsibleAutomationPlatform(user)
 
-      expect(screen.getByRole('textbox', { name: /aap url/i })).toBeInTheDocument()
-      expect(screen.queryByRole('textbox', { name: /base url/i })).not.toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: /api url/i })).toBeInTheDocument()
     })
 
     it('resets fields when switching from MCP to Ansible Automation Platform', async () => {
       const user = userEvent.setup()
       render(<IntegrationForm />, { wrapper })
 
-      await user.type(screen.getByRole('textbox', { name: /base url/i }), 'http://localhost:8765/mcp')
+      await user.type(screen.getByRole('textbox', { name: /api url/i }), 'http://localhost:8765/mcp')
       await selectAnsibleAutomationPlatform(user)
 
-      expect(screen.getByRole('textbox', { name: /aap url/i })).toHaveValue('')
+      expect(screen.getByRole('textbox', { name: /api url/i })).toHaveValue('')
     })
 
     it('advances to step 2 with valid Ansible Automation Platform fields', async () => {
@@ -418,7 +440,7 @@ describe('IntegrationForm', () => {
 
       await user.click(screen.getByRole('button', { name: 'Back' }))
       const nameInput = screen.getByRole('textbox', { name: /name/i })
-      const aapUrlInput = screen.getByRole('textbox', { name: /aap url/i })
+      const aapUrlInput = screen.getByRole('textbox', { name: /api url/i })
       await user.clear(nameInput)
       await user.clear(aapUrlInput)
 
@@ -588,7 +610,7 @@ describe('IntegrationForm', () => {
     async function advanceLLMToStep2(user: ReturnType<typeof userEvent.setup>) {
       await selectLLMProvider(user)
       await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Test LLM')
-      await user.type(screen.getByRole('textbox', { name: /base url/i }), 'https://api.example.com')
+      await user.type(screen.getByRole('textbox', { name: /api url/i }), 'https://api.example.com')
       await user.click(screen.getByRole('button', { name: 'Next' }))
     }
 
@@ -734,7 +756,7 @@ describe('IntegrationForm', () => {
       render(<IntegrationForm />, { wrapper })
 
       await user.type(screen.getByRole('textbox', { name: /name/i }), 'Test MCP')
-      await user.type(screen.getByRole('textbox', { name: /base url/i }), 'http://localhost:8765/mcp')
+      await user.type(screen.getByRole('textbox', { name: /api url/i }), 'http://localhost:8765/mcp')
       await user.click(screen.getByRole('button', { name: 'Next' }))
 
       expect(screen.getByText(/credential is used to discover/i)).toBeInTheDocument()
@@ -747,7 +769,7 @@ describe('IntegrationForm', () => {
       await user.click(screen.getByText('MCP Server'))
       await user.click(screen.getByRole('option', { name: 'LLM Provider' }))
       await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Test LLM')
-      await user.type(screen.getByRole('textbox', { name: /base url/i }), 'https://api.example.com')
+      await user.type(screen.getByRole('textbox', { name: /api url/i }), 'https://api.example.com')
       await user.click(screen.getByRole('button', { name: 'Next' }))
 
       expect(screen.getByText(/credential is used to verify/i)).toBeInTheDocument()
@@ -761,7 +783,7 @@ describe('IntegrationForm', () => {
       await user.click(screen.getByText('MCP Server'))
       await user.click(screen.getByRole('option', { name: 'LLM Provider' }))
       await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Test LLM')
-      await user.type(screen.getByRole('textbox', { name: /base url/i }), 'https://api.example.com')
+      await user.type(screen.getByRole('textbox', { name: /api url/i }), 'https://api.example.com')
       await user.click(screen.getByRole('button', { name: 'Next' }))
 
       expect(screen.getByRole('button', { name: 'Test connection' })).toHaveAttribute('aria-disabled', 'true')
@@ -774,7 +796,7 @@ describe('IntegrationForm', () => {
       render(<IntegrationForm />, { wrapper })
 
       await user.type(screen.getByRole('textbox', { name: /name/i }), 'Test MCP')
-      await user.type(screen.getByRole('textbox', { name: /base url/i }), 'http://localhost:8765/mcp')
+      await user.type(screen.getByRole('textbox', { name: /api url/i }), 'http://localhost:8765/mcp')
       await user.click(screen.getByRole('button', { name: 'Next' }))
 
       await user.click(screen.getByTestId('select-credential'))
@@ -785,7 +807,7 @@ describe('IntegrationForm', () => {
 
       const nameInput = screen.getByRole('textbox', { name: /name/i })
       await user.clear(nameInput)
-      const urlInput = screen.getByRole('textbox', { name: /base url/i })
+      const urlInput = screen.getByRole('textbox', { name: /api url/i })
       await user.clear(urlInput)
 
       await user.click(screen.getByRole('button', { name: /Enable tools/i }))
@@ -815,7 +837,7 @@ describe('IntegrationForm', () => {
       render(<IntegrationForm />, { wrapper })
 
       await user.type(screen.getByRole('textbox', { name: /name/i }), 'Test MCP')
-      await user.type(screen.getByRole('textbox', { name: /base url/i }), 'http://localhost:8765/mcp')
+      await user.type(screen.getByRole('textbox', { name: /api url/i }), 'http://localhost:8765/mcp')
       await user.click(screen.getByRole('button', { name: 'Next' }))
 
       await user.click(screen.getByTestId('select-credential'))

@@ -31,6 +31,7 @@ class AAPConnection:
     headers: dict[str, str] = field(default_factory=dict)
     basic_auth: httpx.BasicAuth | None = None
     verify_ssl: bool = True
+    ca_certificate: str | None = None
     timeout: float = 30.0
 
 

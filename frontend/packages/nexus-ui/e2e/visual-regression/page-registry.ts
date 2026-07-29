@@ -26,6 +26,7 @@ import {
   credentialEditPages,
   detailTabPages,
   integrationDialogPages,
+  integrationSecurityPages,
   integrationWizardPages,
   oidcProviderWizardPages,
   settingsTabPages,
@@ -799,6 +800,7 @@ export const pages: PageEntry[] = [
     },
   },
   ...integrationDialogPages,
+  ...integrationSecurityPages,
   ...integrationWizardPages,
 
   // ══════════════════════════════════════════════════════════════════════════

@@ -15,6 +15,10 @@
   flex-direction: column;
 }
 
+.securityDetails {
+  margin-top: var(--pf-t--global--spacer--sm);
+}
+
 .checkboxCol {
   width: var(--pf-t--global--spacer--3xl);
 }

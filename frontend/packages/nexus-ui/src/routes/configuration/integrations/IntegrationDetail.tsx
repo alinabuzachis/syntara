@@ -2,7 +2,6 @@ import type { IntegrationsAPI, Tool } from '@ansible/nexus-contracts'
 import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
 import {
   ActionGroup,
-  Alert,
   Badge,
   Button,
   DescriptionList,
@@ -59,6 +58,7 @@ import {
   isLLMProvider,
 } from './integrationUtils'
 import { ResourcesTabContent } from './ResourcesTabContent'
+import { SecuritySection } from './SecuritySection'
 import { StatusLabel } from './StatusLabel'
 import { useAllIntegrationTools } from './useAllIntegrationTools'
 import { useIntegrationActions } from './useIntegrationActions'
@@ -126,14 +126,6 @@ function IntegrationDetailsTab({
             </NxDetail>
           )}
           <NxDetail label="URL">{getBaseUrl(integration) || '—'}</NxDetail>
-          {integration.integration_type === IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM &&
-            integration.configuration &&
-            'insecure_skip_tls_verify' in integration.configuration &&
-            integration.configuration.insecure_skip_tls_verify && (
-              <NxDetail label="TLS verification">
-                <Alert variant="warning" isInline isPlain title="SSL verification disabled" />
-              </NxDetail>
-            )}
           <NxDetail label="Connection credential">
             {credentialId && credentialName ? (
               <NxLink to={AppRoute.Configuration.Credentials.Detail.replace(':credentialId', credentialId)}>
@@ -148,6 +140,7 @@ function IntegrationDetailsTab({
           )}
         </DescriptionList>
       </StackItem>
+      <SecuritySection configuration={integration.configuration} />
     </Stack>
   )
 }

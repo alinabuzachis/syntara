@@ -5,6 +5,12 @@ import { buildEditSchema, buildConfiguration } from './editIntegrationFormSchema
 const schema = buildEditSchema(true)
 const schemaOptionalBaseUrl = buildEditSchema(false)
 
+const securityDefaults = {
+  allow_http: false,
+  insecure_skip_tls_verify: false,
+  ca_certificate: null as string | null,
+}
+
 const validMcp = {
   name: 'My MCP Server',
   description: '',
@@ -12,6 +18,7 @@ const validMcp = {
   base_url: 'https://example.com',
   scope: 'global' as const,
   management_credential_id: null,
+  ...securityDefaults,
 }
 
 const validAap = {
@@ -19,9 +26,9 @@ const validAap = {
   description: '',
   integration_type: 'ansible_automation_platform',
   aap_url: 'https://aap.example.com',
-  insecure_skip_tls_verify: false,
   scope: 'global' as const,
   management_credential_id: null,
+  ...securityDefaults,
 }
 
 const validLlm = {
@@ -31,6 +38,7 @@ const validLlm = {
   base_url: 'https://api.example.com',
   scope: 'global' as const,
   management_credential_id: null,
+  ...securityDefaults,
 }
 
 describe('buildEditSchema', () => {
@@ -44,13 +52,20 @@ describe('buildEditSchema', () => {
       const result = schema.safeParse({ ...validMcp, base_url: '' })
       expect(result.success).toBe(false)
       if (!result.success) {
-        expect(result.error.issues.some((i) => i.message === 'Base URL is required')).toBe(true)
+        expect(result.error.issues.some((i) => i.message === 'API URL is required')).toBe(true)
       }
     })
 
     it('rejects missing base_url', () => {
-      const { name, description, integration_type, scope, management_credential_id } = validMcp
-      const result = schema.safeParse({ name, description, integration_type, scope, management_credential_id })
+      const result = schema.safeParse({
+        name: validMcp.name,
+        description: validMcp.description,
+        integration_type: validMcp.integration_type,
+        scope: validMcp.scope,
+        management_credential_id: validMcp.management_credential_id,
+        allow_http: validMcp.allow_http,
+        insecure_skip_tls_verify: validMcp.insecure_skip_tls_verify,
+      })
       expect(result.success).toBe(false)
     })
 
@@ -63,12 +78,26 @@ describe('buildEditSchema', () => {
     })
 
     it.each([
-      ['HTTP URL', 'http://localhost:8765/mcp'],
       ['URL with port', 'https://mcp.example.com:9443'],
       ['URL with path', 'https://example.com/mcp/v1'],
       ['URL with trailing slash', 'https://example.com/'],
     ])('accepts %s', (_label, url) => {
       const result = schema.safeParse({ ...validMcp, base_url: url })
+      expect(result.success).toBe(true)
+    })
+
+    it('rejects HTTP URL for non-loopback host when allow_http is false', () => {
+      const result = schema.safeParse({ ...validMcp, base_url: 'http://mcp.example.com/mcp' })
+      expect(result.success).toBe(false)
+    })
+
+    it('accepts HTTP URL for loopback host when allow_http is false', () => {
+      const result = schema.safeParse({ ...validMcp, base_url: 'http://localhost:8765/mcp' })
+      expect(result.success).toBe(true)
+    })
+
+    it('accepts HTTP URL when allow_http is true', () => {
+      const result = schema.safeParse({ ...validMcp, base_url: 'http://mcp.example.com/mcp', allow_http: true })
       expect(result.success).toBe(true)
     })
 
@@ -85,7 +114,7 @@ describe('buildEditSchema', () => {
     })
 
     it.each([
-      ['empty aap_url', '', 'AAP URL is required'],
+      ['empty aap_url', '', 'API URL is required'],
       ['HTTP URL (HTTPS only)', 'http://aap.example.com', 'Must be an HTTPS URL'],
       ['invalid URL', 'not-a-url', 'Must be a valid URL'],
     ])('rejects %s', (_label, url, expectedMessage) => {
@@ -94,6 +123,11 @@ describe('buildEditSchema', () => {
       if (!result.success) {
         expect(result.error.issues.some((i) => i.message === expectedMessage)).toBe(true)
       }
+    })
+
+    it('accepts HTTP URL when allow_http is true', () => {
+      const result = schema.safeParse({ ...validAap, aap_url: 'http://aap.example.com', allow_http: true })
+      expect(result.success).toBe(true)
     })
 
     it('accepts HTTPS URL with port', () => {
@@ -117,7 +151,7 @@ describe('buildEditSchema', () => {
       const result = schema.safeParse({ ...validLlm, base_url: '' })
       expect(result.success).toBe(false)
       if (!result.success) {
-        expect(result.error.issues.some((i) => i.message === 'Base URL is required')).toBe(true)
+        expect(result.error.issues.some((i) => i.message === 'API URL is required')).toBe(true)
       }
     })
 
@@ -127,19 +161,30 @@ describe('buildEditSchema', () => {
     })
 
     it('allows missing base_url when requiresBaseUrl is false', () => {
-      const { name, description, integration_type, scope, management_credential_id } = validLlm
+      const { name, description, integration_type, scope, management_credential_id, ...security } = validLlm
       const result = schemaOptionalBaseUrl.safeParse({
         name,
         description,
         integration_type,
         scope,
         management_credential_id,
+        ...security,
       })
       expect(result.success).toBe(true)
     })
 
-    it('accepts HTTP URL', () => {
+    it('rejects HTTP URL for non-loopback host when allow_http is false', () => {
+      const result = schema.safeParse({ ...validLlm, base_url: 'http://api.example.com' })
+      expect(result.success).toBe(false)
+    })
+
+    it('accepts HTTP URL for loopback host when allow_http is false', () => {
       const result = schema.safeParse({ ...validLlm, base_url: 'http://localhost:11434' })
+      expect(result.success).toBe(true)
+    })
+
+    it('accepts HTTP URL when allow_http is true', () => {
+      const result = schema.safeParse({ ...validLlm, base_url: 'http://api.example.com', allow_http: true })
       expect(result.success).toBe(true)
     })
 
@@ -152,7 +197,7 @@ describe('buildEditSchema', () => {
       const result = schema.safeParse({ ...validLlm, base_url: 'ftp://api.example.com' })
       expect(result.success).toBe(false)
       if (!result.success) {
-        expect(result.error.issues.some((i) => i.message === 'Must be an HTTP or HTTPS URL')).toBe(true)
+        expect(result.error.issues.some((i) => i.message === 'Must be an HTTPS URL')).toBe(true)
       }
     })
 
@@ -207,38 +252,44 @@ describe('buildConfiguration', () => {
     scope: 'global' as const,
     project_ids: [] as string[],
     management_credential_id: null,
+    ...securityDefaults,
+  }
+
+  const expectedSecurityDefaults = {
+    allow_http: false,
+    insecure_skip_tls_verify: false,
+    ca_certificate: null,
   }
 
   describe('MCP Server', () => {
-    it('returns MCP configuration with base_url', () => {
+    it('returns MCP configuration with base_url and security fields', () => {
       const config = buildConfiguration('mcp_server', baseValues)
       expect(config).toEqual({
         integration_type: 'mcp_server',
         base_url: 'https://example.com',
+        ...expectedSecurityDefaults,
       })
     })
 
     it('falls back to empty string when base_url is undefined', () => {
-      const { name, description, integration_type, scope, management_credential_id } = baseValues
-      const withoutUrl = { name, description, integration_type, scope, management_credential_id }
-      const config = buildConfiguration('mcp_server', withoutUrl as typeof baseValues)
-      expect(config.base_url).toBe('')
+      const withoutUrl = { ...baseValues, base_url: undefined } as unknown as typeof baseValues
+      const config = buildConfiguration('mcp_server', withoutUrl)
+      expect(config).toHaveProperty('base_url', '')
     })
   })
 
   describe('Ansible Automation Platform', () => {
-    it('returns AAP configuration with aap_url and insecure_skip_tls_verify', () => {
+    it('returns AAP configuration with security fields', () => {
       const aapValues = {
         ...baseValues,
         integration_type: 'ansible_automation_platform',
         aap_url: 'https://aap.example.com',
-        insecure_skip_tls_verify: false,
       }
       const config = buildConfiguration('ansible_automation_platform', aapValues)
       expect(config).toEqual({
         integration_type: 'ansible_automation_platform',
         aap_url: 'https://aap.example.com',
-        insecure_skip_tls_verify: false,
+        ...expectedSecurityDefaults,
       })
     })
 
@@ -255,13 +306,14 @@ describe('buildConfiguration', () => {
   })
 
   describe('LLM Provider', () => {
-    it('returns LLM configuration with provider_hint and base_url', () => {
+    it('returns LLM configuration with provider_hint, base_url, and security fields', () => {
       const llmValues = { ...baseValues, integration_type: 'llm_provider', base_url: 'https://api.example.com' }
       const config = buildConfiguration('llm_provider', llmValues, 'red_hat_ai')
       expect(config).toEqual({
         integration_type: 'llm_provider',
         provider_hint: 'red_hat_ai',
         base_url: 'https://api.example.com',
+        ...expectedSecurityDefaults,
       })
     })
 
@@ -276,6 +328,7 @@ describe('buildConfiguration', () => {
       expect(config).toEqual({
         integration_type: 'mcp_server',
         base_url: 'https://example.com',
+        ...expectedSecurityDefaults,
       })
     })
   })
@@ -286,6 +339,7 @@ describe('buildConfiguration', () => {
       expect(config).toEqual({
         integration_type: 'mcp_server',
         base_url: 'https://example.com',
+        ...expectedSecurityDefaults,
       })
     })
   })

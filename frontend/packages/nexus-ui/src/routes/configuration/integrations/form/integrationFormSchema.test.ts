@@ -3,9 +3,15 @@ import { describe, expect, it } from 'vitest'
 
 import { integrationFormSchema, getStep1Fields, getDefaultConfiguration } from './integrationFormSchema'
 
+const securityDefaults = {
+  allow_http: false,
+  insecure_skip_tls_verify: false,
+  ca_certificate: null as string | null,
+}
+
 const validMcpBase = {
   integration_type: 'mcp_server' as const,
-  configuration: { integration_type: 'mcp_server' as const, base_url: 'https://example.com' },
+  configuration: { integration_type: 'mcp_server' as const, base_url: 'https://example.com', ...securityDefaults },
   scope: 'global' as const,
 }
 
@@ -14,7 +20,7 @@ const validAapBase = {
   configuration: {
     integration_type: 'ansible_automation_platform' as const,
     aap_url: 'https://aap.example.com',
-    insecure_skip_tls_verify: false,
+    ...securityDefaults,
   },
   scope: 'global' as const,
 }
@@ -25,6 +31,7 @@ const validLlmBase = {
     integration_type: 'llm_provider' as const,
     provider_hint: 'red_hat_ai' as const,
     base_url: 'https://api.example.com',
+    ...securityDefaults,
   },
   management_credential_id: 'cred-llm-123',
   scope: 'global' as const,
@@ -64,11 +71,11 @@ describe('integrationFormSchema', () => {
       const result = integrationFormSchema.safeParse({
         ...validMcpBase,
         name: 'Server',
-        configuration: { integration_type: 'mcp_server' as const, base_url: '' },
+        configuration: { integration_type: 'mcp_server' as const, base_url: '', ...securityDefaults },
       })
       expect(result.success).toBe(false)
       if (!result.success) {
-        expect(result.error.issues.some((i) => i.message === 'Base URL is required')).toBe(true)
+        expect(result.error.issues.some((i) => i.message === 'API URL is required')).toBe(true)
       }
     })
 
@@ -76,11 +83,11 @@ describe('integrationFormSchema', () => {
       const result = integrationFormSchema.safeParse({
         ...validMcpBase,
         name: 'Server',
-        configuration: { integration_type: 'mcp_server' as const, base_url: 'not-a-url' },
+        configuration: { integration_type: 'mcp_server' as const, base_url: 'not-a-url', ...securityDefaults },
       })
       expect(result.success).toBe(false)
       if (!result.success) {
-        expect(result.error.issues.some((i) => i.message === 'Base URL must be a valid URL')).toBe(true)
+        expect(result.error.issues.some((i) => i.message === 'API URL must be a valid URL')).toBe(true)
       }
     })
 
@@ -136,7 +143,7 @@ describe('integrationFormSchema', () => {
       const result = integrationFormSchema.safeParse({
         ...validMcpBase,
         name: 'Server',
-        configuration: { integration_type: 'mcp_server' as const, base_url: 'ftp://example.com' },
+        configuration: { integration_type: 'mcp_server' as const, base_url: 'ftp://example.com', ...securityDefaults },
       })
       expect(result.success).toBe(false)
     })
@@ -164,6 +171,7 @@ describe('integrationFormSchema', () => {
         configuration: {
           integration_type: 'ansible_automation_platform' as const,
           aap_url: 'https://dev-aap.example.com',
+          ...securityDefaults,
           insecure_skip_tls_verify: true,
         },
       })
@@ -173,7 +181,7 @@ describe('integrationFormSchema', () => {
       }
     })
 
-    it('requires insecure_skip_tls_verify to be explicitly set', () => {
+    it('requires allow_http and insecure_skip_tls_verify to be explicitly set', () => {
       const result = integrationFormSchema.safeParse({
         ...validAapBase,
         name: 'AAP',
@@ -189,7 +197,7 @@ describe('integrationFormSchema', () => {
       const result = integrationFormSchema.safeParse({
         ...validAapBase,
         name: 'AAP',
-        configuration: { integration_type: 'ansible_automation_platform' as const, aap_url: '' },
+        configuration: { integration_type: 'ansible_automation_platform' as const, aap_url: '', ...securityDefaults },
       })
       expect(result.success).toBe(false)
       if (!result.success) {
@@ -204,7 +212,7 @@ describe('integrationFormSchema', () => {
         configuration: {
           integration_type: 'ansible_automation_platform' as const,
           aap_url: 'http://aap.example.com',
-          insecure_skip_tls_verify: false,
+          ...securityDefaults,
         },
       })
       expect(result.success).toBe(false)
@@ -242,6 +250,7 @@ describe('integrationFormSchema', () => {
           integration_type: 'llm_provider' as const,
           provider_hint: 'red_hat_ai' as const,
           base_url: '',
+          ...securityDefaults,
         },
       })
       expect(result.success).toBe(false)
@@ -255,7 +264,12 @@ describe('integrationFormSchema', () => {
       const result = integrationFormSchema.safeParse({
         ...validLlmBase,
         name: 'Provider',
-        configuration: { integration_type: 'llm_provider' as const, provider_hint: providerHint, base_url: '' },
+        configuration: {
+          integration_type: 'llm_provider' as const,
+          provider_hint: providerHint,
+          base_url: '',
+          ...securityDefaults,
+        },
       })
       expect(result.success).toBe(false)
     })
@@ -264,7 +278,12 @@ describe('integrationFormSchema', () => {
       const result = integrationFormSchema.safeParse({
         ...validLlmBase,
         name: 'Provider',
-        configuration: { integration_type: 'llm_provider' as const, provider_hint: 'openai' as const, base_url: '' },
+        configuration: {
+          integration_type: 'llm_provider' as const,
+          provider_hint: 'openai' as const,
+          base_url: '',
+          ...securityDefaults,
+        },
       })
       expect(result.success).toBe(true)
     })
@@ -277,6 +296,7 @@ describe('integrationFormSchema', () => {
           integration_type: 'llm_provider' as const,
           provider_hint: 'openai' as const,
           base_url: 'https://api.openai.com',
+          ...securityDefaults,
         },
       })
       expect(result.success).toBe(true)
@@ -290,6 +310,7 @@ describe('integrationFormSchema', () => {
           integration_type: 'llm_provider' as const,
           provider_hint: 'red_hat_ai' as const,
           base_url: 'not-a-url',
+          ...securityDefaults,
         },
       })
       expect(result.success).toBe(false)
@@ -331,7 +352,7 @@ describe('integrationFormSchema', () => {
       const result = integrationFormSchema.safeParse({
         ...validMcpBase,
         name: '',
-        configuration: { integration_type: 'mcp_server' as const, base_url: '' },
+        configuration: { integration_type: 'mcp_server' as const, base_url: '', ...securityDefaults },
       })
       expect(result.success).toBe(false)
       if (!result.success) {
@@ -346,7 +367,11 @@ describe('integrationFormSchema', () => {
       const result = integrationFormSchema.safeParse({
         ...validAapBase,
         name: '',
-        configuration: { integration_type: 'ansible_automation_platform' as const, aap_url: '' },
+        configuration: {
+          integration_type: 'ansible_automation_platform' as const,
+          aap_url: '',
+          ...securityDefaults,
+        },
       })
       expect(result.success).toBe(false)
       if (!result.success) {
@@ -381,22 +406,37 @@ describe('integrationFormSchema', () => {
   })
 
   describe('getDefaultConfiguration', () => {
+    const expectedSecurityDefaults = {
+      allow_http: false,
+      insecure_skip_tls_verify: false,
+      ca_certificate: null,
+    }
+
     it.each([
       [
         IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM,
-        { integration_type: 'ansible_automation_platform', aap_url: '', insecure_skip_tls_verify: false },
+        { integration_type: 'ansible_automation_platform', aap_url: '', ...expectedSecurityDefaults },
       ],
       [
         IntegrationTypeEnum.LLM_PROVIDER,
-        { integration_type: 'llm_provider', provider_hint: LLMProviderHintEnum.RED_HAT_AI, base_url: '' },
+        {
+          integration_type: 'llm_provider',
+          provider_hint: LLMProviderHintEnum.RED_HAT_AI,
+          base_url: '',
+          ...expectedSecurityDefaults,
+        },
       ],
-      [IntegrationTypeEnum.MCP_SERVER, { integration_type: 'mcp_server', base_url: '' }],
+      [IntegrationTypeEnum.MCP_SERVER, { integration_type: 'mcp_server', base_url: '', ...expectedSecurityDefaults }],
     ])('returns correct defaults for %s', (integrationType, expected) => {
       expect(getDefaultConfiguration(integrationType)).toEqual(expected)
     })
 
     it('defaults to MCP server configuration for unknown type', () => {
-      expect(getDefaultConfiguration('unknown_type')).toEqual({ integration_type: 'mcp_server', base_url: '' })
+      expect(getDefaultConfiguration('unknown_type')).toEqual({
+        integration_type: 'mcp_server',
+        base_url: '',
+        ...expectedSecurityDefaults,
+      })
     })
   })
 
@@ -425,6 +465,208 @@ describe('integrationFormSchema', () => {
       }
       if (aapResult.success) {
         expect(aapResult.data.configuration.integration_type).toBe('ansible_automation_platform')
+      }
+    })
+  })
+
+  describe('loopback addresses bypass HTTPS requirement', () => {
+    it.each([
+      ['localhost', 'http://localhost:8080'],
+      ['127.0.0.1', 'http://127.0.0.1:8080'],
+      ['[::1]', 'http://[::1]:8080'],
+    ])('MCP: accepts HTTP for %s when allow_http is false', (_label, url) => {
+      const result = integrationFormSchema.safeParse({
+        ...validMcpBase,
+        name: 'Server',
+        configuration: { integration_type: 'mcp_server' as const, base_url: url, ...securityDefaults },
+      })
+      expect(result.success).toBe(true)
+    })
+
+    it('AAP: accepts HTTP for localhost when allow_http is false', () => {
+      const result = integrationFormSchema.safeParse({
+        ...validAapBase,
+        name: 'AAP',
+        configuration: {
+          integration_type: 'ansible_automation_platform' as const,
+          aap_url: 'http://localhost:8080',
+          ...securityDefaults,
+        },
+      })
+      expect(result.success).toBe(true)
+    })
+
+    it('LLM: accepts HTTP localhost base_url when allow_http is false', () => {
+      const result = integrationFormSchema.safeParse({
+        ...validLlmBase,
+        name: 'Provider',
+        configuration: {
+          integration_type: 'llm_provider' as const,
+          provider_hint: 'red_hat_ai' as const,
+          base_url: 'http://localhost:11434',
+          ...securityDefaults,
+        },
+      })
+      expect(result.success).toBe(true)
+    })
+  })
+
+  describe('allow_http flag controls scheme validation', () => {
+    it('MCP: accepts HTTP non-loopback when allow_http is true', () => {
+      const result = integrationFormSchema.safeParse({
+        ...validMcpBase,
+        name: 'Server',
+        configuration: {
+          integration_type: 'mcp_server' as const,
+          base_url: 'http://remote.example.com:8080',
+          ...securityDefaults,
+          allow_http: true,
+        },
+      })
+      expect(result.success).toBe(true)
+    })
+
+    it('MCP: accepts HTTPS when allow_http is true', () => {
+      const result = integrationFormSchema.safeParse({
+        ...validMcpBase,
+        name: 'Server',
+        configuration: {
+          integration_type: 'mcp_server' as const,
+          base_url: 'https://example.com',
+          ...securityDefaults,
+          allow_http: true,
+        },
+      })
+      expect(result.success).toBe(true)
+    })
+
+    it('MCP: rejects FTP when allow_http is true with HTTP/HTTPS message', () => {
+      const result = integrationFormSchema.safeParse({
+        ...validMcpBase,
+        name: 'Server',
+        configuration: {
+          integration_type: 'mcp_server' as const,
+          base_url: 'ftp://example.com',
+          ...securityDefaults,
+          allow_http: true,
+        },
+      })
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.issues.some((i) => i.message === 'Must be an HTTP or HTTPS URL')).toBe(true)
+      }
+    })
+
+    it('MCP: rejects HTTP non-loopback when allow_http is false with HTTPS message', () => {
+      const result = integrationFormSchema.safeParse({
+        ...validMcpBase,
+        name: 'Server',
+        configuration: {
+          integration_type: 'mcp_server' as const,
+          base_url: 'http://remote.example.com',
+          ...securityDefaults,
+        },
+      })
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.issues.some((i) => i.message === 'Must be an HTTPS URL')).toBe(true)
+      }
+    })
+
+    it('AAP: accepts HTTP when allow_http is true', () => {
+      const result = integrationFormSchema.safeParse({
+        ...validAapBase,
+        name: 'AAP',
+        configuration: {
+          integration_type: 'ansible_automation_platform' as const,
+          aap_url: 'http://aap.example.com',
+          ...securityDefaults,
+          allow_http: true,
+        },
+      })
+      expect(result.success).toBe(true)
+    })
+
+    it('AAP: rejects FTP when allow_http is true with HTTP/HTTPS message', () => {
+      const result = integrationFormSchema.safeParse({
+        ...validAapBase,
+        name: 'AAP',
+        configuration: {
+          integration_type: 'ansible_automation_platform' as const,
+          aap_url: 'ftp://aap.example.com',
+          ...securityDefaults,
+          allow_http: true,
+        },
+      })
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.issues.some((i) => i.message === 'Must be an HTTP or HTTPS URL')).toBe(true)
+      }
+    })
+
+    it('AAP: rejects HTTP when allow_http is false with HTTPS message', () => {
+      const result = integrationFormSchema.safeParse({
+        ...validAapBase,
+        name: 'AAP',
+        configuration: {
+          integration_type: 'ansible_automation_platform' as const,
+          aap_url: 'http://aap.example.com',
+          ...securityDefaults,
+        },
+      })
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.issues.some((i) => i.message === 'Must be an HTTPS URL')).toBe(true)
+      }
+    })
+
+    it('LLM: accepts HTTP base_url when allow_http is true', () => {
+      const result = integrationFormSchema.safeParse({
+        ...validLlmBase,
+        name: 'Provider',
+        configuration: {
+          integration_type: 'llm_provider' as const,
+          provider_hint: 'red_hat_ai' as const,
+          base_url: 'http://llm.example.com',
+          ...securityDefaults,
+          allow_http: true,
+        },
+      })
+      expect(result.success).toBe(true)
+    })
+
+    it('LLM: rejects HTTP base_url when allow_http is false with HTTPS message', () => {
+      const result = integrationFormSchema.safeParse({
+        ...validLlmBase,
+        name: 'Provider',
+        configuration: {
+          integration_type: 'llm_provider' as const,
+          provider_hint: 'red_hat_ai' as const,
+          base_url: 'http://llm.example.com',
+          ...securityDefaults,
+        },
+      })
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.issues.some((i) => i.message === 'Must be an HTTPS URL')).toBe(true)
+      }
+    })
+
+    it('LLM: rejects FTP base_url when allow_http is true with HTTP/HTTPS message', () => {
+      const result = integrationFormSchema.safeParse({
+        ...validLlmBase,
+        name: 'Provider',
+        configuration: {
+          integration_type: 'llm_provider' as const,
+          provider_hint: 'red_hat_ai' as const,
+          base_url: 'ftp://llm.example.com',
+          ...securityDefaults,
+          allow_http: true,
+        },
+      })
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.issues.some((i) => i.message === 'Must be an HTTP or HTTPS URL')).toBe(true)
       }
     })
   })

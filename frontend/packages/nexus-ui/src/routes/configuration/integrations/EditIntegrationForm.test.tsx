@@ -85,6 +85,9 @@ const mockIntegration = {
   configuration: {
     integration_type: 'mcp_server',
     base_url: 'https://mcp.example.com',
+    allow_http: false,
+    insecure_skip_tls_verify: false,
+    ca_certificate: null,
   },
   management_credential_id: null,
   last_validated_at: '2026-01-01T00:00:00Z',
@@ -109,7 +112,9 @@ const mockAapIntegration = {
   configuration: {
     integration_type: 'ansible_automation_platform',
     aap_url: 'https://aap.example.com',
+    allow_http: false,
     insecure_skip_tls_verify: false,
+    ca_certificate: null,
   },
   management_credential_id: null,
   last_validated_at: '2026-01-01T00:00:00Z',
@@ -312,7 +317,7 @@ describe('EditIntegrationForm', () => {
       await user.click(screen.getByRole('button', { name: 'Save integration' }))
 
       await waitFor(() => {
-        expect(screen.getByText(/base url is required/i)).toBeInTheDocument()
+        expect(screen.getByText(/api url is required/i)).toBeInTheDocument()
       })
     })
 
@@ -347,7 +352,13 @@ describe('EditIntegrationForm', () => {
               name: 'My MCP Server',
               description: 'A production integration',
               scope: 'global',
-              configuration: { integration_type: 'mcp_server', base_url: 'https://mcp.example.com' },
+              configuration: {
+                integration_type: 'mcp_server',
+                base_url: 'https://mcp.example.com',
+                allow_http: false,
+                insecure_skip_tls_verify: false,
+                ca_certificate: null,
+              },
             }) as Record<string, unknown>,
           })
         )
@@ -653,26 +664,10 @@ describe('EditIntegrationForm', () => {
       expect(screen.queryByLabelText('API URL')).not.toBeInTheDocument()
     })
 
-    it('renders TLS verification switch', () => {
+    it('renders security section', () => {
       render(<EditIntegrationForm />, { wrapper })
 
-      expect(screen.getByRole('switch', { name: /ssl verification/i })).toBeInTheDocument()
-    })
-
-    it('shows TLS warning when verification is disabled', () => {
-      setupMocks({
-        integration: {
-          ...mockAapIntegration,
-          configuration: {
-            integration_type: 'ansible_automation_platform',
-            aap_url: 'https://aap.example.com',
-            insecure_skip_tls_verify: true,
-          },
-        },
-      })
-      render(<EditIntegrationForm />, { wrapper })
-
-      expect(screen.getByText(/disabling tls verification/i)).toBeInTheDocument()
+      expect(screen.getByText('Security')).toBeInTheDocument()
     })
 
     it('calls PATCH with Ansible Automation Platform configuration on save', async () => {
@@ -689,7 +684,9 @@ describe('EditIntegrationForm', () => {
               configuration: {
                 integration_type: 'ansible_automation_platform',
                 aap_url: 'https://aap.example.com',
+                allow_http: false,
                 insecure_skip_tls_verify: false,
+                ca_certificate: null,
               },
             }) as Record<string, unknown>,
           })
@@ -734,7 +731,7 @@ describe('EditIntegrationForm', () => {
       await user.click(screen.getByRole('button', { name: 'Save integration' }))
 
       await waitFor(() => {
-        expect(screen.getByText(/aap url is required/i)).toBeInTheDocument()
+        expect(screen.getByText(/api url is required/i)).toBeInTheDocument()
       })
     })
 
@@ -759,13 +756,15 @@ describe('EditIntegrationForm', () => {
           configuration: {
             integration_type: 'ansible_automation_platform',
             aap_url: null,
+            allow_http: false,
             insecure_skip_tls_verify: false,
+            ca_certificate: null,
           },
         },
       })
       render(<EditIntegrationForm />, { wrapper })
 
-      expect(screen.getByRole('textbox', { name: /aap url/i })).toHaveValue('')
+      expect(screen.getByRole('textbox', { name: /api url/i })).toHaveValue('')
     })
   })
 
@@ -786,6 +785,9 @@ describe('EditIntegrationForm', () => {
         integration_type: 'llm_provider',
         provider_hint: 'red_hat_ai',
         base_url: 'https://api.redhat-ai.example.com',
+        allow_http: false,
+        insecure_skip_tls_verify: false,
+        ca_certificate: null,
       },
     }
 
@@ -814,7 +816,7 @@ describe('EditIntegrationForm', () => {
       await user.click(screen.getByRole('button', { name: 'Save integration' }))
 
       await waitFor(() => {
-        expect(screen.getByText(/base url is required/i)).toBeInTheDocument()
+        expect(screen.getByText(/api url is required/i)).toBeInTheDocument()
       })
     })
 
@@ -837,7 +839,7 @@ describe('EditIntegrationForm', () => {
       await user.click(screen.getByRole('button', { name: 'Save integration' }))
 
       await waitFor(() => {
-        expect(screen.getByText(/base url is required/i)).toBeInTheDocument()
+        expect(screen.getByText(/api url is required/i)).toBeInTheDocument()
       })
     })
 

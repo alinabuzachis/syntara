@@ -570,6 +570,23 @@ export interface components {
        * @description Base URL for the MCP server
        */
       base_url: string
+      /**
+       * Allow Http
+       * @description Allow HTTP (unencrypted) connections. Loopback addresses are always permitted over HTTP.
+       * @default false
+       */
+      allow_http?: boolean
+      /**
+       * Insecure Skip Tls Verify
+       * @description Disable TLS certificate verification for connections to this integration.
+       * @default false
+       */
+      insecure_skip_tls_verify?: boolean
+      /**
+       * Ca Certificate
+       * @description PEM-encoded CA certificate to trust for this integration's TLS connections.
+       */
+      ca_certificate?: string | null
     }
     /**
      * LLMProviderHint
@@ -595,6 +612,23 @@ export interface components {
        * @description Base URL for the LLM provider API. Required for red_hat_ai and custom providers.
        */
       base_url?: string | null
+      /**
+       * Allow Http
+       * @description Allow HTTP (unencrypted) connections. Loopback addresses are always permitted over HTTP.
+       * @default false
+       */
+      allow_http?: boolean
+      /**
+       * Insecure Skip Tls Verify
+       * @description Disable TLS certificate verification for connections to this integration.
+       * @default false
+       */
+      insecure_skip_tls_verify?: boolean
+      /**
+       * Ca Certificate
+       * @description PEM-encoded CA certificate to trust for this integration's TLS connections.
+       */
+      ca_certificate?: string | null
     }
     /**
      * AAPConfiguration
@@ -613,11 +647,22 @@ export interface components {
        */
       aap_url: string
       /**
+       * Allow Http
+       * @description Allow HTTP (unencrypted) connections. Loopback addresses are always permitted over HTTP.
+       * @default false
+       */
+      allow_http?: boolean
+      /**
        * Insecure Skip Tls Verify
-       * @description Disable TLS certificate verification. Insecure; do not enable in production.
+       * @description Disable TLS certificate verification for connections to this integration.
        * @default false
        */
       insecure_skip_tls_verify?: boolean
+      /**
+       * Ca Certificate
+       * @description PEM-encoded CA certificate to trust for this integration's TLS connections.
+       */
+      ca_certificate?: string | null
     }
     /**
      * DiscoveredLLMModel

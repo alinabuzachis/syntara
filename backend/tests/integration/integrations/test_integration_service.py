@@ -120,7 +120,7 @@ class TestCreateIntegration:
 
         assert result.integration_type == IntegrationType.ANSIBLE_AUTOMATION_PLATFORM
         assert result.configuration.aap_url == "https://gateway.example.com"  # type: ignore[union-attr]
-        assert result.configuration.insecure_skip_tls_verify is True  # type: ignore[union-attr]
+        assert result.configuration.insecure_skip_tls_verify is True
 
     @pytest.mark.asyncio
     async def test_create_duplicate_name_raises(

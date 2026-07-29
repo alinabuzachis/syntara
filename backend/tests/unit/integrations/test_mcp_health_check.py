@@ -29,7 +29,7 @@ from nexus.integrations.models.integration_configuration import MCPServerConfigu
 @pytest.fixture
 def mcp_config() -> MCPServerConfiguration:
     """Create a test MCP server configuration."""
-    return MCPServerConfiguration(base_url="http://localhost:8080/mcp")
+    return MCPServerConfiguration(base_url="http://localhost:8080/mcp", allow_http=True)
 
 
 def _mock_mcp_provider(side_effect: Exception | None = None, tools: list[Any] | None = None) -> MagicMock:
@@ -353,7 +353,7 @@ class TestMCPServerValidate:
     async def test_validate_blocks_cloud_metadata_endpoint(self) -> None:
         """validate() blocks requests to cloud metadata endpoints (SSRF prevention)."""
         # Cloud metadata endpoint should be blocked even though it's in the 169.254.x.x range
-        config = MCPServerConfiguration(base_url="http://169.254.169.254/latest/meta-data")
+        config = MCPServerConfiguration(base_url="http://169.254.169.254/latest/meta-data", allow_http=True)
         adapter = MCPServerAdapter(config)
 
         result = await adapter.validate(resolved_credential={}, timeout_seconds=10)

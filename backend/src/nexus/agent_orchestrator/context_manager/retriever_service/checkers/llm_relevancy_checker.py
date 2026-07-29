@@ -107,7 +107,9 @@ class LLMRelevancyChecker(RelevancyChecker):
             temperature = cast("float", params.get("temperature"))
             max_tokens = cast("int", params.get("max_tokens"))
             system_prompt = cast("str", params.get("system_prompt"))
-            api_key, base_url, model = self._resolve_llm_params(llm_credential_config)
+            api_key, base_url, model, insecure_skip_tls_verify, ca_certificate = self._resolve_llm_params(
+                llm_credential_config
+            )
 
             # Build context with file metadata if enabled
             grounding_params = config.grounding_parameters
@@ -128,8 +130,16 @@ class LLMRelevancyChecker(RelevancyChecker):
             )
 
             # Get OpenRouter LLM instance
+            llm_http_client = None
             try:
-                llm = await get_openrouter_llm(model=model, temperature=temperature, api_key=api_key, base_url=base_url)
+                llm, llm_http_client = await get_openrouter_llm(
+                    model=model,
+                    temperature=temperature,
+                    api_key=api_key,
+                    base_url=base_url,
+                    insecure_skip_tls_verify=insecure_skip_tls_verify,
+                    ca_certificate=ca_certificate,
+                )
             except Exception as e:
                 logger.exception("Failed to get OpenRouter LLM instance")
                 error_msg = f"LLM initialization failed: {e!s}"
@@ -174,6 +184,9 @@ class LLMRelevancyChecker(RelevancyChecker):
                 logger.exception("LLM API call failed for document", filename=document.file_metadata.filename)
                 error_msg = f"LLM API call failed: {e!s}"
                 raise RelevancyCheckError(error_msg) from e
+            finally:
+                if llm_http_client is not None:
+                    await llm_http_client.aclose()
 
         except RelevancyCheckError:
             # Re-raise RelevancyCheckError as-is
@@ -306,12 +319,18 @@ class LLMRelevancyChecker(RelevancyChecker):
     @staticmethod
     def _resolve_llm_params(
         llm_credential_config: LLMCredentialConfig | None,
-    ) -> tuple[str, str, str]:
-        """Extract api_key, base_url, model from the node's credential config."""
+    ) -> tuple[str, str, str, bool, str | None]:
+        """Extract api_key, base_url, model, and TLS settings from the credential config."""
         if not llm_credential_config:
             msg = "LLM credential config is required for LLM relevancy checking"
             raise RelevancyCheckError(msg)
-        return llm_credential_config.api_key, llm_credential_config.base_url, llm_credential_config.model
+        return (
+            llm_credential_config.api_key,
+            llm_credential_config.base_url,
+            llm_credential_config.model,
+            llm_credential_config.insecure_skip_tls_verify,
+            llm_credential_config.ca_certificate,
+        )
 
     def _get_default_score(self) -> float:
         """Get default score when parsing fails."""

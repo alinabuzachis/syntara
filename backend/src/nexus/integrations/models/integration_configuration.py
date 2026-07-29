@@ -6,6 +6,7 @@ connecting to a specific integration type. Sensitive fields (API keys,
 tokens, passwords) are stored in the linked Credential, not here.
 """
 
+import ssl
 from enum import StrEnum
 from typing import Annotated, ClassVar, Literal, Self
 
@@ -25,15 +26,56 @@ class LLMProviderHint(StrEnum):
     CUSTOM = "custom"
 
 
-def _validate_http_url(v: str) -> str:
-    return validate_host_url(v, allow_http=True)
+class IntegrationSecurityMixin(SQLModel):
+    """Shared security fields for all integration configuration types."""
+
+    allow_http: bool = Field(
+        default=False,
+        description="Allow HTTP (unencrypted) connections. Loopback addresses are always permitted over HTTP.",
+    )
+
+    insecure_skip_tls_verify: bool = Field(
+        default=False,
+        description="Disable TLS certificate verification for connections to this integration.",
+    )
+
+    ca_certificate: str | None = Field(
+        default=None,
+        description="PEM-encoded CA certificate to trust for this integration's TLS connections.",
+    )
+
+    @field_validator("ca_certificate", mode="before")
+    @classmethod
+    def validate_ca_certificate(cls, v: str | None) -> str | None:
+        """Reject whitespace-only and unparseable PEM data at save time."""
+        if v is None:
+            return None
+        v = v.strip()
+        if not v:
+            return None
+        if "-----BEGIN CERTIFICATE-----" not in v:
+            msg = "ca_certificate must be PEM-encoded (expected -----BEGIN CERTIFICATE----- marker)."
+            raise ValueError(msg)
+        try:
+            ctx = ssl.create_default_context()
+            ctx.load_verify_locations(cadata=v)
+        except ssl.SSLError as e:
+            msg = f"ca_certificate contains invalid PEM data: {e}"
+            raise ValueError(msg) from e
+        return v
+
+    @model_validator(mode="after")
+    def normalize_tls_fields(self) -> Self:
+        """Nullify ca_certificate when insecure_skip_tls_verify is True.
+
+        A custom CA is meaningless when TLS verification is disabled entirely.
+        """
+        if self.insecure_skip_tls_verify and self.ca_certificate is not None:
+            self.ca_certificate = None
+        return self
 
 
-def _validate_http_endpoint_url(v: str) -> str:
-    return validate_endpoint_url(v, allow_http=True)
-
-
-class MCPServerConfigurationInput(SQLModel):
+class MCPServerConfigurationInput(IntegrationSecurityMixin):
     """Admin-provided fields for MCP server integrations (used by create/patch)."""
 
     integration_type: Literal["mcp_server"] = "mcp_server"
@@ -42,14 +84,14 @@ class MCPServerConfigurationInput(SQLModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")  # type: ignore[assignment]
 
-    @field_validator("base_url")
-    @classmethod
-    def validate_base_url(cls, v: str) -> str:
+    @model_validator(mode="after")
+    def validate_base_url_scheme(self) -> Self:
         """Validate MCP endpoint URL (paths allowed, e.g. /mcp)."""
-        return _validate_http_endpoint_url(v)
+        self.base_url = validate_endpoint_url(self.base_url, allow_http=self.allow_http)
+        return self
 
 
-class LLMProviderConfiguration(SQLModel):
+class LLMProviderConfiguration(IntegrationSecurityMixin):
     """Configuration for LLM provider integrations."""
 
     integration_type: Literal["llm_provider"] = "llm_provider"
@@ -66,24 +108,20 @@ class LLMProviderConfiguration(SQLModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")  # type: ignore[assignment]
 
-    @field_validator("base_url")
-    @classmethod
-    def validate_base_url(cls, v: str | None) -> str | None:
-        """Validate and normalize URL to prevent SSRF."""
-        if not v:
-            return None
-        return _validate_http_endpoint_url(v)
-
     @model_validator(mode="after")
-    def validate_base_url_required_for_provider(self) -> Self:
-        """Require base_url for providers that have no default endpoint."""
-        if self.provider_hint in (LLMProviderHint.RED_HAT_AI, LLMProviderHint.CUSTOM) and not self.base_url:
-            msg = f"base_url is required for {self.provider_hint} provider"
-            raise ValueError(msg)
+    def validate_llm_provider_config(self) -> Self:
+        """Validate URL (when present) and require base_url for certain providers."""
+        if self.base_url and self.base_url.strip():
+            self.base_url = validate_endpoint_url(self.base_url, allow_http=self.allow_http)
+        elif not self.base_url or not self.base_url.strip():
+            if self.provider_hint in (LLMProviderHint.RED_HAT_AI, LLMProviderHint.CUSTOM):
+                msg = f"base_url is required for {self.provider_hint} provider"
+                raise ValueError(msg)
+            self.base_url = None
         return self
 
 
-class AAPConfiguration(SQLModel):
+class AAPConfiguration(IntegrationSecurityMixin):
     """Configuration for Ansible Automation Platform integrations."""
 
     integration_type: Literal["ansible_automation_platform"] = "ansible_automation_platform"
@@ -94,18 +132,13 @@ class AAPConfiguration(SQLModel):
         json_schema_extra={"format": "uri"},
     )
 
-    insecure_skip_tls_verify: bool = Field(
-        default=False,
-        description="Disable TLS certificate verification. Insecure; do not enable in production.",
-    )
-
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")  # type: ignore[assignment]
 
-    @field_validator("aap_url")
-    @classmethod
-    def validate_aap_url(cls, v: str) -> str:
+    @model_validator(mode="after")
+    def validate_aap_url_scheme(self) -> Self:
         """Validate and normalize URL to prevent SSRF."""
-        return validate_host_url(v)
+        self.aap_url = validate_host_url(self.aap_url, allow_http=self.allow_http)
+        return self
 
 
 # Configuration types (used by DB model, read schema, and create/patch)

@@ -243,7 +243,7 @@ class TestFallbackBehavior:
             ) as mock_llm:
                 mock_llm_instance = AsyncMock()
                 mock_llm_instance.ainvoke.side_effect = TimeoutError("Request timeout")
-                mock_llm.return_value = mock_llm_instance
+                mock_llm.return_value = (mock_llm_instance, None)
 
                 query = "artificial intelligence"
 

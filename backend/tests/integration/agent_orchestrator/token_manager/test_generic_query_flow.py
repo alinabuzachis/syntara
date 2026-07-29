@@ -134,7 +134,7 @@ class TestGenericQueryErrorHandling:
         with patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm") as mock_get_llm:
             mock_llm = AsyncMock()
             mock_llm.ainvoke.side_effect = Exception("LLM API error")
-            mock_get_llm.return_value = mock_llm
+            mock_get_llm.return_value = (mock_llm, None)
 
             # Act
             response = await auth_client_with_mocked_llm.post("/api/v1/invocations", json=request_data)

@@ -24,6 +24,7 @@ import httpx
 import structlog
 from httpx import HTTPStatusError
 
+from nexus.core.lib.tls_utils import build_integration_httpx_verify
 from nexus.integrations.adapters.factory import register_health_check_adapter
 from nexus.integrations.adapters.protocol import (
     DiscoveredLLMModel,
@@ -202,7 +203,12 @@ class LLMProviderAdapter:
         responses: list[httpx.Response] = []
         params: dict[str, str] | None = None
 
-        async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+        verify = build_integration_httpx_verify(
+            insecure_skip_tls_verify=self._config.insecure_skip_tls_verify,
+            ca_certificate=self._config.ca_certificate,
+        )
+
+        async with httpx.AsyncClient(timeout=timeout_seconds, verify=verify) as client:
             for page in range(_MAX_PAGINATION_PAGES):
                 success, error_msg, error_type, response = await self._do_get(
                     client,

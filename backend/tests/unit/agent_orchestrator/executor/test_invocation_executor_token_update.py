@@ -346,7 +346,7 @@ class TestInvocationExecutorTokenUpdateIntegration:
 
         with (
             patch.object(executor, "get_async_session_context", side_effect=lambda: mock_session_context()),
-            patch.object(executor, "_init_orchestration", return_value=mock_orchestration),
+            patch.object(executor, "_init_orchestration", return_value=(mock_orchestration, None)),
         ):
             await executor.execute_invocation(invocation_id)
 
@@ -402,7 +402,7 @@ class TestInvocationExecutorTokenUpdateIntegration:
 
         with (
             patch.object(executor, "get_async_session_context", side_effect=lambda: mock_session_context()),
-            patch.object(executor, "_init_orchestration", return_value=mock_orchestration),
+            patch.object(executor, "_init_orchestration", return_value=(mock_orchestration, None)),
             patch(
                 "nexus.agent_orchestrator.executor.invocation_executor.WorkflowSignalClient.send_failure_signal",
                 new_callable=AsyncMock,
@@ -466,7 +466,7 @@ class TestInvocationExecutorTokenUpdateIntegration:
 
         with (
             patch.object(executor, "get_async_session_context", side_effect=lambda: mock_session_context()),
-            patch.object(executor, "_init_orchestration", return_value=mock_orchestration),
+            patch.object(executor, "_init_orchestration", return_value=(mock_orchestration, None)),
         ):
             await executor.execute_invocation(invocation_id)
 

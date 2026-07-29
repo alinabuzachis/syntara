@@ -30,6 +30,7 @@ from nexus.aap.models.responses import (
     AAPWorkflowJobTemplate,
     AAPWorkflowJobTemplateDetail,
 )
+from nexus.core.lib.tls_utils import build_integration_httpx_verify
 from nexus.integrations.models.integration import (
     Integration,
     IntegrationProjectAssignment,
@@ -455,6 +456,7 @@ class AAPProxyService:
             headers=cred_connection.headers,
             basic_auth=cred_connection.basic_auth,
             verify_ssl=verify_ssl,
+            ca_certificate=config.ca_certificate,
             timeout=cred_connection.timeout,
         )
 
@@ -512,8 +514,12 @@ class AAPProxyService:
             self._client = None
             self._client_connection = None
         if self._client is None:
+            verify = build_integration_httpx_verify(
+                insecure_skip_tls_verify=not connection.verify_ssl,
+                ca_certificate=connection.ca_certificate,
+            )
             self._client = httpx.AsyncClient(
-                verify=connection.verify_ssl,
+                verify=verify,
                 timeout=connection.timeout,
             )
             self._client_connection = connection

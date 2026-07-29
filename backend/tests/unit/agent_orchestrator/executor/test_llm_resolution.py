@@ -87,11 +87,15 @@ class TestResolveLlmModelAndIntegration:
         mock_model, mock_integration = _mock_model_and_integration()
         session.get = _session_get_dispatch(mock_model, mock_integration)
 
-        model_id, base_url, provider_hint = await executor._resolve_llm_model_and_integration(str(uuid4()))
+        model_id, base_url, provider_hint, skip_tls, ca_cert = await executor._resolve_llm_model_and_integration(
+            str(uuid4())
+        )
 
         assert model_id == "gpt-4o"
         assert base_url == "https://api.openai.com/v1"
         assert provider_hint == "openai"
+        assert skip_tls is False
+        assert ca_cert is None
 
     @pytest.mark.asyncio
     async def test_happy_path_no_base_url(self) -> None:
@@ -99,11 +103,15 @@ class TestResolveLlmModelAndIntegration:
         mock_model, mock_integration = _mock_model_and_integration(base_url=None)
         session.get = _session_get_dispatch(mock_model, mock_integration)
 
-        model_id, base_url, provider_hint = await executor._resolve_llm_model_and_integration(str(uuid4()))
+        model_id, base_url, provider_hint, skip_tls, ca_cert = await executor._resolve_llm_model_and_integration(
+            str(uuid4())
+        )
 
         assert model_id == "gpt-4o"
         assert base_url is None
         assert provider_hint == "openai"
+        assert skip_tls is False
+        assert ca_cert is None
 
     @pytest.mark.asyncio
     async def test_invalid_model_uuid(self) -> None:
