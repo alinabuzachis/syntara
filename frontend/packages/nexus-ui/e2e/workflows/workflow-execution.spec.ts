@@ -27,7 +27,7 @@ test.describe.skip('Test Single Step from Canvas', () => {
   test.beforeEach(async ({ app }) => {
     const workflowName = buildUniqueName('e2e-single-node-execution')
 
-    workflowId = await createWorkflowViaApi(
+    ;({ id: workflowId } = await createWorkflowViaApi(
       app,
       workflowName,
       [{ id: 'trigger_manual', type: 'manual_trigger', name: 'Manual trigger', parameters: {} }],
@@ -49,7 +49,7 @@ test.describe.skip('Test Single Step from Canvas', () => {
         { from: 'trigger_manual', to: 'hello_node' },
         { from: 'hello_node', to: 'goodbye_node' },
       ]
-    )
+    ))
   })
 
   test.afterEach(async ({ app }) => {
@@ -99,7 +99,7 @@ test.describe.skip('Test Single Step from Canvas', () => {
 test.skip('running execution displays real-time per-node status on the canvas', async ({ app }) => {
   const workflowName = buildUniqueName('e2e-node-live-status')
 
-  const workflowId = await createWorkflowViaApi(
+  const { id: workflowId } = await createWorkflowViaApi(
     app,
     workflowName,
     [{ id: 'trigger_manual', type: 'manual_trigger', name: 'Manual trigger', parameters: {} }],
@@ -144,7 +144,7 @@ test.skip('running execution displays real-time per-node status on the canvas', 
 test.skip('failed node details including error messages are displayed', async ({ app }) => {
   const workflowName = buildUniqueName('e2e-failed-node')
 
-  const workflowId = await createWorkflowViaApi(
+  const { id: workflowId } = await createWorkflowViaApi(
     app,
     workflowName,
     [{ id: 'trigger_manual', type: 'manual_trigger', name: 'Manual trigger', parameters: {} }],

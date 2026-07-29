@@ -41,7 +41,7 @@ test.beforeAll(async ({ browser }) => {
     if (!token) throw new Error('Could not obtain auth token')
 
     const sleepName = buildUniqueName('e2e-cancel-sleep')
-    sleepWorkflowId = await createWorkflowViaApi(
+    ;({ id: sleepWorkflowId } = await createWorkflowViaApi(
       page,
       sleepName,
       [{ id: 'trigger_manual', type: 'manual_trigger', name: 'Manual trigger', parameters: {} }],
@@ -54,7 +54,7 @@ test.beforeAll(async ({ browser }) => {
         },
       ],
       [{ from: 'trigger_manual', to: 'sleep_node' }]
-    )
+    ))
 
     const runResp = await apiRequest(page, 'post', '/executions', {
       token,
@@ -66,7 +66,7 @@ test.beforeAll(async ({ browser }) => {
     }
 
     const echoName = buildUniqueName('e2e-cancel-echo')
-    echoWorkflowId = await createWorkflowViaApi(
+    ;({ id: echoWorkflowId } = await createWorkflowViaApi(
       page,
       echoName,
       [{ id: 'trigger_manual', type: 'manual_trigger', name: 'Manual trigger', parameters: {} }],
@@ -79,7 +79,7 @@ test.beforeAll(async ({ browser }) => {
         },
       ],
       [{ from: 'trigger_manual', to: 'echo_node' }]
-    )
+    ))
 
     const echoRunResp = await apiRequest(page, 'post', '/executions', {
       token,

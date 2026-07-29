@@ -38,7 +38,7 @@ test.beforeAll(async ({ browser }) => {
     if (!token) throw new Error('Could not obtain auth token')
 
     const name = buildUniqueName('e2e-retry')
-    workflowId = await createWorkflowViaApi(
+    ;({ id: workflowId } = await createWorkflowViaApi(
       page,
       name,
       [{ id: 'trigger_manual', type: 'manual_trigger', name: 'Manual trigger', parameters: {} }],
@@ -51,7 +51,7 @@ test.beforeAll(async ({ browser }) => {
         },
       ],
       [{ from: 'trigger_manual', to: 'echo_node' }]
-    )
+    ))
 
     const runResp = await apiRequest(page, 'post', '/executions', {
       token,

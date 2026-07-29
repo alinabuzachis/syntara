@@ -212,7 +212,7 @@ test.describe('Execution Details — Activity Filtering', { tag: '@pr-check' }, 
       const page = await browser.newPage()
       try {
         const workflowName = buildUniqueName('e2e-act-filter')
-        workflowId = await createWorkflowViaApi(
+        ;({ id: workflowId } = await createWorkflowViaApi(
           page,
           workflowName,
           [{ id: 'trigger_manual', type: 'manual_trigger', name: 'Manual trigger', parameters: {} }],
@@ -241,7 +241,7 @@ test.describe('Execution Details — Activity Filtering', { tag: '@pr-check' }, 
             { from: 'check_temperature', to: 'temperature_routing' },
             { from: 'temperature_routing', to: 'hot_weather', from_port: 'true' },
           ]
-        )
+        ))
         executionId = await createExecutionViaApi(page, workflowId)
       } finally {
         await page.close()
@@ -377,7 +377,7 @@ test.describe('Execution Details — Activity Filtering', { tag: '@pr-check' }, 
       const page = await browser.newPage()
       try {
         const workflowName = buildUniqueName('e2e-act-status')
-        workflowId = await createWorkflowViaApi(
+        ;({ id: workflowId } = await createWorkflowViaApi(
           page,
           workflowName,
           [{ id: 'trigger_manual', type: 'manual_trigger', name: 'Manual trigger', parameters: {} }],
@@ -399,7 +399,7 @@ test.describe('Execution Details — Activity Filtering', { tag: '@pr-check' }, 
             { from: 'trigger_manual', to: 'staging_tests' },
             { from: 'staging_tests', to: 'approval_gate' },
           ]
-        )
+        ))
         executionId = await createExecutionViaApi(page, workflowId)
       } finally {
         await page.close()
@@ -516,7 +516,7 @@ test.describe('Execution Details — Activity Filtering', { tag: '@pr-check' }, 
       const page = await browser.newPage()
       try {
         const workflowName = buildUniqueName('e2e-act-sort-url')
-        workflowId = await createWorkflowViaApi(
+        ;({ id: workflowId } = await createWorkflowViaApi(
           page,
           workflowName,
           [{ id: 'trigger_manual', type: 'manual_trigger', name: 'Manual trigger', parameters: {} }],
@@ -538,7 +538,7 @@ test.describe('Execution Details — Activity Filtering', { tag: '@pr-check' }, 
             { from: 'trigger_manual', to: 'alpha' },
             { from: 'alpha', to: 'bravo' },
           ]
-        )
+        ))
         executionId = await createExecutionViaApi(page, workflowId)
       } finally {
         await page.close()

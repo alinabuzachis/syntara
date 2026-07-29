@@ -21,7 +21,7 @@ const SECONDARY_TRIGGER_NAME = 'Secondary trigger'
 test.describe('Multiple triggers', () => {
   test('shows Run button (not dropdown) when workflow has a single trigger', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-single-trigger')
-    const workflowId = await createWorkflowViaApi(app, workflowName, [
+    const { id: workflowId } = await createWorkflowViaApi(app, workflowName, [
       { id: 'trigger_1', type: 'manual_trigger', name: TRIGGER_NAME, parameters: {} },
     ])
     try {
@@ -38,7 +38,7 @@ test.describe('Multiple triggers', () => {
 
   test('shows Run dropdown listing all trigger names when workflow has multiple triggers', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-multi-trigger')
-    const workflowId = await createWorkflowViaApi(app, workflowName, [
+    const { id: workflowId } = await createWorkflowViaApi(app, workflowName, [
       { id: 'trigger_1', type: 'manual_trigger', name: TRIGGER_NAME, parameters: {} },
       { id: 'trigger_2', type: 'manual_trigger', name: SECONDARY_TRIGGER_NAME, parameters: {} },
     ])
@@ -58,7 +58,7 @@ test.describe('Multiple triggers', () => {
 
   test('selecting a trigger from the Run dropdown opens the run confirmation dialog', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-trigger-select')
-    const workflowId = await createWorkflowViaApi(app, workflowName, [
+    const { id: workflowId } = await createWorkflowViaApi(app, workflowName, [
       { id: 'trigger_1', type: 'manual_trigger', name: TRIGGER_NAME, parameters: {} },
       { id: 'trigger_2', type: 'manual_trigger', name: SECONDARY_TRIGGER_NAME, parameters: {} },
     ])
@@ -80,7 +80,7 @@ test.describe('Multiple triggers', () => {
 
   test('shows "Trigger N" fallback name for triggers without an explicit name', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-fallback-name')
-    const workflowId = await createWorkflowViaApi(app, workflowName, [
+    const { id: workflowId } = await createWorkflowViaApi(app, workflowName, [
       { id: 'trigger_1', type: 'manual_trigger', name: TRIGGER_NAME, parameters: {} },
       { id: 'trigger_2', type: 'manual_trigger', parameters: {} }, // no name — falls back to "Trigger 2"
     ])

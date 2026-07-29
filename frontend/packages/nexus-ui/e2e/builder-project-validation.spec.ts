@@ -164,7 +164,7 @@ test.describe('Builder save validation — project required', () => {
    */
   test('project selector is disabled when editing an existing workflow', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-proj-immutable')
-    const workflowId = await createWorkflowViaApi(app, workflowName, [
+    const { id: workflowId } = await createWorkflowViaApi(app, workflowName, [
       { id: 'trigger', name: 'Manual trigger', type: 'manual_trigger', parameters: {} },
     ])
 

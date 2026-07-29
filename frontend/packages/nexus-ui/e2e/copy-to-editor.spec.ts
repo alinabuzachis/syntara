@@ -13,7 +13,8 @@
  */
 
 import { test, expect, toAppUrl } from './fixtures'
-import { buildUniqueName, createBasicWorkflowViaApi, deleteWorkflow } from './helpers/workflows'
+import { buildUniqueName, createBasicWorkflowViaApi, deleteWorkflow, waitForUIReady } from './helpers/workflows'
+import { publishWorkflowViaApi, deleteWorkflowViaApi } from './utils/api'
 
 /** Run a workflow from the Workflows list page and wait for navigation to the execution detail page. */
 async function runWorkflowFromList(app: import('@playwright/test').Page, workflowName: string) {
@@ -23,6 +24,9 @@ async function runWorkflowFromList(app: import('@playwright/test').Page, workflo
 
   const row = app.getByRole('row', { name: new RegExp(workflowName) })
   await expect(row).toBeVisible()
+
+  // Wait for any loading states before interacting with the kebab
+  await waitForUIReady(app)
 
   // Open kebab menu and click "Run published version"
   await row
@@ -38,17 +42,18 @@ async function runWorkflowFromList(app: import('@playwright/test').Page, workflo
   await expect(app).toHaveURL(/\/executions\//, { timeout: 15_000 })
 }
 
-// Skip: tests consistently time out in CI waiting for workflow execution to complete
-test.describe.skip('Copy Run to Editor', () => {
+test.describe('Copy Run to Editor', () => {
   test('replaces current workflow via confirmation dialog', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-copy-to-editor')
-    await createBasicWorkflowViaApi(app, workflowName, 'Copy action')
+    const { id, versionNumber } = await createBasicWorkflowViaApi(app, workflowName, 'Copy action')
 
     try {
+      await publishWorkflowViaApi(app, id, versionNumber)
+
       // Run the workflow from the list page (navigates to /executions/<id>)
       await runWorkflowFromList(app, workflowName)
 
-      // Wait for execution page to fully load
+      // "Copy to editor" renders immediately on the execution detail page regardless of run status
       await expect(app.getByRole('button', { name: 'Copy to editor' })).toBeVisible({ timeout: 15_000 })
 
       // Click "Copy to editor"
@@ -72,14 +77,20 @@ test.describe.skip('Copy Run to Editor', () => {
 
   test('forks execution as new workflow', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-copy-fork')
-    await createBasicWorkflowViaApi(app, workflowName, 'Fork action')
-    let forkedWorkflowName: string | undefined
+    const { id: forkId, versionNumber: forkVersionNumber } = await createBasicWorkflowViaApi(
+      app,
+      workflowName,
+      'Fork action'
+    )
+    let forkedWorkflowId: string | undefined
 
     try {
+      await publishWorkflowViaApi(app, forkId, forkVersionNumber)
+
       // Run the workflow from the list page (navigates to /executions/<id>)
       await runWorkflowFromList(app, workflowName)
 
-      // Wait for execution page to fully load
+      // "Copy to editor" renders immediately on the execution detail page regardless of run status
       await expect(app.getByRole('button', { name: 'Copy to editor' })).toBeVisible({ timeout: 15_000 })
 
       // Click "Copy to editor"
@@ -93,28 +104,39 @@ test.describe.skip('Copy Run to Editor', () => {
       // Verify navigation to builder with a new workflow
       await expect(app).toHaveURL(/\/workflow-builder\//, { timeout: 15_000 })
 
+      // Capture the forked workflow ID from the URL immediately — before any assertions
+      // that could fail — so cleanup always has the ID it needs.
+      const urlMatch = app.url().match(/\/workflow-builder\/([^/?]+)/)
+      forkedWorkflowId = urlMatch?.[1]
+
       // Verify the workflow name contains the copy pattern
       const nameInput = app.getByPlaceholder('Workflow name')
       await expect(nameInput).toBeVisible({ timeout: 15_000 })
-      forkedWorkflowName = await nameInput.inputValue()
+      const forkedWorkflowName = await nameInput.inputValue()
       expect(forkedWorkflowName).toContain('- copy-')
     } finally {
       await deleteWorkflow(app, workflowName)
-      if (forkedWorkflowName) {
-        await deleteWorkflow(app, forkedWorkflowName)
+      if (forkedWorkflowId) {
+        await deleteWorkflowViaApi(app, forkedWorkflowId)
       }
     }
   })
 
   test('cancelling the dialog stays on execution page', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-copy-cancel')
-    await createBasicWorkflowViaApi(app, workflowName, 'Cancel action')
+    const { id: cancelId, versionNumber: cancelVersionNumber } = await createBasicWorkflowViaApi(
+      app,
+      workflowName,
+      'Cancel action'
+    )
 
     try {
+      await publishWorkflowViaApi(app, cancelId, cancelVersionNumber)
+
       // Run the workflow from the list page (navigates to /executions/<id>)
       await runWorkflowFromList(app, workflowName)
 
-      // Wait for execution page to fully load
+      // "Copy to editor" renders immediately on the execution detail page regardless of run status
       await expect(app.getByRole('button', { name: 'Copy to editor' })).toBeVisible({ timeout: 15_000 })
 
       // Open dialog and cancel

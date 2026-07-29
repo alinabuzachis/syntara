@@ -437,7 +437,12 @@ export async function createWorkflowViaApi(
   triggers: WorkflowStepDef[],
   nodes: WorkflowStepDef[] = [],
   edges: WorkflowEdgeDef[] = []
-): Promise<string> {
+): Promise<{
+  /** UUID of the created workflow. */
+  id: string
+  /** Version number of the initial draft, as returned by POST /workflows (`current_version`). Pass to `publishWorkflowViaApi` to avoid a separate GET. */
+  versionNumber: number
+}> {
   const token = await getAuthToken(app)
   if (!token) throw new Error('createWorkflowViaApi: could not obtain auth token')
   const project = await ensureProject(app)
@@ -460,8 +465,39 @@ export async function createWorkflowViaApi(
     const body = await resp.text().catch(() => '(unreadable)')
     throw new Error(`POST /workflows returned ${resp.status()}: ${body}`)
   }
-  const body = (await resp.json()) as { id: string }
-  return body.id
+  const body = (await resp.json()) as { id: string; current_version: number }
+  return { id: body.id, versionNumber: body.current_version }
+}
+
+/** Publish a specific version of a workflow via the API. */
+export async function publishWorkflowViaApi(
+  app: Page,
+  workflowId: string,
+  /** Pass the value from `createWorkflowViaApi` to skip the extra GET. When omitted, the current version is fetched first. */
+  versionNumber?: number
+): Promise<void> {
+  const token = await getAuthToken(app)
+  if (!token) throw new Error('publishWorkflowViaApi: could not obtain auth token')
+
+  if (versionNumber === undefined) {
+    const getResp = await apiRequest(app, 'get', `/workflows/${workflowId}`, { token })
+    if (!getResp.ok()) {
+      const body = await getResp.text().catch(() => '(unreadable)')
+      throw new Error(`GET /workflows/${workflowId} returned ${getResp.status()}: ${body}`)
+    }
+    versionNumber = ((await getResp.json()) as { version: { version: number } }).version.version
+  }
+
+  const publishResp = await apiRequest(app, 'post', `/workflows/${workflowId}/versions/${versionNumber}/publish`, {
+    token,
+    data: {},
+  })
+  if (!publishResp.ok()) {
+    const body = await publishResp.text().catch(() => '(unreadable)')
+    throw new Error(
+      `POST /workflows/${workflowId}/versions/${versionNumber}/publish returned ${publishResp.status()}: ${body}`
+    )
+  }
 }
 
 /**
@@ -472,8 +508,8 @@ export async function createBasicWorkflowViaApi(
   app: Page,
   name: string,
   actionName = 'Script'
-): Promise<{ id: string; name: string }> {
-  const id = await createWorkflowViaApi(
+): Promise<{ id: string; name: string; versionNumber: number }> {
+  const { id, versionNumber } = await createWorkflowViaApi(
     app,
     name,
     [{ id: 'trigger_1', type: 'manual_trigger', name: 'Manual trigger', parameters: {} }],
@@ -487,7 +523,7 @@ export async function createBasicWorkflowViaApi(
     ],
     [{ from: 'trigger_1', to: 'action_1' }]
   )
-  return { id, name }
+  return { id, name, versionNumber }
 }
 
 /** Look up a workflow ID by exact name (best-effort). */

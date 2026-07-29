@@ -35,7 +35,7 @@ test.skip('clicking Run and confirming opens the live run details panel', async 
   test.setTimeout(120_000)
   const workflowName = buildUniqueName('e2e-manual-run')
   // validateMinimumWorkflow requires: trigger + at least one node + an edge connecting them
-  const workflowId = await createWorkflowViaApi(
+  const { id: workflowId } = await createWorkflowViaApi(
     app,
     workflowName,
     [{ id: 'trigger_1', type: 'manual_trigger', name: 'Manual trigger', parameters: {} }],
@@ -62,7 +62,7 @@ test.skip('clicking Run and confirming opens the live run details panel', async 
 test.skip('node status badges show success after execution completes', async ({ app }) => {
   test.setTimeout(120_000)
   const workflowName = buildUniqueName('e2e-manual-run-badge')
-  const workflowId = await createWorkflowViaApi(
+  const { id: workflowId } = await createWorkflowViaApi(
     app,
     workflowName,
     [{ id: 'trigger_1', type: 'manual_trigger', name: 'Manual trigger', parameters: {} }],
@@ -92,7 +92,7 @@ test.skip('node status badges show success after execution completes', async ({ 
 test.skip('failed nodes show an error status badge', async ({ app }) => {
   test.setTimeout(120_000)
   const workflowName = buildUniqueName('e2e-manual-run-fail')
-  const workflowId = await createWorkflowViaApi(
+  const { id: workflowId } = await createWorkflowViaApi(
     app,
     workflowName,
     [{ id: 'trigger_1', type: 'manual_trigger', name: 'Manual trigger', parameters: {} }],
