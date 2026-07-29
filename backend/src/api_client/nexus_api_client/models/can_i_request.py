@@ -27,10 +27,10 @@ class CanIRequest:
         resource_labels (CanIRequestResourceLabels | Unset): Labels on the target resource
         resource_metadata (CanIRequestResourceMetadata | Unset): Additional metadata about the target resource
         resource_project (str | Unset): Project scope of the resource (project name or UUID) Default: ''.
-        check_any_project (bool | Unset): When true, allow if the user has the permission in any project
-            (project-scoped policies match without a concrete resource_project). Default false
-            preserves strict project matching — empty resource_project alone is never a wildcard.
-            Default: False.
+        check_any_project (bool | Unset): When true, allow if the user has the permission in any project (project-scoped
+            policies match without a concrete resource_project). Mutually exclusive with a non-empty resource_project.
+            Default false preserves strict project matching — empty resource_project alone is never a wildcard.
+             Default: False.
     """
 
     action: str

@@ -16,6 +16,7 @@ def _get_kwargs(
     search: None | str | Unset = UNSET,
     page_size: int | Unset = 50,
     credential_id: None | Unset | UUID = UNSET,
+    integration_id: None | Unset | UUID = UNSET,
     organization: None | str | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -40,6 +41,15 @@ def _get_kwargs(
     else:
         json_credential_id = credential_id
     params["credential_id"] = json_credential_id
+
+    json_integration_id: None | str | Unset
+    if isinstance(integration_id, Unset):
+        json_integration_id = UNSET
+    elif isinstance(integration_id, UUID):
+        json_integration_id = str(integration_id)
+    else:
+        json_integration_id = integration_id
+    params["integration_id"] = json_integration_id
 
     json_organization: None | str | Unset
     if isinstance(organization, Unset):
@@ -132,6 +142,7 @@ def sync_detailed(
     search: None | str | Unset = UNSET,
     page_size: int | Unset = 50,
     credential_id: None | Unset | UUID = UNSET,
+    integration_id: None | Unset | UUID = UNSET,
     organization: None | str | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[AAPListResponseAAPJobTemplate | ErrorData]:
@@ -143,6 +154,7 @@ def sync_detailed(
         search (None | str | Unset):
         page_size (int | Unset):  Default: 50.
         credential_id (None | Unset | UUID):
+        integration_id (None | Unset | UUID):
         organization (None | str | Unset):
 
     Raises:
@@ -157,6 +169,7 @@ def sync_detailed(
         search=search,
         page_size=page_size,
         credential_id=credential_id,
+        integration_id=integration_id,
         organization=organization,
         additional_params=additional_params,
     )
@@ -174,6 +187,7 @@ def sync(
     search: None | str | Unset = UNSET,
     page_size: int | Unset = 50,
     credential_id: None | Unset | UUID = UNSET,
+    integration_id: None | Unset | UUID = UNSET,
     organization: None | str | Unset = UNSET,
 ) -> AAPListResponseAAPJobTemplate | ErrorData | None:
     """List Job Templates
@@ -184,6 +198,7 @@ def sync(
         search (None | str | Unset):
         page_size (int | Unset):  Default: 50.
         credential_id (None | Unset | UUID):
+        integration_id (None | Unset | UUID):
         organization (None | str | Unset):
 
     Raises:
@@ -199,6 +214,7 @@ def sync(
         search=search,
         page_size=page_size,
         credential_id=credential_id,
+        integration_id=integration_id,
         organization=organization,
     ).parsed
 
@@ -209,6 +225,7 @@ async def asyncio_detailed(
     search: None | str | Unset = UNSET,
     page_size: int | Unset = 50,
     credential_id: None | Unset | UUID = UNSET,
+    integration_id: None | Unset | UUID = UNSET,
     organization: None | str | Unset = UNSET,
 ) -> Response[AAPListResponseAAPJobTemplate | ErrorData]:
     """List Job Templates
@@ -219,6 +236,7 @@ async def asyncio_detailed(
         search (None | str | Unset):
         page_size (int | Unset):  Default: 50.
         credential_id (None | Unset | UUID):
+        integration_id (None | Unset | UUID):
         organization (None | str | Unset):
 
     Raises:
@@ -233,6 +251,7 @@ async def asyncio_detailed(
         search=search,
         page_size=page_size,
         credential_id=credential_id,
+        integration_id=integration_id,
         organization=organization,
     )
 
@@ -247,6 +266,7 @@ async def asyncio(
     search: None | str | Unset = UNSET,
     page_size: int | Unset = 50,
     credential_id: None | Unset | UUID = UNSET,
+    integration_id: None | Unset | UUID = UNSET,
     organization: None | str | Unset = UNSET,
 ) -> AAPListResponseAAPJobTemplate | ErrorData | None:
     """List Job Templates
@@ -257,6 +277,7 @@ async def asyncio(
         search (None | str | Unset):
         page_size (int | Unset):  Default: 50.
         credential_id (None | Unset | UUID):
+        integration_id (None | Unset | UUID):
         organization (None | str | Unset):
 
     Raises:
@@ -273,6 +294,7 @@ async def asyncio(
             search=search,
             page_size=page_size,
             credential_id=credential_id,
+            integration_id=integration_id,
             organization=organization,
         )
     ).parsed

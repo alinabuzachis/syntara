@@ -1,42 +1,34 @@
 from http import HTTPStatus
 from typing import Any
+from uuid import UUID
 
 import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
-from ...models.webhook_response import WebhookResponse
+from ...models.invocation_trace_read import InvocationTraceRead
 from ...types import Response
 
 
 def _get_kwargs(
-    webhook_path: str,
-    *,
-    body: Any,
+    invocation_id: UUID,
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-
     _kwargs: dict[str, Any] = {
-        "method": "post",
-        "url": f"/webhooks/eda/{webhook_path}",
+        "method": "get",
+        "url": f"/invocations/{invocation_id}/trace",
     }
 
-    _kwargs["json"] = body
-
-    headers["Content-Type"] = "application/json"
-
-    _kwargs["headers"] = headers
     return _kwargs
 
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> ErrorData | WebhookResponse | None:
-    if response.status_code == 202:
-        response_202 = WebhookResponse.from_dict(response.json())
+) -> ErrorData | InvocationTraceRead | None:
+    if response.status_code == 200:
+        response_200 = InvocationTraceRead.from_dict(response.json())
 
-        return response_202
+        return response_200
 
     if response.status_code == 400:
         response_400 = ErrorData.from_dict(response.json())
@@ -63,11 +55,6 @@ def _parse_response(
 
         return response_409
 
-    if response.status_code == 413:
-        response_413 = ErrorData.from_dict(response.json())
-
-        return response_413
-
     if response.status_code == 422:
         response_422 = ErrorData.from_dict(response.json())
 
@@ -91,7 +78,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorData | WebhookResponse]:
+) -> Response[ErrorData | InvocationTraceRead]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -103,32 +90,28 @@ def _build_response(
 
 
 def sync_detailed(
-    webhook_path: str,
+    invocation_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: Any,
-) -> Response[ErrorData | WebhookResponse]:
-    """Receive EDA webhook event
+) -> Response[ErrorData | InvocationTraceRead]:
+    """Get Invocation Trace
 
-     Receive a webhook event from Event-Driven Ansible and trigger the matching workflow. Requires a
-    service account Bearer token. Each EDA trigger node has its own unique webhook path. The payload can
-    be any JSON structure.
+     Retrieve the agent execution trace for a completed invocation, including reasoning steps, tool
+    calls, and tool results.
 
     Args:
-        webhook_path (str):
-        body (Any):
+        invocation_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | WebhookResponse]
+        Response[ErrorData | InvocationTraceRead]
     """
 
     kwargs = _get_kwargs(
-        webhook_path=webhook_path,
-        body=body,
+        invocation_id=invocation_id,
     )
 
     response = client.get_httpx_client().request(
@@ -139,63 +122,55 @@ def sync_detailed(
 
 
 def sync(
-    webhook_path: str,
+    invocation_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: Any,
-) -> ErrorData | WebhookResponse | None:
-    """Receive EDA webhook event
+) -> ErrorData | InvocationTraceRead | None:
+    """Get Invocation Trace
 
-     Receive a webhook event from Event-Driven Ansible and trigger the matching workflow. Requires a
-    service account Bearer token. Each EDA trigger node has its own unique webhook path. The payload can
-    be any JSON structure.
+     Retrieve the agent execution trace for a completed invocation, including reasoning steps, tool
+    calls, and tool results.
 
     Args:
-        webhook_path (str):
-        body (Any):
+        invocation_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | WebhookResponse
+        ErrorData | InvocationTraceRead
     """
 
     return sync_detailed(
-        webhook_path=webhook_path,
+        invocation_id=invocation_id,
         client=client,
-        body=body,
     ).parsed
 
 
 async def asyncio_detailed(
-    webhook_path: str,
+    invocation_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: Any,
-) -> Response[ErrorData | WebhookResponse]:
-    """Receive EDA webhook event
+) -> Response[ErrorData | InvocationTraceRead]:
+    """Get Invocation Trace
 
-     Receive a webhook event from Event-Driven Ansible and trigger the matching workflow. Requires a
-    service account Bearer token. Each EDA trigger node has its own unique webhook path. The payload can
-    be any JSON structure.
+     Retrieve the agent execution trace for a completed invocation, including reasoning steps, tool
+    calls, and tool results.
 
     Args:
-        webhook_path (str):
-        body (Any):
+        invocation_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | WebhookResponse]
+        Response[ErrorData | InvocationTraceRead]
     """
 
     kwargs = _get_kwargs(
-        webhook_path=webhook_path,
-        body=body,
+        invocation_id=invocation_id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -204,33 +179,29 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    webhook_path: str,
+    invocation_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: Any,
-) -> ErrorData | WebhookResponse | None:
-    """Receive EDA webhook event
+) -> ErrorData | InvocationTraceRead | None:
+    """Get Invocation Trace
 
-     Receive a webhook event from Event-Driven Ansible and trigger the matching workflow. Requires a
-    service account Bearer token. Each EDA trigger node has its own unique webhook path. The payload can
-    be any JSON structure.
+     Retrieve the agent execution trace for a completed invocation, including reasoning steps, tool
+    calls, and tool results.
 
     Args:
-        webhook_path (str):
-        body (Any):
+        invocation_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | WebhookResponse
+        ErrorData | InvocationTraceRead
     """
 
     return (
         await asyncio_detailed(
-            webhook_path=webhook_path,
+            invocation_id=invocation_id,
             client=client,
-            body=body,
         )
     ).parsed

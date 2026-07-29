@@ -24,8 +24,7 @@ class WorkflowCreate:
 
     Excludes auto-generated fields: id, created_at, updated_at, created_by (set by backend).
     Pydantic tries to parse workflow_definition as WorkflowDefinition first;
-    on failure, the raw dict falls through to the service-level validator
-    where force_save can bypass all validation.
+    on failure, the raw dict falls through to the service-level validator.
 
         Attributes:
             name (str): Workflow name

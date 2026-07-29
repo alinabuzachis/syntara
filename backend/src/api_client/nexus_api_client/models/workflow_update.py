@@ -25,8 +25,7 @@ class WorkflowUpdate:
     All fields are optional for partial updates.
     Supports metadata updates and workflow definition updates (creates new version).
     Pydantic tries to parse workflow_definition as WorkflowDefinition first;
-    on failure, the raw dict falls through to the service-level validator
-    where force_save can bypass all validation.
+    on failure, the raw dict falls through to the service-level validator.
 
         Attributes:
             name (None | str | Unset): Update workflow name

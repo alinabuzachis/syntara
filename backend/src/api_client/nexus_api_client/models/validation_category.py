@@ -2,6 +2,7 @@ from enum import Enum
 
 
 class ValidationCategory(str, Enum):
+    APPROVAL_CONFIGURATION = "approval_configuration"
     CONVERGE_CONFIGURATION = "converge_configuration"
     CYCLE_DETECTED = "cycle_detected"
     INVALID_REFERENCE = "invalid_reference"

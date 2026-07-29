@@ -27,6 +27,7 @@ class AAPJobTemplateExecutorParameters:
         Attributes:
             credential_id (None | str | Unset): Nexus credential UUID for AAP API authentication. Separate from legacy
                 credentials list.
+            integration_id (None | str | Unset): UUID of the AAP Gateway integration for connection URL resolution.
             organization_id (int | None | Unset): AAP organization ID (takes precedence over organization_name)
             organization_name (None | str | Unset): AAP organization name (used with template_name or inventory_name)
             inventory_id (int | None | Unset): Override default inventory by ID (mutually exclusive with inventory_name)
@@ -57,6 +58,7 @@ class AAPJobTemplateExecutorParameters:
     """
 
     credential_id: None | str | Unset = UNSET
+    integration_id: None | str | Unset = UNSET
     organization_id: int | None | Unset = UNSET
     organization_name: None | str | Unset = UNSET
     inventory_id: int | None | Unset = UNSET
@@ -86,6 +88,12 @@ class AAPJobTemplateExecutorParameters:
             credential_id = UNSET
         else:
             credential_id = self.credential_id
+
+        integration_id: None | str | Unset
+        if isinstance(self.integration_id, Unset):
+            integration_id = UNSET
+        else:
+            integration_id = self.integration_id
 
         organization_id: int | None | Unset
         if isinstance(self.organization_id, Unset):
@@ -225,6 +233,8 @@ class AAPJobTemplateExecutorParameters:
         field_dict.update({})
         if credential_id is not UNSET:
             field_dict["credential_id"] = credential_id
+        if integration_id is not UNSET:
+            field_dict["integration_id"] = integration_id
         if organization_id is not UNSET:
             field_dict["organizationId"] = organization_id
         if organization_name is not UNSET:
@@ -284,6 +294,15 @@ class AAPJobTemplateExecutorParameters:
             return cast(None | str | Unset, data)
 
         credential_id = _parse_credential_id(d.pop("credential_id", UNSET))
+
+        def _parse_integration_id(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        integration_id = _parse_integration_id(d.pop("integration_id", UNSET))
 
         def _parse_organization_id(data: object) -> int | None | Unset:
             if data is None:
@@ -504,6 +523,7 @@ class AAPJobTemplateExecutorParameters:
 
         aap_job_template_executor_parameters = cls(
             credential_id=credential_id,
+            integration_id=integration_id,
             organization_id=organization_id,
             organization_name=organization_name,
             inventory_id=inventory_id,

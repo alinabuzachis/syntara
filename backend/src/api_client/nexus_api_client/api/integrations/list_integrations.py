@@ -25,6 +25,7 @@ def _get_kwargs(
     enabled: bool | None | Unset = UNSET,
     scope: IntegrationScope | None | Unset = UNSET,
     management_credential_id: None | Unset | UUID = UNSET,
+    project_id: None | Unset | UUID = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
@@ -91,6 +92,15 @@ def _get_kwargs(
     else:
         json_management_credential_id = management_credential_id
     params["management_credential_id"] = json_management_credential_id
+
+    json_project_id: None | str | Unset
+    if isinstance(project_id, Unset):
+        json_project_id = UNSET
+    elif isinstance(project_id, UUID):
+        json_project_id = str(project_id)
+    else:
+        json_project_id = project_id
+    params["project_id"] = json_project_id
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -182,6 +192,7 @@ def sync_detailed(
     enabled: bool | None | Unset = UNSET,
     scope: IntegrationScope | None | Unset = UNSET,
     management_credential_id: None | Unset | UUID = UNSET,
+    project_id: None | Unset | UUID = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | IntegrationListResponse]:
     """List Integrations
@@ -198,6 +209,7 @@ def sync_detailed(
         enabled (bool | None | Unset): Filter by enabled status
         scope (IntegrationScope | None | Unset):
         management_credential_id (None | Unset | UUID):
+        project_id (None | Unset | UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -217,6 +229,7 @@ def sync_detailed(
         enabled=enabled,
         scope=scope,
         management_credential_id=management_credential_id,
+        project_id=project_id,
         additional_params=additional_params,
     )
 
@@ -239,6 +252,7 @@ def sync(
     enabled: bool | None | Unset = UNSET,
     scope: IntegrationScope | None | Unset = UNSET,
     management_credential_id: None | Unset | UUID = UNSET,
+    project_id: None | Unset | UUID = UNSET,
 ) -> ErrorData | IntegrationListResponse | None:
     """List Integrations
 
@@ -254,6 +268,7 @@ def sync(
         enabled (bool | None | Unset): Filter by enabled status
         scope (IntegrationScope | None | Unset):
         management_credential_id (None | Unset | UUID):
+        project_id (None | Unset | UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -274,6 +289,7 @@ def sync(
         enabled=enabled,
         scope=scope,
         management_credential_id=management_credential_id,
+        project_id=project_id,
     ).parsed
 
 
@@ -289,6 +305,7 @@ async def asyncio_detailed(
     enabled: bool | None | Unset = UNSET,
     scope: IntegrationScope | None | Unset = UNSET,
     management_credential_id: None | Unset | UUID = UNSET,
+    project_id: None | Unset | UUID = UNSET,
 ) -> Response[ErrorData | IntegrationListResponse]:
     """List Integrations
 
@@ -304,6 +321,7 @@ async def asyncio_detailed(
         enabled (bool | None | Unset): Filter by enabled status
         scope (IntegrationScope | None | Unset):
         management_credential_id (None | Unset | UUID):
+        project_id (None | Unset | UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -323,6 +341,7 @@ async def asyncio_detailed(
         enabled=enabled,
         scope=scope,
         management_credential_id=management_credential_id,
+        project_id=project_id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -342,6 +361,7 @@ async def asyncio(
     enabled: bool | None | Unset = UNSET,
     scope: IntegrationScope | None | Unset = UNSET,
     management_credential_id: None | Unset | UUID = UNSET,
+    project_id: None | Unset | UUID = UNSET,
 ) -> ErrorData | IntegrationListResponse | None:
     """List Integrations
 
@@ -357,6 +377,7 @@ async def asyncio(
         enabled (bool | None | Unset): Filter by enabled status
         scope (IntegrationScope | None | Unset):
         management_credential_id (None | Unset | UUID):
+        project_id (None | Unset | UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -378,5 +399,6 @@ async def asyncio(
             enabled=enabled,
             scope=scope,
             management_credential_id=management_credential_id,
+            project_id=project_id,
         )
     ).parsed

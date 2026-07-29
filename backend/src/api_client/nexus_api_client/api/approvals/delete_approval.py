@@ -1,42 +1,30 @@
 from http import HTTPStatus
-from typing import Any
+from typing import Any, cast
+from uuid import UUID
 
 import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
-from ...models.webhook_response import WebhookResponse
 from ...types import Response
 
 
 def _get_kwargs(
-    webhook_path: str,
-    *,
-    body: Any,
+    approval_id: UUID,
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-
     _kwargs: dict[str, Any] = {
-        "method": "post",
-        "url": f"/webhooks/eda/{webhook_path}",
+        "method": "delete",
+        "url": f"/approvals/{approval_id}",
     }
 
-    _kwargs["json"] = body
-
-    headers["Content-Type"] = "application/json"
-
-    _kwargs["headers"] = headers
     return _kwargs
 
 
-def _parse_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> ErrorData | WebhookResponse | None:
-    if response.status_code == 202:
-        response_202 = WebhookResponse.from_dict(response.json())
-
-        return response_202
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | ErrorData | None:
+    if response.status_code == 204:
+        response_204 = cast(Any, None)
+        return response_204
 
     if response.status_code == 400:
         response_400 = ErrorData.from_dict(response.json())
@@ -63,11 +51,6 @@ def _parse_response(
 
         return response_409
 
-    if response.status_code == 413:
-        response_413 = ErrorData.from_dict(response.json())
-
-        return response_413
-
     if response.status_code == 422:
         response_422 = ErrorData.from_dict(response.json())
 
@@ -89,9 +72,7 @@ def _parse_response(
         return None
 
 
-def _build_response(
-    *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorData | WebhookResponse]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | ErrorData]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -103,32 +84,30 @@ def _build_response(
 
 
 def sync_detailed(
-    webhook_path: str,
+    approval_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: Any,
-) -> Response[ErrorData | WebhookResponse]:
-    """Receive EDA webhook event
+) -> Response[Any | ErrorData]:
+    """Delete a pending approval request
 
-     Receive a webhook event from Event-Driven Ansible and trigger the matching workflow. Requires a
-    service account Bearer token. Each EDA trigger node has its own unique webhook path. The payload can
-    be any JSON structure.
+     Delete a pending approval request.
+
+    Only pending approval requests can be deleted. Attempting to delete an
+    already-decided approval returns 409 Conflict.
 
     Args:
-        webhook_path (str):
-        body (Any):
+        approval_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | WebhookResponse]
+        Response[Any | ErrorData]
     """
 
     kwargs = _get_kwargs(
-        webhook_path=webhook_path,
-        body=body,
+        approval_id=approval_id,
     )
 
     response = client.get_httpx_client().request(
@@ -139,63 +118,59 @@ def sync_detailed(
 
 
 def sync(
-    webhook_path: str,
+    approval_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: Any,
-) -> ErrorData | WebhookResponse | None:
-    """Receive EDA webhook event
+) -> Any | ErrorData | None:
+    """Delete a pending approval request
 
-     Receive a webhook event from Event-Driven Ansible and trigger the matching workflow. Requires a
-    service account Bearer token. Each EDA trigger node has its own unique webhook path. The payload can
-    be any JSON structure.
+     Delete a pending approval request.
+
+    Only pending approval requests can be deleted. Attempting to delete an
+    already-decided approval returns 409 Conflict.
 
     Args:
-        webhook_path (str):
-        body (Any):
+        approval_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | WebhookResponse
+        Any | ErrorData
     """
 
     return sync_detailed(
-        webhook_path=webhook_path,
+        approval_id=approval_id,
         client=client,
-        body=body,
     ).parsed
 
 
 async def asyncio_detailed(
-    webhook_path: str,
+    approval_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: Any,
-) -> Response[ErrorData | WebhookResponse]:
-    """Receive EDA webhook event
+) -> Response[Any | ErrorData]:
+    """Delete a pending approval request
 
-     Receive a webhook event from Event-Driven Ansible and trigger the matching workflow. Requires a
-    service account Bearer token. Each EDA trigger node has its own unique webhook path. The payload can
-    be any JSON structure.
+     Delete a pending approval request.
+
+    Only pending approval requests can be deleted. Attempting to delete an
+    already-decided approval returns 409 Conflict.
 
     Args:
-        webhook_path (str):
-        body (Any):
+        approval_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorData | WebhookResponse]
+        Response[Any | ErrorData]
     """
 
     kwargs = _get_kwargs(
-        webhook_path=webhook_path,
-        body=body,
+        approval_id=approval_id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -204,33 +179,31 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    webhook_path: str,
+    approval_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: Any,
-) -> ErrorData | WebhookResponse | None:
-    """Receive EDA webhook event
+) -> Any | ErrorData | None:
+    """Delete a pending approval request
 
-     Receive a webhook event from Event-Driven Ansible and trigger the matching workflow. Requires a
-    service account Bearer token. Each EDA trigger node has its own unique webhook path. The payload can
-    be any JSON structure.
+     Delete a pending approval request.
+
+    Only pending approval requests can be deleted. Attempting to delete an
+    already-decided approval returns 409 Conflict.
 
     Args:
-        webhook_path (str):
-        body (Any):
+        approval_id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorData | WebhookResponse
+        Any | ErrorData
     """
 
     return (
         await asyncio_detailed(
-            webhook_path=webhook_path,
+            approval_id=approval_id,
             client=client,
-            body=body,
         )
     ).parsed

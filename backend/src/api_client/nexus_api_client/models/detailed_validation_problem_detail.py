@@ -23,7 +23,6 @@ class DetailedValidationProblemDetail:
         title: Short, human-readable summary
         detail: Human-readable explanation specific to this occurrence
         code: Machine-readable error code
-        retryable: Whether this error can be retried
         instance: Optional URI reference identifying the specific occurrence
         validation_result: Structured validation findings
 
@@ -32,7 +31,6 @@ class DetailedValidationProblemDetail:
             title (str):
             detail (str):
             code (str):
-            retryable (bool):
             validation_result (ValidationResult): Structured validation result with flat findings list and computed counts.
 
                 Attributes:
@@ -47,7 +45,6 @@ class DetailedValidationProblemDetail:
     title: str
     detail: str
     code: str
-    retryable: bool
     validation_result: ValidationResult
     instance: None | str | Unset = UNSET
 
@@ -59,8 +56,6 @@ class DetailedValidationProblemDetail:
         detail = self.detail
 
         code = self.code
-
-        retryable = self.retryable
 
         validation_result = self.validation_result.to_dict()
 
@@ -78,7 +73,6 @@ class DetailedValidationProblemDetail:
                 "title": title,
                 "detail": detail,
                 "code": code,
-                "retryable": retryable,
                 "validation_result": validation_result,
             }
         )
@@ -100,8 +94,6 @@ class DetailedValidationProblemDetail:
 
         code = d.pop("code")
 
-        retryable = d.pop("retryable")
-
         validation_result = ValidationResult.from_dict(d.pop("validation_result"))
 
         def _parse_instance(data: object) -> None | str | Unset:
@@ -118,7 +110,6 @@ class DetailedValidationProblemDetail:
             title=title,
             detail=detail,
             code=code,
-            retryable=retryable,
             validation_result=validation_result,
             instance=instance,
         )

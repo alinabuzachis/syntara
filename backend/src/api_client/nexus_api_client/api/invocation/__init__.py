@@ -56,6 +56,14 @@ class InvocationApi:
         endpoint_module = self._load_endpoint_module("get_invocation")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
+    def get_trace(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("get_invocation_trace")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_get_trace(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("get_invocation_trace")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
     def cancel(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("cancel_invocation")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)

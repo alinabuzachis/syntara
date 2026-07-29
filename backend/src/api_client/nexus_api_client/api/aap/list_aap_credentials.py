@@ -16,6 +16,7 @@ def _get_kwargs(
     search: None | str | Unset = UNSET,
     page_size: int | Unset = 50,
     credential_id: None | Unset | UUID = UNSET,
+    integration_id: None | Unset | UUID = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
@@ -39,6 +40,15 @@ def _get_kwargs(
     else:
         json_credential_id = credential_id
     params["credential_id"] = json_credential_id
+
+    json_integration_id: None | str | Unset
+    if isinstance(integration_id, Unset):
+        json_integration_id = UNSET
+    elif isinstance(integration_id, UUID):
+        json_integration_id = str(integration_id)
+    else:
+        json_integration_id = integration_id
+    params["integration_id"] = json_integration_id
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -124,6 +134,7 @@ def sync_detailed(
     search: None | str | Unset = UNSET,
     page_size: int | Unset = 50,
     credential_id: None | Unset | UUID = UNSET,
+    integration_id: None | Unset | UUID = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[AAPListResponseAAPCredential | ErrorData]:
     """List Credentials
@@ -134,6 +145,7 @@ def sync_detailed(
         search (None | str | Unset):
         page_size (int | Unset):  Default: 50.
         credential_id (None | Unset | UUID):
+        integration_id (None | Unset | UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -144,7 +156,11 @@ def sync_detailed(
     """
 
     kwargs = _get_kwargs(
-        search=search, page_size=page_size, credential_id=credential_id, additional_params=additional_params
+        search=search,
+        page_size=page_size,
+        credential_id=credential_id,
+        integration_id=integration_id,
+        additional_params=additional_params,
     )
 
     response = client.get_httpx_client().request(
@@ -160,6 +176,7 @@ def sync(
     search: None | str | Unset = UNSET,
     page_size: int | Unset = 50,
     credential_id: None | Unset | UUID = UNSET,
+    integration_id: None | Unset | UUID = UNSET,
 ) -> AAPListResponseAAPCredential | ErrorData | None:
     """List Credentials
 
@@ -169,6 +186,7 @@ def sync(
         search (None | str | Unset):
         page_size (int | Unset):  Default: 50.
         credential_id (None | Unset | UUID):
+        integration_id (None | Unset | UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -183,6 +201,7 @@ def sync(
         search=search,
         page_size=page_size,
         credential_id=credential_id,
+        integration_id=integration_id,
     ).parsed
 
 
@@ -192,6 +211,7 @@ async def asyncio_detailed(
     search: None | str | Unset = UNSET,
     page_size: int | Unset = 50,
     credential_id: None | Unset | UUID = UNSET,
+    integration_id: None | Unset | UUID = UNSET,
 ) -> Response[AAPListResponseAAPCredential | ErrorData]:
     """List Credentials
 
@@ -201,6 +221,7 @@ async def asyncio_detailed(
         search (None | str | Unset):
         page_size (int | Unset):  Default: 50.
         credential_id (None | Unset | UUID):
+        integration_id (None | Unset | UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -214,6 +235,7 @@ async def asyncio_detailed(
         search=search,
         page_size=page_size,
         credential_id=credential_id,
+        integration_id=integration_id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -227,6 +249,7 @@ async def asyncio(
     search: None | str | Unset = UNSET,
     page_size: int | Unset = 50,
     credential_id: None | Unset | UUID = UNSET,
+    integration_id: None | Unset | UUID = UNSET,
 ) -> AAPListResponseAAPCredential | ErrorData | None:
     """List Credentials
 
@@ -236,6 +259,7 @@ async def asyncio(
         search (None | str | Unset):
         page_size (int | Unset):  Default: 50.
         credential_id (None | Unset | UUID):
+        integration_id (None | Unset | UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -251,5 +275,6 @@ async def asyncio(
             search=search,
             page_size=page_size,
             credential_id=credential_id,
+            integration_id=integration_id,
         )
     ).parsed

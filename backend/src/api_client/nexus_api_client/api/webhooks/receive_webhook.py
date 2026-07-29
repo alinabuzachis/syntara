@@ -43,6 +43,16 @@ def _parse_response(
 
         return response_400
 
+    if response.status_code == 401:
+        response_401 = ErrorData.from_dict(response.json())
+
+        return response_401
+
+    if response.status_code == 403:
+        response_403 = ErrorData.from_dict(response.json())
+
+        return response_403
+
     if response.status_code == 404:
         response_404 = ErrorData.from_dict(response.json())
 
@@ -95,13 +105,14 @@ def _build_response(
 def sync_detailed(
     webhook_path: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: Any,
 ) -> Response[ErrorData | WebhookResponse]:
     """Receive webhook event
 
-     Receive a webhook event from an external system and trigger the matching workflow. Only POST method
-    is supported; other methods receive 405 Method Not Allowed.
+     Receive a webhook event from an external system and trigger the matching workflow. Requires a
+    service account Bearer token. Only POST method is supported; other methods receive 405 Method Not
+    Allowed.
 
     Args:
         webhook_path (str):
@@ -130,13 +141,14 @@ def sync_detailed(
 def sync(
     webhook_path: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: Any,
 ) -> ErrorData | WebhookResponse | None:
     """Receive webhook event
 
-     Receive a webhook event from an external system and trigger the matching workflow. Only POST method
-    is supported; other methods receive 405 Method Not Allowed.
+     Receive a webhook event from an external system and trigger the matching workflow. Requires a
+    service account Bearer token. Only POST method is supported; other methods receive 405 Method Not
+    Allowed.
 
     Args:
         webhook_path (str):
@@ -160,13 +172,14 @@ def sync(
 async def asyncio_detailed(
     webhook_path: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: Any,
 ) -> Response[ErrorData | WebhookResponse]:
     """Receive webhook event
 
-     Receive a webhook event from an external system and trigger the matching workflow. Only POST method
-    is supported; other methods receive 405 Method Not Allowed.
+     Receive a webhook event from an external system and trigger the matching workflow. Requires a
+    service account Bearer token. Only POST method is supported; other methods receive 405 Method Not
+    Allowed.
 
     Args:
         webhook_path (str):
@@ -193,13 +206,14 @@ async def asyncio_detailed(
 async def asyncio(
     webhook_path: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: Any,
 ) -> ErrorData | WebhookResponse | None:
     """Receive webhook event
 
-     Receive a webhook event from an external system and trigger the matching workflow. Only POST method
-    is supported; other methods receive 405 Method Not Allowed.
+     Receive a webhook event from an external system and trigger the matching workflow. Requires a
+    service account Bearer token. Only POST method is supported; other methods receive 405 Method Not
+    Allowed.
 
     Args:
         webhook_path (str):

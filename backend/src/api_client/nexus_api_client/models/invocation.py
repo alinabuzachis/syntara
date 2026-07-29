@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from ..models.invocation_context_data import InvocationContextData
     from ..models.invocation_labels import InvocationLabels
     from ..models.invocation_result_type_0 import InvocationResultType0
+    from ..models.invocation_trace_events_type_0_item import InvocationTraceEventsType0Item
 
 
 T = TypeVar("T", bound="Invocation")
@@ -46,6 +47,8 @@ class Invocation:
         result (InvocationResultType0 | None | Unset): Workflow result data
         error_message (None | str | Unset): Error message if invocation failed
         checkpoint_data (InvocationCheckpointDataType0 | None | Unset): Checkpoint data for pause/resume
+        trace_events (list[InvocationTraceEventsType0Item] | None | Unset): Persisted agent trace steps (reasoning, tool
+            calls, tool results, final answer)
     """
 
     created_by: UUID
@@ -65,6 +68,7 @@ class Invocation:
     result: InvocationResultType0 | None | Unset = UNSET
     error_message: None | str | Unset = UNSET
     checkpoint_data: InvocationCheckpointDataType0 | None | Unset = UNSET
+    trace_events: list[InvocationTraceEventsType0Item] | None | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
         from ..models.invocation_checkpoint_data_type_0 import InvocationCheckpointDataType0
@@ -154,6 +158,18 @@ class Invocation:
         else:
             checkpoint_data = self.checkpoint_data
 
+        trace_events: list[dict[str, Any]] | None | Unset
+        if isinstance(self.trace_events, Unset):
+            trace_events = UNSET
+        elif isinstance(self.trace_events, list):
+            trace_events = []
+            for trace_events_type_0_item_data in self.trace_events:
+                trace_events_type_0_item = trace_events_type_0_item_data.to_dict()
+                trace_events.append(trace_events_type_0_item)
+
+        else:
+            trace_events = self.trace_events
+
         field_dict: dict[str, Any] = {}
 
         field_dict.update(
@@ -190,6 +206,8 @@ class Invocation:
             field_dict["error_message"] = error_message
         if checkpoint_data is not UNSET:
             field_dict["checkpoint_data"] = checkpoint_data
+        if trace_events is not UNSET:
+            field_dict["trace_events"] = trace_events
 
         return field_dict
 
@@ -199,6 +217,7 @@ class Invocation:
         from ..models.invocation_context_data import InvocationContextData
         from ..models.invocation_labels import InvocationLabels
         from ..models.invocation_result_type_0 import InvocationResultType0
+        from ..models.invocation_trace_events_type_0_item import InvocationTraceEventsType0Item
 
         d = dict(src_dict)
         created_by = UUID(d.pop("created_by"))
@@ -354,6 +373,28 @@ class Invocation:
 
         checkpoint_data = _parse_checkpoint_data(d.pop("checkpoint_data", UNSET))
 
+        def _parse_trace_events(data: object) -> list[InvocationTraceEventsType0Item] | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, list):
+                    raise TypeError()
+                trace_events_type_0 = []
+                _trace_events_type_0 = data
+                for trace_events_type_0_item_data in _trace_events_type_0:
+                    trace_events_type_0_item = InvocationTraceEventsType0Item.from_dict(trace_events_type_0_item_data)
+
+                    trace_events_type_0.append(trace_events_type_0_item)
+
+                return trace_events_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(list[InvocationTraceEventsType0Item] | None | Unset, data)
+
+        trace_events = _parse_trace_events(d.pop("trace_events", UNSET))
+
         invocation = cls(
             created_by=created_by,
             project_id=project_id,
@@ -372,6 +413,7 @@ class Invocation:
             result=result,
             error_message=error_message,
             checkpoint_data=checkpoint_data,
+            trace_events=trace_events,
         )
 
         return invocation

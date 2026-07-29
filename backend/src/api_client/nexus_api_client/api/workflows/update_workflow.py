@@ -9,30 +9,19 @@ from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
 from ...models.workflow_read_with_version import WorkflowReadWithVersion
 from ...models.workflow_update import WorkflowUpdate
-from ...types import UNSET, Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     workflow_id: UUID,
     *,
     body: WorkflowUpdate,
-    force_save: bool | Unset = False,
-    additional_params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-
-    params: dict[str, Any] = {}
-    if isinstance(additional_params, dict):
-        params = additional_params
-
-    params["force_save"] = force_save
-
-    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
     _kwargs: dict[str, Any] = {
         "method": "patch",
         "url": f"/workflows/{workflow_id}",
-        "params": params,
     }
 
     _kwargs["json"] = body.to_dict()
@@ -115,8 +104,6 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: WorkflowUpdate,
-    force_save: bool | Unset = False,
-    additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | WorkflowReadWithVersion]:
     """Update Workflow
 
@@ -130,14 +117,12 @@ def sync_detailed(
 
     Args:
         workflow_id (UUID):
-        force_save (bool | Unset):  Default: False.
         body (WorkflowUpdate): Schema for updating workflow (PATCH /workflows/{id}).
 
             All fields are optional for partial updates.
             Supports metadata updates and workflow definition updates (creates new version).
             Pydantic tries to parse workflow_definition as WorkflowDefinition first;
-            on failure, the raw dict falls through to the service-level validator
-            where force_save can bypass all validation.
+            on failure, the raw dict falls through to the service-level validator.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -147,7 +132,10 @@ def sync_detailed(
         Response[ErrorData | WorkflowReadWithVersion]
     """
 
-    kwargs = _get_kwargs(workflow_id=workflow_id, body=body, force_save=force_save, additional_params=additional_params)
+    kwargs = _get_kwargs(
+        workflow_id=workflow_id,
+        body=body,
+    )
 
     response = client.get_httpx_client().request(
         **kwargs,
@@ -161,7 +149,6 @@ def sync(
     *,
     client: AuthenticatedClient,
     body: WorkflowUpdate,
-    force_save: bool | Unset = False,
 ) -> ErrorData | WorkflowReadWithVersion | None:
     """Update Workflow
 
@@ -175,14 +162,12 @@ def sync(
 
     Args:
         workflow_id (UUID):
-        force_save (bool | Unset):  Default: False.
         body (WorkflowUpdate): Schema for updating workflow (PATCH /workflows/{id}).
 
             All fields are optional for partial updates.
             Supports metadata updates and workflow definition updates (creates new version).
             Pydantic tries to parse workflow_definition as WorkflowDefinition first;
-            on failure, the raw dict falls through to the service-level validator
-            where force_save can bypass all validation.
+            on failure, the raw dict falls through to the service-level validator.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -196,7 +181,6 @@ def sync(
         workflow_id=workflow_id,
         client=client,
         body=body,
-        force_save=force_save,
     ).parsed
 
 
@@ -205,7 +189,6 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: WorkflowUpdate,
-    force_save: bool | Unset = False,
 ) -> Response[ErrorData | WorkflowReadWithVersion]:
     """Update Workflow
 
@@ -219,14 +202,12 @@ async def asyncio_detailed(
 
     Args:
         workflow_id (UUID):
-        force_save (bool | Unset):  Default: False.
         body (WorkflowUpdate): Schema for updating workflow (PATCH /workflows/{id}).
 
             All fields are optional for partial updates.
             Supports metadata updates and workflow definition updates (creates new version).
             Pydantic tries to parse workflow_definition as WorkflowDefinition first;
-            on failure, the raw dict falls through to the service-level validator
-            where force_save can bypass all validation.
+            on failure, the raw dict falls through to the service-level validator.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -239,7 +220,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         workflow_id=workflow_id,
         body=body,
-        force_save=force_save,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -252,7 +232,6 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     body: WorkflowUpdate,
-    force_save: bool | Unset = False,
 ) -> ErrorData | WorkflowReadWithVersion | None:
     """Update Workflow
 
@@ -266,14 +245,12 @@ async def asyncio(
 
     Args:
         workflow_id (UUID):
-        force_save (bool | Unset):  Default: False.
         body (WorkflowUpdate): Schema for updating workflow (PATCH /workflows/{id}).
 
             All fields are optional for partial updates.
             Supports metadata updates and workflow definition updates (creates new version).
             Pydantic tries to parse workflow_definition as WorkflowDefinition first;
-            on failure, the raw dict falls through to the service-level validator
-            where force_save can bypass all validation.
+            on failure, the raw dict falls through to the service-level validator.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -288,6 +265,5 @@ async def asyncio(
             workflow_id=workflow_id,
             client=client,
             body=body,
-            force_save=force_save,
         )
     ).parsed

@@ -9,6 +9,7 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 from dateutil.parser import isoparse
 
+from ..models.role_assignment_read_principal_type_type_0 import RoleAssignmentReadPrincipalTypeType0
 from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="RoleAssignmentRead")
@@ -24,6 +25,7 @@ class RoleAssignmentRead:
         role_name (str):
         principal_id (None | Unset | UUID):
         group_id (None | Unset | UUID):
+        principal_type (None | RoleAssignmentReadPrincipalTypeType0 | Unset):
         role_description (None | str | Unset):
         role_policies (list[str] | Unset):
         project_id (None | Unset | UUID):
@@ -37,6 +39,7 @@ class RoleAssignmentRead:
     role_name: str
     principal_id: None | Unset | UUID = UNSET
     group_id: None | Unset | UUID = UNSET
+    principal_type: None | RoleAssignmentReadPrincipalTypeType0 | Unset = UNSET
     role_description: None | str | Unset = UNSET
     role_policies: list[str] | Unset = UNSET
     project_id: None | Unset | UUID = UNSET
@@ -67,6 +70,14 @@ class RoleAssignmentRead:
             group_id = str(self.group_id)
         else:
             group_id = self.group_id
+
+        principal_type: None | str | Unset
+        if isinstance(self.principal_type, Unset):
+            principal_type = UNSET
+        elif isinstance(self.principal_type, RoleAssignmentReadPrincipalTypeType0):
+            principal_type = self.principal_type.value
+        else:
+            principal_type = self.principal_type
 
         role_description: None | str | Unset
         if isinstance(self.role_description, Unset):
@@ -115,6 +126,8 @@ class RoleAssignmentRead:
             field_dict["principal_id"] = principal_id
         if group_id is not UNSET:
             field_dict["group_id"] = group_id
+        if principal_type is not UNSET:
+            field_dict["principal_type"] = principal_type
         if role_description is not UNSET:
             field_dict["role_description"] = role_description
         if role_policies is not UNSET:
@@ -172,6 +185,23 @@ class RoleAssignmentRead:
             return cast(None | Unset | UUID, data)
 
         group_id = _parse_group_id(d.pop("group_id", UNSET))
+
+        def _parse_principal_type(data: object) -> None | RoleAssignmentReadPrincipalTypeType0 | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                principal_type_type_0 = RoleAssignmentReadPrincipalTypeType0(data)
+
+                return principal_type_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(None | RoleAssignmentReadPrincipalTypeType0 | Unset, data)
+
+        principal_type = _parse_principal_type(d.pop("principal_type", UNSET))
 
         def _parse_role_description(data: object) -> None | str | Unset:
             if data is None:
@@ -235,6 +265,7 @@ class RoleAssignmentRead:
             role_name=role_name,
             principal_id=principal_id,
             group_id=group_id,
+            principal_type=principal_type,
             role_description=role_description,
             role_policies=role_policies,
             project_id=project_id,

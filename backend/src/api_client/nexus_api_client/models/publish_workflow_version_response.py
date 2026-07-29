@@ -13,6 +13,7 @@ from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
     from ..models.publish_workflow_version_response_labels import PublishWorkflowVersionResponseLabels
+    from ..models.validation_result import ValidationResult
     from ..models.workflow_version_read import WorkflowVersionRead
 
 
@@ -44,6 +45,8 @@ class PublishWorkflowVersionResponse:
         published_version_number (int | None | Unset):
         deleted_at (datetime.datetime | None | Unset):
         deleted_by (None | Unset | UUID):
+        validation_result (None | Unset | ValidationResult): Validation findings from the last save operation. Only
+            included in create/update responses; use has_validation_issues for the durable indicator.
         warning (str | Unset): Non-fatal warning from the publish operation Default: ''.
     """
 
@@ -64,10 +67,13 @@ class PublishWorkflowVersionResponse:
     published_version_number: int | None | Unset = UNSET
     deleted_at: datetime.datetime | None | Unset = UNSET
     deleted_by: None | Unset | UUID = UNSET
+    validation_result: None | Unset | ValidationResult = UNSET
     warning: str | Unset = ""
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        from ..models.validation_result import ValidationResult
+
         name = self.name
 
         id = str(self.id)
@@ -130,6 +136,14 @@ class PublishWorkflowVersionResponse:
         else:
             deleted_by = self.deleted_by
 
+        validation_result: dict[str, Any] | None | Unset
+        if isinstance(self.validation_result, Unset):
+            validation_result = UNSET
+        elif isinstance(self.validation_result, ValidationResult):
+            validation_result = self.validation_result.to_dict()
+        else:
+            validation_result = self.validation_result
+
         warning = self.warning
 
         field_dict: dict[str, Any] = {}
@@ -163,6 +177,8 @@ class PublishWorkflowVersionResponse:
             field_dict["deleted_at"] = deleted_at
         if deleted_by is not UNSET:
             field_dict["deleted_by"] = deleted_by
+        if validation_result is not UNSET:
+            field_dict["validation_result"] = validation_result
         if warning is not UNSET:
             field_dict["warning"] = warning
 
@@ -171,6 +187,7 @@ class PublishWorkflowVersionResponse:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.publish_workflow_version_response_labels import PublishWorkflowVersionResponseLabels
+        from ..models.validation_result import ValidationResult
         from ..models.workflow_version_read import WorkflowVersionRead
 
         d = dict(src_dict)
@@ -272,6 +289,23 @@ class PublishWorkflowVersionResponse:
 
         deleted_by = _parse_deleted_by(d.pop("deleted_by", UNSET))
 
+        def _parse_validation_result(data: object) -> None | Unset | ValidationResult:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, dict):
+                    raise TypeError()
+                validation_result_type_0 = ValidationResult.from_dict(data)
+
+                return validation_result_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(None | Unset | ValidationResult, data)
+
+        validation_result = _parse_validation_result(d.pop("validation_result", UNSET))
+
         warning = d.pop("warning", UNSET)
 
         publish_workflow_version_response = cls(
@@ -292,6 +326,7 @@ class PublishWorkflowVersionResponse:
             published_version_number=published_version_number,
             deleted_at=deleted_at,
             deleted_by=deleted_by,
+            validation_result=validation_result,
             warning=warning,
         )
 

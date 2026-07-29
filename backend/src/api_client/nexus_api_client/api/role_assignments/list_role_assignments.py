@@ -7,6 +7,8 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error_data import ErrorData
+from ...models.list_role_assignments_principal_type_type_0 import ListRoleAssignmentsPrincipalTypeType0
+from ...models.list_role_assignments_scope_type_0 import ListRoleAssignmentsScopeType0
 from ...models.role_assignment_list_response import RoleAssignmentListResponse
 from ...types import UNSET, Response, Unset
 
@@ -20,8 +22,10 @@ def _get_kwargs(
     principal_id: None | Unset | UUID = UNSET,
     group_id: None | Unset | UUID = UNSET,
     principal_name: None | str | Unset = UNSET,
+    principal_type: ListRoleAssignmentsPrincipalTypeType0 | None | Unset = UNSET,
     role_name: None | str | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
+    scope: ListRoleAssignmentsScopeType0 | None | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
@@ -71,6 +75,15 @@ def _get_kwargs(
         json_principal_name = principal_name
     params["principal_name"] = json_principal_name
 
+    json_principal_type: None | str | Unset
+    if isinstance(principal_type, Unset):
+        json_principal_type = UNSET
+    elif isinstance(principal_type, ListRoleAssignmentsPrincipalTypeType0):
+        json_principal_type = principal_type.value
+    else:
+        json_principal_type = principal_type
+    params["principal_type"] = json_principal_type
+
     json_role_name: None | str | Unset
     if isinstance(role_name, Unset):
         json_role_name = UNSET
@@ -86,6 +99,15 @@ def _get_kwargs(
     else:
         json_project_id = project_id
     params["project_id"] = json_project_id
+
+    json_scope: None | str | Unset
+    if isinstance(scope, Unset):
+        json_scope = UNSET
+    elif isinstance(scope, ListRoleAssignmentsScopeType0):
+        json_scope = scope.value
+    else:
+        json_scope = scope
+    params["scope"] = json_scope
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -175,8 +197,10 @@ def sync_detailed(
     principal_id: None | Unset | UUID = UNSET,
     group_id: None | Unset | UUID = UNSET,
     principal_name: None | str | Unset = UNSET,
+    principal_type: ListRoleAssignmentsPrincipalTypeType0 | None | Unset = UNSET,
     role_name: None | str | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
+    scope: ListRoleAssignmentsScopeType0 | None | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | RoleAssignmentListResponse]:
     """List Role Assignments
@@ -195,8 +219,10 @@ def sync_detailed(
         principal_id (None | Unset | UUID):
         group_id (None | Unset | UUID):
         principal_name (None | str | Unset):
+        principal_type (ListRoleAssignmentsPrincipalTypeType0 | None | Unset):
         role_name (None | str | Unset):
         project_id (None | Unset | UUID):
+        scope (ListRoleAssignmentsScopeType0 | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -214,8 +240,10 @@ def sync_detailed(
         principal_id=principal_id,
         group_id=group_id,
         principal_name=principal_name,
+        principal_type=principal_type,
         role_name=role_name,
         project_id=project_id,
+        scope=scope,
         additional_params=additional_params,
     )
 
@@ -236,8 +264,10 @@ def sync(
     principal_id: None | Unset | UUID = UNSET,
     group_id: None | Unset | UUID = UNSET,
     principal_name: None | str | Unset = UNSET,
+    principal_type: ListRoleAssignmentsPrincipalTypeType0 | None | Unset = UNSET,
     role_name: None | str | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
+    scope: ListRoleAssignmentsScopeType0 | None | Unset = UNSET,
 ) -> ErrorData | RoleAssignmentListResponse | None:
     """List Role Assignments
 
@@ -255,8 +285,10 @@ def sync(
         principal_id (None | Unset | UUID):
         group_id (None | Unset | UUID):
         principal_name (None | str | Unset):
+        principal_type (ListRoleAssignmentsPrincipalTypeType0 | None | Unset):
         role_name (None | str | Unset):
         project_id (None | Unset | UUID):
+        scope (ListRoleAssignmentsScopeType0 | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -275,8 +307,10 @@ def sync(
         principal_id=principal_id,
         group_id=group_id,
         principal_name=principal_name,
+        principal_type=principal_type,
         role_name=role_name,
         project_id=project_id,
+        scope=scope,
     ).parsed
 
 
@@ -290,8 +324,10 @@ async def asyncio_detailed(
     principal_id: None | Unset | UUID = UNSET,
     group_id: None | Unset | UUID = UNSET,
     principal_name: None | str | Unset = UNSET,
+    principal_type: ListRoleAssignmentsPrincipalTypeType0 | None | Unset = UNSET,
     role_name: None | str | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
+    scope: ListRoleAssignmentsScopeType0 | None | Unset = UNSET,
 ) -> Response[ErrorData | RoleAssignmentListResponse]:
     """List Role Assignments
 
@@ -309,8 +345,10 @@ async def asyncio_detailed(
         principal_id (None | Unset | UUID):
         group_id (None | Unset | UUID):
         principal_name (None | str | Unset):
+        principal_type (ListRoleAssignmentsPrincipalTypeType0 | None | Unset):
         role_name (None | str | Unset):
         project_id (None | Unset | UUID):
+        scope (ListRoleAssignmentsScopeType0 | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -328,8 +366,10 @@ async def asyncio_detailed(
         principal_id=principal_id,
         group_id=group_id,
         principal_name=principal_name,
+        principal_type=principal_type,
         role_name=role_name,
         project_id=project_id,
+        scope=scope,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -347,8 +387,10 @@ async def asyncio(
     principal_id: None | Unset | UUID = UNSET,
     group_id: None | Unset | UUID = UNSET,
     principal_name: None | str | Unset = UNSET,
+    principal_type: ListRoleAssignmentsPrincipalTypeType0 | None | Unset = UNSET,
     role_name: None | str | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
+    scope: ListRoleAssignmentsScopeType0 | None | Unset = UNSET,
 ) -> ErrorData | RoleAssignmentListResponse | None:
     """List Role Assignments
 
@@ -366,8 +408,10 @@ async def asyncio(
         principal_id (None | Unset | UUID):
         group_id (None | Unset | UUID):
         principal_name (None | str | Unset):
+        principal_type (ListRoleAssignmentsPrincipalTypeType0 | None | Unset):
         role_name (None | str | Unset):
         project_id (None | Unset | UUID):
+        scope (ListRoleAssignmentsScopeType0 | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -387,7 +431,9 @@ async def asyncio(
             principal_id=principal_id,
             group_id=group_id,
             principal_name=principal_name,
+            principal_type=principal_type,
             role_name=role_name,
             project_id=project_id,
+            scope=scope,
         )
     ).parsed

@@ -27,6 +27,7 @@ class SACredentialListResponse:
         max_credentials (int | Unset): Maximum number of credentials allowed per service account Default: 10.
         total_credentials (int | Unset): Total number of credentials for this service account (ignoring filters)
             Default: 0.
+        max_lifetime_days (int | Unset): Maximum credential lifetime in days (-1 for unlimited) Default: 180.
     """
 
     resources: list[SACredentialRead]
@@ -35,6 +36,7 @@ class SACredentialListResponse:
     total: int | None | Unset = UNSET
     max_credentials: int | Unset = 10
     total_credentials: int | Unset = 0
+    max_lifetime_days: int | Unset = 180
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -65,6 +67,8 @@ class SACredentialListResponse:
 
         total_credentials = self.total_credentials
 
+        max_lifetime_days = self.max_lifetime_days
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -82,6 +86,8 @@ class SACredentialListResponse:
             field_dict["max_credentials"] = max_credentials
         if total_credentials is not UNSET:
             field_dict["total_credentials"] = total_credentials
+        if max_lifetime_days is not UNSET:
+            field_dict["max_lifetime_days"] = max_lifetime_days
 
         return field_dict
 
@@ -128,6 +134,8 @@ class SACredentialListResponse:
 
         total_credentials = d.pop("total_credentials", UNSET)
 
+        max_lifetime_days = d.pop("max_lifetime_days", UNSET)
+
         sa_credential_list_response = cls(
             resources=resources,
             next_=next_,
@@ -135,6 +143,7 @@ class SACredentialListResponse:
             total=total,
             max_credentials=max_credentials,
             total_credentials=total_credentials,
+            max_lifetime_days=max_lifetime_days,
         )
 
         sa_credential_list_response.additional_properties = d

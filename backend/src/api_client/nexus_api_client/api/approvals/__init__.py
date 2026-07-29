@@ -48,6 +48,14 @@ class ApprovalsApi:
         endpoint_module = self._load_endpoint_module("get_approval")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
+    def delete(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("delete_approval")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_delete(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("delete_approval")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
     def decide(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("decide_approval")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)

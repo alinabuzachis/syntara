@@ -24,12 +24,14 @@ class ServiceAccountListResponse:
         next_ (None | str | Unset): Cursor for next page of results
         prev (None | str | Unset): Cursor for previous page of results
         total (int | None | Unset): Total count of resources (only when include_total=true)
+        max_lifetime_days (int | Unset): Maximum credential lifetime in days (-1 for unlimited) Default: 180.
     """
 
     resources: list[ServiceAccountRead]
     next_: None | str | Unset = UNSET
     prev: None | str | Unset = UNSET
     total: int | None | Unset = UNSET
+    max_lifetime_days: int | Unset = 180
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -56,6 +58,8 @@ class ServiceAccountListResponse:
         else:
             total = self.total
 
+        max_lifetime_days = self.max_lifetime_days
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -69,6 +73,8 @@ class ServiceAccountListResponse:
             field_dict["prev"] = prev
         if total is not UNSET:
             field_dict["total"] = total
+        if max_lifetime_days is not UNSET:
+            field_dict["max_lifetime_days"] = max_lifetime_days
 
         return field_dict
 
@@ -111,11 +117,14 @@ class ServiceAccountListResponse:
 
         total = _parse_total(d.pop("total", UNSET))
 
+        max_lifetime_days = d.pop("max_lifetime_days", UNSET)
+
         service_account_list_response = cls(
             resources=resources,
             next_=next_,
             prev=prev,
             total=total,
+            max_lifetime_days=max_lifetime_days,
         )
 
         service_account_list_response.additional_properties = d

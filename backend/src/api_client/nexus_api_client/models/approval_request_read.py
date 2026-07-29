@@ -60,6 +60,8 @@ class ApprovalRequestRead:
             decided_by (None | Unset | UserReference): User who made the decision
             decided_at (datetime.datetime | None | Unset): When decision was made
             decision_notes (None | str | Unset): Notes provided with decision
+            signal_delivery_error (None | str | Unset): Error if the workflow signal failed after a decision. Only present
+                in the decide response; null on subsequent reads.
     """
 
     project_id: UUID
@@ -80,6 +82,7 @@ class ApprovalRequestRead:
     decided_by: None | Unset | UserReference = UNSET
     decided_at: datetime.datetime | None | Unset = UNSET
     decision_notes: None | str | Unset = UNSET
+    signal_delivery_error: None | str | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
         from ..models.activity_summary import ActivitySummary
@@ -169,6 +172,12 @@ class ApprovalRequestRead:
         else:
             decision_notes = self.decision_notes
 
+        signal_delivery_error: None | str | Unset
+        if isinstance(self.signal_delivery_error, Unset):
+            signal_delivery_error = UNSET
+        else:
+            signal_delivery_error = self.signal_delivery_error
+
         field_dict: dict[str, Any] = {}
 
         field_dict.update(
@@ -205,6 +214,8 @@ class ApprovalRequestRead:
             field_dict["decided_at"] = decided_at
         if decision_notes is not UNSET:
             field_dict["decision_notes"] = decision_notes
+        if signal_delivery_error is not UNSET:
+            field_dict["signal_delivery_error"] = signal_delivery_error
 
         return field_dict
 
@@ -360,6 +371,15 @@ class ApprovalRequestRead:
 
         decision_notes = _parse_decision_notes(d.pop("decision_notes", UNSET))
 
+        def _parse_signal_delivery_error(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        signal_delivery_error = _parse_signal_delivery_error(d.pop("signal_delivery_error", UNSET))
+
         approval_request_read = cls(
             project_id=project_id,
             execution_id=execution_id,
@@ -379,6 +399,7 @@ class ApprovalRequestRead:
             decided_by=decided_by,
             decided_at=decided_at,
             decision_notes=decision_notes,
+            signal_delivery_error=signal_delivery_error,
         )
 
         return approval_request_read
