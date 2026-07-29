@@ -19,6 +19,8 @@ from typing import Any
 
 import yaml
 
+from nexus.api.constants import API_V1_VERSION
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
@@ -314,7 +316,7 @@ def _load_aggregator_metadata() -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Return the fixed root info and servers for the merged spec."""
     root_info: dict[str, Any] = {
         "title": "Nexus API",
-        "version": "0.1.0",
+        "version": API_V1_VERSION,
         "description": "A distributed multi-agent workflow orchestration system",
     }
     root_servers: list[dict[str, Any]] = [{"url": "/api/v1", "description": "API v1"}]

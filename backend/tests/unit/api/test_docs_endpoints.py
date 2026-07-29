@@ -20,6 +20,7 @@ import pytest
 from fastapi import FastAPI
 from starlette.testclient import TestClient
 
+from nexus.api.constants import API_V1_VERSION
 from nexus.core.config.base import get_settings
 
 if TYPE_CHECKING:
@@ -38,7 +39,7 @@ def _make_app(*, enable_docs: bool) -> FastAPI:
 
     @app.get("/", tags=["Root"])
     async def root() -> dict[str, str]:
-        response: dict[str, str] = {"message": f"{get_settings().product_name} API", "version": "0.1.0"}
+        response: dict[str, str] = {"message": f"{get_settings().product_name} API", "version": API_V1_VERSION}
         if enable_docs:
             response["docs"] = "/docs"
         return response

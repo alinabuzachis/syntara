@@ -21,7 +21,7 @@ from temporalio.service import RPCError
 
 import nexus.auth.exceptions  # Side-effect import to trigger exception handler registration
 import nexus.identity_providers.exceptions
-from nexus.api.constants import API_V1_PATH_PREFIX
+from nexus.api.constants import API_V1_PATH_PREFIX, API_V1_VERSION
 from nexus.audit.lifecycle import start_audit_subsystems, stop_audit_subsystems
 from nexus.audit.middleware import AuditMiddleware
 from nexus.audit.registration import discover_and_register_all_handlers
@@ -308,7 +308,7 @@ _settings = get_settings()
 app = FastAPI(
     title=f"{_settings.product_name} API",
     description="A distributed multi-agent workflow orchestration system",
-    version="0.1.0",
+    version=API_V1_VERSION,
     docs_url="/docs" if _settings.enable_api_docs else None,
     redoc_url="/redoc" if _settings.enable_api_docs else None,
     openapi_url="/openapi.json" if _settings.enable_api_docs else None,
@@ -442,7 +442,7 @@ async def root() -> dict[str, str]:
         dict: Welcome message with API information
 
     """
-    response: dict[str, str] = {"message": f"{_settings.product_name} API", "version": "0.1.0"}
+    response: dict[str, str] = {"message": f"{_settings.product_name} API", "version": API_V1_VERSION}
     if _settings.enable_api_docs:
         response["docs"] = "/docs"
     return response

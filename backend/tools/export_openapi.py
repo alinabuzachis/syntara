@@ -19,7 +19,7 @@ from typing import Any
 import yaml
 from fastapi import FastAPI
 
-from nexus.api.constants import API_V1_PATH_PREFIX
+from nexus.api.constants import API_V1_PATH_PREFIX, API_V1_VERSION
 from nexus.core.error_handlers import apply_rfc9457_media_types, problem_details_response_map
 from nexus.core.logging.logging import configure_app_logging
 from nexus.core.router_discovery import discover_and_register_routers
@@ -144,7 +144,7 @@ def build_spec_app() -> FastAPI:
     app = FastAPI(
         title="Nexus API",
         description="A distributed multi-agent workflow orchestration system",
-        version="0.1.0",
+        version=API_V1_VERSION,
         servers=[{"url": API_V1_PATH_PREFIX, "description": "API v1"}],
         responses=problem_details_response_map(),
     )
