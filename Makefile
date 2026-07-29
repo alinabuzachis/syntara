@@ -108,7 +108,7 @@ run-standards-checks-backend: ## Run backend standards checks (API specs, code q
 	}
 	$(MAKE) -C backend api-spec-drift
 	$(MAKE) -C backend generate-api-client
-	@git diff --exit-code backend/src/nexus/api_client/ || { \
+	@git diff --exit-code backend/src/api_client/ || { \
 		echo "Generated API client has uncommitted changes. Commit them."; \
 		exit 1; \
 	}

@@ -173,7 +173,7 @@ jobs:
 
       - name: Check for uncommitted changes
         run: |
-          if ! git diff --exit-code -- backend/src/nexus/api_client/ 2>/dev/null; then
+          if ! git diff --exit-code -- backend/src/api_client/; then
             echo "::error::Generated API client has uncommitted changes. Run 'make -C backend generate-api-client' locally and commit the changes."
             exit 1
           fi
