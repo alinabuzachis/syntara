@@ -292,12 +292,12 @@ export function ExpressionGroup(props: ExpressionGroupProps) {
             {/* Show AND/OR selector before each child except the first */}
             {index > 0 && (
               <StackItem>
-                <div style={{ maxWidth: '100px' }}>
-                  <FormGroup
-                    label={level > 0 ? 'Group rule' : 'Rule'}
-                    labelHelp={level > 0 ? <GroupRuleHelp /> : <RuleHelp />}
-                    fieldId={`rule-${group.id}-${index}`}
-                  >
+                <FormGroup
+                  label={level > 0 ? 'Group rule' : 'Rule'}
+                  labelHelp={level > 0 ? <GroupRuleHelp /> : <RuleHelp />}
+                  fieldId={`rule-${group.id}-${index}`}
+                >
+                  <div style={{ maxWidth: '100px' }}>
                     <OperatorSelect
                       groupId={group.id}
                       index={index}
@@ -305,8 +305,8 @@ export function ExpressionGroup(props: ExpressionGroupProps) {
                       onSelect={handleOperatorSelect}
                       isDisabled={index > 1}
                     />
-                  </FormGroup>
-                </div>
+                  </div>
+                </FormGroup>
               </StackItem>
             )}
 
