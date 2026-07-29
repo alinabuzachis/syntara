@@ -1,5 +1,5 @@
 ---
-description: "PatternFly 6 UX design system guide — component selection, layout patterns, accessibility, Nexus conventions."
+description: "PatternFly 6 UX design system guide — component selection, layout patterns, accessibility, project conventions."
 user-invocable: false
 ---
 
@@ -13,7 +13,7 @@ user-invocable: false
 
 > **Before writing React, Zod, Zustand, or other library code**, fetch current docs from [`.claude/skills/frontend-library-references/SKILL.md`](../frontend-library-references/SKILL.md).
 
-Your goal is to build frontend UI that adheres to PatternFly standards **and** the Nexus UX team's opinionated component usage. This skill codifies specific "Ansible-first" patterns to ensure consistency across all feature teams and reduce cognitive load for users.
+Your goal is to build frontend UI that adheres to PatternFly standards **and** the UX team's opinionated component usage. This skill codifies specific "PatternFly-first" patterns to ensure consistency across all feature teams and reduce cognitive load for users.
 
 ---
 
@@ -21,7 +21,7 @@ Your goal is to build frontend UI that adheres to PatternFly standards **and** t
 
 ### Purpose of this Framework
 
-This document serves as the definitive technical and design North Star for the **Nexus User Experience**. It is designed specifically for engineers and designers to ensure we build a scalable, maintainable, and cohesive experience.
+This document serves as the definitive technical and design North Star for **this product's user experience**. It is designed specifically for engineers and designers to ensure we build a scalable, maintainable, and cohesive experience.
 
 ### Why This Exists
 
@@ -30,7 +30,7 @@ This document serves as the definitive technical and design North Star for the *
 - **A Shared Language:** This skill codifies the UI/UX team's guidelines for this specific product. It bridges the gap between UX design and React implementation, ensuring that "Opinionated" choices are applied consistently across every feature branch.
 - **Contribution over Customization:** When you encounter a UI gap, this framework provides the process for feeding requirements back into the core PatternFly system, ensuring fixes land in the shared library rather than as "snowflake" code in the local repo.
 
-**In short:** We use this framework to build faster, stay aligned with the broader PatternFly ecosystem, and ensure that Nexus remains a premium, stable project.
+**In short:** We use this framework to build faster, stay aligned with the broader PatternFly ecosystem, and ensure that this product remains premium and stable.
 
 ### UI/UX Team
 
@@ -48,28 +48,28 @@ For engagement questions, reach out to the UX team in the project's contributor 
 
 ## Design System
 
-How the Nexus UI is anchored, and how it relates to other design tooling:
+How this UI is anchored, and how it relates to other design tooling:
 
 - **Foundation** — Built on top of [PatternFly](https://www.patternfly.org/) for [components](https://www.patternfly.org/components/all-components), [patterns](https://www.patternfly.org/patterns/about-patterns), and [accessibility](https://www.patternfly.org/accessibility/patternflys-accessibility) baselines.
 - **Layout** — Page and shell structure follow PatternFly's **Compass** layout architecture.
 - **Theming** — Visual treatment uses PatternFly's **Unified Theme**, accounting for layout and color palettes.
 - **Icons** — Use icons with the `RhUi` prefix (e.g., `RhUiAddIcon`, `RhUiEditIcon`).
 - **Automation builder** — Based on [React Flow](https://reactflow.dev/) as the underlying graph/canvas foundation while PatternFly acts as a visual wrapper. The layout reads from left to right.
-- **Accessibility** — While PatternFly provides a strong foundation with accessibility built into its individual components, achieving full [WCAG 2.1 AA](https://www.w3.org/WAI/WCAG2AA-Conformance) and [Section 508](https://www.section508.gov/) compliance requires careful implementation within the Nexus codebase.
+- **Accessibility** — While PatternFly provides a strong foundation with accessibility built into its individual components, achieving full [WCAG 2.1 AA](https://www.w3.org/WAI/WCAG2AA-Conformance) and [Section 508](https://www.section508.gov/) compliance requires careful implementation within this codebase.
 - **PatternFly gaps** — Before implementing a custom component or styling override:
-  1. **Check first.** Search PatternFly docs and the Ansible UI Framework to confirm the need is not already covered by a component, variant, or token.
+  1. **Check first.** Search PatternFly docs to confirm the need is not already covered by a component, variant, or token.
   2. **Raise it with UX.** Discuss with the UX team. Describe the gap with a clear before/after versus what PatternFly provides today. UX will confirm whether the gap is valid or an existing pattern applies.
   3. **Engage PatternFly.** If UX confirms the gap, UX coordinates with PatternFly on resolution — new component, variant, token, or an accepted override — often via a PatternFly GitHub issue or direct conversation.
   4. **Document and track.** If a temporary override is approved, create an issue with the label `patternfly-override` to track technical debt. Link the PatternFly issue if one exists.
-  5. **Resolve upstream.** The aim is to remove the override by contributing back to PatternFly or the Ansible UI Framework. Overrides without a resolution path should be periodically reviewed.
+  5. **Resolve upstream.** The aim is to remove the override by contributing back to PatternFly. Overrides without a resolution path should be periodically reviewed.
 - **`Nx` prefix convention** — opinionated global components use the `Nx` prefix (e.g., `NxPage`, `NxPanel`, `NxConfirmationDialog`, `NxDetailList`) and live in `frontend/packages/nexus-ui/src/components/` organized by subdirectory: `layout/`, `dialogs/`, `details/`, `tabs/`, `states/`. These wrap raw PatternFly primitives with project-specific defaults and behavior — use the `Nx*` wrapper, not the raw PF component, for these patterns.
-- **What this is not** — The experience is **not** built on custom libraries. Nexus deliberately uses a PatternFly-first stack.
+- **What this is not** — The experience is **not** built on custom libraries. This product deliberately uses a PatternFly-first stack.
 
 ---
 
 ## Research Process
 
-The Nexus project is committed to evidence-based development, utilizing user research to steer both product capabilities and the overall user experience.
+This project is committed to evidence-based development, utilizing user research to steer both product capabilities and the overall user experience.
 
 ### Competitive Analysis
 
@@ -83,17 +83,17 @@ The study identified several "table stakes" features that users expect as standa
 - **Standardized Terminology:** Familiar terms such as "Workflow," "Trigger," "Action," and "Logs" to reduce cognitive load.
 - **Visual Data Mapping:** "Data pills" and visual mapping for low-code users, with advanced expression editors as an "escape hatch" for power users.
 
-### Strategic Differentiators for Ansible
+### Strategic Differentiators
 
 Research revealed critical friction points in competitor products — specifically around fragmented AI integration and poor observability:
 
-- **Hybrid Workflow Debugging:** Unlike competitors who struggle to differentiate between probabilistic (AI) and deterministic (code) failures, Nexus provides superior debugging and observability for hybrid workflows.
+- **Hybrid Workflow Debugging:** Unlike competitors who struggle to differentiate between probabilistic (AI) and deterministic (code) failures, this platform provides superior debugging and observability for hybrid workflows.
 - **Safety as a First-Class Object:** "Gating" steps and Human-In-The-Loop (HITL) checkpoints build trust, ensuring users can safely manage non-deterministic AI outputs before they execute against critical infrastructure.
 - **In-Context Documentation:** Context-aware help and documentation integrated directly into configuration panels to save users from switching tabs.
 
 ### Accessibility & Compliance
 
-A major finding was that basic usability and accessibility are often an "afterthought" in technical automation tools. By building on PatternFly, Nexus meets high accessibility standards (WCAG 2.1 AA) from the start, providing a more inclusive experience than the current market leaders.
+A major finding was that basic usability and accessibility are often an "afterthought" in technical automation tools. By building on PatternFly, this product meets high accessibility standards (WCAG 2.1 AA) from the start, providing a more inclusive experience than the current market leaders.
 
 ---
 
@@ -287,6 +287,7 @@ By default every filter type should be a "Keyword" search which is a `contains` 
 Filter bar is visible when data exists or when filters are active; hidden only when the resource type has never had data created.
 
 - **Filter dropdown search threshold** — Filter select dropdowns hide the `SearchInput` when there are fewer than 10 static options (e.g., Enabled/Disabled toggles), reducing visual clutter for small option lists. Async (server-side) filters always show the search bar since it drives the server query. The threshold is defined as `SEARCH_THRESHOLD = 10` in `textFilterSelectControls.tsx`.
+- **Multi-select (IN) filters** — For bounded, enumerable fields (status, type, role), use `MultiSelectFilter` (`components/filters/MultiSelectFilter.tsx`) instead of a single-value filter: a checkbox `Select` that emits one filter with operator `in` and a string-array value, a count badge on the toggle showing how many are selected, and `Select All` / `Clear All` actions above the option list. Reserve the plain single-value filter dropdown for fields where only one value can reasonably apply at a time.
 
 | Component           | Purpose                            |
 | ------------------- | ---------------------------------- |
@@ -304,7 +305,9 @@ Filter bar is visible when data exists or when filters are active; hidden only w
 - Actions column is rightmost
 - Header includes title and primary actions for the whole page
 - Columns should be sortable if applicable
-- Clicking the name of a resource should navigate to the details view
+  - **Sort state lives in the URL**, not local component state. `useSortState` (`hooks/useSortState.ts`) reads/writes a `sort` query param in `field` / `-field` form (leading `-` = descending). `useCursorPagination` (`hooks/useCursorPagination.tsx`) composes `useSortState` together with filter state and cursor paging into a single hook, and resets to page 1 whenever the sort changes. Standalone panels that don't need filters/pagination can use `useSortableTable` directly to wire `<Th sort>` to the same URL-backed state. This is the standard across all server-sorted list pages (Workflows, Executions, Run History, Approvals, Integrations, Assignments) — do not reintroduce index-based, client-only sort state for new tables.
+- Clicking the name of a resource should navigate to the details view — use `LinkCell` (built on `NxLink`) for the name column
+- **Navigational text uses `NxLink`, not `Button` + `navigate`** — Any text that acts purely as a link to another route (resource names, cross-entity references in a detail view or table) should render `NxLink` (`components/NxLink.tsx`), a real anchor styled as a PatternFly inline link. Don't reach for `Button variant="link"` with an `onClick` that calls `navigate()` — that renders `role="button"` on something that is semantically navigation, breaking "open in new tab," "copy link address," and link-role accessibility/test queries.
 - **Table columns:**
   - Columns for "created" or "modified" should have username (linked) + date together
   - This pattern should be used for any column that includes a date/time and a who
@@ -328,6 +331,7 @@ Filter bar is visible when data exists or when filters are active; hidden only w
   - Action ordering: non-destructive first → `isSeparator: true` → destructive last (`isDanger: true`)
   - Use `IconLabel` for action titles: `<IconLabel icon={<RhUiEditIcon />}>Edit workflow</IconLabel>`
   - Permission-gated items: `isAriaDisabled: true` + `tooltipProps: { content: tooltip }` (visible but non-actionable, stays focusable)
+  - **Only one kebab open at a time** — this is built into `NxKebabMenu` itself via a module-level registry of open-menu close callbacks; opening any `NxKebabMenu` automatically closes every other one on the page. Callers don't opt in or manage this — it's automatic across separate table rows and between a table row and an adjacent panel (e.g., a history panel row).
 - **Expandable rows** — When a table uses expandable rows to show nested detail (e.g., policies under a role, execution steps in a workflow run):
   - Pass `isExpandable` to `NxScrollableTableContainer` for proper PF6 table styling
   - Include an expand-all / collapse-all toggle in the `<Thead>` using the `expand` prop on the first `<Th>`
@@ -347,9 +351,12 @@ Filter bar is visible when data exists or when filters are active; hidden only w
   - Use PatternFly's [Validated component](https://www.patternfly.org/components/forms/form/#validated) for general form validation
   - Use PatternFly's [Number Input component](https://www.patternfly.org/components/number-input/#numberinput) for number input fields
   - Use PatternFly's [DatePicker](https://www.patternfly.org/components/date-and-time/date-picker) for date inputs — never use native `<TextInput type="date">`. DatePicker provides a consistent cross-browser calendar popover, date validation via the `validators` prop, and proper formatting/parsing via `dateFormat`/`dateParse`. Use `appendTo={() => document.body}` for correct popover positioning. Pass validation state through `inputProps={{ validated: ... }}`.
-  - Use PatternFly's [popover help text](https://www.patternfly.org/components/popover/design-guidelines) on form field labels
+  - Use PatternFly's [popover help text](https://www.patternfly.org/components/popover/design-guidelines) on form field labels. In the workflow builder, use the shared `FieldHelpPopover` component (`components/FieldHelpPopover.tsx`, wrapping PF6 `FormGroupLabelHelp` + `Popover`) rather than inline `Popover` JSX per field, fed from a central copy registry (`routes/builder/node-forms/shared/nodeFieldHelp.tsx`) so help text is defined once and reused across node forms instead of duplicated per component.
   - Use PatternFly's [`HelperText`](https://www.patternfly.org/components/forms/helper-text) / `HelperTextItem` below form inputs to provide brief, contextual guidance (e.g., accepted formats, valid ranges, constraints). The help popover icon on the field label is for longer explanatory descriptions. When both are present, inline helper text gives at-a-glance guidance while the popover provides full context. Validation errors (`validated="error"`) take priority — replace the helper text with the error message when the field is invalid.
-- **Dropdowns:** Never use native `<select>` or PatternFly's legacy `FormSelect` / `FormSelectOption`. Always use the PF6 `Select` + `MenuToggle` + `SelectList` + `SelectOption` pattern. Inside modals, use `popperProps={{ appendTo: 'inline' }}` for correct dropdown positioning. Add `shouldFocusToggleOnSelect` for keyboard accessibility after selection. When dropdown options represent policies or modes where the label alone isn't self-explanatory, use the `description` prop on `SelectOption` to provide inline context (e.g., "Skip" with description "Only one run at a time; skip if the previous run is still in progress").
+  - **`autoComplete` on sensitive create-form fields** — Browsers aggressively offer saved-credential autofill on username/password-shaped inputs even on "Create new resource" forms, where that's semantically wrong (there's no existing account to autofill). Set `autoComplete="off"` on username-shaped fields and `autoComplete="new-password"` on password/secret fields for any create-account or create-credential form.
+- **Dropdowns:** Never use native `<select>` or PatternFly's legacy `FormSelect` / `FormSelectOption` — this is enforced by a `no-restricted-imports` ESLint rule (`eslint.config.js`) that errors on any `FormSelect`/`FormSelectOption` import. Always use the PF6 `Select` + `MenuToggle` + `SelectList` + `SelectOption` pattern. Inside modals, use `popperProps={{ appendTo: 'inline' }}` for correct dropdown positioning — **except** for long menus (see "Long menus" below), which should not use `appendTo: 'inline'`. Add `shouldFocusToggleOnSelect` for keyboard accessibility after selection. When dropdown options represent policies or modes where the label alone isn't self-explanatory, use the `description` prop on `SelectOption` to provide inline context (e.g., "Skip" with description "Only one run at a time; skip if the previous run is still in progress").
+  - **Long menus** — Any `Select`/`SelectList` with many options (credential type pickers, project pickers, filter dropdowns) — not just typeaheads — needs a bounded max height so the menu doesn't grow unbounded or get clipped. Use the shared `longSelectMenu.ts` utility (`components/longSelectMenu.ts`), which sets `max-height: min(40vh, 25rem)`, `preventOverflow`, and scroll containment, and deliberately does **not** use `appendTo: 'inline'` so the menu isn't clipped by modal bounds.
+- **Auth method selector for mutually exclusive field groups** — When a resource's schema declares mutually exclusive field groups (e.g., a credential type offering "OAuth2 Token" vs. "Basic Auth"), show an "Auth method" dropdown above the dynamic field list; render only the selected group's fields, and clear the previous group's values when the user switches groups. In edit mode, auto-detect which group is active from the existing values rather than defaulting to the first option. See `routes/configuration/credentials/form/AuthMethodSelector.tsx`.
 - **Validation behavior:**
   - The primary action (Save / Create) is **always clickable** — never disable it because of missing required fields
   - When the user clicks Save with invalid or missing fields, apply `validated="error"` (danger styling) to the invalid fields and show a toast notification explaining what needs attention
@@ -368,7 +375,7 @@ Filter bar is visible when data exists or when filters are active; hidden only w
 
 ### Typeahead Selector Patterns
 
-All typeahead dropdown menus should have a **max height** to prevent the dropdown from growing unbounded. Use PatternFly's `menuHeight` prop or equivalent CSS constraint.
+All typeahead dropdown menus should have a **max height** to prevent the dropdown from growing unbounded. Use the shared `longSelectMenu.ts` utility (see "Long menus" under Form Component above) rather than a one-off `menuHeight` value — the same constraint applies to any long `Select`/`SelectList`, not just typeaheads.
 
 #### Project Selector (with favorites)
 
@@ -388,6 +395,7 @@ Resource pickers (credential selectors, integration pickers, etc.) use a standar
 - **Typeahead search** — filter options by typing
 - **Clear filter** — a clear button (×) to reset the typeahead filter
 - **Max height** — constrain the dropdown to prevent unbounded growth
+- **Richer pickers may add, on top of the base pattern:** an optional "No {resource}" clearing option when the field isn't required; an inline "Create new {resource}" option that opens the create modal without leaving the current form; a `projectId`-scoped mode that limits results to global + current-project resources (see "Project-scoped resource dropdowns" in §17); and a warning when the currently-selected resource exists but the user lacks permission to use it. See `routes/builder/components/CredentialSelector.tsx` for a picker that implements all four.
 
 #### Multi-Select Typeahead with Label Chips
 
@@ -462,7 +470,7 @@ Each empty state scenario maps to a specific icon, optional `status` prop, and s
 
 - Use the `status` prop (`danger`, `warning`, `success`, `info`) for status-driven empty states — PatternFly applies the correct icon color automatically
 - For non-status empty states (no data, no results, configuration, no access), icons render in **gray by default** — do not manually set a color
-- Variant sizing: `sm` inside tables, modals, or wizards; `lg` for full-page empty states; `xl` for getting started or full-page success
+- Variant sizing: `sm` inside tables, modals, or wizards; `lg` for full-page empty states; `xl` for getting started or full-page success; `xs` (with `headingLevel="h3"`) for narrow, height-constrained panel-embedded contexts, e.g. builder side panels (step Input/Output panels) or node execution detail panels, where even `sm` is too tall
 - **CTA deduplication:** When the empty state includes a primary create/configure CTA button, **hide the page-header primary button** to avoid duplicate CTAs. The empty state CTA is sufficient — the header button reappears once data exists.
 - **Tab-level empty states:** Use the shared `NxEmptyStateNoData` component (not ad-hoc `EmptyState`) with the correct heading level (`h2` inside tabs) and `isFullHeight` prop
 - **Three-state list page pattern:** Every list page must handle three states in this order:
@@ -536,7 +544,7 @@ Button alignment differs by context — this is intentional and follows PatternF
 Use consistent action verb pairings across the UI:
 
 - "Create" is paired with "Delete"
-- "Add" is paired with "Remove" — when the resources being added and removed exist in the Nexus
+- "Add" is paired with "Remove" — when the resources being added and removed are native, in-platform resources
 - "Add" is paired with "Disconnect" — when the resource is coming from an external source
 - "Assign" is paired with "Unassign"
 - "Transfer" is used when moving ownership of a resource between entities (e.g., "Transfer identity" — moving a federated identity from one user to another). Not "Attach" or "Connect".
@@ -650,7 +658,7 @@ Use when users need to inspect structured data (JSON, policy definitions, config
 
 | Element       | Specification                                                                                                                     |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| Modal variant | Medium — PatternFly's [Modal Sizes](https://www.patternfly.org/components/modal#modal-sizes)                                      |
+| Modal variant | Large — PatternFly's [Modal Sizes](https://www.patternfly.org/components/modal#modal-sizes); dense read-only content (e.g., JSON) needs the extra width |
 | Title         | Descriptive label (e.g., "Policy definition")                                                                                     |
 | Body          | Read-only content with PatternFly's [Clipboard Copy](https://www.patternfly.org/components/clipboard-copy) when copying is useful |
 | Close button  | `variant="primary"` — the only action (no Cancel, no secondary)                                                                   |
@@ -722,6 +730,8 @@ Use when deleting the resource leaves other resources in a broken or invalid sta
 
 > **Note:** A resource can combine both cascade and ripple effects. For example, deleting a workflow both cascade-deletes its executions and ripple-affects parent workflows that reference it as a step. In this case, show both Body 2 sections.
 
+**Surfacing usage/dependencies beyond the delete dialog:** For resources that can be referenced by others (e.g., a credential used by integrations), don't limit dependency visibility to the delete confirmation. Give the detail page a dedicated usage tab listing the referencing resources with a count (e.g., a "Integrations" tab on a credential's detail page), and degrade gracefully to a generic warning if the dependency check itself fails to load rather than blocking the destructive action entirely. This is broadly reusable across projects, credentials, integrations, and users — anywhere one resource can be "in use" by another.
+
 **Post-delete behavior:**
 
 - From list/table view → stay on list, item removed
@@ -764,6 +774,8 @@ When the same destructive action exists at multiple scopes (global, user, resour
 ### Disable: Standard Confirmation Modal
 
 Disable is **not** a destructive action — use a standard confirmation modal (no warning icon, no danger button). **Enable does not require a confirmation dialog** — the toggle takes effect immediately. Only **disable** requires confirmation because it has user-facing consequences (e.g., users can no longer sign in via a disabled identity provider).
+
+**Dependency warnings apply here too:** If the resource being disabled can be referenced by others (e.g., a credential used by integrations), inject the same kind of dependency warning used for Ripple Effect Delete into the disable confirmation body — naming the affected resources — rather than treating disable as a bare "are you sure?" prompt. See `CredentialIntegrationWarning` for the pattern.
 
 | Element        | Specification                                                                                       |
 | -------------- | --------------------------------------------------------------------------------------------------- |
@@ -819,13 +831,29 @@ The My Profile page (`/my-profile`) reuses the existing `UserDetail` component w
 
 ## 7. Modals
 
-- Use PatternFly's [Small Variant Modal component](https://www.patternfly.org/components/modal#modal-sizes)
+Modal size is chosen by content, not a single fixed default — pick the [variant](https://www.patternfly.org/components/modal#modal-sizes) that matches what the modal actually contains:
+
+| Variant    | When to use                                                                                                  | Examples                                                                                        |
+| ---------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| **Small**  | Confirmation dialogs (`NxConfirmationDialog` defaults to `small` — see §6) and single-purpose forms with ~1–3 fields | Publish workflow, edit version name/description, assign a single role, import workflow           |
+| **Medium** | The default for most create/edit forms — typeahead/multi-select fields, dynamic schema-driven forms, JSON editors used for input. This is the right starting point for a new create/edit modal, not Small. | Create/edit credential, create/edit project, assign roles, add member, run workflow (mock input) |
+| **Large**  | Read-only dense content or review panels with substantial body content                                       | View JSON/policy definition, expanded code block, run-step mock data editor, approval review     |
+
 - Delete modals should use PatternFly's [Title Icon Modal component](https://www.patternfly.org/components/modal#title-icon)
 - **Buttons:**
   - Left-aligned in the modal
   - Primary action on the far left, then secondary, then tertiary
   - If there is a primary action and a cancel, the cancel should be a link button (`variant="link"`)
   - This applies to all modals, including delete confirmations
+
+### Non-Dismissible Modal
+
+Some modals must not be closable via the header X button or the Escape key — the user must resolve them through an explicit in-modal action. Two established use cases:
+
+- **Security-critical time-based warnings** (e.g., Session Timeout Warning, see §9) — pass empty/undefined `onClose`/`onEscapePress` handlers so the modal can't be dismissed except by choosing one of its explicit actions.
+- **One-time secret reveal** (e.g., a newly generated service-account credential) — omit the header close button and Escape handling entirely so the secret can't be dismissed before the user has copied it, and disable the eventual "Close" button until the user checks an explicit "I have saved the new secret" acknowledgment.
+
+Both achieve the same outcome (no X button, no Escape dismissal) — omit `onClose` from `Modal` entirely, rather than passing a no-op, so PatternFly doesn't render the close button at all.
 
 ### Unsaved-Changes Confirmation Modal
 
@@ -837,6 +865,7 @@ When a user attempts to navigate away from a form or builder with unsaved change
 | Middle   | Exit without saving | `secondary` |
 | Right    | Cancel              | `link`      |
 
+- **Modal variant:** Medium — three buttons plus explanatory body copy need more width than Small
 - Use specific action labels: `"Save workflow"` instead of generic `"Save"` when the resource type matters
 - Cancel dismisses the modal and returns the user to their current context without saving or discarding
 
@@ -849,7 +878,9 @@ When a user attempts to navigate away from a form or builder with unsaved change
 - **Secondary / tertiary / link buttons**: `Action + Resource` — e.g., "Edit project" (no icon required)
 - When multiple buttons appear together, primary comes first then secondary — unless PatternFly specifies otherwise (e.g., wizards)
 - Delete should always use `variant="danger"` and must always be the last item in a dropdown menu, separated by a divider
+- **Only one primary button per header toolbar at a time:** A header toolbar must never render two `variant="primary"` buttons simultaneously, even when one is conditionally shown. When a conditional primary action can appear alongside another button that's normally primary, demote the other button to `variant="secondary"` whenever the conditional action is present — e.g., on the execution detail page, "Back to editor" drops from primary to secondary whenever a "Review approval" primary action strip is also shown. This is distinct from the empty-state/page-header CTA deduplication rule in §4 — it applies within a single toolbar.
 - **Login button text:** Always "Log in" — never role-specific (e.g., not "Log in as administrator"). Non-admin users can log in locally; role assumptions in button text are misleading.
+- **Login page never allows password reveal:** The login form's password field must always render masked, with no show/hide toggle — do not set PatternFly `LoginForm`'s `isShowPasswordEnabled` prop, even though PatternFly supports it as a general-purpose convenience. This is a deliberate security decision, not an oversight; it's easy to "helpfully" re-add the prop believing it's a UX nicety, so treat any PR adding it back as a regression.
 
 ---
 
@@ -876,6 +907,14 @@ Success toasts are **not required** when the UI already communicates the outcome
 - **Error toasts are always retained** regardless — errors must always be surfaced
 - **Create actions** still show a success toast (the new resource may not be immediately visible)
 - Special-case alerts kept when they carry essential context (e.g., admin disable → sign-out warning message)
+
+### Async / Background Status Changes
+
+Any async or background status change (e.g., a canvas-visible resource transitioning to a failed state while the user is elsewhere on the page) should be routed through the shared global toast system (`useAlerts()`), not a bespoke, hand-rolled overlay — no custom absolutely-positioned `Alert`, manual dismiss state, or z-index/`pointerEvents` hacks layered on top of other content. The toast system already handles stacking, dismissal, and positioning correctly.
+
+**Persistent warning toast for partial-success outcomes:** Not every async outcome is a clean success or failure — "succeeded, but with a caveat" needs its own treatment. When an action succeeds but a dependent, non-fatal step fails (e.g., publishing a workflow succeeds but syncing its schedule fails), show a warning-variant toast with `autoDismiss: false` instead of the normal auto-dismissing success toast, since the user needs to actually notice it and follow up rather than have it disappear unread.
+
+**Polling as a lighter alternative to WebSocket streaming:** For list pages where server-side status can change without a sub-second latency requirement (e.g., an integration's health status), prefer `refetchInterval` (e.g., 30 seconds) over standing up a full WebSocket subscription. Reserve WebSocket/streaming for cases that genuinely need near-real-time updates (e.g., live execution logs).
 
 ### Error Feedback
 
@@ -1089,6 +1128,14 @@ Keep display labels in a separate constants file (e.g., `executionStatusConstant
 | Group item count            | Filled purple |
 | Single-value callout        | Filled grey   |
 
+### Grace-Period / Time-Remaining Indicator
+
+For a status that is actively counting down to expiry (e.g., a credential secret in a rotation grace period), pair an outline info-status label with a clock icon and remaining time in the label text (e.g., "Rotating — {remaining} left") in its own dedicated table column — not the actions column — with a tooltip giving the exact expiry timestamp and a secondary small-text expiry line. If the corresponding action offers a grace-period selector (e.g., a rotate dialog), warn the user if the action would overwrite an already-active grace period rather than silently replacing it.
+
+### Deleted-Entity Reference Indicator
+
+When a table or detail view references a related resource that has since been soft-deleted (e.g., a service account's owning project), don't render it as a dead link. Show it as plain text (a link would point at nothing) plus a grey "Deleted" label wrapped in a tooltip explaining what happened. Apply this consistently in both list and detail views for the same resource — don't handle it differently depending on where the reference appears.
+
 ---
 
 ## 12. Icons
@@ -1226,6 +1273,8 @@ Can user read this section?
 </DisabledWithTooltip>
 ```
 
+**`DisabledWithTooltip` isn't RBAC-only — reuse it for business quota/limit gating too:** The same disabled-with-explanatory-tooltip mechanism applies whenever an action is blocked by a non-permission business rule, not just insufficient permissions. For example, "Create credential" is disabled with a tooltip once a service account hits its max-credentials quota, with the limit sourced from the API response rather than hardcoded. Treat "the user is allowed to do this, but a quota/limit currently blocks it" as a second, distinct reason to reach for `DisabledWithTooltip` — the component and pattern are identical; only the condition and tooltip copy change.
+
 **Row actions — `isAriaDisabled` + `tooltipProps`:**
 
 ```tsx
@@ -1285,6 +1334,8 @@ When a list page shows an empty state with a CTA (e.g., "Create credential"), th
 ```
 
 Apply this pattern to every component that accepts an `addData` or action callback prop for empty states: `NxEmptyStateNoData`, custom empty states, and `EmptyState` with action buttons.
+
+**The same permission-aware branching applies inline, inside an open form** — not just at the page-empty-state level. When a form field's usefulness depends on another resource existing (e.g., an AI Agent node's "Tools" field is only useful once an MCP integration exists), and no such resource exists yet, show a disabled placeholder plus helper text that includes an actionable link to create one **only if** the current user has permission to create that resource; otherwise show plain, non-actionable helper text. Don't render an actionable link the user can't actually follow through on.
 
 ### Hide-Until-Confirmed for Gated UI During Loading
 
@@ -1436,6 +1487,7 @@ The version history side panel lets users browse, compare, and manage published 
 - **Kebab actions per version:** Restore, Export, Publish (contextual based on version state)
 - **Mutual exclusivity:** History panel, approval panel, and add-step panel cannot be open simultaneously — opening one closes the others
 - **Read-only mode:** When viewing a historical version, the canvas is non-editable — toolbar save/publish buttons are disabled, node interactions are view-only
+- **Row layout:** Pin the row kebab to a fixed position (`flex-shrink: 0`) so it doesn't shift when variable-length status badges wrap onto a separate line below it. Use `PaginationFooter` (see Table Component in §3) under the `SimpleList` once the version count can exceed a page — it isn't table-only.
 
 ### Add Step
 
@@ -1508,12 +1560,15 @@ Trigger configuration supports two scheduling types:
 - **Feedback:** Success toast "Execution cancellation requested"; error toast "Failed to cancel execution" + API message
 - **Loading state:** Button shows spinner and disables while mutation is pending
 
+**Same pattern as a table kebab action:** "Cancel run" is also available as a danger-styled kebab item on the executions table (matching the header behavior above) — it fires immediately with no confirmation, then self-disables and shows an "Cancellation in progress…" tooltip until the execution's status changes. Generalize this as its own reusable pattern for any kebab action that triggers a slow, one-shot async operation: immediate-fire + self-disabling in-progress tooltip, distinct from both the no-confirm-toggle pattern (Node Disable/Enable) and the confirmation-dialog tiers (§6).
+
 ### Canvas Controls
 
 - Should be anchored to the **bottom-left corner** of the canvas view
 - Canvas overlays (controls, step legend, undo/redo) use `NxPanel` with `variant="raised"` for opaque + shadow
 - Legend toggle uses accessible labels **Show step legend** / **Hide step legend**
 - Workflow steps on the canvas also use `variant="raised"` with a border-radius override to match `Card` / canvas chrome
+- **Minimum supported viewport:** The React Flow canvas is gated by a width-only check (currently 1024px, defined in `constants/viewport.ts`) — there is no height gate. Below the threshold, `NxReactFlowViewportGuard` shows a full-page "viewport too small" empty state while keeping the nav bar visible, rather than rendering a broken or unusably cramped canvas.
 
 ### Canvas step styling
 
@@ -1532,21 +1587,16 @@ Verify validates the entire workflow graph against the backend and surfaces erro
 - **Clickable node links:** Node-specific errors in the banner are inline links (`Button variant="link" isInline`) that navigate to the node editor panel via `useNodePanelNavigation`. Fallback label "Go to step" when name is unparseable; global errors (`nodeId: null`) stay as plain text
 - **Grouped/humanized errors:** `parseValidationMessage()` / `humanizeValidationMessage()` extract node names and error lists; the banner uses compact horizontal `DescriptionList` (`isCompact isFluid isHorizontal`) — term = node name link, description = comma-separated messages. Display key "Workflow" for global errors
 
-### Two-Tier Validation and `force_save`
+### Two-Tier Validation Severity
 
 Validation findings have two severity levels that drive different UI behavior:
 
 | Severity | Save behavior | Publish behavior | Banner variant |
 | -------- | ------------- | ---------------- | -------------- |
-| **Error** (`severity: 'error'`) | May block save unless `force_save` | Always blocks publish | `danger` |
-| **Warning** (`severity: 'warning'`) | Save succeeds via `force_save=true` retry | Does not block publish | `warning` |
+| **Error** (`severity: 'error'`) | Save still succeeds; issues are surfaced inline | Always blocks publish | `danger` |
+| **Warning** (`severity: 'warning'`) | Save succeeds | Does not block publish | `warning` |
 
-**Save flow (`useBuilderSaveWorkflow`):**
-
-1. Normal create/update API call
-2. On retryable validation error (backend codes `WORKFLOW_DEFINITION_INVALID` 422, `WORKFLOW_DEFINITION_WARNINGS` 409) → retry with `force_save=true` query parameter
-3. Success toast on force-save: "Workflow saved with warnings"
-4. `onForceSaveSuccess` callback extracts findings for node-level display
+**Save flow (`useBuilderSaveWorkflow`) — single request, no retry:** Save is always one request. The save response includes `has_validation_issues: boolean` plus an inline `validation_result` with the findings. When `has_validation_issues` is true, `reportSaveValidationIssues()` extracts the findings from `validation_result` and calls `onSaveWithValidationIssues` / `onValidationFindings` for node-level display — there is no second request, no `force_save` query parameter, and no retry loop. (This replaces an earlier two-request `force_save=true` retry flow, which was removed; `ImportWorkflowDialog`'s corresponding "Save anyway" retry option was removed at the same time since there's no longer a save-rejection case for warnings.)
 
 **ValidationBanner variant logic:**
 
@@ -1573,6 +1623,10 @@ Every activity node form uses `NodeFormTabsLayout` to split configuration into *
   - **Retry policy:** Retry count + delay configuration
 - **System defaults:** Live placeholders from `GET /settings?category=workflow_execution` via `useWorkflowEngineDefaults` — e.g., "System default — 30m"
 - **Hidden for control flow:** `hideSettingsTab` is set for Condition, Switch, and trigger nodes (they have no configurable execution settings)
+
+### Explaining Non-Obvious Node Semantics
+
+For node types whose purpose is easy to misread (e.g., a Converge node can look "unnecessary" at first glance, since edges can be dragged directly between other steps), add a collapsed-by-default, expandable info `Alert` (`variant="info" isInline isExpandable`) at the top of the node's Parameters tab explaining when the step is and isn't needed. This is distinct from the always-visible trigger "activation" alerts described in Schedule Trigger Form, which explain *publish timing*, not *step purpose* — don't conflate the two; a purpose-explainer stays collapsed by default since it's reference material, not a warning.
 
 ### Three-Column Node Editor Layout
 
@@ -1617,6 +1671,14 @@ Switch node paths share the same `ExpressionBuilderCore` used by Condition nodes
 - **Path reordering:** Drag-reorder paths via `@dnd-kit/sortable` with inline `RhUiGripVerticalFillIcon` grip handle, `DragOverlay`, and `restrictToVerticalAxis`
 - **Path identity:** Each path uses `caseId` (not `id`) for stable edge remapping during reorder
 - **Dividers:** Visual dividers separate path sections in the form
+
+### Project-Scoped Resource Dropdowns
+
+Builder dropdowns that reference other resources (integrations, AAP integrations, LLM models, credentials — see also "Richer pickers" under Resource Pickers in §3) should accept a `projectId` threaded from the workflow's own project context. When set, results are scoped server-side to global + that project's resources, intersected with RBAC visibility, so a workflow can never end up wired to a resource scoped to a different project. This scoping is specific to the builder — it does not apply to the unscoped Settings admin page, which intentionally shows everything.
+
+### Webhook/EDA Trigger Form
+
+Payload-validation UI for webhook and event-driven (EDA) triggers uses a **Simple/Advanced `ToggleGroup`**: Simple mode is a visual field-row builder that round-trips to JSON Schema; Advanced keeps the raw JSON editor for full control. Switching from Advanced back to Simple is blocked with an inline error when the current JSON is too complex to represent visually — don't silently drop or corrupt the schema. Pair the schema builder with a shared `WebhookUrlPreview` (method badge + copyable URL) and a collapsible, auto-generated sample `curl` command — both are reused identically across webhook and EDA trigger forms, so build new webhook-shaped triggers on the same shared components rather than one-off variants.
 
 ### Approval Side Panel
 
@@ -1679,6 +1741,15 @@ The canvas layout engine uses unified spacing constants shared between auto-layo
 - **Activity filtering:** The execution details panel includes a `FilterBar` toolbar (role="search", aria-label="Filters") for filtering activities by name. Filter state persists across Overview/Details tab switches. When no activities match, show `NxEmptyStateFilter` with a "Clear all filters" button.
 - **Human-readable error messages:** Execution error messages must resolve internal activity IDs to human-readable node names. Use a name map (`Map<activityId, nodeName>`) and `resolveErrorDetails()` to replace IDs in error strings before displaying them to users. Never show raw activity IDs in user-facing error alerts.
 
+### AI Agent Reasoning Trace ("Agent Steps")
+
+Agentic node execution details use a second tab, alongside the standard Input/Output tabs, specifically for inspecting how the agent arrived at its result:
+
+- **Tab:** "Agent steps" — only shown for agentic-type activities
+- **Header:** A stats strip (model, tokens used, trace time, tool-call count)
+- **Body:** Reasoning blocks, tool-call cards with expandable request/response detail, and a final-answer block
+- **Structured content rendering:** Structured JSON content (tool call args/results) renders as a detail list plus a copyable code block — never dump raw JSON as plain text; use the same `NxCodeBlock` conventions as elsewhere (§3 Details Component)
+
 ### Run History Panel
 
 The run history panel displays execution history for a workflow using a scrollable, paginated list.
@@ -1693,6 +1764,7 @@ The run history panel displays execution history for a workflow using a scrollab
 - **Collapsible file list:** Use `ExpandableSection` (not `MultipleFileUploadStatus`) for the attached file list. The section auto-expands when new files are dropped and can start collapsed via `defaultStatusExpanded={false}`.
 - **Status text:** Use "N files attached" (or "1 file attached") when all files are successfully uploaded — not "N/N files uploaded". Show "N/M files uploaded" only during active upload or when errors occur.
 - **Disabled opacity:** Use `var(--nexus-disabled-opacity)` CSS variable for disabled dropzone opacity, not hardcoded `0.5`.
+- **Post-upload download:** Once a file has successfully uploaded, show a download icon button on its list item that fetches the file and triggers a browser download preserving the server-provided filename. While the download is in progress, show a loading spinner plus a "Cancel" link in place of the download button, and hide the remove action for that item until the download finishes or is cancelled.
 
 ### Schedule Trigger Form
 
@@ -1703,7 +1775,7 @@ The run history panel displays execution history for a workflow using a scrollab
 
 ## 18. Accessibility Guidelines
 
-While PatternFly provides a strong foundation with accessibility built into its individual components, achieving full [WCAG 2.1 AA](https://www.w3.org/WAI/WCAG2AA-Conformance) and [Section 508](https://www.section508.gov/) compliance requires careful implementation within the Nexus codebase.
+While PatternFly provides a strong foundation with accessibility built into its individual components, achieving full [WCAG 2.1 AA](https://www.w3.org/WAI/WCAG2AA-Conformance) and [Section 508](https://www.section508.gov/) compliance requires careful implementation within this codebase.
 
 An accessible component can still be used in an inaccessible way. The goal is to ensure that the holistic user journey — including page structure, dynamic content, and complex workflows — remains fully inclusive and navigable for all users, including those relying on assistive technologies.
 
@@ -1721,12 +1793,15 @@ PatternFly handles the internal accessibility of its elements (e.g., a dropdown 
 
 - **Proper Heading Hierarchy:** Headings (`<h1>` through `<h6>`) must be used sequentially without skipping levels. Screen reader users rely on headings to map out the page.
 - **Landmarks:** Use semantic tags (`<main>`, `<nav>`, `<header>`, `<footer>`, `<aside>`) or ARIA landmark roles so users can quickly jump to specific regions of the application.
+- **Dynamic per-page browser tab titles:** Every routed page must render a dynamic browser title via React 19's native title hoisting, using the shared `NxPageTitle` / `toPageTitle(segments)` utility. Segments run narrow to broad (most specific first); `null`/blank entries are auto-scrubbed and the app-name suffix is appended automatically. This is machine-enforced: the `require-page-title` ESLint rule (`eslint-plugin-syntara/rules/require-page-title.js`) fails any route file missing it.
 
 #### Keyboard Navigation & Focus Management
 
 - **Keyboard Operability:** Every interactive element (buttons, links, form fields, drag-and-drop interfaces) must be fully operable using only a keyboard.
+- **Tooltips need a focusable host:** A PatternFly `Tooltip` wrapping a non-interactive element (a `Label`/badge rather than a button or link) is invisible to keyboard users unless that element is in the tab order. Whenever a `Tooltip` wraps something that isn't already focusable, add `tabIndex={0}` to the wrapped element (or wrap it in a focusable `span`) so the tooltip is keyboard-discoverable — apply this once per component rather than rediscovering it per usage.
 - **Visible Focus Indicator:** Never remove the default focus outline (`outline: none;`) unless providing a highly visible custom alternative with a contrast ratio of at least 3:1 against the background.
 - **Routing and Modals:** When navigating between routes in a SPA, focus should be programmatically managed (e.g., sent to the new page's main heading). When opening a modal, focus must be trapped inside it until dismissed, and returned to the triggering element upon closing.
+  - **Concrete recipe:** `useRouteChangeFocus` (`hooks/useRouteChangeFocus.ts`), wired once in `AppShell.tsx`, moves focus to the main content region (`role="main"`, `tabIndex={-1}`) whenever the router's resolved pathname changes — it ignores query/hash-only changes so filter/sort updates don't steal focus. Defer the focus call via `requestAnimationFrame` so it runs after the new view has painted. This mirrors the focus behavior a full page load gives you natively, which SPA route changes don't get for free.
 
 #### Dynamic Content & State Changes
 
