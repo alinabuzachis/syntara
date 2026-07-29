@@ -23,7 +23,7 @@ data from completed invocations and token usage records.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 import structlog
 from sqlalchemy.orm import selectinload
@@ -58,6 +58,57 @@ TERMINAL_INVOCATION_STATUSES = frozenset(
 )
 
 
+def _emit_routing_duration(
+    inv_id: str,
+    meta: dict[str, Any],
+    recorder: MetricsRecorder,
+) -> bool:
+    """Emit AGENT_ROUTING_DURATION from persisted orchestrator timing."""
+    routing_ms = meta.get("routing_duration_ms") if isinstance(meta, dict) else None
+    if not isinstance(routing_ms, (int, float)):
+        return False
+    recorder.record(
+        MetricType.AGENT_ROUTING_DURATION,
+        float(routing_ms),
+        unit="ms",
+        labels={
+            "invocation_id": inv_id,
+            "target_agent": str(meta.get("routed_to_agent", "unknown")),
+        },
+    )
+    return True
+
+
+def _emit_agent_duration(
+    invocation: Invocation,
+    recorder: MetricsRecorder,
+) -> bool:
+    """Emit AGENT_INVOCATION_DURATION and AGENT_STATUS from DB timestamps."""
+    if invocation.started_at and invocation.completed_at:
+        duration_ms = (invocation.completed_at - invocation.started_at).total_seconds() * 1000
+        status = "success" if invocation.status == InvocationStatus.COMPLETED else invocation.status.value
+        recorder.record(
+            MetricType.AGENT_INVOCATION_DURATION,
+            duration_ms,
+            unit="ms",
+            labels={"invocation_id": str(invocation.id), "status": status},
+        )
+        recorder.record(
+            MetricType.AGENT_STATUS,
+            value=1,
+            labels={"invocation_id": str(invocation.id), "status": status},
+        )
+        return True
+    if invocation.status == InvocationStatus.CANCELLED and invocation.completed_at:
+        recorder.record(
+            MetricType.AGENT_STATUS,
+            value=1,
+            labels={"invocation_id": str(invocation.id), "status": "cancelled"},
+        )
+        return True
+    return False
+
+
 def _emit_invocation_agent_metrics(
     invocation: Invocation,
     recorder: MetricsRecorder,
@@ -85,48 +136,11 @@ def _emit_invocation_agent_metrics(
 
     inv_id = str(invocation.id)
     result = invocation.result or {}
-    meta = result.get("response_metadata") if isinstance(result, dict) else None
-    emitted_any = False
+    meta = cast("dict[str, Any]", result.get("response_metadata", {}))
 
-    # AGENT_ROUTING_DURATION from persisted orchestrator timing
-    routing_ms = meta.get("routing_duration_ms") if isinstance(meta, dict) else None
-    if isinstance(routing_ms, (int, float)):
-        recorder.record(
-            MetricType.AGENT_ROUTING_DURATION,
-            float(routing_ms),
-            unit="ms",
-            labels={
-                "invocation_id": inv_id,
-                "target_agent": str(meta.get("routed_to_agent", "unknown") if isinstance(meta, dict) else "unknown"),
-            },
-        )
-        emitted_any = True
+    emitted_any = _emit_routing_duration(inv_id, meta, recorder)
+    emitted_any = _emit_agent_duration(invocation, recorder) or emitted_any
 
-    # AGENT_INVOCATION_DURATION from DB timestamps
-    if invocation.started_at and invocation.completed_at:
-        duration_ms = (invocation.completed_at - invocation.started_at).total_seconds() * 1000
-        status = "success" if invocation.status == InvocationStatus.COMPLETED else invocation.status.value
-        recorder.record(
-            MetricType.AGENT_INVOCATION_DURATION,
-            duration_ms,
-            unit="ms",
-            labels={"invocation_id": inv_id, "status": status},
-        )
-        recorder.record(
-            MetricType.AGENT_STATUS,
-            value=1,
-            labels={"invocation_id": inv_id, "status": status},
-        )
-        emitted_any = True
-    elif invocation.status == InvocationStatus.CANCELLED and invocation.completed_at:
-        recorder.record(
-            MetricType.AGENT_STATUS,
-            value=1,
-            labels={"invocation_id": inv_id, "status": "cancelled"},
-        )
-        emitted_any = True
-
-    # LLM metrics bridged from TokenUsageRecord
     if token_record is not None:
         emitted_any = _emit_llm_metrics(invocation, token_record, recorder) or emitted_any
 
