@@ -371,9 +371,11 @@ describe('BuilderContent', () => {
       })
     })
 
-    it('does not show Run button for new workflows', async () => {
+    it('shows disabled Run button for new workflows with no triggers', async () => {
       await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
-      expect(screen.queryByText('Run')).not.toBeInTheDocument()
+      const runButton = screen.getByRole('button', { name: /Run/i })
+      expect(runButton).toBeInTheDocument()
+      expect(runButton).toHaveAttribute('aria-disabled', 'true')
     })
 
     it('does not show Run history in kebab for new workflows', async () => {
@@ -686,7 +688,7 @@ describe('BuilderContent', () => {
   describe('Run Workflow', () => {
     it('opens run confirmation dialog when Run button is clicked', async () => {
       const user = userEvent.setup()
-      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+      await renderBuilder({ workflow: createWorkflowWithNodes(), isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
@@ -701,7 +703,7 @@ describe('BuilderContent', () => {
 
     it('can cancel run dialog', async () => {
       const user = userEvent.setup()
-      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+      await renderBuilder({ workflow: createWorkflowWithNodes(), isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
@@ -1677,11 +1679,7 @@ describe('BuilderContent', () => {
   // ============================================================================
 
   describe('Save Workflow Validation', () => {
-    it('shows validation error for workflow without trigger', async () => {
-      // Mock PATCH to succeed so handleRunWorkflow proceeds past save to validation
-      mockWorkflowPatchSuccess()
-
-      // Create workflow with activity but no trigger - use mockWorkflow name
+    it('disables Run button for workflow without trigger', async () => {
       const workflowNoTrigger = {
         ...mockWorkflow,
         version: {
@@ -1709,27 +1707,8 @@ describe('BuilderContent', () => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
-      // Wait for workflow to load into store
-      await waitFor(() => {
-        const currentWorkflow = useWorkflowStore.getState().currentWorkflow
-        expect(currentWorkflow).not.toBeNull()
-      })
-
-      // Validation now happens on Run (after confirmation dialog)
-      const user = userEvent.setup()
-      const runButton = screen.getByRole('button', { name: 'Run' })
-      await user.click(runButton)
-
-      // Should show confirmation dialog
-      await screen.findByText(/Run Test Workflow\?/)
-
-      // Click "Run now" to trigger validation
-      await user.click(screen.getByRole('button', { name: 'Run now' }))
-
-      await waitFor(() => {
-        // The validation error should show in an alert
-        expect(screen.getByText(/Workflow must have at least one trigger to run/)).toBeInTheDocument()
-      })
+      const runButton = screen.getByRole('button', { name: /Run/i })
+      expect(runButton).toHaveAttribute('aria-disabled', 'true')
     })
 
     it('invokes PATCH when saving existing workflow (mock graph passes validation)', async () => {

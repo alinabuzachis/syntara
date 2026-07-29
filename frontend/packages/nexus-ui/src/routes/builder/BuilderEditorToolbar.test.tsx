@@ -98,7 +98,7 @@ describe('BuilderEditorToolbar', () => {
     render(<BuilderEditorToolbar {...defaultProps} isNew hasNoWorkflowNodes isAddNodePanelOpen workflow={undefined} />)
 
     expect(screen.queryByRole('button', { name: /Add Step/i })).not.toBeInTheDocument()
-    expect(screen.getAllByRole('separator')).toHaveLength(1)
+    expect(screen.getAllByRole('separator')).toHaveLength(2)
   })
 
   it('opens add node panel when Add Step is clicked', async () => {
@@ -121,17 +121,25 @@ describe('BuilderEditorToolbar', () => {
     expect(screen.getByRole('button', { name: /^Run$/i })).toBeInTheDocument()
   })
 
-  it('does not render Run button for new workflows', () => {
+  it('shows disabled Run button for new workflows without triggers', () => {
     render(<BuilderEditorToolbar {...defaultProps} isNew={true} workflow={undefined} />)
 
-    expect(screen.queryByRole('button', { name: /^Run$/i })).not.toBeInTheDocument()
+    const runButton = screen.getByRole('button', { name: /^Run$/i })
+    expect(runButton).toBeInTheDocument()
+    expect(runButton).toHaveAttribute('aria-disabled', 'true')
   })
 
   it('opens run confirmation dialog when Run is clicked', async () => {
     const user = userEvent.setup()
     const dispatch = vi.fn()
 
-    render(<BuilderEditorToolbar {...defaultProps} dispatch={dispatch} />)
+    render(
+      <BuilderEditorToolbar
+        {...defaultProps}
+        dispatch={dispatch}
+        triggers={[{ id: 'trigger-1', name: 'Test Trigger' }]}
+      />
+    )
 
     await user.click(screen.getByRole('button', { name: /^Run$/i }))
 
@@ -765,10 +773,12 @@ describe('BuilderEditorToolbar', () => {
   })
 
   describe('compound condition branch coverage', () => {
-    it('hides Run, Publish, and run-gated sections when workflow is undefined for existing route', () => {
+    it('shows disabled Run and hides Publish when workflow is undefined for existing route', () => {
       render(<BuilderEditorToolbar {...defaultProps} isNew={false} workflow={undefined} />)
 
-      expect(screen.queryByRole('button', { name: /^Run$/i })).not.toBeInTheDocument()
+      const runButton = screen.getByRole('button', { name: /^Run$/i })
+      expect(runButton).toBeInTheDocument()
+      expect(runButton).toHaveAttribute('aria-disabled', 'true')
       expect(screen.queryByRole('button', { name: /Publish/i })).not.toBeInTheDocument()
       expect(screen.getByRole('button', { name: /Add step/i })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /^Save$/i })).toBeInTheDocument()

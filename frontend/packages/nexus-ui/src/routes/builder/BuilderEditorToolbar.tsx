@@ -10,7 +10,6 @@ import {
   type MenuToggleElement,
 } from '@patternfly/react-core'
 import {
-  RhUiPlayIcon,
   RhUiCodeIcon,
   RhUiCheckCircleIcon,
   RhUiExportIcon,
@@ -22,7 +21,7 @@ import {
   RhUiAddSquareIcon,
   RhUiMinusCircleFillIcon,
 } from '@patternfly/react-icons'
-import { useCallback, useState, type Dispatch, type Ref } from 'react'
+import { useCallback, type Dispatch, type Ref } from 'react'
 
 import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
@@ -30,6 +29,7 @@ import { useWorkflowStore } from '../../stores/useWorkflowStore'
 import toolbarStyles from './BuilderEditorToolbar.module.css'
 import type { BuilderAction } from './builderReducer'
 import { PublishWorkflowButton } from './PublishWorkflowButton'
+import { RunWorkflowSection } from './RunWorkflowSection'
 import { SaveWorkflowButton } from './SaveWorkflowButton'
 import type { BuilderPermissions } from './useBuilderPermissions'
 import { useWorkflowImportExport, type PendingImportData } from './useWorkflowImportExport'
@@ -230,100 +230,6 @@ function WorkflowKebabMenu({
   )
 }
 
-type RunMenuToggleProps = Readonly<{
-  toggleRef: Ref<MenuToggleElement>
-  isExpanded: boolean
-  isDisabled: boolean
-  onClick: (() => void) | undefined
-}>
-
-function RunMenuToggle({ toggleRef, isExpanded, isDisabled, onClick }: RunMenuToggleProps) {
-  return (
-    <MenuToggle
-      ref={toggleRef}
-      variant="plain"
-      onClick={onClick}
-      isExpanded={isExpanded}
-      isDisabled={isDisabled}
-      aria-label="Run workflow"
-    >
-      <Icon isInline>
-        <RhUiPlayIcon />
-      </Icon>{' '}
-      Run
-    </MenuToggle>
-  )
-}
-
-type RunWorkflowSectionProps = Readonly<{
-  triggers?: { id: string; name?: string }[]
-  dispatch: Dispatch<BuilderAction>
-  builderPermissions: BuilderPermissions
-}>
-
-function RunWorkflowSection({ triggers, dispatch, builderPermissions }: RunWorkflowSectionProps) {
-  const [isRunDropdownOpen, setIsRunDropdownOpen] = useState(false)
-  const hasMultipleTriggers = (triggers?.length ?? 0) > 1
-
-  const renderRunToggle = useCallback(
-    (toggleRef: Ref<MenuToggleElement>) => (
-      <RunMenuToggle
-        toggleRef={toggleRef}
-        isExpanded={isRunDropdownOpen}
-        isDisabled={!builderPermissions.canRun}
-        onClick={builderPermissions.canRun ? () => setIsRunDropdownOpen((prev) => !prev) : undefined}
-      />
-    ),
-    [isRunDropdownOpen, builderPermissions.canRun]
-  )
-
-  if (hasMultipleTriggers) {
-    return (
-      <DisabledWithTooltip isDisabled={!builderPermissions.canRun} content={builderPermissions.tooltips.run}>
-        <Dropdown
-          isOpen={isRunDropdownOpen}
-          onOpenChange={setIsRunDropdownOpen}
-          toggle={renderRunToggle}
-          popperProps={{ position: 'left' }}
-        >
-          <DropdownList>
-            {triggers?.map((trigger, index) => (
-              <DropdownItem
-                key={trigger.id}
-                onClick={() => {
-                  dispatch({ type: 'SET_SELECTED_TRIGGER', payload: index })
-                  dispatch({ type: 'SET_CONFIRM_DIALOG', payload: true })
-                  setIsRunDropdownOpen(false)
-                }}
-              >
-                {trigger.name ?? `Trigger ${index + 1}`}
-              </DropdownItem>
-            ))}
-          </DropdownList>
-        </Dropdown>
-      </DisabledWithTooltip>
-    )
-  }
-
-  return (
-    <DisabledWithTooltip isDisabled={!builderPermissions.canRun} content={builderPermissions.tooltips.run}>
-      <Button
-        variant="plain"
-        isAriaDisabled={!builderPermissions.canRun}
-        onClick={builderPermissions.canRun ? () => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: true }) : undefined}
-        icon={
-          <Icon isInline>
-            <RhUiPlayIcon />
-          </Icon>
-        }
-        iconPosition="start"
-      >
-        Run
-      </Button>
-    </DisabledWithTooltip>
-  )
-}
-
 type BuilderEditorToolbarProps = Readonly<{
   isBuiltin: boolean
   isNew: boolean
@@ -450,14 +356,15 @@ export function BuilderEditorToolbar({
         </DisabledWithTooltip>
       )}
 
-      {showWorkflowActions && (
-        <>
-          {showAddStep && <Divider orientation={{ default: 'vertical' }} />}
-          <RunWorkflowSection triggers={triggers} dispatch={dispatch} builderPermissions={builderPermissions} />
-        </>
-      )}
+      {showAddStep && <Divider orientation={{ default: 'vertical' }} />}
+      <RunWorkflowSection
+        triggers={triggers}
+        isSaved={!!workflow?.id}
+        dispatch={dispatch}
+        builderPermissions={builderPermissions}
+      />
 
-      {(showAddStep || showWorkflowActions) && <Divider orientation={{ default: 'vertical' }} />}
+      <Divider orientation={{ default: 'vertical' }} />
 
       <SaveWorkflowButton
         isPending={isPending}
