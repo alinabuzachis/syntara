@@ -290,6 +290,36 @@ describe('syntara/no-raw-http-calls eslint integration', () => {
     expect(result.messages).toEqual([])
   })
 
+  it('allows allowedFiles globs when the absolute path includes a hidden directory segment', async () => {
+    const eslint = new ESLint({
+      overrideConfigFile: true,
+      cwd: '/tmp',
+      overrideConfig: [
+        {
+          files: ['**/*.{js,ts}'],
+          plugins: { syntara: syntaraPlugin },
+          languageOptions: {
+            ecmaVersion: 2022,
+            sourceType: 'module',
+          },
+          rules: {
+            'syntara/no-raw-http-calls': ['error', { allowedFiles: ['**/useFileUploadWithProgress.ts'] }],
+          },
+        },
+      ],
+    })
+    const code = `
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', '/api/upload')
+    `
+
+    const [result] = await eslint.lintText(code, {
+      filePath: '/tmp/.cursor/worktrees/example/src/hooks/useFileUploadWithProgress.ts',
+    })
+
+    expect(result.messages).toEqual([])
+  })
+
   it('blocks axios imports via syntara/no-raw-http-calls', async () => {
     const eslint = createEslint()
     const code = `import axios from 'axios'`

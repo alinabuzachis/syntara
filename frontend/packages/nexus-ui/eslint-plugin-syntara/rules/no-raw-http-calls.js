@@ -95,7 +95,9 @@ function isAllowedFile(context, allowedFiles) {
 
   const filename = context.physicalFilename ?? context.filename
   const normalized = filename.replace(/\\/g, '/')
-  return allowedFiles.some((pattern) => picomatch(pattern)(normalized))
+  // dot: true so **/globs still match when the absolute path includes a
+  // hidden segment (e.g. ~/.cursor/worktrees/... during local worktrees).
+  return allowedFiles.some((pattern) => picomatch(pattern, { dot: true })(normalized))
 }
 
 /** @type {import('eslint').Rule.RuleModule} */
