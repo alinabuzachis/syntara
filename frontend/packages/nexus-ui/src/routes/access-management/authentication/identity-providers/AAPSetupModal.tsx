@@ -11,7 +11,6 @@ import {
   ModalBody,
   ModalFooter,
   ModalHeader,
-  Select,
   SelectList,
   SelectOption,
   Switch,
@@ -22,6 +21,7 @@ import { useEffect, useState } from 'react'
 import { Controller, type Control, useForm, useWatch } from 'react-hook-form'
 
 import { identityProvidersClient } from '../../../../client'
+import { NxSelect } from '../../../../components/NxSelect'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../../providers/alerts'
 
@@ -208,7 +208,7 @@ export function AAPSetupModal({ isOpen, onClose, onSuccess }: Readonly<AAPSetupM
             control={control}
             render={({ field }) => (
               <FormGroup label="Authentication method" fieldId="aap-auth-method">
-                <Select
+                <NxSelect
                   id="aap-auth-method"
                   isOpen={isSelectOpen}
                   selected={field.value}
@@ -247,7 +247,7 @@ export function AAPSetupModal({ isOpen, onClose, onSuccess }: Readonly<AAPSetupM
                       </SelectOption>
                     ))}
                   </SelectList>
-                </Select>
+                </NxSelect>
               </FormGroup>
             )}
           />

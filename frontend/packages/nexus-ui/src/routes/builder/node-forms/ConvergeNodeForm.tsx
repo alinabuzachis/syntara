@@ -8,7 +8,6 @@ import {
   HelperTextItem,
   MenuToggle,
   type MenuToggleElement,
-  Select,
   SelectList,
   SelectOption,
   Stack,
@@ -19,6 +18,7 @@ import { RhUiErrorIcon } from '@patternfly/react-icons'
 import React, { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
+import { NxSelect } from '../../../components/NxSelect'
 import { useWorkflowEngineDefaults } from '../hooks/useWorkflowEngineDefaults'
 import { formatDuration } from '../utils/timeUtils'
 import { useIsVersionView } from '../VersionViewContext'
@@ -56,7 +56,7 @@ function ContinueWhenSelect({
   const [isOpen, setIsOpen] = useState(false)
   const selectedLabel = CONTINUE_WHEN_CRITERIA_OPTIONS.find((o) => o.value === value)?.label
   return (
-    <Select
+    <NxSelect
       id="converge-strategy"
       isOpen={isOpen}
       selected={value || undefined}
@@ -87,7 +87,7 @@ function ContinueWhenSelect({
           </SelectOption>
         ))}
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }
 

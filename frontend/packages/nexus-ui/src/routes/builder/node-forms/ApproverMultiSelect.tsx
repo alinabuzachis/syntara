@@ -10,7 +10,6 @@ import {
   Label,
   LabelGroup,
   MenuToggle,
-  Select,
   SelectList,
   SelectOption,
   TextInputGroup,
@@ -19,6 +18,8 @@ import {
 } from '@patternfly/react-core'
 import { RhUiCloseIcon, RhUiErrorIcon } from '@patternfly/react-icons'
 import { useCallback, useMemo, useRef, useState } from 'react'
+
+import { NxSelect } from '../../../components/NxSelect'
 
 // Generic item type for multi-select
 export type SelectableItem = {
@@ -188,7 +189,7 @@ export function ApproverMultiSelect<T extends SelectableItem>({
 
   return (
     <>
-      <Select
+      <NxSelect
         isOpen={isOpen}
         selected={selectedValues}
         onSelect={handleSelect}
@@ -210,7 +211,8 @@ export function ApproverMultiSelect<T extends SelectableItem>({
           {filteredItems.length === 0 && !isLoading && <SelectOption isDisabled>{emptyText}</SelectOption>}
           {isLoading && <SelectOption isDisabled>{loadingText}</SelectOption>}
         </SelectList>
-      </Select>
+      </NxSelect>
+
       {validationError && (
         <FormHelperText>
           <HelperText>

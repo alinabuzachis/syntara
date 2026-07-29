@@ -4,7 +4,6 @@ import {
   HelperText,
   HelperTextItem,
   MenuToggle,
-  Select,
   SelectList,
   SelectOption,
   TextInput,
@@ -14,6 +13,8 @@ import {
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import type { Ref } from 'react'
 import { Controller, type Control, type ControllerFieldState, type ControllerRenderProps } from 'react-hook-form'
+
+import { NxSelect } from '../../../../components/NxSelect'
 
 import { type IdentityProviderFormData } from './identityProviderFormSchema'
 import { type ClaimMappingFieldTypeahead, useClaimMappingFieldTypeahead } from './useClaimMappingFieldTypeahead'
@@ -232,7 +233,7 @@ function ClaimFieldBody({ meta, controller, typeahead }: ClaimFieldBodyProps) {
   return (
     <FormGroup label={label} fieldId={name} isRequired={isRequired}>
       {showDropdown ? (
-        <Select
+        <NxSelect
           id={name}
           isOpen={isOpen}
           selected={currentValue || undefined}
@@ -256,7 +257,7 @@ function ClaimFieldBody({ meta, controller, typeahead }: ClaimFieldBodyProps) {
               filterValue={filterValue}
             />
           </SelectList>
-        </Select>
+        </NxSelect>
       ) : (
         <TextInput
           id={name}

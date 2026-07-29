@@ -4,7 +4,6 @@ import {
   Divider,
   FormGroup,
   type MenuToggleElement,
-  Select,
   SelectGroup,
   SelectList,
   SelectOption,
@@ -14,6 +13,7 @@ import React, { type ReactElement, useCallback, useMemo, useState } from 'react'
 
 import { integrationsClient } from '../../../client'
 import { NxLabel } from '../../../components/labels/NxLabel'
+import { NxSelect } from '../../../components/NxSelect'
 import { projectIdParam } from '../../../utils/queryParams'
 import { fetchAllIntegrationModels } from '../../configuration/integrations/useAllIntegrationModels'
 
@@ -218,7 +218,7 @@ export function LLMModelSelector({
 
   return (
     <FormGroup label={label} labelHelp={resolvedLabelHelp} fieldId={fieldId} isRequired>
-      <Select
+      <NxSelect
         id={fieldId}
         isOpen={isOpen}
         selected={selectedKey}
@@ -273,7 +273,8 @@ export function LLMModelSelector({
             </SelectGroup>
           </React.Fragment>
         ))}
-      </Select>
+      </NxSelect>
+
       {hasNoIntegrations && (
         <IntegrationRequiredHelper
           integrationLabel="an LLM provider integration"

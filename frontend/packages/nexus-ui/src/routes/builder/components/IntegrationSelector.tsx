@@ -5,7 +5,6 @@ import {
   FormGroup,
   MenuToggle,
   type MenuToggleElement,
-  Select,
   SelectList,
   SelectOption,
   Spinner,
@@ -15,6 +14,7 @@ import React, { type ReactElement, useCallback, useMemo, useState } from 'react'
 
 import { integrationsClient } from '../../../client'
 import { NxLabel } from '../../../components/labels/NxLabel'
+import { NxSelect } from '../../../components/NxSelect'
 import { detachPromise } from '../../../utils/detachPromise'
 import { projectIdParam } from '../../../utils/queryParams'
 
@@ -165,7 +165,7 @@ export function IntegrationSelector({
 
   return (
     <FormGroup label={label} labelHelp={resolvedLabelHelp} fieldId={fieldId}>
-      <Select
+      <NxSelect
         id={fieldId}
         isOpen={isOpen}
         selected={value ?? NO_INTEGRATION_VALUE}
@@ -195,7 +195,8 @@ export function IntegrationSelector({
             </SelectOption>
           )}
         </SelectList>
-      </Select>
+      </NxSelect>
+
       {isError && (
         <Button variant="link" size="sm" onClick={() => detachPromise(refetch())}>
           Retry loading integrations

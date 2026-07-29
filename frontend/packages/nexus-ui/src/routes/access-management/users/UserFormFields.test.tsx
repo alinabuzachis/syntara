@@ -275,6 +275,20 @@ describe('UserFormFields', () => {
       expect(screen.getByText('No results match "nonexistent"')).toBeInTheDocument()
     })
 
+    it('clears filter when dropdown is closed', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper isEdit={false} />)
+
+      await user.type(screen.getByRole('textbox', { name: 'Filter groups' }), 'admin')
+      expect(screen.queryByRole('checkbox', { name: /auditors/i })).not.toBeInTheDocument()
+
+      await user.keyboard('{Escape}')
+
+      await user.click(screen.getByRole('textbox', { name: 'Filter groups' }))
+      expect(screen.getByRole('checkbox', { name: /admins/i })).toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: /auditors/i })).toBeInTheDocument()
+    })
+
     it('opens dropdown when clicking the input', async () => {
       const user = userEvent.setup()
       render(<TestWrapper isEdit={false} />)

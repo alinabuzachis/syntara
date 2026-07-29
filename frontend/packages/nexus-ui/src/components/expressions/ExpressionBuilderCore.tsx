@@ -3,21 +3,14 @@
  * Uses useReducer for managing nested expression tree
  */
 
-import {
-  MenuToggle,
-  type MenuToggleElement,
-  Select,
-  SelectList,
-  SelectOption,
-  Stack,
-  StackItem,
-} from '@patternfly/react-core'
+import { MenuToggle, type MenuToggleElement, SelectList, SelectOption, Stack, StackItem } from '@patternfly/react-core'
 import { useCallback, useReducer, useEffect, useRef, useState } from 'react'
 
 import { createDefaultGroup, createDefaultCondition } from '../../utils/expressions/defaults'
 import { parseExpression } from '../../utils/expressions/parser'
 import { serializeExpression } from '../../utils/expressions/serializer'
 import type { Expression, ExpressionNode, ExpressionGroup as ExpressionGroupType } from '../../utils/expressions/types'
+import { NxSelect } from '../NxSelect'
 
 import { ExpressionGroup } from './ExpressionGroup'
 import { ExpressionRawEditor } from './ExpressionRawEditor'
@@ -260,7 +253,7 @@ export function ExpressionBuilderCore(props: ExpressionBuilderCoreProps) {
       role="group"
     >
       <StackItem>
-        <Select
+        <NxSelect
           isOpen={isModeOpen}
           onSelect={handleModeSelect}
           onOpenChange={setIsModeOpen}
@@ -271,7 +264,7 @@ export function ExpressionBuilderCore(props: ExpressionBuilderCoreProps) {
             <SelectOption value="visual">Visual expression builder</SelectOption>
             <SelectOption value="raw">Custom expression</SelectOption>
           </SelectList>
-        </Select>
+        </NxSelect>
       </StackItem>
 
       <StackItem>

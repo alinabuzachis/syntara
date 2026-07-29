@@ -140,6 +140,39 @@ describe('TypeaheadSelect', () => {
 
       expect(screen.getByRole('option', { name: /Alpha Option/i })).toBeInTheDocument()
     })
+
+    it('clears filter when dropdown is closed', async () => {
+      const user = userEvent.setup()
+      renderSelect()
+
+      await user.click(getInput())
+      await user.type(getInput(), 'Beta')
+      expect(screen.queryByRole('option', { name: /Alpha Option/i })).not.toBeInTheDocument()
+
+      await user.keyboard('{Escape}')
+      await waitFor(() => {
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+      })
+
+      await user.click(getInput())
+      expect(screen.getByRole('option', { name: /Alpha Option/i })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: /Beta Option/i })).toBeInTheDocument()
+    })
+
+    it('calls onSearchChange with empty string when closed', async () => {
+      const user = userEvent.setup()
+      const onSearchChange = vi.fn()
+      renderSelect({ onSearchChange })
+
+      await user.click(getInput())
+      await user.type(getInput(), 'Beta')
+      onSearchChange.mockClear()
+
+      await user.keyboard('{Escape}')
+      await waitFor(() => {
+        expect(onSearchChange).toHaveBeenCalledWith('')
+      })
+    })
   })
 
   describe('Clear selection', () => {

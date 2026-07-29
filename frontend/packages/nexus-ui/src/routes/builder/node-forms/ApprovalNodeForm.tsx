@@ -5,7 +5,6 @@ import {
   HelperTextItem,
   MenuToggle,
   type MenuToggleElement,
-  Select,
   SelectList,
   SelectOption,
   Stack,
@@ -16,6 +15,7 @@ import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
+import { NxSelect } from '../../../components/NxSelect'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import { useWorkflowEngineDefaults } from '../hooks/useWorkflowEngineDefaults'
 import { formatDuration } from '../utils/timeUtils'
@@ -57,7 +57,7 @@ function FallbackDecisionSelect({
 }) {
   const [isOpen, setIsOpen] = useState(false)
   return (
-    <Select
+    <NxSelect
       id="approval-fallback-decision"
       isOpen={isOpen}
       selected={value}
@@ -83,7 +83,7 @@ function FallbackDecisionSelect({
         <SelectOption value="reject">Reject (default)</SelectOption>
         <SelectOption value="approve">Approve</SelectOption>
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }
 

@@ -8,7 +8,6 @@ import {
   InputGroupItem,
   LabelGroup,
   MenuToggle,
-  Select,
   SelectList,
   SelectOption,
   Switch,
@@ -19,11 +18,12 @@ import {
   Tooltip,
 } from '@patternfly/react-core'
 import { RhUiCloseIcon, RhUiErrorIcon, RhUiViewIcon, RhUiViewOffIcon } from '@patternfly/react-icons'
-import { type Ref, useMemo, useRef, useState } from 'react'
+import { type Ref, useCallback, useMemo, useRef, useState } from 'react'
 import type { Control, ControllerFieldState, ControllerRenderProps } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
 
 import { NxLabel } from '../../../components/labels/NxLabel'
+import { NxSelect } from '../../../components/NxSelect'
 import { useAllGroups } from '../../access/useAllGroups'
 import { PASSWORD_CHARACTER_CLASSES_MESSAGE, PASSWORD_MIN_LENGTH_MESSAGE } from '../passwordComplexity'
 import type { UserFormData } from '../userFormSchema'
@@ -176,12 +176,17 @@ function GroupMultiSelect({
     </MenuToggle>
   )
 
+  const handleOpenChange = useCallback((open: boolean) => {
+    setIsOpen(open)
+    if (!open) setFilterValue('')
+  }, [])
+
   return (
-    <Select
+    <NxSelect
       id="user-groups-select"
       aria-label="Select groups"
       isOpen={isOpen}
-      onOpenChange={setIsOpen}
+      onOpenChange={handleOpenChange}
       onSelect={handleSelect}
       selected={selected}
       toggle={toggle}
@@ -206,7 +211,7 @@ function GroupMultiSelect({
             </SelectOption>
           ))}
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }
 

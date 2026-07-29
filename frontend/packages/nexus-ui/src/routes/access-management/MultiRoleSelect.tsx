@@ -3,7 +3,6 @@ import {
   Label,
   LabelGroup,
   MenuToggle,
-  Select,
   SelectList,
   SelectOption,
   TextInputGroup,
@@ -11,7 +10,9 @@ import {
   TextInputGroupUtilities,
 } from '@patternfly/react-core'
 import { RhUiCloseIcon } from '@patternfly/react-icons'
-import { type Ref, useMemo, useRef, useState } from 'react'
+import { type Ref, useCallback, useMemo, useRef, useState } from 'react'
+
+import { NxSelect } from '../../components/NxSelect'
 
 export type RoleOption = {
   id: string
@@ -147,18 +148,29 @@ export function MultiRoleSelect({
     </MenuToggle>
   )
 
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      setIsOpen(open)
+      if (!open) {
+        setFilterValue('')
+        onSearchChange?.('')
+      }
+    },
+    [onSearchChange]
+  )
+
   return (
-    <Select
+    <NxSelect
       id="multi-role-select"
       aria-label="Select roles"
       isOpen={isOpen}
-      onOpenChange={setIsOpen}
+      onOpenChange={handleOpenChange}
       onSelect={handleSelect}
       toggle={toggle}
     >
       <SelectList style={{ maxHeight: '200px', overflow: 'auto' }}>
         {renderSelectOptions(filteredOptions, filterValue, hasMore, isLoading)}
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }

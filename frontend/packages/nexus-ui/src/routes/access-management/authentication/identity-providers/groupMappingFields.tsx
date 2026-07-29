@@ -4,7 +4,6 @@ import {
   Content,
   MenuToggle,
   type MenuToggleElement,
-  Select,
   SelectList,
   SelectOption,
   TextInput,
@@ -25,6 +24,7 @@ import {
 } from 'react'
 import { Controller, useWatch, type Control } from 'react-hook-form'
 
+import { NxSelect } from '../../../../components/NxSelect'
 import { APP_TITLE } from '../../../../utils/appTitle'
 
 import type { GroupMappingEditFormValues } from './groupMappingEditFormSchema'
@@ -177,7 +177,7 @@ export function NexusGroupMappingSelect({
   )
 
   return (
-    <Select
+    <NxSelect
       isOpen={isOpen}
       selected={entry.nexusGroupId || undefined}
       onSelect={(_event, value) => {
@@ -220,7 +220,7 @@ export function NexusGroupMappingSelect({
           Create new group
         </SelectOption>
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }
 

@@ -3,7 +3,6 @@ import {
   Label,
   LabelGroup,
   MenuToggle,
-  Select,
   SelectList,
   SelectOption,
   Spinner,
@@ -13,6 +12,8 @@ import {
 } from '@patternfly/react-core'
 import { RhUiCloseIcon } from '@patternfly/react-icons'
 import { type Ref, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
+import { NxSelect } from '../../components/NxSelect'
 
 import { accessClient } from './accessClient'
 
@@ -178,12 +179,17 @@ export function PolicySelect({
     </MenuToggle>
   )
 
+  const handleOpenChange = useCallback((open: boolean) => {
+    setIsOpen(open)
+    if (!open) setFilterValue('')
+  }, [])
+
   return (
-    <Select
+    <NxSelect
       id="role-policies"
       aria-label="Policies"
       isOpen={isOpen}
-      onOpenChange={setIsOpen}
+      onOpenChange={handleOpenChange}
       onSelect={onSelect}
       selected={selected}
       toggle={toggle}
@@ -212,6 +218,6 @@ export function PolicySelect({
             </SelectOption>
           ))}
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }

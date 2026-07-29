@@ -11,7 +11,6 @@ import {
   HelperTextItem,
   MenuToggle,
   type MenuToggleElement,
-  Select,
   SelectList,
   SelectOption,
   TextInput,
@@ -20,6 +19,7 @@ import { PlusIcon, RhUiErrorIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import React, { useCallback, useEffect, useState } from 'react'
 import { Controller, useFieldArray, useWatch, type Control, type UseFormSetValue } from 'react-hook-form'
 
+import { NxSelect } from '../../../../components/NxSelect'
 import { APP_TITLE } from '../../../../utils/appTitle'
 import { useAllGroups } from '../../../access/useAllGroups'
 
@@ -52,7 +52,7 @@ function NexusGroupSelect({
   const [isOpen, setIsOpen] = useState(false)
   const selectedLabel = nexusGroups.find((g) => g.id === value)?.name ?? value
   return (
-    <Select
+    <NxSelect
       isOpen={isOpen}
       selected={value || undefined}
       onSelect={(_event, val) => {
@@ -84,7 +84,7 @@ function NexusGroupSelect({
           </SelectOption>
         ))}
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }
 

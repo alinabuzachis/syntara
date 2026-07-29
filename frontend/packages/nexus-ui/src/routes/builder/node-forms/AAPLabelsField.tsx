@@ -7,7 +7,6 @@ import {
   LabelGroup,
   MenuToggle,
   SearchInput,
-  Select,
   SelectList,
   SelectOption,
   Spinner,
@@ -17,6 +16,7 @@ import {
 import { useEffect, useRef, useState, type ReactElement } from 'react'
 import { Controller, useFormContext } from 'react-hook-form'
 
+import { NxSelect } from '../../../components/NxSelect'
 import { DEBOUNCE_MS } from '../../../constants/timing'
 import type { AAPLabel } from '../../../hooks/useAAPBrowser'
 
@@ -190,7 +190,7 @@ export function AAPLabelsField({
             }
 
             return (
-              <Select
+              <NxSelect
                 isOpen={isOpen}
                 selected={selectedLabels}
                 onSelect={handleSelect}
@@ -237,7 +237,7 @@ export function AAPLabelsField({
                     ))
                   )}
                 </SelectList>
-              </Select>
+              </NxSelect>
             )
           }}
         />

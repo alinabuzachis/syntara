@@ -8,7 +8,6 @@ import {
   ModalBody,
   ModalFooter,
   ModalHeader,
-  Select,
   SelectList,
   SelectOption,
 } from '@patternfly/react-core'
@@ -16,6 +15,7 @@ import { type Ref, useEffect, useMemo, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
+import { NxSelect } from '../../components/NxSelect'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useAlerts } from '../../providers/alerts'
 import { getErrorMessage } from '../../utils/apiErrors'
@@ -75,7 +75,7 @@ function SingleSelect({
   )
 
   return (
-    <Select
+    <NxSelect
       id={id}
       aria-label={ariaLabel}
       isOpen={isOpen}
@@ -94,7 +94,7 @@ function SingleSelect({
           </SelectOption>
         ))}
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }
 

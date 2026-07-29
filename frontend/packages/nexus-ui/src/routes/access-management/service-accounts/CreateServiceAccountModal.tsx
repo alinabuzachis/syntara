@@ -14,7 +14,6 @@ import {
   ModalBody,
   ModalFooter,
   ModalHeader,
-  Select,
   SelectList,
   SelectOption,
   TextArea,
@@ -27,6 +26,7 @@ import { Controller, useForm } from 'react-hook-form'
 import { tanstackRouter } from '../../../app/tanstackRouter'
 import { LONG_SELECT_MAX_MENU_HEIGHT, longSelectMenuPopperProps } from '../../../components/longSelectMenu'
 import longSelectMenuStyles from '../../../components/longSelectMenu.module.css'
+import { NxSelect } from '../../../components/NxSelect'
 import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../providers/alerts'
 import { formatExpirationDate } from '../../../utils/dateUtils'
@@ -101,7 +101,7 @@ function ProjectSelect({
   const selectedLabel = projects.find((p) => p.id === value)?.name ?? 'Select a project'
 
   return (
-    <Select
+    <NxSelect
       id="sa-project"
       aria-label="Project"
       isOpen={isOpen}
@@ -133,7 +133,7 @@ function ProjectSelect({
           </SelectOption>
         ))}
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }
 

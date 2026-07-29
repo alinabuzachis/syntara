@@ -1,6 +1,5 @@
 import {
   MenuToggle,
-  Select,
   SelectList,
   SelectOption,
   TextInput,
@@ -8,6 +7,8 @@ import {
   TextInputGroupMain,
 } from '@patternfly/react-core'
 import { type Ref, useEffect, useMemo, useState } from 'react'
+
+import { NxSelect } from '../../components/NxSelect'
 
 import { dynamicFetchClient } from './accessClient'
 import { RESOURCE_ENDPOINTS, type ResourceOption } from './canIUtils'
@@ -85,6 +86,11 @@ export function ResourceIdSelect({ resourceType, value, onChange }: Readonly<Res
       .slice(0, 20)
   }, [allOptions, filterText])
 
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open)
+    if (!open) setFilterText('')
+  }
+
   if (!hasEndpoint) {
     return (
       <TextInput
@@ -119,10 +125,10 @@ export function ResourceIdSelect({ resourceType, value, onChange }: Readonly<Res
   )
 
   return (
-    <Select
+    <NxSelect
       id="can-i-resource-id"
       isOpen={isOpen}
-      onOpenChange={setIsOpen}
+      onOpenChange={handleOpenChange}
       onSelect={(_event, selection) => {
         onChange(String(selection))
         setFilterText('')
@@ -149,6 +155,6 @@ export function ResourceIdSelect({ resourceType, value, onChange }: Readonly<Res
           ))
         )}
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }

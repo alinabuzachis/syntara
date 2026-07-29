@@ -1,9 +1,10 @@
-import { Divider, LabelGroup, MenuToggle, Select, SelectList, SelectOption, Spinner } from '@patternfly/react-core'
+import { Divider, LabelGroup, MenuToggle, SelectList, SelectOption, Spinner } from '@patternfly/react-core'
 import { RhUiAddIcon } from '@patternfly/react-icons'
 import type React from 'react'
 import { useCallback, useMemo, useState } from 'react'
 
 import { NxLabel } from '../../../components/labels/NxLabel'
+import { NxSelect } from '../../../components/NxSelect'
 import { useCanI } from '../../../hooks/useCanI'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import { detachPromise } from '../../../utils/detachPromise'
@@ -107,7 +108,7 @@ export function ServiceAccountSelect({ id, selectedIds, onChange, isDisabled }: 
 
   return (
     <>
-      <Select isOpen={isOpen} onOpenChange={setIsOpen} onSelect={handleSelect} toggle={renderToggle}>
+      <NxSelect isOpen={isOpen} onOpenChange={setIsOpen} onSelect={handleSelect} toggle={renderToggle}>
         <SelectList>
           {canCreate && (
             <>
@@ -134,7 +135,8 @@ export function ServiceAccountSelect({ id, selectedIds, onChange, isDisabled }: 
             </SelectOption>
           )}
         </SelectList>
-      </Select>
+      </NxSelect>
+
       {selectedSAs.length > 0 && (
         <LabelGroup aria-label="Selected service accounts" style={{ marginTop: 'var(--pf-t--global--spacer--sm)' }}>
           {selectedSAs.map((sa) => (

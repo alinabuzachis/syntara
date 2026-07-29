@@ -15,7 +15,6 @@ import {
   ListItem,
   MenuToggle,
   type MenuToggleElement,
-  Select,
   SelectList,
   SelectOption,
   Stack,
@@ -32,6 +31,7 @@ import type {
   ExpressionNode,
   LogicalOperator,
 } from '../../utils/expressions/types'
+import { NxSelect } from '../NxSelect'
 
 import { ExpressionCondition } from './ExpressionCondition'
 import { HelpPopover } from './HelpPopover'
@@ -141,12 +141,12 @@ function OperatorSelect({ groupId, index, operator, onSelect, isDisabled }: Oper
   )
 
   const select = (
-    <Select isOpen={isOpen} onSelect={handleSelect} onOpenChange={setIsOpen} toggle={toggle} selected={operator}>
+    <NxSelect isOpen={isOpen} onSelect={handleSelect} onOpenChange={setIsOpen} toggle={toggle} selected={operator}>
       <SelectList aria-label="Logical operator">
         <SelectOption value="AND">AND</SelectOption>
         <SelectOption value="OR">OR</SelectOption>
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 
   if (isDisabled) {

@@ -1,7 +1,6 @@
 import {
   Button,
   MenuToggle,
-  Select,
   SelectList,
   SelectOption,
   Spinner,
@@ -11,6 +10,8 @@ import {
 } from '@patternfly/react-core'
 import { RhUiCloseIcon } from '@patternfly/react-icons'
 import { type Ref, useEffect, useRef, useState } from 'react'
+
+import { NxSelect } from '../../../components/NxSelect'
 
 const DEBOUNCE_MS = 300
 
@@ -123,12 +124,17 @@ export function AAPTypeaheadSelect({
 
   const noResultsText = isLoading ? 'Loading...' : `No results match "${filterValue}"`
 
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open)
+    if (!open) setFilterValue('')
+  }
+
   return (
-    <Select
+    <NxSelect
       id={id}
       aria-label={ariaLabel}
       isOpen={isOpen}
-      onOpenChange={setIsOpen}
+      onOpenChange={handleOpenChange}
       onSelect={onSelect}
       selected={selected}
       toggle={toggle}
@@ -149,6 +155,6 @@ export function AAPTypeaheadSelect({
           ))
         )}
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }

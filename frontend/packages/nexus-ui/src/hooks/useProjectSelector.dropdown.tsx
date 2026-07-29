@@ -6,7 +6,6 @@ import {
   InputGroupItem,
   MenuFooter,
   MenuToggle,
-  Select,
   SelectGroup,
   SelectList,
   SelectOption,
@@ -19,6 +18,7 @@ import {
 import { RhUiAddIcon, TimesIcon } from '@patternfly/react-icons'
 import type { CSSProperties, Dispatch, MouseEvent, ReactNode, SetStateAction } from 'react'
 
+import { NxSelect } from '../components/NxSelect'
 import type { ProjectRead } from '../routes/access/types'
 import { ProjectFormModal } from '../routes/access-management/ProjectFormModal'
 import { detachPromise } from '../utils/detachPromise'
@@ -213,7 +213,7 @@ export function ProjectSelectorDropdown(props: Readonly<ProjectSelectorDropdownP
 
   return (
     <>
-      <Select
+      <NxSelect
         isOpen={isOpen}
         variant="typeahead"
         shouldFocusFirstItemOnOpen={false}
@@ -305,7 +305,7 @@ export function ProjectSelectorDropdown(props: Readonly<ProjectSelectorDropdownP
             <Content component={ContentVariants.small}>Type to refine results</Content>
           </MenuFooter>
         )}
-      </Select>
+      </NxSelect>
 
       <ProjectFormModal
         isOpen={createDialogOpen}

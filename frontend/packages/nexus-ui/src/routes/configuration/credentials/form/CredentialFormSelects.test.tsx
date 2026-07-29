@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -31,6 +31,27 @@ describe('CredentialFormSelects', () => {
       await user.click(screen.getByRole('option', { name: 'Project 2' }))
 
       expect(onChange).toHaveBeenCalledWith('proj-2')
+    })
+
+    it('closes when scrolling outside the open menu', async () => {
+      const user = userEvent.setup()
+      render(
+        <div>
+          <ProjectSelect value="" onChange={vi.fn()} projects={projects} />
+          <p>Modal body</p>
+        </div>
+      )
+
+      await user.click(screen.getByRole('button', { name: 'Credential project' }))
+      expect(screen.getByRole('listbox')).toBeInTheDocument()
+
+      act(() => {
+        screen.getByText('Modal body').dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true }))
+      })
+
+      await waitFor(() => {
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+      })
     })
   })
 

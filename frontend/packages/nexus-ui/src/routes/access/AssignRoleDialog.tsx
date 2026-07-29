@@ -12,7 +12,6 @@ import {
   ModalBody,
   ModalFooter,
   ModalHeader,
-  Select,
   SelectList,
   SelectOption,
 } from '@patternfly/react-core'
@@ -20,6 +19,7 @@ import { RhUiAddIcon } from '@patternfly/react-icons'
 import { useMemo, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 
+import { NxSelect } from '../../components/NxSelect'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useFormMutationErrorHandler } from '../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../providers/alerts'
@@ -123,7 +123,7 @@ type AssignRoleFormBodyProps = {
 function ScopeSelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const [isOpen, setIsOpen] = useState(false)
   return (
-    <Select
+    <NxSelect
       id="scope"
       isOpen={isOpen}
       selected={value}
@@ -148,7 +148,7 @@ function ScopeSelect({ value, onChange }: { value: string; onChange: (value: str
         <SelectOption value="system">System</SelectOption>
         <SelectOption value="project">Project</SelectOption>
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }
 

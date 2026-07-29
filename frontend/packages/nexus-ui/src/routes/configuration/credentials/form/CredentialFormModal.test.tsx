@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
@@ -179,6 +179,23 @@ describe('CredentialFormModal', () => {
     const listbox = screen.getByRole('listbox', { name: 'Credential type options' })
     expect(within(dialog).queryByRole('listbox', { name: 'Credential type options' })).not.toBeInTheDocument()
     expect(listbox).toBeInTheDocument()
+  })
+
+  it('closes the open select when scrolling outside the menu in the modal', async () => {
+    const user = userEvent.setup()
+    render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
+
+    await user.click(screen.getByLabelText('Credential type'))
+    expect(screen.getByRole('listbox', { name: 'Credential type options' })).toBeInTheDocument()
+
+    const dialog = screen.getByRole('dialog')
+    act(() => {
+      dialog.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true }))
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByRole('listbox', { name: 'Credential type options' })).not.toBeInTheDocument()
+    })
   })
 
   it('shows dynamic fields when type is selected', () => {

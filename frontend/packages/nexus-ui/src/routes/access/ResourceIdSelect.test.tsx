@@ -229,6 +229,23 @@ describe('ResourceIdSelect', () => {
 
       expect(screen.getByText('No matches')).toBeInTheDocument()
     })
+
+    it('clears filter when dropdown is closed', async () => {
+      const user = userEvent.setup()
+      renderResourceIdSelect({ resourceType: 'workflow' })
+      await waitForFetch()
+
+      const input = screen.getByRole('textbox', { name: /type to filter/i })
+      await user.click(input)
+      await user.type(input, 'Deploy')
+      expect(screen.queryByRole('option', { name: /Build Pipeline/i })).not.toBeInTheDocument()
+
+      await user.keyboard('{Escape}')
+
+      await user.click(input)
+      expect(screen.getByRole('option', { name: /Deploy Pipeline/i })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: /Build Pipeline/i })).toBeInTheDocument()
+    })
   })
 
   describe('Display value', () => {

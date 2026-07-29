@@ -3,7 +3,6 @@ import {
   LabelGroup,
   MenuToggle,
   type MenuToggleElement,
-  Select,
   SelectList,
   SelectOption,
   TextInputGroup,
@@ -11,9 +10,10 @@ import {
   TextInputGroupUtilities,
 } from '@patternfly/react-core'
 import { RhUiCloseIcon } from '@patternfly/react-icons'
-import { type Ref, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type Ref, useCallback, useMemo, useRef, useState } from 'react'
 
 import { NxLabel } from '../../../../components/labels/NxLabel'
+import { NxSelect } from '../../../../components/NxSelect'
 import { useSelectableProjects } from '../../../access/useAllProjects'
 
 type ProjectMultiSelectProps = Readonly<{
@@ -135,26 +135,11 @@ export function ProjectMultiSelect({ selectedIds, onChange, validated }: Project
   const [isOpen, setIsOpen] = useState(false)
   const [filterValue, setFilterValue] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    if (!isOpen) return
-    const el = containerRef.current
-    if (!el) return
-    const handleScroll = () => setIsOpen(false)
-    const attached = new Set<Element>()
-    let parent = el.parentElement
-    while (parent) {
-      if (parent.scrollHeight > parent.clientHeight) {
-        parent.addEventListener('scroll', handleScroll, { passive: true })
-        attached.add(parent)
-      }
-      parent = parent.parentElement
-    }
-    return () => {
-      attached.forEach((el) => el.removeEventListener('scroll', handleScroll))
-    }
-  }, [isOpen])
+  const handleOpenChange = useCallback((open: boolean) => {
+    setIsOpen(open)
+    if (!open) setFilterValue('')
+  }, [])
 
   const filteredOptions = useMemo(() => {
     const available = projects.filter((p): p is typeof p & { id: string } => !!p.id)
@@ -222,19 +207,17 @@ export function ProjectMultiSelect({ selectedIds, onChange, validated }: Project
   )
 
   return (
-    <div ref={containerRef}>
-      <Select
-        aria-label="Select projects"
-        isOpen={isOpen}
-        selected={selectedIds}
-        onSelect={handleSelect}
-        onOpenChange={setIsOpen}
-        toggle={renderToggle}
-        isScrollable
-        maxMenuHeight="200px"
-      >
-        <SelectList>{renderProjectOptions(filteredOptions, filterValue, isLoading, selectedIds)}</SelectList>
-      </Select>
-    </div>
+    <NxSelect
+      aria-label="Select projects"
+      isOpen={isOpen}
+      selected={selectedIds}
+      onSelect={handleSelect}
+      onOpenChange={handleOpenChange}
+      toggle={renderToggle}
+      isScrollable
+      maxMenuHeight="200px"
+    >
+      <SelectList>{renderProjectOptions(filteredOptions, filterValue, isLoading, selectedIds)}</SelectList>
+    </NxSelect>
   )
 }

@@ -202,6 +202,22 @@ describe('ProjectPolicySelect', () => {
     expect(screen.getByText('No policies match "nonexistent"')).toBeInTheDocument()
   })
 
+  it('clears filter when dropdown is closed', async () => {
+    const user = userEvent.setup()
+    renderSelect()
+
+    await openDropdown(user)
+    const input = screen.getByRole('textbox', { name: /type to filter/i })
+    await user.type(input, 'read')
+    expect(screen.queryByRole('menuitem', { name: /write-policy/i })).not.toBeInTheDocument()
+
+    await user.keyboard('{Escape}')
+
+    await openDropdown(user)
+    expect(screen.getByRole('menuitem', { name: /read-policy/i })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: /write-policy/i })).toBeInTheDocument()
+  })
+
   it('clears all selected policies when clear button is clicked', async () => {
     const user = userEvent.setup()
     renderSelect(['read-policy', 'write-policy'])

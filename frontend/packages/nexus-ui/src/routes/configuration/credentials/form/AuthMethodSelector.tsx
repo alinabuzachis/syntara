@@ -1,7 +1,8 @@
-import { FormGroup, MenuToggle, type MenuToggleElement, Select, SelectList, SelectOption } from '@patternfly/react-core'
+import { FormGroup, MenuToggle, type MenuToggleElement, SelectList, SelectOption } from '@patternfly/react-core'
 import { useState, useCallback } from 'react'
 
 import { FormLabelWithHelp } from '../../../../components/FormLabelWithHelp'
+import { NxSelect } from '../../../../components/NxSelect'
 
 import type { ExclusiveGroup } from './credentialFormUtils'
 
@@ -56,7 +57,7 @@ export function AuthMethodSelector({ groups, activeIndex, onChange, helpText }: 
 
   return (
     <FormGroup label={label} fieldId="auth-method" isRequired>
-      <Select
+      <NxSelect
         id="auth-method"
         isOpen={isOpen}
         selected={String(activeIndex)}
@@ -73,7 +74,7 @@ export function AuthMethodSelector({ groups, activeIndex, onChange, helpText }: 
             </SelectOption>
           ))}
         </SelectList>
-      </Select>
+      </NxSelect>
     </FormGroup>
   )
 }

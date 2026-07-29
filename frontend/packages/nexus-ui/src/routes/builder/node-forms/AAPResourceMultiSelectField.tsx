@@ -8,7 +8,6 @@ import {
   LabelGroup,
   MenuToggle,
   SearchInput,
-  Select,
   SelectList,
   SelectOption,
   Spinner,
@@ -18,6 +17,7 @@ import {
 import React, { useEffect, useRef, useState, type ReactElement } from 'react'
 import { Controller, useFormContext } from 'react-hook-form'
 
+import { NxSelect } from '../../../components/NxSelect'
 import { DEBOUNCE_MS } from '../../../constants/timing'
 
 import type { AAPJobTemplateFormData } from './aapJobTemplateSchema'
@@ -179,7 +179,7 @@ function MultiSelectContent({
   })
 
   return (
-    <Select
+    <NxSelect
       isOpen={isOpen}
       selected={selectedIds.map(String)}
       onSelect={onSelect}
@@ -205,7 +205,7 @@ function MultiSelectContent({
           ))
         )}
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }
 

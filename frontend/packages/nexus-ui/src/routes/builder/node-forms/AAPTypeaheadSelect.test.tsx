@@ -123,6 +123,26 @@ describe('AAPTypeaheadSelect', () => {
         expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
       })
     })
+
+    it('clears filter when dropdown is closed', async () => {
+      const user = userEvent.setup()
+      const { onSearchChange } = renderSelect()
+
+      await user.click(getInput())
+      await user.type(getInput(), 'Beta')
+      expect(getInput()).toHaveValue('Beta')
+
+      await user.keyboard('{Escape}')
+      await waitFor(() => {
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+      })
+
+      await user.click(getInput())
+      expect(getInput()).toHaveValue('')
+      await waitFor(() => {
+        expect(onSearchChange).toHaveBeenCalledWith('')
+      })
+    })
   })
 
   describe('Loading state', () => {

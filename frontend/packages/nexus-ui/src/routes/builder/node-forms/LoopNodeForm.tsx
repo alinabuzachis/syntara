@@ -5,7 +5,6 @@ import {
   HelperTextItem,
   MenuToggle,
   type MenuToggleElement,
-  Select,
   SelectList,
   SelectOption,
   Stack,
@@ -18,6 +17,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
 import { ExpressionBuilderCore as ExpressionBuilder } from '../../../components/expressions/ExpressionBuilderCore'
+import { NxSelect } from '../../../components/NxSelect'
 import { useWorkflowEngineDefaults } from '../hooks/useWorkflowEngineDefaults'
 import { useIsVersionView } from '../VersionViewContext'
 
@@ -47,7 +47,7 @@ function LoopTypeSelect({
 }) {
   const [isOpen, setIsOpen] = useState(false)
   return (
-    <Select
+    <NxSelect
       id="loop-type"
       isOpen={isOpen}
       selected={value}
@@ -73,7 +73,7 @@ function LoopTypeSelect({
         <SelectOption value="while">While</SelectOption>
         <SelectOption value="forEach">For each</SelectOption>
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }
 

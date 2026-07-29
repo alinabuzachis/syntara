@@ -8,7 +8,6 @@ import {
   HelperTextItem,
   MenuToggle,
   type MenuToggleElement,
-  Select,
   SelectGroup,
   SelectList,
   SelectOption,
@@ -20,6 +19,7 @@ import React, { type ReactElement, useCallback, useMemo, useState } from 'react'
 import { credentialsClient } from '../../../client'
 import { LONG_SELECT_MAX_MENU_HEIGHT, longSelectMenuPopperProps } from '../../../components/longSelectMenu'
 import longSelectMenuStyles from '../../../components/longSelectMenu.module.css'
+import { NxSelect } from '../../../components/NxSelect'
 import { detachPromise } from '../../../utils/detachPromise'
 import type { Credential, CredentialType } from '../../configuration/credentials/credentialConstants'
 import { CredentialFormModal } from '../../configuration/credentials/form/CredentialFormModal'
@@ -327,7 +327,7 @@ export function CredentialSelector({
 
   return (
     <FormGroup label={label} labelHelp={resolvedLabelHelp} fieldId={fieldId} isRequired={isRequired}>
-      <Select
+      <NxSelect
         id={fieldId}
         isOpen={isOpen}
         selected={value ?? NO_CREDENTIAL_VALUE}
@@ -362,7 +362,8 @@ export function CredentialSelector({
             </SelectOption>
           )}
         </SelectList>
-      </Select>
+      </NxSelect>
+
       <FieldError message={errorMessage} />
       <ReadOnlyCredentialWarning show={isReadOnlyCredential} />
       {isError && (

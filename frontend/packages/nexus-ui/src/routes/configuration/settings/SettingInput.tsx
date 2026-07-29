@@ -6,7 +6,6 @@ import {
   MenuToggle,
   type MenuToggleElement,
   NumberInput,
-  Select,
   SelectList,
   SelectOption,
   Switch,
@@ -18,6 +17,8 @@ import {
 import { TimesIcon } from '@patternfly/react-icons'
 import React, { useEffect, useRef, useState } from 'react'
 import { z } from 'zod'
+
+import { NxSelect } from '../../../components/NxSelect'
 
 type RuntimeSetting = SettingsAPI.components['schemas']['RuntimeSettingRead']
 
@@ -174,7 +175,7 @@ function AllowedValuesSelect({
 }) {
   const [isOpen, setIsOpen] = useState(false)
   return (
-    <Select
+    <NxSelect
       id={id}
       isOpen={isOpen}
       selected={value || undefined}
@@ -203,7 +204,7 @@ function AllowedValuesSelect({
           </SelectOption>
         ))}
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }
 

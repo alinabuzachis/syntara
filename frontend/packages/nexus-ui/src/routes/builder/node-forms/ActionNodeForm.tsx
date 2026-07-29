@@ -9,7 +9,6 @@ import {
   Label,
   MenuToggle,
   type MenuToggleElement,
-  Select,
   SelectList,
   SelectOption,
   Stack,
@@ -20,6 +19,7 @@ import { RhUiErrorIcon } from '@patternfly/react-icons'
 import React, { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
+import { NxSelect } from '../../../components/NxSelect'
 import {
   ExpandableCodeEditor,
   type CodeLanguage,
@@ -79,7 +79,7 @@ function ScriptLanguageSelect({
   const [isOpen, setIsOpen] = useState(false)
   const selectedLabel = SCRIPT_LANGUAGE_OPTIONS.find((o) => o.value === value)?.label
   return (
-    <Select
+    <NxSelect
       id="action-language"
       isOpen={isOpen}
       selected={value || undefined}
@@ -108,7 +108,7 @@ function ScriptLanguageSelect({
           </SelectOption>
         ))}
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }
 
@@ -124,7 +124,7 @@ function HttpMethodSelect({
   const [isOpen, setIsOpen] = useState(false)
   const selectedLabel = HTTP_METHOD_OPTIONS.find((o) => o.value === value)?.label
   return (
-    <Select
+    <NxSelect
       id="action-method"
       isOpen={isOpen}
       selected={value || undefined}
@@ -153,7 +153,7 @@ function HttpMethodSelect({
           </SelectOption>
         ))}
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }
 

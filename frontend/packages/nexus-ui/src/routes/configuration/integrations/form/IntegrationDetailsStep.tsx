@@ -10,7 +10,6 @@ import {
   HelperTextItem,
   MenuToggle,
   type MenuToggleElement,
-  Select,
   SelectList,
   SelectOption,
   Switch,
@@ -21,6 +20,7 @@ import { RhUiErrorIcon } from '@patternfly/react-icons'
 import { type ReactNode, type Ref, useCallback, useState } from 'react'
 import { Controller, useWatch, type Control, type UseFormSetValue } from 'react-hook-form'
 
+import { NxSelect } from '../../../../components/NxSelect'
 import { PROVIDERS_HIDING_BASE_URL, PROVIDERS_REQUIRING_BASE_URL } from '../integrationFilters'
 
 import { INTEGRATION_TYPE_OPTIONS, PROVIDER_HINT_OPTIONS, type IntegrationFormData } from './integrationFormSchema'
@@ -120,7 +120,7 @@ function IntegrationTypeSelect({
   renderToggle: (toggleRef: Ref<MenuToggleElement>) => ReactNode
 }>) {
   return (
-    <Select
+    <NxSelect
       id="integration-type"
       isOpen={isOpen}
       selected={value}
@@ -138,7 +138,7 @@ function IntegrationTypeSelect({
           </SelectOption>
         ))}
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }
 
@@ -156,7 +156,7 @@ function ProviderHintSelect({
   renderToggle: (toggleRef: Ref<MenuToggleElement>) => ReactNode
 }>) {
   return (
-    <Select
+    <NxSelect
       id="provider-hint"
       isOpen={isOpen}
       selected={value}
@@ -174,7 +174,7 @@ function ProviderHintSelect({
           </SelectOption>
         ))}
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }
 

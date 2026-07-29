@@ -14,7 +14,6 @@ import {
   HelperTextItem,
   MenuToggle,
   type MenuToggleElement,
-  Select,
   SelectList,
   SelectOption,
   Stack,
@@ -32,6 +31,7 @@ import {
   EXECUTION_CONFLICT_HELP,
   SCHEDULE_EXPRESSION_HELP,
 } from '../../../components/forms/scheduleHelpText'
+import { NxSelect } from '../../../components/NxSelect'
 import { generateWebhookPath } from '../../../utils/webhookPath'
 import { useIsVersionView } from '../VersionViewContext'
 
@@ -141,7 +141,7 @@ function ExecutionConflictPolicyField({
         fieldId="execution-conflict-policy"
         isRequired
       >
-        <Select
+        <NxSelect
           id="execution-conflict-policy"
           isOpen={isOpen}
           selected={value}
@@ -157,7 +157,7 @@ function ExecutionConflictPolicyField({
               </SelectOption>
             ))}
           </SelectList>
-        </Select>
+        </NxSelect>
       </FormGroup>
     </StackItem>
   )
@@ -174,7 +174,7 @@ function ScheduleTypeSelect({
 }) {
   const [isOpen, setIsOpen] = useState(false)
   return (
-    <Select
+    <NxSelect
       id="schedule-expression"
       isOpen={isOpen}
       selected={value}
@@ -200,7 +200,7 @@ function ScheduleTypeSelect({
         <SelectOption value={ScheduleTypeEnum.INTERVAL}>Visual schedule builder</SelectOption>
         <SelectOption value={ScheduleTypeEnum.CRON}>Custom cron expression</SelectOption>
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }
 

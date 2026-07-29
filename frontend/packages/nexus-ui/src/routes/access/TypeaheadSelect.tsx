@@ -4,7 +4,6 @@ import {
   FlexItem,
   Label,
   MenuToggle,
-  Select,
   SelectList,
   SelectOption,
   TextInputGroup,
@@ -12,7 +11,9 @@ import {
   TextInputGroupUtilities,
 } from '@patternfly/react-core'
 import { RhUiCloseIcon } from '@patternfly/react-icons'
-import { type Ref, useMemo, useRef, useState } from 'react'
+import { type Ref, useCallback, useMemo, useRef, useState } from 'react'
+
+import { NxSelect } from '../../components/NxSelect'
 
 export type TypeaheadOptionTag = {
   label: string
@@ -180,12 +181,23 @@ export function TypeaheadSelect({
     </MenuToggle>
   )
 
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      setIsOpen(open)
+      if (!open) {
+        setFilterValue('')
+        onSearchChange?.('')
+      }
+    },
+    [onSearchChange]
+  )
+
   return (
-    <Select
+    <NxSelect
       id={id}
       aria-label={ariaLabel}
       isOpen={isOpen}
-      onOpenChange={setIsOpen}
+      onOpenChange={handleOpenChange}
       onSelect={onSelect}
       selected={selected}
       toggle={toggle}
@@ -193,6 +205,6 @@ export function TypeaheadSelect({
       <SelectList style={{ maxHeight: '200px', overflow: 'auto' }}>
         {renderOptions(filteredOptions, filterValue, selected, hasMore, isLoading)}
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }

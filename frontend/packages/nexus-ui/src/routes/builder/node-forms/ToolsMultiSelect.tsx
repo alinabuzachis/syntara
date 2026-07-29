@@ -3,7 +3,6 @@ import {
   Divider,
   MenuToggle,
   type MenuToggleElement,
-  Select,
   SelectList,
   SelectOption,
   TextInputGroup,
@@ -12,6 +11,8 @@ import {
 } from '@patternfly/react-core'
 import { RhUiCloseIcon } from '@patternfly/react-icons'
 import React, { useCallback, useMemo, useState } from 'react'
+
+import { NxSelect } from '../../../components/NxSelect'
 
 import styles from './ToolsMultiSelect.module.css'
 
@@ -245,7 +246,7 @@ export function ToolsMultiSelect({
   const isFiltering = filterText.trim().length > 0
 
   return (
-    <Select
+    <NxSelect
       id="agent-tools"
       isOpen={isOpen}
       onSelect={handleSelect}
@@ -300,6 +301,6 @@ export function ToolsMultiSelect({
           )
         })}
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }

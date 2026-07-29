@@ -14,7 +14,6 @@ import {
   ModalBody,
   ModalFooter,
   ModalHeader,
-  Select,
   SelectList,
   SelectOption,
   TextArea,
@@ -24,6 +23,7 @@ import { RhUiAddIcon, RhUiErrorIcon } from '@patternfly/react-icons'
 import { useCallback, useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 
+import { NxSelect } from '../../../components/NxSelect'
 import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
 import { formatExpirationDate } from '../../../utils/dateUtils'
 import { useSelectableProjects } from '../../access/useAllProjects'
@@ -114,7 +114,7 @@ export function ProjectField({
 
   return (
     <FormGroup label="Project" fieldId="sa-inline-project" isRequired>
-      <Select
+      <NxSelect
         id="sa-inline-project"
         aria-label="Project"
         isOpen={isOpen}
@@ -134,7 +134,8 @@ export function ProjectField({
             </SelectOption>
           ))}
         </SelectList>
-      </Select>
+      </NxSelect>
+
       {error && (
         <FormHelperText>
           <HelperText>

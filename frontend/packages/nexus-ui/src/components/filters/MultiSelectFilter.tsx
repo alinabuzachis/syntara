@@ -1,15 +1,8 @@
-import {
-  Badge,
-  Divider,
-  MenuToggle,
-  Select,
-  SelectList,
-  SelectOption,
-  type MenuToggleElement,
-} from '@patternfly/react-core'
+import { Badge, Divider, MenuToggle, SelectList, SelectOption, type MenuToggleElement } from '@patternfly/react-core'
 import React, { useCallback, useMemo, useState } from 'react'
 
 import { FilterOperatorEnum, type FilterConfig, type FilterOperator } from '../../types/filters'
+import { NxSelect } from '../NxSelect'
 
 const SELECT_ALL_VALUE = '__select_all__'
 const CLEAR_ALL_VALUE = '__clear_all__'
@@ -174,7 +167,7 @@ export function MultiSelectFilter({
   )
 
   return (
-    <Select
+    <NxSelect
       role="menu"
       isOpen={isOpen}
       selected={selectedValues}
@@ -201,6 +194,6 @@ export function MultiSelectFilter({
           </SelectOption>
         ))}
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }

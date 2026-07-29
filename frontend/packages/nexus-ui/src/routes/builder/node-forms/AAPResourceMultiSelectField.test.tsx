@@ -252,6 +252,40 @@ describe('AAPResourceMultiSelectField', () => {
     expect(screen.getAllByText('Default Credential').length).toBeGreaterThan(0)
   })
 
+  it('clears search filter when dropdown is closed', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <TestWrapper>
+        <AAPResourceMultiSelectField
+          label="Credentials"
+          fieldId="test-multiselect"
+          nameField="job_credentials"
+          items={mockItems}
+          isLoading={false}
+          helperText="Select credentials"
+          placeholderText="No credentials selected"
+          onSearchChange={vi.fn()}
+        />
+      </TestWrapper>
+    )
+
+    const toggle = screen.getByRole('button', { name: /no credentials selected/i })
+    await user.click(toggle)
+
+    const searchInput = await screen.findByPlaceholderText('Search')
+    await user.type(searchInput, 'Credential 1')
+    expect(searchInput).toHaveValue('Credential 1')
+
+    await user.keyboard('{Escape}')
+    await waitFor(() => {
+      expect(screen.queryByPlaceholderText('Search')).not.toBeInTheDocument()
+    })
+
+    await user.click(toggle)
+    expect(await screen.findByPlaceholderText('Search')).toHaveValue('')
+  })
+
   it('debounces search callback', async () => {
     const user = userEvent.setup()
     const mockSearchChange = vi.fn()

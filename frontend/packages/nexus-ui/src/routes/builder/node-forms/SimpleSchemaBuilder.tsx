@@ -5,7 +5,6 @@ import {
   FlexItem,
   MenuToggle,
   type MenuToggleElement,
-  Select,
   SelectList,
   SelectOption,
   Stack,
@@ -14,6 +13,8 @@ import {
 } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { useId, useState } from 'react'
+
+import { NxSelect } from '../../../components/NxSelect'
 
 import styles from './SimpleSchemaBuilder.module.css'
 import { type SimpleField, type SimpleFieldType, SIMPLE_FIELD_TYPES, createEmptyField } from './simpleSchemaUtils'
@@ -45,7 +46,7 @@ function FieldTypeSelect({
   const selected = SIMPLE_FIELD_TYPES.find((t) => t.value === value)
 
   return (
-    <Select
+    <NxSelect
       id={fieldId}
       isOpen={isOpen}
       onOpenChange={setIsOpen}
@@ -66,7 +67,7 @@ function FieldTypeSelect({
           </SelectOption>
         ))}
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }
 

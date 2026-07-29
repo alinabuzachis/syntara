@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -155,6 +155,26 @@ describe('ProjectMultiSelect', () => {
       await user.type(input, 'nonexistent')
 
       expect(screen.getByText('No results match "nonexistent"')).toBeInTheDocument()
+    })
+
+    it('clears filter when dropdown is closed', async () => {
+      const user = userEvent.setup()
+      mockProjectsLoaded()
+      render(<ProjectMultiSelect selectedIds={[]} onChange={vi.fn()} />)
+
+      const input = screen.getByPlaceholderText('Select projects...')
+      await user.click(input)
+      await user.type(input, 'alpha')
+      expect(screen.queryByText('Beta Project')).not.toBeInTheDocument()
+
+      await user.keyboard('{Escape}')
+      await waitFor(() => {
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+      })
+
+      await user.click(input)
+      expect(screen.getByText('Alpha Project')).toBeInTheDocument()
+      expect(screen.getByText('Beta Project')).toBeInTheDocument()
     })
   })
 

@@ -8,7 +8,6 @@ import {
   InputGroupItem,
   MenuToggle,
   type MenuToggleElement,
-  Select,
   SelectList,
   SelectOption,
   Switch,
@@ -21,6 +20,7 @@ import { useMemo, useState, type Ref } from 'react'
 import { FormLabelWithHelp } from '../../../../components/FormLabelWithHelp'
 import { LONG_SELECT_MAX_MENU_HEIGHT, longSelectMenuPopperProps } from '../../../../components/longSelectMenu'
 import longSelectMenuStyles from '../../../../components/longSelectMenu.module.css'
+import { NxSelect } from '../../../../components/NxSelect'
 import { ENCRYPTED_SENTINEL } from '../credentialConstants'
 
 export type FieldDefinition = {
@@ -120,7 +120,7 @@ function ChoicesSelect({
   const [isOpen, setIsOpen] = useState(false)
   const toggleText = value || 'Select...'
   return (
-    <Select
+    <NxSelect
       id={fieldId}
       isOpen={isOpen}
       selected={value || undefined}
@@ -154,7 +154,7 @@ function ChoicesSelect({
           </SelectOption>
         ))}
       </SelectList>
-    </Select>
+    </NxSelect>
   )
 }
 
