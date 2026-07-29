@@ -317,6 +317,21 @@ worker-run: check-deps _ensure-secrets _ensure-certs ## Run Temporal workflow wo
 	APP_TOOL_MANAGER_BASE_URL=$(WORKER_BASE_URL) \
 	uv run python -m nexus.workflows.worker
 
+.PHONY: background-worker-run
+background-worker-run: check-deps _ensure-secrets _ensure-certs ## Run Temporal workflow background worker
+	@echo "🔄 Starting Temporal workflow background worker..."
+	@echo "📍 Temporal UI: http://localhost:8081"
+	APP_JWT_PRIVATE_KEY_PATH=.secrets/jwt-primary.pem \
+	APP_SECRET_ENCRYPTION_KEY_PATH=.secrets/encryption-key \
+	$(S2S_TLS_VARS) \
+	APP_S2S_TLS_CERT_PATH=.secrets/certs/background-worker.crt \
+	APP_S2S_TLS_KEY_PATH=.secrets/certs/background-worker.key \
+	APP_WORKFLOW_BASE_URL=$(WORKER_BASE_URL) \
+	APP_AGENT_ORCHESTRATOR_BASE_URL=$(WORKER_BASE_URL) \
+	APP_APPROVALS_API_BASE_URL=$(WORKER_BASE_URL) \
+	APP_TOOL_MANAGER_BASE_URL=$(WORKER_BASE_URL) \
+	uv run python -m nexus.workflows.background_worker
+
 
 # Database
 # ========================================================

@@ -16,9 +16,10 @@ pre-commit-install: ## Install pre-commit hooks
 	uv run pre-commit install
 	uv run pre-commit install --hook-type commit-msg
 
-dev: ## Start backend API, Temporal worker, and frontend dev servers
+dev: ## Start backend API, Temporal workers, and frontend dev servers
 	$(MAKE) -C backend dev &
 	$(MAKE) -C backend worker-run &
+	$(MAKE) -C backend background-worker-run &
 	cd frontend && VITE_API_URL=https://localhost:8000 npm run start
 
 setup: _ensure-env install secrets certs build-images services-up db-migrate db-seed admin-password ## One-shot bootstrap: install, secrets, certs, services, migrations, seed
