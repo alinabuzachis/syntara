@@ -303,6 +303,33 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
         await _lifespan_shutdown(resources)
 
 
+# Swagger UI methods that support "Try it out" when the feature is enabled.
+# An empty list disables the button for all operations (Swagger UI config).
+_SWAGGER_UI_SUBMIT_METHODS = [
+    "get",
+    "put",
+    "post",
+    "delete",
+    "options",
+    "head",
+    "patch",
+    "trace",
+]
+
+
+def swagger_ui_parameters(*, enable_try_it_out: bool) -> dict[str, Any]:
+    """Build Swagger UI parameters for the FastAPI ``swagger_ui_parameters`` kwarg.
+
+    ``tryItOutEnabled`` only pre-expands the Try it out form. To actually hide
+    the interactive execution surface, ``supportedSubmitMethods`` must be an
+    empty list when disabled (Swagger UI configuration).
+    """
+    return {
+        "tryItOutEnabled": enable_try_it_out,
+        "supportedSubmitMethods": (list(_SWAGGER_UI_SUBMIT_METHODS) if enable_try_it_out else []),
+    }
+
+
 # Create FastAPI application
 _settings = get_settings()
 app = FastAPI(
@@ -312,6 +339,7 @@ app = FastAPI(
     docs_url="/docs" if _settings.enable_api_docs else None,
     redoc_url="/redoc" if _settings.enable_api_docs else None,
     openapi_url="/openapi.json" if _settings.enable_api_docs else None,
+    swagger_ui_parameters=swagger_ui_parameters(enable_try_it_out=_settings.enable_try_it_out),
     lifespan=lifespan,
     responses=problem_details_response_map(),
 )

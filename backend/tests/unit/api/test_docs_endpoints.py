@@ -14,6 +14,7 @@ produce the right result when the real setting is read at startup.
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 import pytest
@@ -21,6 +22,7 @@ from fastapi import FastAPI
 from starlette.testclient import TestClient
 
 from nexus.api.constants import API_V1_VERSION
+from nexus.api.main import swagger_ui_parameters
 from nexus.core.config.base import get_settings
 
 if TYPE_CHECKING:
@@ -28,13 +30,14 @@ if TYPE_CHECKING:
     from contextlib import AbstractContextManager
 
 
-def _make_app(*, enable_docs: bool) -> FastAPI:
+def _make_app(*, enable_docs: bool, enable_try_it_out: bool = False) -> FastAPI:
     """Create a minimal FastAPI app with doc endpoints toggled."""
     app = FastAPI(
         title="Test API",
         docs_url="/docs" if enable_docs else None,
         redoc_url="/redoc" if enable_docs else None,
         openapi_url="/openapi.json" if enable_docs else None,
+        swagger_ui_parameters=swagger_ui_parameters(enable_try_it_out=enable_try_it_out),
     )
 
     @app.get("/", tags=["Root"])
@@ -117,10 +120,16 @@ class TestDocsEnabled:
 class TestAPIDocsSettings:
     """The enable_api_docs setting defaults to False and is toggleable."""
 
-    def test_default_is_false(self) -> None:
+    def test_default_is_false(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from nexus.core.config.base import get_settings
 
-        assert get_settings().enable_api_docs is False
+        # Override local .env so this asserts the production default.
+        monkeypatch.setenv("APP_ENABLE_API_DOCS", "false")
+        get_settings.cache_clear()
+        try:
+            assert get_settings().enable_api_docs is False
+        finally:
+            get_settings.cache_clear()
 
     def test_env_var_enables(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from nexus.core.config.base import get_settings
@@ -146,6 +155,87 @@ class TestAPIDocsSettings:
 
         settings = APIDocsSettings()
         assert settings.enable_api_docs is False
+
+
+class TestTryItOutSettings:
+    """The enable_try_it_out setting defaults to False and is toggleable."""
+
+    def test_default_is_false(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("APP_ENABLE_TRY_IT_OUT", "false")
+        get_settings.cache_clear()
+        try:
+            assert get_settings().enable_try_it_out is False
+        finally:
+            get_settings.cache_clear()
+
+    def test_env_var_enables(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("APP_ENABLE_TRY_IT_OUT", "true")
+        get_settings.cache_clear()
+        try:
+            assert get_settings().enable_try_it_out is True
+        finally:
+            get_settings.cache_clear()
+
+    def test_override_settings(
+        self,
+        override_settings: Callable[..., AbstractContextManager[object]],
+    ) -> None:
+        with override_settings(enable_try_it_out=True):
+            assert get_settings().enable_try_it_out is True
+
+    def test_field_default_on_class(self) -> None:
+        from nexus.core.config.base import APIDocsSettings
+
+        settings = APIDocsSettings()
+        assert settings.enable_try_it_out is False
+
+
+# ---------------------------------------------------------------------------
+# Try it out Swagger UI wiring
+# ---------------------------------------------------------------------------
+
+
+class TestSwaggerUiParameters:
+    """swagger_ui_parameters() maps the toggle to Swagger UI config correctly."""
+
+    def test_disabled_hides_try_it_out(self) -> None:
+        params = swagger_ui_parameters(enable_try_it_out=False)
+        assert params["tryItOutEnabled"] is False
+        assert params["supportedSubmitMethods"] == []
+
+    def test_enabled_allows_all_methods(self) -> None:
+        params = swagger_ui_parameters(enable_try_it_out=True)
+        assert params["tryItOutEnabled"] is True
+        assert params["supportedSubmitMethods"] == [
+            "get",
+            "put",
+            "post",
+            "delete",
+            "options",
+            "head",
+            "patch",
+            "trace",
+        ]
+
+
+class TestTryItOutDocsRendering:
+    """Swagger UI HTML embeds the correct Try it out configuration."""
+
+    def test_docs_html_disables_try_it_out_by_default(self) -> None:
+        client = TestClient(_make_app(enable_docs=True, enable_try_it_out=False))
+        response = client.get("/docs")
+        assert response.status_code == 200
+        assert '"supportedSubmitMethods": []' in response.text
+        assert '"tryItOutEnabled": false' in response.text
+
+    def test_docs_html_enables_try_it_out_when_configured(self) -> None:
+        client = TestClient(_make_app(enable_docs=True, enable_try_it_out=True))
+        response = client.get("/docs")
+        assert response.status_code == 200
+        assert '"tryItOutEnabled": true' in response.text
+        # JSON list of methods is embedded; empty list must not be present.
+        assert '"supportedSubmitMethods": []' not in response.text
+        assert json.dumps(swagger_ui_parameters(enable_try_it_out=True)["supportedSubmitMethods"]) in response.text
 
 
 # ---------------------------------------------------------------------------
@@ -183,7 +273,43 @@ class TestDocsEnabledWiring:
             assert main_module.app.redoc_url == "/redoc"
             assert main_module.app.openapi_url == "/openapi.json"
         finally:
-            monkeypatch.delenv("APP_ENABLE_API_DOCS", raising=False)
+            # Force production defaults so later tests are not polluted by .env.
+            monkeypatch.setenv("APP_ENABLE_API_DOCS", "false")
+            monkeypatch.setenv("APP_ENABLE_TRY_IT_OUT", "false")
+            get_settings.cache_clear()
+            importlib.reload(main_module)
+
+    def test_app_constructor_try_it_out_disabled_by_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import importlib
+
+        import nexus.api.main as main_module
+
+        monkeypatch.setenv("APP_ENABLE_API_DOCS", "true")
+        monkeypatch.setenv("APP_ENABLE_TRY_IT_OUT", "false")
+        get_settings.cache_clear()
+        try:
+            importlib.reload(main_module)
+            assert main_module.app.swagger_ui_parameters == swagger_ui_parameters(enable_try_it_out=False)
+        finally:
+            monkeypatch.setenv("APP_ENABLE_API_DOCS", "false")
+            monkeypatch.setenv("APP_ENABLE_TRY_IT_OUT", "false")
+            get_settings.cache_clear()
+            importlib.reload(main_module)
+
+    def test_app_constructor_try_it_out_enabled(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import importlib
+
+        import nexus.api.main as main_module
+
+        monkeypatch.setenv("APP_ENABLE_API_DOCS", "true")
+        monkeypatch.setenv("APP_ENABLE_TRY_IT_OUT", "true")
+        get_settings.cache_clear()
+        try:
+            importlib.reload(main_module)
+            assert main_module.app.swagger_ui_parameters == swagger_ui_parameters(enable_try_it_out=True)
+        finally:
+            monkeypatch.setenv("APP_ENABLE_API_DOCS", "false")
+            monkeypatch.setenv("APP_ENABLE_TRY_IT_OUT", "false")
             get_settings.cache_clear()
             importlib.reload(main_module)
 
@@ -215,3 +341,21 @@ class TestProductionAppWiring:
         from nexus.api.main import app as real_app
 
         assert real_app.openapi_url is None
+
+    def test_try_it_out_disabled_by_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import importlib
+
+        import nexus.api.main as main_module
+
+        # Override local .env so this asserts the production default.
+        monkeypatch.setenv("APP_ENABLE_API_DOCS", "false")
+        monkeypatch.setenv("APP_ENABLE_TRY_IT_OUT", "false")
+        get_settings.cache_clear()
+        try:
+            importlib.reload(main_module)
+            assert main_module.app.swagger_ui_parameters == swagger_ui_parameters(enable_try_it_out=False)
+        finally:
+            monkeypatch.setenv("APP_ENABLE_API_DOCS", "false")
+            monkeypatch.setenv("APP_ENABLE_TRY_IT_OUT", "false")
+            get_settings.cache_clear()
+            importlib.reload(main_module)

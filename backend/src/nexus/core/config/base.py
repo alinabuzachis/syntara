@@ -233,6 +233,13 @@ class APIDocsSettings(BaseSettings):
         "Enable for development environments.",
     )
 
+    enable_try_it_out: bool = Field(
+        default=False,
+        description="Enable the Swagger UI 'Try it out' button for interactive API execution. "
+        "When False, the button is hidden so docs remain browse-only. "
+        "Only effective when enable_api_docs is True.",
+    )
+
 
 # =============================================================================
 # Router Discovery Configuration
