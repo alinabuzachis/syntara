@@ -145,116 +145,6 @@ execute user-facing activities (HTTP requests, scripts, AAP jobs) even if someon
 route a workflow to `nexus-background-queue`. Built-in workflows use `execute_internal_activity`
 which dispatches only to pre-registered internal handlers, not arbitrary user code.
 
-## Kubernetes Infrastructure (Operator)
-
-### CRD: `spec.backgroundWorker`
-
-The operator exposes background worker configuration under `spec.backgroundWorker` as a
-dedicated `BackgroundWorkerConfig` type (`api/v1alpha1/automationorchestrator_types.go`):
-
-```go
-type BackgroundWorkerConfig struct {
-    ComponentConfig `json:",inline"`
-
-    // HPA is always enabled.
-    HPA HPAConfig `json:"hpa,omitempty"`
-}
-```
-
-`ComponentConfig` is the same struct used by every other component: `replicas`, `resources`,
-`additionalLabels`, `additionalAnnotations`, `affinity`, etc. This means the background worker
-is fully configurable via the same CRD fields as the backend or the main worker, with one
-difference: `spec.backgroundWorker.replicas` is intentionally ignored with a logged warning and
-a Kubernetes Event — the HPA, not the operator, owns replica count.
-
-### The HPA is Always On
-
-The HPA is not optional. `HPAConfig` is a value type (not a pointer) inside
-`BackgroundWorkerConfig`, which means there is no `nil` state representing "disabled". The
-operator reconciles the HPA unconditionally on every reconcile loop. The design decision was
-deliberate:
-
-- An HPA with `minReplicas=1` and no metrics-server is effectively a no-op: it keeps one pod
-  running and does nothing else. The risk of harm from an HPA with no metrics data is zero.
-- Making HPA opt-in via `spec.backgroundWorker.hpa.enabled: true` creates a class of silent
-  failures: operators who forget the field, or upgrade paths that lose the field, end up with
-  no autoscaling and no indication of why.
-- The background worker is a long-running daemon that processes potentially bursty built-in
-  workflow activity. Scaling it up under load is almost always the right behavior.
-
-Defaults (`api/v1alpha1/automationorchestrator_types.go` `+kubebuilder:default` markers, also
-applied as zero-value fallbacks in `buildBackgroundWorkerHPA`):
-
-| Field | Default | Rationale |
-|---|---|---|
-| `minReplicas` | 1 | Guarantee at least one pod always ready |
-| `maxReplicas` | 5 | Sensible ceiling; tunable per deployment |
-| `targetCPUUtilization` | 80% | Conservative for I/O-bound Temporal polling; raise if CPU-bound activities dominate |
-
-The Deployment's `spec.replicas` field is left nil — intentionally omitted from the SSA patch.
-This transfers ownership of the replica count field to the HPA controller, which then sets it
-to the computed value. If the operator were to set `spec.replicas` explicitly on every
-reconcile, the HPA and the operator would fight each other on every scaling event.
-
-### HPA Config Validation
-
-`validateBackgroundWorkerHPAConfig()` (`automationorchestrator_controller.go:879`) runs in
-`validateSpec()` before any reconciliation. If `minReplicas > maxReplicas`, it sets
-`ConfigurationValid=False` with `reason=ConfigInvalid` and a message naming both field values.
-The reconciler exits early — no existing resources are touched, no HPA is mutated, and the
-currently-running pods continue serving. The condition self-heals as soon as the CR is updated
-with a valid configuration.
-
-### Upgrade Scale-Down Conflict
-
-During version upgrades, `ensureUpgradeScaleDown()` patches the background worker Deployment's
-`spec.replicas` to `0` so migration jobs can run without competing with a live worker. This
-creates a conflict: an HPA with `minReplicas=1` will immediately attempt to fight the
-`replicas=0` patch by restoring replicas to 1 — the HPA's minReplicas is a hard floor.
-
-The resolution is `deleteBackgroundWorkerHPAForUpgrade()`, called unconditionally before any
-upgrade scale-down:
-
-```go
-// Deleted unconditionally — spec may have changed during the upgrade window,
-// leaving an orphaned HPA even when hpa is no longer in spec.
-// The reconciler recreates it once the upgrade migration completes.
-func (r *...) deleteBackgroundWorkerHPAForUpgrade(ctx, ao) error {
-    // verify ownership first; skip if not owned by this CR
-    // delete; NotFound is a no-op
-}
-```
-
-After migrations finish, the main reconcile loop restores the HPA from its desired state.
-`ensureBackgroundWorkerMinReplicas()` bridges the gap between HPA deletion and restoration: if
-the Deployment is still at `replicas=0` after upgrade (because the HPA was deleted and
-metrics-server hasn't kicked in yet), the operator patches it to `minReplicas` directly so
-the pod comes back up without waiting for the HPA control loop to settle.
-
-```mermaid
-sequenceDiagram
-    participant Op as Operator
-    participant HPA
-    participant Dep as Deployment
-    participant Job as Migration Job
-
-    Op->>HPA: delete (before scale-down)
-    Op->>Dep: patch replicas=0
-    Op->>Job: create migration job
-    Job-->>Op: migration complete
-    Op->>Dep: ensureBackgroundWorkerMinReplicas (replicas=1 if still 0)
-    Op->>HPA: recreate (normal reconcile)
-    HPA-->>Dep: owns replicas field again
-```
-
-### Server-Side Apply
-
-All operator-managed resources — the Deployment, Service, HPA, ServiceMonitors, and metrics
-Services — are applied via `applyResource()`, which uses SSA with the field manager
-`automation-orchestrator-operator`. SSA makes in-place updates idempotent and safe under
-concurrent controllers: the HPA's ownership of `spec.replicas` is declared at the field
-manager level, not by convention.
-
 ## Observability
 
 ### Prometheus Metrics Architecture
@@ -395,62 +285,9 @@ The poller uses `coordinate=False` so that every API server replica independentl
 Temporal. Prometheus aggregates across replicas at scrape time; they should all see the same
 queue depth, and any disagreement averages out.
 
-## Infrastructure Tuning
-
-### PostgreSQL max_connections
-
-Before this work, the default PostgreSQL `max_connections` was sized for the API server alone.
-Adding a second Temporal worker deployment — both workers maintain their own SQLAlchemy
-connection pools for activity execution — would exceed the default under concurrent load. The
-operator was updated to inject `max_connections=200` (configurable) into the PostgreSQL
-StatefulSet so the database can serve the extended connection demand from:
-
-- The API server pool (`APP_DB_POOL_SIZE` connections, overflows, audit worker pool)
-- The workflow worker's activity pool
-- The background worker's activity pool
-- Temporal's own PostgreSQL connections (persistence backend)
-
-### Temporal NUM_HISTORY_SHARDS
-
-`TEMPORAL_NUM_HISTORY_SHARDS=512` is now injected into the Temporal Server Deployment. This is
-a write-once setting — it cannot be changed after the Temporal namespace is created without a
-full data migration. 512 shards is the production-grade value. The default of 4 shards becomes
-a performance bottleneck at scale because all workflow history events for a namespace hash into
-only 4 shard buckets, serializing writes under concurrent workflow execution.
-
-**Caution**: this value is set at cluster creation time and cannot be changed later. Any new
-Temporal namespace should have this set from the beginning.
-
 ## How to Verify Everything is Working
 
-### 1. Verify Both Worker Deployments Exist
-
-```bash
-kubectl get deployments -l app.kubernetes.io/instance=<cr-name> -n <namespace>
-```
-
-You should see `<cr>-worker` and `<cr>-background-worker` both with `AVAILABLE` replicas.
-
-### 2. Verify the HPA is Active and Sane
-
-```bash
-kubectl get hpa <cr>-background-worker -n <namespace>
-kubectl describe hpa <cr>-background-worker -n <namespace>
-```
-
-Expected:
-- `MINPODS`: 1, `MAXPODS`: 5, `TARGETS`: `<current>%/80%`
-- `AbleToScale=True` in conditions
-- `ScalingActive=True` if metrics-server is present; `ScalingActive=False` (with reason) if not
-
-```bash
-# Verify the Deployment's spec.replicas is nil (owned by HPA):
-kubectl get deployment <cr>-background-worker -n <namespace> \
-  -o jsonpath='{.spec.replicas}'
-# Should return empty string — nil means HPA owns the field
-```
-
-### 3. Verify Worker Metrics Endpoints
+### Verify Worker Metrics Endpoints
 
 ```bash
 # Port-forward to a background worker pod and scrape its metrics:
@@ -463,29 +300,14 @@ curl http://localhost:9090/metrics
 Expected: Prometheus text format with `# HELP python_gc_objects_collected_total` and similar
 standard Python process metrics.
 
-### 4. Verify ServiceMonitors Exist
-
-```bash
-kubectl get servicemonitors -n <namespace> -l app.kubernetes.io/instance=<cr-name>
-```
-
-Expected four monitors: `<cr>-backend`, `<cr>-worker`, `<cr>-background-worker`, `<cr>-temporal-server`.
-
-```bash
-# Verify a worker monitor's endpoint config:
-kubectl get servicemonitor <cr>-background-worker -n <namespace> \
-  -o jsonpath='{.spec.endpoints[0]}'
-# Expected: {"interval":"30s","path":"/metrics","port":"metrics","scheme":"http"}
-```
-
-### 5. Verify Queue Depth Metrics are Flowing
+### Verify Queue Depth Metrics are Flowing
 
 If Prometheus is configured to scrape the backend service:
 
 ```promql
 # Both series should be present (value may be 0 when queues are idle)
-temporal_queue_depth{task_queue="nexus-workflow-queue"}
-temporal_queue_depth{task_queue="nexus-background-queue"}
+nexus_temporal_queue_depth{task_queue="nexus-workflow-queue"}
+nexus_temporal_queue_depth{task_queue="nexus-background-queue"}
 ```
 
 From the API server's internal metrics endpoint:
@@ -494,7 +316,7 @@ From the API server's internal metrics endpoint:
 curl -k https://<backend-svc>/api/v1/internal/metrics | jq '.queue_depth'
 ```
 
-### 6. Verify Built-in Workflow Routes to Background Queue
+### Verify Built-in Workflow Routes to Background Queue
 
 Start a document conversion and observe the background worker's Temporal task count rising while
 the main worker remains idle. Alternatively, query the Temporal UI:
@@ -503,35 +325,6 @@ the main worker remains idle. Alternatively, query the Temporal UI:
 - Select namespace `default`
 - Filter by Task Queue `nexus-background-queue`
 - A running document conversion should appear here, not under `nexus-workflow-queue`
-
-### 7. Verify HPA Validation Rejects Invalid Config
-
-```bash
-kubectl patch automationorchestrator <cr-name> -n <namespace> --type=merge \
-  -p '{"spec":{"backgroundWorker":{"hpa":{"minReplicas":10,"maxReplicas":5}}}}'
-
-kubectl get automationorchestrator <cr-name> -n <namespace> \
-  -o jsonpath='{.status.conditions[?(@.type=="ConfigurationValid")]}'
-```
-
-Expected: `status=False`, `reason=ConfigInvalid`, `message` containing `minReplicas` and
-`maxReplicas`. The existing HPA and pods remain unchanged.
-
-Restore with:
-```bash
-kubectl patch automationorchestrator <cr-name> -n <namespace> --type=merge \
-  -p '{"spec":{"backgroundWorker":{"hpa":{"minReplicas":1,"maxReplicas":5}}}}'
-```
-
-### 8. Verify HPA Garbage Collection on CR Deletion
-
-Delete the CR and confirm the HPA is garbage-collected alongside other owned resources:
-
-```bash
-kubectl delete automationorchestrator <cr-name> -n <namespace>
-kubectl get hpa,deployment,service -n <namespace> -l app.kubernetes.io/instance=<cr-name>
-# All resources should be absent within ~90 seconds
-```
 
 ## Adding a New Built-in Workflow
 
@@ -673,15 +466,9 @@ long-running internal activities.
 
 **No CPU-independent HPA metric**: the HPA scales on CPU utilization. This works for CPU-bound
 activities but is a weak proxy for queue backlog depth. A better HPA trigger would be the
-`temporal_queue_depth{task_queue="nexus-background-queue"}` Prometheus metric via a custom
-metrics adapter (e.g. Prometheus Adapter or KEDA). The current setup is safe and correct; the
-CPU trigger just responds to load with some lag rather than immediately to queue depth.
-
-**Temporal service is monolithic**: the Temporal deployment runs all four service roles
-(frontend, history, matching, worker) in a single container. At high shard count (512), the
-history service becomes the bottleneck. Splitting into separate Deployments per service role
-is a post-GA exercise — the operator CRD would need per-role resource and replica fields, and
-the `temporal-server` `--service` flags would need to be parameterized.
+`nexus_temporal_queue_depth{task_queue="nexus-background-queue"}` Prometheus metric via a
+custom metrics adapter (e.g. Prometheus Adapter or KEDA). The current setup is safe and
+correct; the CPU trigger just responds to load with some lag rather than immediately to queue depth.
 
 ## Related Documentation
 
