@@ -53,17 +53,19 @@ export function LLMSection({ isVersionView, projectId }: LLMSectionProps) {
           helpText={AI_MODEL_HELP}
         />
       </StackItem>
-      <StackItem>
-        <FormGroup label="Credential" labelHelp={nodeHelp.aiCredential} fieldId="agent-credential">
-          <LLMCredentialStatus
-            modelSelected={!!watchedLlmModelId}
-            credentialId={watchedCredentialId}
-            onChange={(credentialId) => setValue('credential_id', credentialId, { shouldDirty: true })}
-            isDisabled={isVersionView}
-            projectId={projectId}
-          />
-        </FormGroup>
-      </StackItem>
+      {watchedLlmModelId ? (
+        <StackItem>
+          <FormGroup label="Credential" labelHelp={nodeHelp.aiCredential} fieldId="agent-credential">
+            <LLMCredentialStatus
+              modelSelected
+              credentialId={watchedCredentialId}
+              onChange={(credentialId) => setValue('credential_id', credentialId, { shouldDirty: true })}
+              isDisabled={isVersionView}
+              projectId={projectId}
+            />
+          </FormGroup>
+        </StackItem>
+      ) : null}
     </>
   )
 }

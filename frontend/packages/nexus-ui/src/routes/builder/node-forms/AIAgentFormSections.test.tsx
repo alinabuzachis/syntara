@@ -113,6 +113,38 @@ describe('AIAgentFormSections', () => {
     expect(screen.getByTestId('model-value')).toHaveTextContent('model-2')
   })
 
+  it('hides the Credential field until a model is selected', async () => {
+    const user = userEvent.setup()
+    render(
+      <FormWrapper>
+        <LLMSection isVersionView={false} projectId="proj-1" />
+      </FormWrapper>
+    )
+
+    expect(screen.queryByText('Credential')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('selected-credential')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Select model' }))
+    expect(screen.getAllByText('Credential').length).toBeGreaterThan(0)
+    expect(screen.getByTestId('selected-credential')).toBeInTheDocument()
+  })
+
+  it('hides the Credential field again when the model is cleared', async () => {
+    const user = userEvent.setup()
+    render(
+      <FormWrapper defaultValues={{ llm_model_id: 'model-1', credential_id: 'cred-1' }}>
+        <LLMSection isVersionView={false} projectId="proj-1" />
+      </FormWrapper>
+    )
+
+    expect(screen.getAllByText('Credential').length).toBeGreaterThan(0)
+    expect(screen.getByTestId('selected-credential')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Clear model' }))
+    expect(screen.queryByText('Credential')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('selected-credential')).not.toBeInTheDocument()
+  })
+
   it('clears credential_id when model selection is cleared', async () => {
     const user = userEvent.setup()
     render(
