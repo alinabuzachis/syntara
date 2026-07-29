@@ -8,7 +8,7 @@ For human-user authentication (login, OIDC, sessions, CSRF), see [authentication
 
 Service accounts enable programmatic API access without interactive user login. They use the OAuth 2.0 **client credentials grant** (RFC 6749 §4.4) — a client authenticates with a `client_id` and `client_secret`, and receives a short-lived JWT access token.
 
-Use cases include CI/CD pipelines triggering workflows, ITSM platforms initiating remediation, partner systems exchanging data, and monitoring tools invoking automated responses.
+Use cases include CI/CD pipelines triggering workflows, ITSM platforms initiating remediation, partner systems exchanging data, monitoring tools invoking automated responses, and **Event-Driven Ansible (EDA) triggering workflows via webhooks**.
 
 ### How it differs from human authentication
 
@@ -20,7 +20,9 @@ Use cases include CI/CD pipelines triggering workflows, ITSM platforms initiatin
 | CSRF protection | Required (cookie-based auth) | N/A (bearer token only) |
 | Identity providers | OIDC federation, claim mapping | N/A |
 | Secret storage | Argon2id password hash on `users` | Argon2id secret hash on `service_account_credentials` |
-| Rate limiting | Per-user global (in progress) | Per-`client_id` sliding window |
+| Token lifetime | Configurable via `jwt_access_token_lifetime_minutes` | Configurable via `jwt_sa_access_token_lifetime_minutes` (default 15 min, max 60) |
+| WebSocket access | Supported via ws-ticket exchange | Blocked — returns 403 |
+| Deletion | Soft-delete | Hard-delete (cascades credentials and role assignments) |
 
 ### Shared infrastructure
 
@@ -34,30 +36,31 @@ Service accounts reuse the same JWT signing infrastructure as human authenticati
 
 ### `service_accounts` table
 
-The `ServiceAccount` model (`src/nexus/service_accounts/models/service_account.py`) inherits from `NamedResource`, `SoftDeletableResource`, and `UserOwnedResource`.
+The `ServiceAccount` model (`src/nexus/service_accounts/models/service_account.py`) inherits from `NamedResource` and `UserOwnedResource`. It uses hard deletion — there are no `deleted_at` or `deleted_by` columns.
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | UUID (PK, FK → `principals`) | Auto-generated primary key |
 | `name` | VARCHAR(255) | Human-readable name |
 | `description` | VARCHAR(2000) | Optional description |
-| `status` | ENUM (`active`, `disabled`) | Operational status |
+| `status` | CHECK constraint (`active`, `disabled`) | Operational status |
 | `project_id` | UUID (FK → `projects`) | Project namespace for resource isolation |
+| `token_version` | INT, default 0 | Incremented on disable to invalidate issued tokens |
 | `last_authenticated_at` | TIMESTAMPTZ, nullable | Timestamp of the most recent successful authentication |
 | `created_by` | UUID (FK → `principals`) | User who created the service account |
 | `updated_by` | UUID (FK → `principals`, nullable) | User who last modified the service account |
 | `created_at` | TIMESTAMPTZ | Creation timestamp |
 | `updated_at` | TIMESTAMPTZ | Last modification timestamp |
-| `deleted_at` | TIMESTAMPTZ, nullable | Soft-delete timestamp |
-| `deleted_by` | UUID (FK → `users`, nullable) | User who performed the soft delete |
 | `labels` | JSONB | Key-value metadata (standard across all resources) |
 
 **Indexes:**
 
 - `ix_service_accounts_created_at_id` — composite index for cursor-based pagination
-- Individual indexes on `status`, `project_id`, `name`, `created_by`, `updated_by`, `deleted_at`, `deleted_by`
+- Individual indexes on `status`, `project_id`, `name`, `created_by`, `updated_by`
 
 **Audit level:** `META` — audit events capture metadata fields only.
+
+**Principal integration:** A `Principal` row is auto-created via a SQLAlchemy `_before_flush` session listener whenever a `ServiceAccount` is added to the session. The service account and principal share the same UUID primary key.
 
 ### `service_account_credentials` table
 
@@ -66,21 +69,23 @@ The `ServiceAccountCredential` model (`src/nexus/service_accounts/models/service
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | UUID (PK) | Auto-generated primary key |
-| `service_account_id` | UUID (FK → `service_accounts`) | Parent service account |
-| `credential_type` | ENUM (`client_credentials`) | Type of credential |
+| `service_account_id` | UUID (FK → `service_accounts`, CASCADE) | Parent service account |
+| `credential_type` | CHECK constraint (`client_credentials`) | Type of credential |
 | `identifier` | VARCHAR(64), UNIQUE | Public identifier (e.g., `client_id`) |
 | `hashed_secret` | TEXT | Argon2id hash of the secret |
 | `old_hashed_secret` | TEXT, nullable | Previous secret hash during rotation grace period |
 | `old_secret_valid_until` | TIMESTAMPTZ, nullable | When the old secret stops being accepted |
 | `grace_period_seconds` | INT, default 3600 (0–86400) | How long the old secret remains valid after rotation |
-| `status` | ENUM (`active`, `disabled`) | Operational status |
-| `expires_at` | TIMESTAMPTZ, nullable | Optional expiry timestamp |
+| `status` | CHECK constraint (`active`, `disabled`) | Operational status |
+| `expires_at` | TIMESTAMPTZ, nullable | Optional expiry timestamp (capped by `sa_credential_max_lifetime_days`) |
 | `last_used_at` | TIMESTAMPTZ, nullable | Timestamp of last use |
 | `created_by` | UUID (FK → `principals`) | User who created the credential |
 | `updated_by` | UUID (FK → `principals`, nullable) | User who last modified the credential |
 | `created_at` | TIMESTAMPTZ | Creation timestamp |
 | `updated_at` | TIMESTAMPTZ | Last modification timestamp |
 | `labels` | JSONB | Key-value metadata |
+
+The `service_account_id` FK uses `CASCADE` on delete — when a service account is deleted, all its credentials are automatically removed.
 
 **Indexes:**
 
@@ -90,13 +95,28 @@ The `ServiceAccountCredential` model (`src/nexus/service_accounts/models/service
 
 **Audit level:** `META` — `hashed_secret` and `old_hashed_secret` are excluded from audit logs.
 
-**Limit:** Maximum 10 credentials per service account.
+**Limit:** Maximum 10 credentials per service account (enforced by `MAX_CREDENTIALS_PER_SA` in `constants.py`).
+
+### `webhook_trigger_service_accounts` table
+
+The `WebhookTriggerServiceAccount` model (`src/nexus/workflows/models/webhook_trigger_service_account.py`) is a many-to-many association table that binds service accounts to webhook triggers. Only explicitly bound service accounts can invoke a given trigger.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `webhook_trigger_id` | UUID (PK, FK → `webhook_triggers`, CASCADE) | Webhook trigger |
+| `service_account_id` | UUID (PK, FK → `service_accounts`, CASCADE) | Authorized service account |
+
+Both FKs use `CASCADE` on delete — when either a trigger or service account is deleted, the binding is automatically removed.
+
+**Indexes:**
+
+- `ix_wt_sa_service_account_id` — index on `service_account_id` for reverse lookups
 
 ### Credential types
 
 | Type | Identifier format | Secret format | Use case |
 |------|------------------|---------------|----------|
-| `client_credentials` | `nx_sa_{hex16}` | `token_urlsafe(48)` (64 chars) | OAuth 2.0 client credentials grant |
+| `client_credentials` | `nx_sa_{uuid4_hex[:16]}` | `token_urlsafe(48)` (64 chars) | OAuth 2.0 client credentials grant |
 
 ### Secret hashing
 
@@ -106,7 +126,7 @@ Secrets are hashed with **Argon2id** using the same `hash_password` / `verify_pa
 
 ### Service account endpoints
 
-All endpoints live under `/api/v1/service_accounts`. Project scoping is enforced via `project_id` in the request body (create) and `VisibilityFilter` (list).
+All endpoints live under `/api/v1/service_accounts`. Project scoping is enforced via `project_id` in the request body (create) and `VisibilityFilter` (list). All endpoints use `PermissionChecker` per action.
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -114,9 +134,9 @@ All endpoints live under `/api/v1/service_accounts`. Project scoping is enforced
 | `GET` | `/service_accounts` | List service accounts (paginated, filterable, project-scoped) |
 | `GET` | `/service_accounts/{service_account_id}` | Get service account details |
 | `PATCH` | `/service_accounts/{service_account_id}` | Update name and/or description |
-| `DELETE` | `/service_accounts/{service_account_id}` | Soft-delete a service account |
+| `DELETE` | `/service_accounts/{service_account_id}` | Hard-delete a service account (cascades credentials and role assignments) |
 | `POST` | `/service_accounts/{service_account_id}/enable` | Set status to `active` |
-| `POST` | `/service_accounts/{service_account_id}/disable` | Set status to `disabled` |
+| `POST` | `/service_accounts/{service_account_id}/disable` | Set status to `disabled` and increment `token_version` (invalidates outstanding tokens) |
 
 ### Credential endpoints
 
@@ -146,6 +166,16 @@ Credentials are nested sub-resources of service accounts. Permissions inherit fr
    -> 201 with credential details + plaintext client_secret
    -> ⚠️ Secret is shown ONCE — it cannot be retrieved again
 ```
+
+### Delete behavior
+
+Service accounts use **hard deletion**. When a service account is deleted:
+
+1. All credentials are deleted (via FK CASCADE)
+2. All non-builtin role assignments for the SA are deleted
+3. All webhook trigger bindings are deleted (via FK CASCADE)
+4. The service account row is deleted
+5. The `Principal` row is **preserved** for FK integrity (other tables reference `created_by` / `updated_by`)
 
 ### One-time secret display
 
@@ -182,8 +212,6 @@ After grace period expires:
 The default grace period is 3600 seconds (1 hour), configurable per credential via the `grace_period_seconds` field.
 
 ## Client Credentials Grant
-
-> **Status:** Not yet implemented
 
 ### Token endpoint
 
@@ -224,117 +252,286 @@ Service account access tokens include:
 |-------|-------------|
 | `sub` | Service account UUID |
 | `iss` | Nexus server URL (same issuer as human tokens) |
+| `aud` | Token audience |
 | `iat` | Issued-at timestamp |
 | `exp` | Expiration timestamp |
 | `token_type` | `"service_account"` (distinguishes from human tokens) |
-| `client_id` | The service account's `client_id` |
-| `project_id` | The service account's home project |
-| `name` | Service account name |
+| `preferred_username` | Service account name |
+| `groups` | Always `[]` — SAs get permissions via direct role assignments, not group membership |
+| `token_ver` | Token version counter (for stale-token detection by middleware) |
+| `cred_id` | Credential UUID that issued this token (for per-credential revocation) |
+
+Service account tokens **omit** `amr`, `idp`, `email`, `name`, `given_name`, and `family_name` claims.
+
+### Validation
+
+The token endpoint validates credentials in a timing-safe manner:
+
+1. Look up `ServiceAccountCredential` joined with `ServiceAccount` by `client_id`
+2. If unknown `client_id`, perform a dummy Argon2 verify (constant-time) before rejecting
+3. Verify secret against `hashed_secret`, falling back to `old_hashed_secret` during grace period
+4. All status checks (SA disabled, credential disabled, credential expired) are evaluated before branching to prevent timing side-channels
+5. On success, update `last_authenticated_at` on SA and `last_used_at` on credential
 
 ### Rejection rules
-
-The token endpoint rejects authentication in the following cases:
 
 | Condition | Response |
 |-----------|----------|
 | Unknown `client_id` | 401 `invalid_client` |
 | Secret does not match current or previous (non-expired) hash | 401 `invalid_client` |
 | Service account status is `disabled` | 401 `invalid_client` |
-| Service account is soft-deleted | 401 `invalid_client` |
+| Credential status is `disabled` | 401 `invalid_client` |
+| Credential is expired | 401 `invalid_client` |
+| Unsupported `grant_type` | 400 `unsupported_grant_type` |
 
 All rejection responses use the same generic error to avoid leaking whether a `client_id` exists (enumeration protection).
 
+### WebSocket restriction
+
+Service account tokens cannot be exchanged for WebSocket tickets. `POST /auth/ws-ticket` returns 403 with code `SERVICE_ACCOUNT_WS_TICKET_FORBIDDEN` and header `X-Auth-Failure-Type: service_account_forbidden`.
+
 ## Auth Middleware Integration
 
-> **Status:** Not yet implemented
+The `StaleTokenMiddleware` (`src/nexus/auth/middleware.py`) handles service account tokens alongside user tokens. When it encounters a JWT with `token_type: "service_account"`, it runs two check phases via `_handle_sa_token()`:
 
-When the auth middleware encounters a JWT with `token_type: "service_account"`, it builds a **virtual principal** for the Rego policy evaluator rather than loading a user from the database.
+**Phase 1 — SA identity (`_check_sa_identity`):**
 
 ```
-Incoming request with Bearer token
-  -> Middleware decodes JWT
-  -> token_type == "service_account"?
-     Yes -> Build virtual principal:
-            { type: "service_account", id: sub, client_id, project_id, roles: [...] }
-     No  -> Normal user auth flow (existing behavior)
-  -> Rego evaluator checks policies against the principal
-  -> Request proceeds or is denied
+_check_sa_status(sa_id) — raw SQL with 5s TTL cache
+
+  1. SA not found (deleted)?
+     -> 401, code=SA_DELETED, X-Auth-Failure-Type: deleted_sa
+     -> Dispatch DisabledSARejectionEvent(is_alive=False)
+
+  2. SA status != "active" (disabled)?
+     -> 401, code=SA_DISABLED, X-Auth-Failure-Type: disabled_sa
+     -> Dispatch DisabledSARejectionEvent(is_alive=True)
+
+  3. token_ver < current token_version (stale)?
+     -> 401, code=SA_TOKEN_REVOKED, X-Auth-Failure-Type: revoked_sa_token
+     -> Dispatch StaleSATokenDetectionEvent (throttled to 1/min per SA)
 ```
 
-### Disable / delete invalidation
+**Phase 2 — credential (`_check_sa_credential`):**
 
-When a service account is disabled or deleted, all tokens issued for it must be immediately rejected:
+```
+  4. Token missing cred_id claim?
+     -> 401, code=SA_TOKEN_REVOKED, X-Auth-Failure-Type: revoked_sa_token
+     -> Dispatch MissingSACredentialClaimEvent
 
-- **Disable** — subsequent requests with that service account's token are rejected by the middleware (the middleware checks the service account's status)
-- **Delete** — same behavior; soft-deleted accounts are treated as disabled
+  5. _check_cred_status(cred_id) — raw SQL with 5s TTL cache
+     Credential not found (deleted) or status != "active" (disabled)?
+     -> 401, code=SA_CREDENTIAL_DISABLED, X-Auth-Failure-Type: disabled_sa_credential
+     -> Dispatch DisabledSACredentialRejectionEvent
+```
 
-This mirrors the `StaleTokenMiddleware` behavior for disabled human users (see [Disabled User Enforcement](authentication.md#disabled-user-enforcement)).
+All rejection responses use RFC 9457 Problem Details format.
+
+### Token version mechanism
+
+The `token_version` column on the `service_accounts` table works with the `token_ver` JWT claim:
+
+- When a SA is **disabled**, `token_version` is atomically incremented
+- The middleware compares the JWT's `token_ver` against the current `token_version`
+- If `token_ver < token_version`, the token is rejected as revoked
+- This provides immediate invalidation of all outstanding tokens on disable
+
+### Per-credential revocation
+
+The `cred_id` JWT claim enables per-credential invalidation:
+
+- Each SA token embeds the UUID of the credential that was used to obtain it
+- The middleware checks the credential's status via `_check_cred_status()` (5s TTL cache)
+- Disabling or deleting a credential immediately invalidates only tokens from that credential — other credentials on the same SA remain unaffected
+- Tokens without a `cred_id` claim are rejected outright (no backward compatibility)
+
+### Caching
+
+Status checks use in-process `TTLCache` to avoid a DB query on every request:
+- `_sa_status_cache` — 5s TTL, maxsize 4096
+- `_cred_status_cache` — 5s TTL, maxsize 4096
+- `_stale_audit_cache` — 60s TTL for throttling audit events
 
 ## Authorization (RBAC)
 
-> **Status:** Not yet implemented
+### PrincipalType
 
-### PrincipalType extension
+The `PrincipalType` enum (`src/nexus/core/models/principal.py`) includes `SERVICE_ACCOUNT` as a first-class principal type alongside `USER`, `SERVICE`, and `SYSTEM`.
 
-The `PrincipalType` enum (`src/nexus/authz/models/assignments.py`) will be extended with a `SERVICE_ACCOUNT` value, allowing service accounts to receive role assignments.
+### Resource permissions
 
-### Resource type registration
+Service accounts are registered as an authz resource type in `src/nexus/authz/role_conventions.py`:
 
-Service accounts will be registered as an authz resource type with the following permissions:
+| Permission | Scope | Roles |
+|------------|-------|-------|
+| `service_account:create` | System | `admin` |
+| `service_account:read` | System | `admin`, `auditor` |
+| `service_account:update` | System | `admin` |
+| `service_account:delete` | System | `admin` |
+| `service_account:rotate_secret` | System | `admin` |
+| `service_account:disable` | System | `admin` |
+| `service_account:enable` | System | `admin` |
+| `service_account:create` | Project | `project-admin` |
+| `service_account:read` | Project | `project-admin`, `project-auditor` |
+| `service_account:update` | Project | `project-admin` |
+| `service_account:delete` | Project | `project-admin` |
+| `service_account:rotate_secret` | Project | `project-admin` |
+| `service_account:disable` | Project | `project-admin` |
+| `service_account:enable` | Project | `project-admin` |
 
-| Permission | Description |
-|------------|-------------|
-| `service_account:create` | Create a service account in a project |
-| `service_account:read` | View service account details |
-| `service_account:update` | Modify name, description, labels, enable/disable |
-| `service_account:delete` | Soft-delete a service account |
-| `service_account:rotate_secret` | Rotate the client secret |
+### Role assignments for service accounts
 
-### Project admin implicit management
+Service accounts can receive role assignments via the standard role assignment API. The `RoleAssignment` model uses `principal_id` (FK → `principals`), which supports both users and service accounts. The authz resolver (`src/nexus/authz/resolver.py`) resolves effective policies generically via `principal_id`.
 
-Project administrators have implicit management rights over service accounts in their project — no explicit role assignment is required.
+The role assignment service (`src/nexus/authz/services/role_assignment_service.py`) handles the `"service_account"` principal type: it validates the SA exists, resolves its name for display, and outer-joins the `ServiceAccount` table in queries.
 
-### Cross-project role delegation
+## Webhook and EDA Integration
 
-A service account can receive role assignments in projects other than its owning project. The mechanism requires explicit opt-in:
+Service accounts are the required authentication mechanism for webhook and EDA trigger endpoints. External systems (GitHub, Jira, Slack, EDA, etc.) must present a valid service account Bearer token to invoke a trigger.
 
-1. The admin of Project A (where the service account lives) grants `service_account:read` on the service account to the admin of Project B
-2. Project B's admin can now see the service account in principal selection UI
-3. Project B's admin assigns project-scoped roles to the service account within Project B
+### Trigger endpoints
 
-Without the explicit read grant in step 1, the service account is invisible to other projects. This prevents accidental cross-project exposure while still enabling intentional delegation.
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/webhooks/{webhook_path}` | Receive a webhook event and trigger the matching workflow |
+| `POST` | `/webhooks/eda/{webhook_path}` | Receive an EDA webhook event and trigger the matching workflow |
 
-## Rate Limiting
+Both endpoints:
+1. Require a service account Bearer token (401 if missing/invalid or not a SA token)
+2. Verify the SA is authorized for the specific trigger via the binding table (403 if not bound)
+3. Dispatch audit events on success/failure
+4. Start a workflow execution with the webhook payload as input
 
-> **Status:** Not yet implemented
+### Per-trigger SA binding
 
-The token endpoint (`POST /api/v1/auth/token`) is rate-limited per `client_id` using a sliding window counter backed by Redis.
+Each webhook/EDA trigger has an explicit list of authorized service accounts. This binding is managed as part of the workflow definition:
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| Max requests | TBD | Maximum token requests per window |
-| Window size | TBD | Sliding window duration |
+- `WebhookTriggerParameters` includes an `authorized_service_account_ids` field
+- During workflow save, `_sync_trigger_sa_bindings()` syncs the desired SA IDs against existing bindings (computes add/remove sets)
+- All bound SAs must exist in the same project as the workflow
+- The `webhook_trigger_service_accounts` association table stores the bindings
 
-Rate limits are admin-configurable via runtime settings. When the limit is exceeded, the endpoint returns `429 Too Many Requests` with a `Retry-After` header.
+### Authentication flow
+
+```
+External system (e.g., EDA rulebook action) sends:
+  POST /api/v1/webhooks/eda/{path}
+  Authorization: Bearer <sa_access_token>
+  Content-Type: application/json
+
+  { "event": { ... } }
+
+  -> get_webhook_caller() dependency:
+     1. Decode Bearer token via TokenService
+     2. Check global revocation
+     3. Verify token_type == "service_account"
+     4. Return (User, service_account_id)
+
+  -> _handle_webhook_request():
+     1. Look up WebhookTrigger by path and type
+     2. verify_service_account_authorization(trigger_id, sa_id)
+        -> Checks webhook_trigger_service_accounts binding
+        -> 403 WebhookServiceAccountNotAuthorizedError if not bound
+     3. Dispatch WebhookAuthSuccessEvent
+     4. Start workflow execution via ExecutionService
+
+  -> 202 Accepted { "execution_id": "...", "message": "..." }
+```
+
+### EDA usage pattern
+
+For Event-Driven Ansible integration, the typical setup is:
+
+1. Create a service account in the same project as the workflow
+2. Create a credential for the SA and store the `client_id` / `client_secret`
+3. Configure the workflow's EDA trigger node with the SA in `authorized_service_account_ids`
+4. In the EDA rulebook, use `run_workflow_template` (or a webhook URL action) that:
+   - Obtains a token: `POST /api/v1/auth/token` with the SA credentials
+   - Invokes the trigger: `POST /api/v1/webhooks/eda/{path}` with the Bearer token
+
+### Payload limits
+
+Webhook payloads are limited to 1 MB (`WebhookLimits.PAYLOAD_MAX_BYTES`). The check runs in two phases: a fast-path `Content-Length` header check, then a streaming body read that aborts as soon as the limit is exceeded.
 
 ## Audit Events
 
-> **Status:** Not yet implemented
-
 All service account lifecycle and authentication events are captured in the immutable audit log, following the patterns established in [audit.md](audit.md).
 
-| Event | Category | Severity | When |
-|-------|----------|----------|------|
-| `service_account.created` | RESOURCE | INFO | Service account created |
-| `service_account.updated` | RESOURCE | INFO | Name, description, or labels changed |
-| `service_account.enabled` | RESOURCE | WARNING | Status changed to `active` |
-| `service_account.disabled` | RESOURCE | WARNING | Status changed to `disabled` |
-| `service_account.deleted` | RESOURCE | WARNING | Service account soft-deleted |
-| `service_account.secret_rotated` | RESOURCE | WARNING | Client secret rotated |
-| `service_account.auth_success` | AUTH | INFO | Successful token issuance |
-| `service_account.auth_failed` | AUTH | WARNING | Failed authentication attempt |
+### CRUD audit events
 
-Auth events include `client_id` and IP address. Secret rotation events do not include any secret material.
+Service account CRUD operations emit standard resource audit events at `AuditLevel.META` (metadata only, no secret material).
+
+### Authentication audit events
+
+| Event | Source | Category | Severity | When |
+|-------|--------|----------|----------|------|
+| `LoginAttemptEvent` (success) | `src/nexus/auth/audit/login_attempt.py` | SECURITY_EVENT | INFO | Successful token issuance via client credentials grant |
+| `LoginAttemptEvent` (failure) | `src/nexus/auth/audit/login_attempt.py` | SECURITY_EVENT | WARNING | Failed authentication (unknown client, bad secret, disabled SA) |
+
+Login attempts include `method=LoginMethod.CLIENT_CREDENTIALS` and `principal_type=PrincipalType.SERVICE_ACCOUNT`. Error reasons include `UNKNOWN_USER`, `BAD_PASSWORD`, `DISABLED_SERVICE_ACCOUNT`, `DELETED_SERVICE_ACCOUNT`.
+
+### Middleware rejection audit events
+
+| Event | Source | Category | Severity | When |
+|-------|--------|----------|----------|------|
+| `DisabledSARejectionEvent` | `src/nexus/auth/audit/sa_rejection.py` | SECURITY_EVENT | WARNING | Request from deleted or disabled SA rejected by middleware |
+| `StaleSATokenDetectionEvent` | `src/nexus/auth/audit/sa_rejection.py` | SECURITY_EVENT | INFO | Request with revoked (stale) SA token rejected by middleware |
+| `DisabledSACredentialRejectionEvent` | `src/nexus/auth/audit/sa_rejection.py` | SECURITY_EVENT | WARNING | Request rejected because the SA credential is disabled or deleted |
+| `MissingSACredentialClaimEvent` | `src/nexus/auth/audit/sa_rejection.py` | SECURITY_EVENT | WARNING | SA token rejected for missing the `cred_id` claim |
+
+`DisabledSARejectionEvent` includes `is_alive` to distinguish deleted (`False`) from disabled (`True`). `StaleSATokenDetectionEvent` is throttled to at most one event per SA per 60 seconds to prevent audit log flooding. `DisabledSACredentialRejectionEvent` includes `credential_id` and `credential_status`.
+
+### Webhook auth audit events
+
+| Event | Source | Category | Severity | When |
+|-------|--------|----------|----------|------|
+| `WebhookAuthSuccessEvent` | `src/nexus/workflows/audit/webhook_auth.py` | — | — | SA successfully authorized for a webhook/EDA trigger |
+| `WebhookAuthFailureEvent` | `src/nexus/workflows/audit/webhook_auth.py` | — | — | SA authorization failed for a webhook/EDA trigger |
+
+Both include `service_account_id`, `webhook_path`, `trigger_type`, and `workflow_id`.
+
+### Audit actor context
+
+The audit middleware (`src/nexus/audit/middleware.py`) detects `token_type == "service_account"` in JWT claims and sets `actor_type = PrincipalType.SERVICE_ACCOUNT` in the audit context.
+
+## Telemetry
+
+The API usage accumulator (`src/nexus/telemetry/api_usage_accumulator.py`) tracks requests by `principal_type`. Service account requests are recorded as `"service_account"`.
+
+## Configuration
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `jwt_sa_access_token_lifetime_minutes` | int | 15 | SA access token lifetime (range: 1–60 minutes) |
+| `sa_credential_max_lifetime_days` | int | 180 | Maximum credential expiration (-1 for unlimited) |
+
+## Error Handling
+
+### Service account domain exceptions (`src/nexus/service_accounts/exceptions.py`)
+
+| Exception | HTTP Status | When |
+|-----------|-------------|------|
+| `ServiceAccountNotFoundError` | 404 | SA not found by ID |
+| `ServiceAccountNameConflictError` | 409 | Duplicate name in project |
+| `ServiceAccountCredentialNotFoundError` | 404 | Credential not found by ID |
+| `ServiceAccountCredentialLimitError` | 409 | Exceeds 10 credentials per SA |
+| `CredentialExpirationExceededError` | 400 | Expiration exceeds `sa_credential_max_lifetime_days` |
+| `CredentialExpirationInPastError` | 400 | Expiration date is in the past |
+
+### Auth exceptions
+
+| Exception | HTTP Status | When |
+|-----------|-------------|------|
+| `ServiceAccountWSTicketError` | 403 | SA token used for WebSocket ticket exchange |
+| `AuthenticationRequiredError` | 401 | Invalid credentials at token endpoint |
+
+### Webhook exceptions
+
+| Exception | HTTP Status | When |
+|-----------|-------------|------|
+| `WebhookAuthenticationRequiredError` | 401 | Missing/invalid SA Bearer token on webhook endpoint |
+| `WebhookServiceAccountNotAuthorizedError` | 403 | SA not bound to the invoked trigger |
+| `PayloadTooLargeError` | 413 | Webhook payload exceeds 1 MB |
 
 ## Implementation Status
 
@@ -342,13 +539,19 @@ Auth events include `client_id` and IP address. Secret rotation events do not in
 |-----------|--------|
 | ServiceAccount model + migration | Done |
 | CRUD API + credential sub-resource | Done |
-| Client credentials grant + token endpoint | Not started |
-| PrincipalType extension + RBAC | Not started |
-| Auth middleware integration | Not started |
-| Secret rotation endpoint | Not started |
-| Audit events | Not started |
+| Client credentials grant + token endpoint | Done |
+| PrincipalType extension + RBAC | Done |
+| Auth middleware integration (stale token, disabled/deleted SA) | Done |
+| Secret rotation endpoint | Done |
+| Token version mechanism | Done |
+| Per-credential token revocation (`cred_id` claim) | Done |
+| Hard-delete migration (removed soft-delete columns) | Done |
+| Webhook/EDA trigger SA binding | Done |
+| Webhook auth (Bearer token + per-trigger SA authorization) | Done |
+| Audit events (auth, middleware rejection, webhook auth) | Done |
+| Telemetry (API usage by principal type) | Done |
+| Frontend UI (CRUD, credential management, webhook SA selector) | Done |
 | Rate limiting | Not started |
-| Frontend UI | Not started |
 
 ## Key Files
 
@@ -360,10 +563,29 @@ Auth events include `client_id` and IP address. Secret rotation events do not in
 | `src/nexus/service_accounts/credential_schemas.py` | Credential API request/response schemas |
 | `src/nexus/service_accounts/router.py` | Service account CRUD endpoints |
 | `src/nexus/service_accounts/credential_router.py` | Credential CRUD endpoints (nested under service accounts) |
-| `src/nexus/service_accounts/services/service_account_service.py` | Service account service layer |
-| `src/nexus/service_accounts/services/credential_service.py` | Credential service layer |
+| `src/nexus/service_accounts/services/service_account_service.py` | Service account service layer (includes hard-delete logic) |
+| `src/nexus/service_accounts/services/credential_service.py` | Credential service layer (generation, rotation, expiration enforcement) |
+| `src/nexus/service_accounts/constants.py` | `MAX_CREDENTIALS_PER_SA` constant |
 | `src/nexus/service_accounts/exceptions.py` | Domain exceptions |
 | `src/nexus/service_accounts/error_handlers.py` | RFC 9457 error handlers |
+| `src/nexus/auth/router.py` | Token endpoint (`POST /auth/token`) — client credentials grant |
+| `src/nexus/auth/middleware.py` | StaleTokenMiddleware — disabled/deleted SA and stale token detection |
+| `src/nexus/auth/services/token_service.py` | TokenService — SA-specific token creation (lifetime, claims) |
+| `src/nexus/auth/dependencies.py` | `_user_from_payload()` — builds virtual principal for SA tokens |
+| `src/nexus/auth/audit/sa_rejection.py` | DisabledSARejectionEvent, StaleSATokenDetectionEvent |
+| `src/nexus/auth/audit/login_attempt.py` | LoginAttemptEvent with CLIENT_CREDENTIALS method |
+| `src/nexus/auth/exceptions.py` | ServiceAccountWSTicketError |
 | `src/nexus/auth/passwords.py` | Argon2id `hash_password` / `verify_password` (shared with user passwords) |
-| `src/nexus/core/database/migrations/versions/a0f042999fd8_add_service_accounts_table.py` | Initial SA migration |
-| `src/nexus/core/database/migrations/versions/c7d8e9f01234_add_service_account_credentials.py` | Credential table migration + SA column removal |
+| `src/nexus/authz/models/assignments.py` | RoleAssignment with principal_id FK (supports SA) |
+| `src/nexus/authz/resolver.py` | Policy resolution — generic via principal_id for users and SAs |
+| `src/nexus/authz/services/role_assignment_service.py` | Role assignment CRUD — handles `"service_account"` principal type |
+| `src/nexus/authz/role_conventions.py` | Builtin policies for `service_account` resource |
+| `src/nexus/authz/role_assignment_router.py` | Role assignment API — `principal_type` includes `"service_account"` |
+| `src/nexus/core/models/principal.py` | PrincipalType enum + `for_service_account()` factory |
+| `src/nexus/workflows/webhook_router.py` | Webhook/EDA trigger endpoints with SA auth |
+| `src/nexus/workflows/models/webhook_trigger_service_account.py` | Many-to-many trigger ↔ SA binding table |
+| `src/nexus/workflows/services/webhook_trigger_service.py` | SA authorization verification and binding sync |
+| `src/nexus/workflows/audit/webhook_auth.py` | WebhookAuthSuccessEvent, WebhookAuthFailureEvent |
+| `src/nexus/workflows/exceptions.py` | WebhookAuthenticationRequiredError, WebhookServiceAccountNotAuthorizedError |
+| `src/nexus/telemetry/api_usage_accumulator.py` | API usage tracking by principal_type |
+| `src/nexus/core/config/base.py` | `jwt_sa_access_token_lifetime_minutes`, `sa_credential_max_lifetime_days` settings |
