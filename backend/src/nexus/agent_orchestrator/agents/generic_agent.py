@@ -271,7 +271,8 @@ class GenericAgent(BaseAgent):
         ctx = self._extract_context(state)
 
         try:
-            structured_llm = self.llm.with_structured_output(response_schema, method="json_mode")
+            # include_raw=True so we can read provider usage from the AIMessage
+            structured_llm = self.llm.with_structured_output(response_schema, method="json_mode", include_raw=True)
             schema_str = _json.dumps(response_schema, indent=2)
             product = get_settings().product_name
             messages = [
@@ -285,11 +286,12 @@ class GenericAgent(BaseAgent):
                 HumanMessage(content=state["prompt"]),
             ]
 
-            parsed_output = await record_llm_call(
+            structured_response = await record_llm_call(
                 get_metrics_recorder(),
                 lambda: structured_llm.ainvoke(messages),
                 model=getattr(self.llm, "model_name", None),
             )
+            parsed_output, raw_message = self._unpack_structured_response(structured_response)
         except Exception as e:  # noqa: BLE001
             # Emit ERROR event before fallback
             AuditEventDispatcher.dispatch(
@@ -311,8 +313,10 @@ class GenericAgent(BaseAgent):
             logger.warning("Structured output failed, falling back to standard execution", exc_info=True)
             return await self._execute_standard(state)
 
+        # include_raw=True returns parse failures as {parsed: None, raw: ...} instead of
+        # raising — treat like the exception path: count billed tokens, then degrade to
+        # standard execution (pre-include_raw behavior).
         if parsed_output is None:
-            # Emit EMPTY_RESPONSE event before raising
             AuditEventDispatcher.dispatch(
                 LLMInteractionEvent(
                     session_id=ctx.session_id,
@@ -321,13 +325,22 @@ class GenericAgent(BaseAgent):
                     request_id=ctx.request_id,
                     interaction_type=LLMInteractionType.STRUCTURED_OUTPUT,
                     model_name=getattr(self.llm, "model_name", "unknown"),
-                    status=LLMInteractionStatus.EMPTY_RESPONSE,
-                    error_type="EmptyLLMResponseError",
+                    status=LLMInteractionStatus.ERROR,
+                    tools_available=0,
+                    response_schema_provided=True,
+                    error_type="StructuredOutputParseError",
                     activity_id=ctx.activity_id,
                     activity_name=ctx.activity_name,
                 )
             )
-            raise EmptyLLMResponseError(invocation_id=str(ctx.invocation_id))
+            logger.warning("Structured output parse returned None, falling back to standard execution")
+            structured_token_entry = self._build_token_usage_entry(raw_message) if raw_message is not None else None
+            state = await self._execute_standard(state)
+            # _execute_standard replaces llm_token_usage_log — keep the billed structured call.
+            if structured_token_entry is not None:
+                fallback_log = list(state.get("llm_token_usage_log") or [])
+                state["llm_token_usage_log"] = [structured_token_entry, *fallback_log]
+            return state
 
         # Emit SUCCESS event after successful structured output
         AuditEventDispatcher.dispatch(
@@ -347,13 +360,13 @@ class GenericAgent(BaseAgent):
             )
         )
 
-        # Token usage unavailable: json_mode returns a parsed dict, not an AIMessage
-        state["llm_token_usage_log"] = []
-        state["messages"] = []
+        token_entry = self._build_token_usage_entry(raw_message) if raw_message is not None else None
+        state["llm_token_usage_log"] = [token_entry] if token_entry is not None else []
+        state["messages"] = [raw_message] if raw_message is not None else []
 
         result_dict = GenericAgentResponse(
             content=parsed_output,
-            response_metadata={},
+            response_metadata=getattr(raw_message, "response_metadata", None) or {},
         ).model_dump(by_alias=True)
         result_dict["structured_output_metadata"] = {"fallback_strategy_used": "native"}
         state["result"] = result_dict
@@ -382,7 +395,8 @@ class GenericAgent(BaseAgent):
             if not current_answer:
                 return state
 
-            extraction_llm = self.llm.with_structured_output(response_schema, method="json_mode")
+            # include_raw=True so the extraction LLM call is counted in token totals
+            extraction_llm = self.llm.with_structured_output(response_schema, method="json_mode", include_raw=True)
             schema_str = _json.dumps(response_schema, indent=2)
             extraction_messages = [
                 SystemMessage(
@@ -394,13 +408,26 @@ class GenericAgent(BaseAgent):
                 HumanMessage(content=f"Extract from this text:\n\n{current_answer}"),
             ]
 
-            parsed_output = await record_llm_call(
+            structured_response = await record_llm_call(
                 get_metrics_recorder(),
                 lambda: extraction_llm.ainvoke(extraction_messages),
                 model=getattr(self.llm, "model_name", None),
             )
+            parsed_output, raw_message = self._unpack_structured_response(structured_response)
 
-            # Emit SUCCESS event after successful extraction
+            # Count provider tokens for the extraction call even when parsing fails —
+            # the LLM was billed regardless of whether parsed_output is usable.
+            token_entry = self._build_token_usage_entry(raw_message) if raw_message is not None else None
+            if token_entry is not None:
+                existing_log = list(state.get("llm_token_usage_log") or [])
+                existing_log.append(token_entry)
+                state["llm_token_usage_log"] = existing_log
+
+            if parsed_output is None:
+                result_dict["structured_output_metadata"] = {"fallback_strategy_used": "none"}
+                return state
+
+            # Emit SUCCESS only when extraction produced usable structured output
             AuditEventDispatcher.dispatch(
                 LLMInteractionEvent(
                     session_id=ctx.session_id,
@@ -441,6 +468,19 @@ class GenericAgent(BaseAgent):
             if result_dict:
                 result_dict["structured_output_metadata"] = {"fallback_strategy_used": "none"}
             return state
+
+    @staticmethod
+    def _unpack_structured_response(response: object) -> tuple[object, AIMessage | None]:
+        """Unpack ``with_structured_output(..., include_raw=True)`` response.
+
+        Returns:
+            Tuple of (parsed_output, raw AIMessage if available).
+
+        """
+        if isinstance(response, dict) and "parsed" in response:
+            raw = response.get("raw")
+            return response.get("parsed"), raw if isinstance(raw, AIMessage) else None
+        return response, None
 
     @staticmethod
     def _build_token_usage_entry(result_message: AIMessage) -> dict[str, Any] | None:

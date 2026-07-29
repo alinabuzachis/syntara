@@ -36,13 +36,13 @@ from nexus.agent_orchestrator.models import (
     LLMCredentialConfig,
 )
 from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
-from nexus.agent_orchestrator.token_manager.models import UsageDetails, UsageDetailsResult
 from nexus.agent_orchestrator.token_manager.repository import TokenUsageRepository
 from nexus.agent_orchestrator.utils.context_helpers import (
     extract_execution_id,
     extract_request_id,
     extract_workflow_id,
 )
+from nexus.agent_orchestrator.utils.token_usage import aggregate_token_usage
 from nexus.agent_orchestrator.utils.workflow_signal_client import WorkflowSignalClient
 from nexus.audit.context_managers import actor_context as audit_actor_context
 from nexus.audit.dispatcher import AuditEventDispatcher
@@ -83,35 +83,6 @@ def _extract_model_name(result_dict: dict[str, Any]) -> str | None:
         if isinstance(response_metadata, dict):
             return response_metadata.get("model")
     return None
-
-
-def _aggregate_token_usage(
-    usage_log: list[dict[str, Any]],
-) -> tuple[int, int, int, UsageDetailsResult]:
-    """Aggregate token counts from LLM call entries and build usage_details.
-
-    Maps extraction-layer field names (input_tokens, output_tokens) to
-    DB-layer field names (prompt_tokens, completion_tokens).
-
-    Args:
-        usage_log: List of token usage entries from GenericAgent.
-
-    Returns:
-        Tuple of (prompt_tokens, completion_tokens, total_tokens, usage_details).
-        usage_details is always a list of per-call details, or None if no
-        provider metadata was captured.
-
-    """
-    prompt_tokens = sum(entry.get("input_tokens", 0) for entry in usage_log)
-    completion_tokens = sum(entry.get("output_tokens", 0) for entry in usage_log)
-    total_tokens = prompt_tokens + completion_tokens
-
-    filtered: list[UsageDetails] = [
-        entry["usage_details"] for entry in usage_log if entry.get("usage_details") is not None
-    ]
-    usage_details: UsageDetailsResult = filtered or None
-
-    return prompt_tokens, completion_tokens, total_tokens, usage_details
 
 
 class InvocationExecutor:
@@ -552,7 +523,7 @@ class InvocationExecutor:
         if not usage_log:
             return
 
-        total_prompt, total_completion, total_tokens, usage_details = _aggregate_token_usage(usage_log)
+        total_prompt, total_completion, total_tokens, usage_details = aggregate_token_usage(usage_log)
 
         try:
             async with self.get_async_session_context() as session, session.begin_nested():

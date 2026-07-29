@@ -77,9 +77,15 @@ class TestGenericAgentStructuredOutputNoTools:
         sample_state["response_schema"] = server_info_schema
 
         parsed_output = {"hostname": "server-01", "ip": "192.168.1.10", "status": "active"}
+        raw_message = AIMessage(
+            content='{"hostname":"server-01"}',
+            usage_metadata={"input_tokens": 80, "output_tokens": 20, "total_tokens": 100},
+        )
 
         mock_structured_llm = MagicMock()
-        mock_structured_llm.ainvoke = AsyncMock(return_value=parsed_output)
+        mock_structured_llm.ainvoke = AsyncMock(
+            return_value={"raw": raw_message, "parsed": parsed_output, "parsing_error": None}
+        )
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
         agent = GenericAgent(llm=mock_llm, available_tools=[])
@@ -91,6 +97,7 @@ class TestGenericAgentStructuredOutputNoTools:
         assert result_state["result"] is not None
         assert result_state["result"]["content"] == parsed_output
         assert result_state["result"]["structured_output_metadata"]["fallback_strategy_used"] == "native"
+        mock_llm.with_structured_output.assert_called_with(server_info_schema, method="json_mode", include_raw=True)
 
     @pytest.mark.asyncio
     async def test_execute_structured_output_no_tools_fallback(
@@ -120,6 +127,53 @@ class TestGenericAgentStructuredOutputNoTools:
         assert isinstance(result_state["result"]["content"], str)
         assert "server-01" in result_state["result"]["content"]
 
+    @pytest.mark.asyncio
+    async def test_execute_structured_parse_none_falls_back_and_keeps_tokens(
+        self, mock_llm: MagicMock, sample_state: AgentState, server_info_schema: dict[str, Any]
+    ) -> None:
+        """include_raw parse failures degrade to standard and keep both calls' tokens."""
+        sample_state["response_schema"] = server_info_schema
+
+        structured_raw = AIMessage(
+            content="not-valid-json-for-schema",
+            usage_metadata={"input_tokens": 80, "output_tokens": 20, "total_tokens": 100},
+        )
+        mock_structured_llm = MagicMock()
+        mock_structured_llm.ainvoke = AsyncMock(
+            return_value={"raw": structured_raw, "parsed": None, "parsing_error": "parse failed"}
+        )
+        mock_llm.with_structured_output.return_value = mock_structured_llm
+
+        standard_message = AIMessage(
+            content="hostname: server-01, ip: 192.168.1.10",
+            response_metadata={"model": "gpt-4"},
+            usage_metadata={"input_tokens": 100, "output_tokens": 50, "total_tokens": 150},
+        )
+        mock_llm.bind_tools.return_value.ainvoke = AsyncMock(return_value=standard_message)
+
+        agent = GenericAgent(llm=mock_llm, available_tools=[])
+
+        with patch("nexus.agent_orchestrator.agents.generic_agent.record_llm_call") as mock_record:
+            mock_record.side_effect = _make_record_side_effect()
+            result_state = await agent.execute_as_node(sample_state)
+
+        assert result_state["result"] is not None
+        assert isinstance(result_state["result"]["content"], str)
+        assert "server-01" in result_state["result"]["content"]
+        # Structured billed call (80+20) then standard fallback (100+50)
+        assert result_state["llm_token_usage_log"] == [
+            {
+                "input_tokens": 80,
+                "output_tokens": 20,
+                "usage_details": {"input_tokens": 80, "output_tokens": 20, "total_tokens": 100},
+            },
+            {
+                "input_tokens": 100,
+                "output_tokens": 50,
+                "usage_details": {"input_tokens": 100, "output_tokens": 50, "total_tokens": 150},
+            },
+        ]
+
 
 class TestGenericAgentStructuredOutputWithTools:
     """Test GenericAgent structured output with tools (Case A)."""
@@ -139,8 +193,14 @@ class TestGenericAgentStructuredOutputWithTools:
         mock_llm.bind_tools.return_value.ainvoke = AsyncMock(return_value=standard_message)
 
         extracted_output = {"hostname": "server-01", "ip": "192.168.1.10", "status": "unknown"}
+        extraction_raw = AIMessage(
+            content='{"hostname":"server-01"}',
+            usage_metadata={"input_tokens": 40, "output_tokens": 15, "total_tokens": 55},
+        )
         mock_extraction_llm = MagicMock()
-        mock_extraction_llm.ainvoke = AsyncMock(return_value=extracted_output)
+        mock_extraction_llm.ainvoke = AsyncMock(
+            return_value={"raw": extraction_raw, "parsed": extracted_output, "parsing_error": None}
+        )
         mock_llm.with_structured_output.return_value = mock_extraction_llm
 
         mock_tool = MagicMock()
@@ -154,6 +214,19 @@ class TestGenericAgentStructuredOutputWithTools:
         assert result_state["result"] is not None
         assert result_state["result"]["content"] == extracted_output
         assert result_state["result"]["structured_output_metadata"]["fallback_strategy_used"] == "native"
+        # Standard tool-loop call (100+50) + extraction call (40+15)
+        assert result_state["llm_token_usage_log"] == [
+            {
+                "input_tokens": 100,
+                "output_tokens": 50,
+                "usage_details": {"input_tokens": 100, "output_tokens": 50, "total_tokens": 150},
+            },
+            {
+                "input_tokens": 40,
+                "output_tokens": 15,
+                "usage_details": {"input_tokens": 40, "output_tokens": 15, "total_tokens": 55},
+            },
+        ]
 
     @pytest.mark.asyncio
     async def test_execute_structured_output_with_tools_extraction_failure(
@@ -186,6 +259,53 @@ class TestGenericAgentStructuredOutputWithTools:
         assert "server-01" in result_state["result"]["content"]
         assert result_state["result"]["structured_output_metadata"]["fallback_strategy_used"] == "none"
 
+    @pytest.mark.asyncio
+    async def test_extraction_logs_tokens_when_parsed_output_is_none(
+        self, mock_llm: MagicMock, sample_state: AgentState, server_info_schema: dict[str, Any]
+    ) -> None:
+        """Provider billed the extraction call even if parsing returns None — still count it."""
+        sample_state["response_schema"] = server_info_schema
+
+        standard_message = AIMessage(
+            content="The server hostname is server-01",
+            response_metadata={"model": "gpt-4"},
+            usage_metadata={"input_tokens": 100, "output_tokens": 50, "total_tokens": 150},
+        )
+        mock_llm.bind_tools.return_value.ainvoke = AsyncMock(return_value=standard_message)
+
+        extraction_raw = AIMessage(
+            content="not-valid-for-schema",
+            usage_metadata={"input_tokens": 40, "output_tokens": 15, "total_tokens": 55},
+        )
+        mock_extraction_llm = MagicMock()
+        mock_extraction_llm.ainvoke = AsyncMock(
+            return_value={"raw": extraction_raw, "parsed": None, "parsing_error": "parse failed"}
+        )
+        mock_llm.with_structured_output.return_value = mock_extraction_llm
+
+        mock_tool = MagicMock()
+        mock_tool.name = "test_tool"
+
+        agent = GenericAgent(llm=mock_llm, available_tools=[mock_tool])
+        with patch("nexus.agent_orchestrator.agents.generic_agent.record_llm_call") as mock_record:
+            mock_record.side_effect = _make_record_side_effect()
+            result_state = await agent.execute_as_node(sample_state)
+
+        assert result_state["result"] is not None
+        assert result_state["result"]["structured_output_metadata"]["fallback_strategy_used"] == "none"
+        assert result_state["llm_token_usage_log"] == [
+            {
+                "input_tokens": 100,
+                "output_tokens": 50,
+                "usage_details": {"input_tokens": 100, "output_tokens": 50, "total_tokens": 150},
+            },
+            {
+                "input_tokens": 40,
+                "output_tokens": 15,
+                "usage_details": {"input_tokens": 40, "output_tokens": 15, "total_tokens": 55},
+            },
+        ]
+
 
 class TestGenericAgentTokenTracking:
     """Test token usage tracking with structured output."""
@@ -194,13 +314,19 @@ class TestGenericAgentTokenTracking:
     async def test_token_tracking_structured_output(
         self, mock_llm: MagicMock, sample_state: AgentState, server_info_schema: dict[str, Any]
     ) -> None:
-        """Test structured output with json_mode returns empty token log (no include_raw)."""
+        """Test structured output with include_raw logs provider token usage."""
         sample_state["response_schema"] = server_info_schema
 
         parsed_output = {"hostname": "server-01", "ip": "192.168.1.10"}
+        raw_message = AIMessage(
+            content='{"hostname":"server-01","ip":"192.168.1.10"}',
+            usage_metadata={"input_tokens": 120, "output_tokens": 30, "total_tokens": 150},
+        )
 
         mock_structured_llm = MagicMock()
-        mock_structured_llm.ainvoke = AsyncMock(return_value=parsed_output)
+        mock_structured_llm.ainvoke = AsyncMock(
+            return_value={"raw": raw_message, "parsed": parsed_output, "parsing_error": None}
+        )
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
         agent = GenericAgent(llm=mock_llm, available_tools=[])
@@ -213,4 +339,23 @@ class TestGenericAgentTokenTracking:
         assert result is not None
         assert result["content"] == parsed_output
         assert result["structured_output_metadata"]["fallback_strategy_used"] == "native"
-        assert len(result_state["llm_token_usage_log"]) == 0
+        assert result_state["llm_token_usage_log"] == [
+            {
+                "input_tokens": 120,
+                "output_tokens": 30,
+                "usage_details": {"input_tokens": 120, "output_tokens": 30, "total_tokens": 150},
+            }
+        ]
+
+    def test_unpack_structured_response_include_raw(self) -> None:
+        raw = AIMessage(content="{}")
+        parsed, raw_out = GenericAgent._unpack_structured_response(
+            {"raw": raw, "parsed": {"a": 1}, "parsing_error": None}
+        )
+        assert parsed == {"a": 1}
+        assert raw_out is raw
+
+    def test_unpack_structured_response_legacy_parsed_only(self) -> None:
+        parsed, raw_out = GenericAgent._unpack_structured_response({"hostname": "x"})
+        assert parsed == {"hostname": "x"}
+        assert raw_out is None

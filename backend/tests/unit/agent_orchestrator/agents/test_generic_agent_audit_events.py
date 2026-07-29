@@ -307,6 +307,53 @@ class TestGenericAgentLLMInteractionEvents:
         assert error_event.structured_data.error_type == "ValueError"
 
     @pytest.mark.asyncio
+    async def test_execute_structured_parse_none_emits_error_then_standard_success(self) -> None:
+        """Soft parse failure (include_raw) emits ERROR then falls back to standard SUCCESS."""
+        invocation_id = uuid4()
+
+        state = _make_agent_state(invocation_id=invocation_id)
+        response_schema: dict[str, Any] = {"type": "object"}
+
+        raw = AIMessage(
+            content="not-json",
+            usage_metadata={"input_tokens": 10, "output_tokens": 5, "total_tokens": 15},
+        )
+        mock_llm = MagicMock()
+        mock_llm.with_structured_output.return_value.ainvoke = AsyncMock(
+            return_value={"raw": raw, "parsed": None, "parsing_error": "parse failed"}
+        )
+        mock_llm.bind_tools.return_value.ainvoke = AsyncMock(
+            return_value=AIMessage(content="fallback", response_metadata={})
+        )
+        mock_llm.model_name = "test-model"
+
+        agent = GenericAgent(llm=mock_llm, available_tools=[])
+
+        with (
+            patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit,
+            patch("nexus.metrics.instrumentation.record_llm_call", side_effect=lambda _, fn, **__: fn()),
+        ):
+            await agent._execute_structured(state, response_schema)
+
+        events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
+        llm_events = [e for e in events if e.event_action == "llm_call"]
+
+        assert len(llm_events) == 2
+        structured_event = next(
+            e
+            for e in llm_events
+            if e.structured_data.interaction_type == LLMInteractionType.STRUCTURED_OUTPUT  # type: ignore[attr-defined]
+        )
+        assert structured_event.structured_data.status == LLMInteractionStatus.ERROR  # type: ignore[attr-defined]
+        assert structured_event.structured_data.error_type == "StructuredOutputParseError"
+        standard_event = next(
+            e
+            for e in llm_events
+            if e.structured_data.interaction_type == LLMInteractionType.STANDARD  # type: ignore[attr-defined]
+        )
+        assert standard_event.structured_data.status == LLMInteractionStatus.SUCCESS  # type: ignore[attr-defined]
+
+    @pytest.mark.asyncio
     async def test_extract_structured_output_emits_success_event(self) -> None:
         """Extraction step emits SUCCESS LLMInteractionEvent."""
         invocation_id = uuid4()
@@ -364,6 +411,40 @@ class TestGenericAgentLLMInteractionEvents:
         assert len(llm_events) == 1
         assert llm_events[0].structured_data.status == LLMInteractionStatus.ERROR  # type: ignore[attr-defined]
         assert llm_events[0].structured_data.error_type == "RuntimeError"
+
+    @pytest.mark.asyncio
+    async def test_extract_structured_output_parse_none_does_not_emit_success(self) -> None:
+        """Parse-None extraction keeps raw text and must not emit SUCCESS/native."""
+        invocation_id = uuid4()
+
+        state = _make_agent_state(invocation_id=invocation_id, result={"content": "raw text"})
+        response_schema: dict[str, Any] = {"type": "object"}
+
+        raw = AIMessage(
+            content="not-json",
+            usage_metadata={"input_tokens": 40, "output_tokens": 15, "total_tokens": 55},
+        )
+        mock_llm = MagicMock()
+        mock_llm.with_structured_output.return_value.ainvoke = AsyncMock(
+            return_value={"raw": raw, "parsed": None, "parsing_error": "parse failed"}
+        )
+        mock_llm.model_name = "test-model"
+
+        agent = GenericAgent(llm=mock_llm, available_tools=[])
+
+        with (
+            patch("nexus.audit.emitter._do_emit_audit_event") as mock_do_emit,
+            patch("nexus.metrics.instrumentation.record_llm_call", side_effect=lambda _, fn, **__: fn()),
+        ):
+            result_state = await agent._extract_structured_output(state, response_schema)
+
+        assert result_state["result"] is not None
+        assert result_state["result"]["content"] == "raw text"
+        assert result_state["result"]["structured_output_metadata"]["fallback_strategy_used"] == "none"
+
+        events: list[AuditEvent] = [call.args[0] for call in mock_do_emit.call_args_list]
+        llm_events = [e for e in events if e.event_action == "llm_call"]
+        assert llm_events == []
 
     @pytest.mark.asyncio
     async def test_llm_interaction_includes_activity_context_from_metadata(self) -> None:

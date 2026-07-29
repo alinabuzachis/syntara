@@ -45,6 +45,7 @@ from nexus.agent_orchestrator.tool_manager.execution_failure_handler import (
     create_tool_wrapper,
 )
 from nexus.agent_orchestrator.utils.context_helpers import extract_request_id
+from nexus.agent_orchestrator.utils.token_usage import aggregate_token_usage
 from nexus.agent_orchestrator.utils.used_tools import aggregate_used_tools
 from nexus.agent_orchestrator.utils.workflow_signal_client import WorkflowSignalClient
 from nexus.audit.decorators import audit
@@ -510,7 +511,9 @@ class OrchestrationService:
                 tools_used = [s["tool_name"] for s in result["agent_trace"]["steps"] if s.get("type") == "tool_call"]
                 result["tools_used"] = tools_used
                 result["tool_calls"] = tool_calls
-                result["tokens_used"] = result["agent_trace"]["total_tokens"]
+                # Prefer provider-reported prompt+completion totals (includes context)
+                # over stream-derived reasoning-step estimates for Agent Steps header.
+                self._apply_provider_token_totals(result)
 
                 # Publish completion event
                 await self._publish_completion_event(invocation_id, stream_id, client)
@@ -862,6 +865,31 @@ class OrchestrationService:
 
         # Fallback: Build placeholder response if no final state available
         return self._build_fallback_response(invocation_id, stream_id)
+
+    @staticmethod
+    def _apply_provider_token_totals(result: dict[str, Any]) -> None:
+        """Set agent_trace/tokens_used from full provider usage when available.
+
+        Stream-derived step tokens only capture reasoning output estimates.
+        ``llm_token_usage_log`` includes prompt + completion for every LLM call
+        (prompt, context, tool-loop turns), which is what Agent Steps should show.
+        Falls back to stream-derived ``agent_trace.total_tokens`` when the usage
+        log is absent.
+        """
+        agent_trace = result.get("agent_trace")
+        usage_log = result.get("llm_token_usage_log") or []
+
+        if usage_log:
+            _prompt, _completion, total_tokens, _details = aggregate_token_usage(usage_log)
+            if isinstance(agent_trace, dict):
+                agent_trace["total_tokens"] = total_tokens
+        elif isinstance(agent_trace, dict):
+            total_tokens = int(agent_trace.get("total_tokens") or 0)
+        else:
+            result["tokens_used"] = 0
+            return
+
+        result["tokens_used"] = total_tokens
 
     def _get_model_name(self) -> str:
         """Safely extract model name from LLM instance.

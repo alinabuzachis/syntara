@@ -1,18 +1,18 @@
-"""Direct unit tests for _aggregate_token_usage (AAP-66977 token-count follow-up).
+"""Direct unit tests for aggregate_token_usage.
 
-Aaron's review on PR #547 questioned whether totals reflected only the last
-reasoning flush. This helper sums every entry in llm_token_usage_log.
+Review feedback questioned whether totals reflected only the last reasoning
+flush. This helper sums every entry in llm_token_usage_log.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from nexus.agent_orchestrator.executor.invocation_executor import _aggregate_token_usage
+from nexus.agent_orchestrator.utils.token_usage import aggregate_token_usage
 
 
 class TestAggregateTokenUsage:
-    """Tests for _aggregate_token_usage summing all LLM call log entries."""
+    """Tests for aggregate_token_usage summing all LLM call log entries."""
 
     def test_sums_all_llm_call_entries(self) -> None:
         usage_log: list[dict[str, Any]] = [
@@ -20,7 +20,7 @@ class TestAggregateTokenUsage:
             {"input_tokens": 250, "output_tokens": 60, "usage_details": {"prompt_tokens": 250}},
             {"input_tokens": 50, "output_tokens": 10},
         ]
-        prompt, completion, total, details = _aggregate_token_usage(usage_log)
+        prompt, completion, total, details = aggregate_token_usage(usage_log)
         assert prompt == 400
         assert completion == 110
         assert total == 510
@@ -28,7 +28,7 @@ class TestAggregateTokenUsage:
         assert len(details) == 2  # entries without usage_details filtered
 
     def test_empty_log(self) -> None:
-        prompt, completion, total, details = _aggregate_token_usage([])
+        prompt, completion, total, details = aggregate_token_usage([])
         assert prompt == 0
         assert completion == 0
         assert total == 0
