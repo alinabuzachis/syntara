@@ -9,6 +9,7 @@ import { COLOR_SCHEME_STORAGE_KEY } from '../providers/theme/colorScheme'
 import { ColorSchemeProvider } from '../providers/theme/ColorSchemeProvider'
 
 import { AppDockedNav } from './AppDockedNav'
+import styles from './AppDockedNav.module.css'
 import type { DockState } from './useDockState'
 
 const mockOnToggleDock = vi.fn()
@@ -261,6 +262,13 @@ describe('AppDockedNav', () => {
     // Configuration has 2 child items: Integrations, Credentials (Settings moved to System Administration)
     expect(menuItems.length).toBe(2)
     expect(menu).toBeInTheDocument()
+  })
+
+  it('applies navFlyoutItem class to collapsed-mode flyout nav items', () => {
+    renderDockedNav()
+
+    expect(screen.getByRole('button', { name: 'Configuration' })).toHaveClass(styles.navFlyoutItem)
+    expect(screen.getByRole('button', { name: 'System Administration' })).toHaveClass(styles.navFlyoutItem)
   })
 
   it('shows dropdown with Access Management, Identity Providers, and Settings when System Administration is clicked', async () => {

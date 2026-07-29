@@ -114,6 +114,7 @@ function NavDropdownItem({
       aria-label={item.label}
       itemId={item.path}
       id={`nav-${item.path.replaceAll('/', '-')}`}
+      className={styles.navFlyoutItem}
       flyout={
         <Menu containsFlyout isNavFlyout onSelect={onMenuSelect}>
           <MenuList>

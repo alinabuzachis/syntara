@@ -14,3 +14,19 @@
   width: auto;
   margin-left: var(--pf-t--global--spacer--sm);
 }
+
+/*
+ * PF NavItem flyout sets internal isHovered state on popper mouseenter but
+ * never clears it when the popper unmounts (e.g. switching between flyout
+ * items). This leaves pf-m-hover on the nav link with a stale background.
+ *
+ * Detect the stale state: pf-m-hover is set but aria-expanded is "false"
+ * (flyout closed) and the element is not actually hovered or focused.
+ * Disable the transition so the reset is instant — no visible flash.
+ * Safe to remove if PF fixes NavItem.isHovered cleanup upstream.
+ */
+.navFlyoutItem:global(.pf-m-hover):not(:global(.pf-m-current)):not([aria-expanded='true']):not(:hover):not(:focus) {
+  color: var(--pf-v6-c-nav__link--Color);
+  background-color: var(--pf-v6-c-nav__link--BackgroundColor);
+  transition: none;
+}
