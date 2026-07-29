@@ -8,7 +8,7 @@ import { axe } from 'vitest-axe'
 import { AlertProvider } from '../../providers/alerts'
 import { searchParamsMock } from '../../test/searchParamsMock'
 import { accessClient } from '../access/accessClient'
-import { useAllProjects } from '../access/useAllProjects'
+import { useAllProjects, useSelectableProjects } from '../access/useAllProjects'
 import { useAllRoles } from '../access/useAllRoles'
 
 import { RoleAssignmentsPanel } from './RoleAssignmentsPanel'
@@ -33,6 +33,7 @@ vi.mock('../access/useAllRoles', () => ({
 
 vi.mock('../access/useAllProjects', () => ({
   useAllProjects: vi.fn(),
+  useSelectableProjects: vi.fn(),
 }))
 
 vi.mock('../access/useAssignmentPermissions', () => ({
@@ -231,12 +232,9 @@ describe('RoleAssignmentsPanel', () => {
     vi.clearAllMocks()
     searchParamsMock.reset()
     vi.mocked(useAllRoles).mockReturnValue({ roles: [], isLoading: false, error: null, refetch: vi.fn() })
-    vi.mocked(useAllProjects).mockReturnValue({
-      projects: [],
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    })
+    const emptyProjectsMock = { projects: [], isLoading: false, error: null, refetch: vi.fn() }
+    vi.mocked(useAllProjects).mockReturnValue(emptyProjectsMock)
+    vi.mocked(useSelectableProjects).mockReturnValue(emptyProjectsMock)
     setupMocks()
   })
 

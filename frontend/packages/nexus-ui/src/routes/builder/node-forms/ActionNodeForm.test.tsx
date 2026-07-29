@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { credentialsClient } from '../../../client'
-import { useAllProjects } from '../../access/useAllProjects'
+import { useAllProjects, useSelectableProjects } from '../../access/useAllProjects'
 
 import type { ActionFormValues } from './actionFormSchema'
 import { ActionNodeForm, HttpUrlField } from './ActionNodeForm'
@@ -23,6 +23,7 @@ vi.mock('../../../client', () => ({
 
 vi.mock('../../access/useAllProjects', () => ({
   useAllProjects: vi.fn(),
+  useSelectableProjects: vi.fn(),
 }))
 
 // Mock ExpandableCodeEditor to use a simple textarea for testing
@@ -62,6 +63,7 @@ describe('ActionNodeForm', () => {
       isPending: false,
     } as never)
     vi.mocked(useAllProjects).mockReturnValue({ projects: [], isLoading: false, error: null, refetch: vi.fn() })
+    vi.mocked(useSelectableProjects).mockReturnValue({ projects: [], isLoading: false, error: null, refetch: vi.fn() })
   })
 
   it('renders script fields by default and hides the action type selector', () => {

@@ -7,7 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { credentialsClient } from '../../../../client'
 import { AlertProvider } from '../../../../providers/alerts'
-import { useAllProjects } from '../../../access/useAllProjects'
+import { useSelectableProjects } from '../../../access/useAllProjects'
 
 import { CredentialFormModal } from './CredentialFormModal'
 
@@ -19,7 +19,7 @@ vi.mock('../../../../client', () => ({
 }))
 
 vi.mock('../../../access/useAllProjects', () => ({
-  useAllProjects: vi.fn(),
+  useSelectableProjects: vi.fn(),
 }))
 
 const queryClient = new QueryClient({
@@ -118,7 +118,7 @@ describe('CredentialFormModal', () => {
     vi.mocked(credentialsClient.useMutation).mockReturnValue({ mutate: mockMutate, isPending: false } as any)
     const projectsMock = { projects: mockProjects, isLoading: false, error: null, refetch: vi.fn() }
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
-    vi.mocked(useAllProjects).mockReturnValue(projectsMock as any)
+    vi.mocked(useSelectableProjects).mockReturnValue(projectsMock as any)
   })
 
   it('has no accessibility violations in create mode', async () => {
@@ -461,7 +461,7 @@ describe('CredentialFormModal', () => {
   it('shows loading state for projects', () => {
     const loadingMock = { projects: [], isLoading: true, error: null, refetch: vi.fn() }
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
-    vi.mocked(useAllProjects).mockReturnValue(loadingMock as any)
+    vi.mocked(useSelectableProjects).mockReturnValue(loadingMock as any)
 
     render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
 
@@ -472,7 +472,7 @@ describe('CredentialFormModal', () => {
   it('shows error when projects fail to load', () => {
     const errorMock = { projects: [], isLoading: false, error: new Error('Network error'), refetch: vi.fn() }
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
-    vi.mocked(useAllProjects).mockReturnValue(errorMock as any)
+    vi.mocked(useSelectableProjects).mockReturnValue(errorMock as any)
 
     render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
 

@@ -104,8 +104,8 @@ vi.mock('../../access/accessClient', () => ({
   accessFetchClient: { POST: vi.fn() },
 }))
 
-vi.mock('../../access/useAllProjects', () => ({
-  useAllProjects: () => ({
+vi.mock('../../access/useAllProjects', () => {
+  const projectsMock = () => ({
     projects: [
       { id: 'proj-1', name: 'Project Alpha' },
       { id: 'proj-2', name: 'Project Beta' },
@@ -113,8 +113,9 @@ vi.mock('../../access/useAllProjects', () => ({
     isLoading: false,
     error: null,
     refetch: vi.fn(),
-  }),
-}))
+  })
+  return { useAllProjects: projectsMock, useSelectableProjects: projectsMock }
+})
 
 const disableCredentialHookMock = vi.hoisted(() => {
   const state = {

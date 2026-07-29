@@ -6,7 +6,7 @@ import { axe } from 'vitest-axe'
 import { credentialsClient, integrationsClient } from '../../../client'
 import { useFileStorageStatus } from '../../../hooks/useFileStorageStatus'
 import { useFileUploadWithProgress } from '../../../hooks/useFileUploadWithProgress'
-import { useAllProjects } from '../../access/useAllProjects'
+import { useAllProjects, useSelectableProjects } from '../../access/useAllProjects'
 import { useIntegrationPermissions } from '../../configuration/integrations/useIntegrationPermissions'
 
 import { AIAgentNodeForm } from './AIAgentNodeForm'
@@ -46,6 +46,7 @@ vi.mock('./useAllEnabledMcpIntegrations', () => ({
 
 vi.mock('../../access/useAllProjects', () => ({
   useAllProjects: vi.fn(),
+  useSelectableProjects: vi.fn(),
 }))
 
 // Mock file upload hook
@@ -151,6 +152,7 @@ describe('AIAgentNodeForm', () => {
       isPending: false,
     } as never)
     vi.mocked(useAllProjects).mockReturnValue({ projects: [], isLoading: false, error: null, refetch: vi.fn() })
+    vi.mocked(useSelectableProjects).mockReturnValue({ projects: [], isLoading: false, error: null, refetch: vi.fn() })
     vi.mocked(useFileStorageStatus).mockReturnValue({
       isConfigured: true,
       isLoading: false,

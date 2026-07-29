@@ -8,7 +8,7 @@ import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../../providers/alerts'
 import { accessClient } from '../../access/accessClient'
-import { useAllProjects } from '../../access/useAllProjects'
+import { useSelectableProjects } from '../../access/useAllProjects'
 
 import { CreateServiceAccountModal } from './CreateServiceAccountModal'
 
@@ -25,7 +25,7 @@ vi.mock('../../access/accessClient', () => ({
 }))
 
 vi.mock('../../access/useAllProjects', () => ({
-  useAllProjects: vi.fn(),
+  useSelectableProjects: vi.fn(),
 }))
 
 vi.mock('../../../app/tanstackRouter', () => ({
@@ -51,12 +51,12 @@ describe('CreateServiceAccountModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    vi.mocked(useAllProjects).mockReturnValue({
+    vi.mocked(useSelectableProjects).mockReturnValue({
       projects: [
         { id: '550e8400-e29b-41d4-a716-446655440000', name: 'Project Alpha' },
         { id: '660e8400-e29b-41d4-a716-446655440001', name: 'Project Beta' },
       ],
-    } as ReturnType<typeof useAllProjects>)
+    } as ReturnType<typeof useSelectableProjects>)
 
     vi.mocked(accessClient.useMutation).mockImplementation(((_method: string, endpoint: string) => {
       if (endpoint === '/service_accounts') {

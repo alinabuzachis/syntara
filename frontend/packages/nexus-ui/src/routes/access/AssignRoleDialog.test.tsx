@@ -9,7 +9,7 @@ import { AlertProvider } from '../../providers/alerts'
 
 import { accessClient } from './accessClient'
 import { AssignRoleDialog } from './AssignRoleDialog'
-import { useAllProjects } from './useAllProjects'
+import { useSelectableProjects } from './useAllProjects'
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -29,7 +29,7 @@ vi.mock('../../hooks/useDebouncedValue', () => ({
 }))
 
 vi.mock('./useAllProjects', () => ({
-  useAllProjects: vi.fn(),
+  useSelectableProjects: vi.fn(),
 }))
 
 vi.mock('../../client', () => ({
@@ -141,7 +141,7 @@ const defaultQueryReturn = {
 }
 
 function setupDefaultMocks() {
-  vi.mocked(useAllProjects).mockReturnValue({
+  vi.mocked(useSelectableProjects).mockReturnValue({
     projects: mockProjects,
     isLoading: false,
     error: null,

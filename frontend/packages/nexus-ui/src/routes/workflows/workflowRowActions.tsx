@@ -12,6 +12,7 @@ import {
 import { useNavigate } from '@tanstack/react-router'
 
 import { IconLabel } from '../../components/IconLabel'
+import { builtinProjectTooltip } from '../../hooks/permissionUtils'
 import { detachPromise } from '../../utils/detachPromise'
 
 import type { useWorkflowPermissions } from './useWorkflowPermissions'
@@ -33,20 +34,34 @@ export type WorkflowRowActionCallbacks = {
 export function buildWorkflowRowActions(
   workflow: Workflow,
   permissions: ReturnType<typeof useWorkflowPermissions>,
+  isBuiltinProject: boolean,
   callbacks: WorkflowRowActionCallbacks
 ): RowAction[] {
   if (workflow.is_builtin) return []
 
-  const noUpdate = permissions.canUpdate ? undefined : { content: permissions.tooltips.update }
-  const noCreate = permissions.canCreate ? undefined : { content: permissions.tooltips.create }
+  const updatePermissionTooltip = permissions.canUpdate ? undefined : { content: permissions.tooltips.update }
+  const createPermissionTooltip = permissions.canCreate ? undefined : { content: permissions.tooltips.create }
+  const deletePermissionTooltip = permissions.canDelete ? undefined : { content: permissions.tooltips.delete }
+  const noUpdate = isBuiltinProject ? { content: builtinProjectTooltip('edit this workflow') } : updatePermissionTooltip
+  const noCreate = isBuiltinProject
+    ? { content: builtinProjectTooltip('duplicate this workflow') }
+    : createPermissionTooltip
   const noRun = permissions.canRun ? undefined : { content: permissions.tooltips.run }
-  const noDelete = permissions.canDelete ? undefined : { content: permissions.tooltips.delete }
+  const noDelete = isBuiltinProject
+    ? { content: builtinProjectTooltip('delete this workflow') }
+    : deletePermissionTooltip
+  const noPublish = isBuiltinProject
+    ? { content: builtinProjectTooltip('publish this workflow') }
+    : updatePermissionTooltip
+  const noUnpublish = isBuiltinProject
+    ? { content: builtinProjectTooltip('unpublish this workflow') }
+    : updatePermissionTooltip
 
   return [
     {
       key: 'edit',
       title: <IconLabel icon={<RhUiEditFillIcon />}>Edit workflow</IconLabel>,
-      isAriaDisabled: !permissions.canUpdate,
+      isAriaDisabled: isBuiltinProject || !permissions.canUpdate,
       tooltipProps: noUpdate,
       onClick: () => {
         if (!workflow.id) return
@@ -73,7 +88,7 @@ export function buildWorkflowRowActions(
       key: 'duplicate',
       title: <IconLabel icon={<RhUiDuplicateIcon />}>Duplicate workflow</IconLabel>,
       isDisabled: callbacks.isDuplicating,
-      isAriaDisabled: !permissions.canCreate,
+      isAriaDisabled: isBuiltinProject || !permissions.canCreate,
       tooltipProps: noCreate,
       onClick: () => callbacks.onDuplicate(workflow),
     },
@@ -85,8 +100,8 @@ export function buildWorkflowRowActions(
     {
       key: 'publish',
       title: <IconLabel icon={<RhUiCheckCircleIcon />}>Publish workflow</IconLabel>,
-      isAriaDisabled: !permissions.canUpdate,
-      tooltipProps: noUpdate,
+      isAriaDisabled: isBuiltinProject || !permissions.canUpdate,
+      tooltipProps: noPublish,
       onClick: () => callbacks.onPublish(workflow),
     },
     ...(workflow.published_version_id == null
@@ -95,8 +110,8 @@ export function buildWorkflowRowActions(
           {
             key: 'unpublish',
             title: <IconLabel icon={<RhUiMinusCircleFillIcon />}>Unpublish workflow</IconLabel>,
-            isAriaDisabled: !permissions.canUpdate,
-            tooltipProps: noUpdate,
+            isAriaDisabled: isBuiltinProject || !permissions.canUpdate,
+            tooltipProps: noUnpublish,
             onClick: () => callbacks.onUnpublish(workflow),
           } satisfies RowAction,
         ]),
@@ -107,7 +122,7 @@ export function buildWorkflowRowActions(
     {
       key: 'delete',
       title: <IconLabel icon={<RhUiTrashIcon />}>Delete workflow</IconLabel>,
-      isAriaDisabled: !permissions.canDelete,
+      isAriaDisabled: isBuiltinProject || !permissions.canDelete,
       tooltipProps: noDelete,
       isDanger: true,
       onClick: () => callbacks.onDelete(workflow),

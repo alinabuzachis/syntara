@@ -11,6 +11,7 @@ import { assertUrlParam, assertUrlParamIsNull } from '../../test/filter-test-hel
 import { expectPageTitle } from '../../test/pageTitle'
 import { routerTestState } from '../../test/setup'
 import { accessClient } from '../access/accessClient'
+import { useAllProjects } from '../access/useAllProjects'
 
 import Workflows from './Workflows'
 
@@ -39,6 +40,11 @@ vi.mock('../access/accessClient', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+}))
+
+vi.mock('../access/useAllProjects', () => ({
+  useAllProjects: vi.fn(() => ({ projects: [], isLoading: false, error: null, refetch: vi.fn() })),
+  useSelectableProjects: vi.fn(() => ({ projects: [], isLoading: false, error: null, refetch: vi.fn() })),
 }))
 
 // Mock useProjectSelector — default to a single selected project so that:
@@ -2758,6 +2764,85 @@ describe('Workflows Component', () => {
       await waitFor(() => {
         assertUrlParam(mockSetSearchParams, 'sort', 'is_enabled')
       })
+    })
+  })
+
+  describe('builtin project protection', () => {
+    beforeEach(() => {
+      vi.mocked(useAllProjects).mockReturnValue({
+        projects: [{ id: 'project-1', name: 'Project 1', is_builtin: true }] as never,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+    })
+
+    afterEach(() => {
+      vi.mocked(useAllProjects).mockReturnValue({
+        projects: [],
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+    })
+
+    it('disables edit row action for workflows in a builtin project', async () => {
+      const user = userEvent.setup()
+      render(<Workflows />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
+      })
+
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
+      await user.click(menuTrigger)
+
+      const editItem = await screen.findByRole('menuitem', { name: /Edit workflow/ })
+      expect(editItem).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('disables edit row action even when canUpdate is false', async () => {
+      mockWorkflowPermissions.current = { ...mockWorkflowPermissions.current, canUpdate: false }
+      const user = userEvent.setup()
+      render(<Workflows />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
+      })
+
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
+      await user.click(menuTrigger)
+
+      const editItem = await screen.findByRole('menuitem', { name: /Edit workflow/ })
+      expect(editItem).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('disables Create workflow button when selected project is builtin', async () => {
+      mockUseProjectSelector.mockReturnValue({
+        selectedProject: { id: 'project-1', name: 'Builtin Project', is_builtin: true } as never,
+        isAllProjects: false,
+        projects: [{ id: 'project-1', name: 'Builtin Project', is_builtin: true }] as never,
+        ProjectSelector: null,
+      })
+
+      render(<Workflows />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
+      })
+
+      const createBtn = screen.getByRole('button', { name: 'Create workflow' })
+      expect(createBtn).toHaveAttribute('aria-disabled', 'true')
     })
   })
 })

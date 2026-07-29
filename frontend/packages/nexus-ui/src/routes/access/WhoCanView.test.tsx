@@ -7,7 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { accessClient, accessFetchClient, dynamicFetchClient } from './accessClient'
 import type { ResourceActionMap } from './canIUtils'
-import { useAllProjects } from './useAllProjects'
+import { useAllProjects, useSelectableProjects } from './useAllProjects'
 import { WhoCanView } from './WhoCanView'
 
 const { mockMutate } = vi.hoisted(() => ({
@@ -21,6 +21,7 @@ vi.mock('../../client', () => ({
 
 vi.mock('./useAllProjects', () => ({
   useAllProjects: vi.fn(),
+  useSelectableProjects: vi.fn(),
 }))
 
 vi.mock('./accessClient', () => ({
@@ -83,7 +84,7 @@ describe('WhoCanView', () => {
     } as never)
     vi.mocked(accessFetchClient.GET).mockResolvedValue({ data: { resources: [] } } as never)
     vi.mocked(dynamicFetchClient.GET).mockResolvedValue({ data: { resources: [] } } as never)
-    vi.mocked(useAllProjects).mockReturnValue({
+    const projectsMockValue = {
       projects: [
         {
           id: 'proj-1',
@@ -98,7 +99,9 @@ describe('WhoCanView', () => {
       isLoading: false,
       error: null,
       refetch: vi.fn(),
-    })
+    }
+    vi.mocked(useAllProjects).mockReturnValue(projectsMockValue)
+    vi.mocked(useSelectableProjects).mockReturnValue(projectsMockValue)
     // Reset to default idle state
     vi.mocked(accessClient.useMutation).mockReturnValue({
       mutate: mockMutate,

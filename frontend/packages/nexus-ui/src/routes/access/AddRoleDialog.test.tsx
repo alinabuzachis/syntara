@@ -9,7 +9,7 @@ import { AlertProvider } from '../../providers/alerts'
 
 import { accessClient } from './accessClient'
 import { AddRoleDialog } from './AddRoleDialog'
-import { useAllProjects } from './useAllProjects'
+import { useSelectableProjects } from './useAllProjects'
 
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
@@ -27,7 +27,7 @@ vi.mock('./accessClient', () => ({
 }))
 
 vi.mock('./useAllProjects', () => ({
-  useAllProjects: vi.fn(),
+  useSelectableProjects: vi.fn(),
 }))
 
 const queryClient = new QueryClient({
@@ -49,7 +49,7 @@ describe('AddRoleDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    vi.mocked(useAllProjects).mockReturnValue({
+    vi.mocked(useSelectableProjects).mockReturnValue({
       projects: [
         {
           id: 'proj-1',

@@ -31,7 +31,7 @@ import { addRoleSchema } from './addRoleSchema'
 import type { AddRoleFormData } from './addRoleSchema'
 import { PolicySelect } from './PolicySelect'
 import { TypeaheadSelect } from './TypeaheadSelect'
-import { useAllProjects } from './useAllProjects'
+import { useSelectableProjects } from './useAllProjects'
 
 function RoleScopeSelect({
   value,
@@ -249,7 +249,7 @@ export function AddRoleDialog({ onClose, onSuccess, defaultScope, defaultProject
     setValue('policies', [])
   }
 
-  const { projects: allProjects } = useAllProjects()
+  const { projects: allProjects } = useSelectableProjects()
   const projectOptions = useMemo(
     () =>
       allProjects.filter((p): p is typeof p & { id: string } => !!p.id).map((p) => ({ value: p.id, label: p.name })),

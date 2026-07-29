@@ -10,7 +10,7 @@ import { mockAuthMiddleware } from '../../test/mockAuthMiddleware'
 import { accessClient, accessFetchClient, dynamicFetchClient } from './accessClient'
 import type { ResourceActionMap } from './canIUtils'
 import { CheckAccessView } from './CheckAccessView'
-import { useAllProjects } from './useAllProjects'
+import { useAllProjects, useSelectableProjects } from './useAllProjects'
 
 const { mockMutate } = vi.hoisted(() => ({
   mockMutate: vi.fn<(...args: unknown[]) => void>(),
@@ -23,6 +23,7 @@ vi.mock('../../client', () => ({
 
 vi.mock('./useAllProjects', () => ({
   useAllProjects: vi.fn(),
+  useSelectableProjects: vi.fn(),
 }))
 
 vi.mock('./accessClient', () => ({
@@ -97,7 +98,7 @@ describe('CheckAccessView', () => {
       error: undefined,
       response: new Response(),
     })
-    vi.mocked(useAllProjects).mockReturnValue({
+    const projectsMockValue = {
       projects: [
         {
           id: 'proj-1',
@@ -112,7 +113,9 @@ describe('CheckAccessView', () => {
       isLoading: false,
       error: null,
       refetch: vi.fn(),
-    })
+    }
+    vi.mocked(useAllProjects).mockReturnValue(projectsMockValue)
+    vi.mocked(useSelectableProjects).mockReturnValue(projectsMockValue)
     // Reset to default idle state
     vi.mocked(accessClient.useMutation).mockReturnValue({
       mutate: mockMutate,

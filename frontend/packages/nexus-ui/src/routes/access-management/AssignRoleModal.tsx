@@ -20,7 +20,7 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useAlerts } from '../../providers/alerts'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { accessClient } from '../access/accessClient'
-import { useAllProjects } from '../access/useAllProjects'
+import { useSelectableProjects } from '../access/useAllProjects'
 
 import { MultiRoleSelect, type RoleOption } from './MultiRoleSelect'
 import { buildAssignmentBody, RolePrincipalType } from './RoleAssignmentTypes'
@@ -122,7 +122,7 @@ export function AssignRoleModal({
     }
   }, [isOpen, reset, defaultScope])
 
-  const { projects: allProjects } = useAllProjects()
+  const { projects: allProjects } = useSelectableProjects()
 
   // ── Server-side role search ──────────────────────────────────────────────
   const [roleSearch, setRoleSearch] = useState('')

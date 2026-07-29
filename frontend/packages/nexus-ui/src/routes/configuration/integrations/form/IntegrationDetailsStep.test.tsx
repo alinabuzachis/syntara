@@ -9,8 +9,8 @@ import { axe } from 'vitest-axe'
 import { IntegrationDetailsStep } from './IntegrationDetailsStep'
 import type { IntegrationFormData } from './integrationFormSchema'
 
-vi.mock('../../../access/useAllProjects', () => ({
-  useAllProjects: () => ({
+vi.mock('../../../access/useAllProjects', () => {
+  const projectsMock = () => ({
     projects: [
       { id: 'p-001', name: 'default' },
       { id: 'p-002', name: 'alice-sandbox' },
@@ -18,8 +18,9 @@ vi.mock('../../../access/useAllProjects', () => ({
     isLoading: false,
     error: null,
     refetch: vi.fn(),
-  }),
-}))
+  })
+  return { useAllProjects: projectsMock, useSelectableProjects: projectsMock }
+})
 
 function TestWrapper({
   defaultType = IntegrationTypeEnum.MCP_SERVER,

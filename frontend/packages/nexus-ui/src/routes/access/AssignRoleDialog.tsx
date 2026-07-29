@@ -30,7 +30,7 @@ import { assignRoleSchema } from './assignRoleSchema'
 import type { AssignRoleFormData } from './assignRoleSchema'
 import { PrincipalTypeSelect } from './PrincipalTypeSelect'
 import { TypeaheadSelect } from './TypeaheadSelect'
-import { useAllProjects } from './useAllProjects'
+import { useSelectableProjects } from './useAllProjects'
 
 const PAGE_SIZE = 20
 
@@ -356,7 +356,7 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
   const selectedProjectId = useWatch({ control, name: 'projectId' })
   const isProjectScoped = scope === 'project'
 
-  const { projects: allProjects, isLoading: isProjectsLoading } = useAllProjects()
+  const { projects: allProjects, isLoading: isProjectsLoading } = useSelectableProjects()
   const projectOptions = useMemo(
     () =>
       allProjects.filter((p): p is typeof p & { id: string } => !!p.id).map((p) => ({ value: p.id, label: p.name })),

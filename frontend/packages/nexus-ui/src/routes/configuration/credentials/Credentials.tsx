@@ -15,6 +15,7 @@ import { NxPageTitle } from '../../../components/NxPageTitle'
 import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
+import { builtinProjectTooltip } from '../../../hooks/permissionUtils'
 import { useCursorPagination, useCursorReset } from '../../../hooks/useCursorPagination'
 import { useDeleteAction } from '../../../hooks/useDeleteAction'
 import { useProjectSelector } from '../../../hooks/useProjectSelector'
@@ -24,6 +25,7 @@ import type { FilterFieldDefinition } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import { useDocLink } from '../../../utils/docs/useDocLink'
+import { useAllProjects } from '../../access/useAllProjects'
 
 import type { Credential, CredentialType } from './credentialConstants'
 import { CredentialEmptyState } from './CredentialEmptyState'
@@ -45,18 +47,25 @@ const SORT_FIELDS: Record<number, string> = {
 function buildCredentialRowActions(
   credential: Credential,
   permissions: ReturnType<typeof useCredentialPermissions>,
+  isBuiltinProject: boolean,
   callbacks: {
     onEdit: (credential: Credential) => void
     onDelete: (credential: Credential) => void
   }
 ): CredentialRowAction[] {
-  const noUpdate = permissions.canUpdate ? undefined : { content: permissions.tooltips.update }
-  const noDelete = permissions.canDelete ? undefined : { content: permissions.tooltips.delete }
+  const updatePermissionTooltip = permissions.canUpdate ? undefined : { content: permissions.tooltips.update }
+  const noUpdate = isBuiltinProject
+    ? { content: builtinProjectTooltip('edit this credential') }
+    : updatePermissionTooltip
+  const deletePermissionTooltip = permissions.canDelete ? undefined : { content: permissions.tooltips.delete }
+  const noDelete = isBuiltinProject
+    ? { content: builtinProjectTooltip('delete this credential') }
+    : deletePermissionTooltip
   return [
     {
       key: 'edit',
       title: <IconLabel icon={<RhUiEditIcon />}>Edit credential</IconLabel>,
-      isAriaDisabled: !permissions.canUpdate,
+      isAriaDisabled: isBuiltinProject || !permissions.canUpdate,
       tooltipProps: noUpdate,
       onClick: () => callbacks.onEdit(credential),
     },
@@ -65,11 +74,29 @@ function buildCredentialRowActions(
       key: 'delete',
       title: <IconLabel icon={<RhUiTrashIcon />}>Delete credential</IconLabel>,
       isDanger: true,
-      isAriaDisabled: !permissions.canDelete,
+      isAriaDisabled: isBuiltinProject || !permissions.canDelete,
       tooltipProps: noDelete,
       onClick: () => callbacks.onDelete(credential),
     },
   ]
+}
+
+type CredentialPageToolbarProps = {
+  permissions: ReturnType<typeof useCredentialPermissions>
+  isBuiltinProject: boolean
+  onCreateClick: () => void
+}
+
+function CredentialPageToolbar({ permissions, isBuiltinProject, onCreateClick }: Readonly<CredentialPageToolbarProps>) {
+  const canCreate = permissions.canCreate && !isBuiltinProject
+  const tooltip = isBuiltinProject ? builtinProjectTooltip('create a credential') : permissions.tooltips.create
+  return (
+    <DisabledWithTooltip isDisabled={!canCreate} content={tooltip}>
+      <Button variant="primary" isAriaDisabled={!canCreate} onClick={onCreateClick}>
+        Create credential
+      </Button>
+    </DisabledWithTooltip>
+  )
 }
 
 // eslint-disable-next-line max-lines-per-function, sonarjs/cognitive-complexity -- pre-existing complexity
@@ -77,7 +104,10 @@ export default function Credentials() {
   const credentialsDocLink = useDocLink('credentials')
   const { showAlert } = useAlerts()
   const { selectedProject, isAllProjects, projects, ProjectSelector } = useProjectSelector()
+  const { projects: allProjects } = useAllProjects()
+  const allProjectsById = useMemo(() => new Map(allProjects.map((p) => [p.id, p])), [allProjects])
   const permissions = useCredentialPermissions()
+  const isBuiltinSelected = !!selectedProject?.is_builtin
 
   const {
     cursor,
@@ -180,14 +210,14 @@ export default function Credentials() {
       const projectId = credential.project_id ?? 'unknown'
       if (!groups.has(projectId)) {
         groups.set(projectId, {
-          project: projects.find((p) => p.id === projectId) ?? null,
+          project: allProjectsById.get(projectId) ?? projects.find((p) => p.id === projectId) ?? null,
           credentials: [],
         })
       }
       groups.get(projectId)!.credentials.push(credential)
     }
     return groups
-  }, [credentials, projects, isAllProjects])
+  }, [credentials, projects, isAllProjects, allProjectsById])
 
   const toggleProjectCollapsed = (projectId: string) => {
     setCollapsedProjects((prev) => {
@@ -277,13 +307,20 @@ export default function Credentials() {
     onSettled: closeDeleteDialog,
   })
 
-  const toggleTooltip = permissions.canUpdate ? undefined : permissions.tooltips.enable
+  const permissionToggleTooltip = permissions.canUpdate ? undefined : permissions.tooltips.enable
+  const getToggleDisabledTooltip = (credential: Credential): string | undefined => {
+    const isBuiltinProject = !!allProjectsById.get(credential.project_id)?.is_builtin
+    if (isBuiltinProject) return builtinProjectTooltip('enable or disable this credential')
+    return permissionToggleTooltip
+  }
 
-  const getRowActions = (credential: Credential) =>
-    buildCredentialRowActions(credential, permissions, {
+  const getRowActions = (credential: Credential) => {
+    const isBuiltinProject = !!allProjectsById.get(credential.project_id)?.is_builtin
+    return buildCredentialRowActions(credential, permissions, isBuiltinProject, {
       onEdit: setCredentialToEdit,
       onDelete: openDeleteDialog,
     })
+  }
 
   // Query state handling (loading/error)
   const queryState = useQueryState(query, {
@@ -311,15 +348,11 @@ export default function Credentials() {
         projectSelector={ProjectSelector}
         toolbar={
           credentials.length > 0 || hasActiveFilters ? (
-            <DisabledWithTooltip isDisabled={!permissions.canCreate} content={permissions.tooltips.create}>
-              <Button
-                variant="primary"
-                isAriaDisabled={!permissions.canCreate}
-                onClick={() => setCreateModalOpen(true)}
-              >
-                Create credential
-              </Button>
-            </DisabledWithTooltip>
+            <CredentialPageToolbar
+              permissions={permissions}
+              isBuiltinProject={isBuiltinSelected}
+              onCreateClick={() => setCreateModalOpen(true)}
+            />
           ) : undefined
         }
       />
@@ -328,7 +361,9 @@ export default function Credentials() {
         <NxPageBody>
           <NxPanel isFullHeight>
             <CredentialEmptyState
-              onCreateCredential={permissions.canCreate ? () => setCreateModalOpen(true) : undefined}
+              onCreateCredential={
+                permissions.canCreate && !isBuiltinSelected ? () => setCreateModalOpen(true) : undefined
+              }
             />
           </NxPanel>
         </NxPageBody>
@@ -385,7 +420,7 @@ export default function Credentials() {
                       onToggleRow={handleToggleRow}
                       getRowActions={getRowActions}
                       onToggleEnabled={handleToggleEnabled}
-                      toggleDisabledTooltip={toggleTooltip}
+                      getToggleDisabledTooltip={getToggleDisabledTooltip}
                     />
                   ) : (
                     <FlatCredentialsTableBody
@@ -395,7 +430,7 @@ export default function Credentials() {
                       onToggleRow={handleToggleRow}
                       getRowActions={getRowActions}
                       onToggleEnabled={handleToggleEnabled}
-                      toggleDisabledTooltip={toggleTooltip}
+                      getToggleDisabledTooltip={getToggleDisabledTooltip}
                     />
                   )}
                 </NxScrollableTableContainer>

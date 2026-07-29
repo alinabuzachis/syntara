@@ -12,7 +12,15 @@ import { expectPageTitle } from '../../../test/pageTitle'
 import Credentials from './Credentials'
 
 const { mockSelectedProject } = vi.hoisted(() => ({
-  mockSelectedProject: { current: null as { id: string; name: string } | null },
+  mockSelectedProject: { current: null as { id: string; name: string; is_builtin?: boolean } | null },
+}))
+const { mockAllProjectsRef } = vi.hoisted(() => ({
+  mockAllProjectsRef: {
+    current: [
+      { id: 'proj-1', name: 'Project Alpha' },
+      { id: 'proj-2', name: 'Project Beta' },
+    ] as Array<{ id: string; name: string; is_builtin?: boolean }>,
+  },
 }))
 const MockProjectSelector = () => <span>Mock Project Selector</span>
 
@@ -40,14 +48,15 @@ const mockProjects = [
   { id: 'proj-2', name: 'Project Beta' },
 ]
 
-vi.mock('../../access/useAllProjects', () => ({
-  useAllProjects: () => ({
-    projects: mockProjects,
+vi.mock('../../access/useAllProjects', () => {
+  const projectsMock = () => ({
+    projects: mockAllProjectsRef.current,
     isLoading: false,
     error: null,
     refetch: vi.fn(),
-  }),
-}))
+  })
+  return { useAllProjects: projectsMock, useSelectableProjects: projectsMock }
+})
 
 vi.mock('../../../hooks/useProjectSelector', () => ({
   useProjectSelector: () => ({
@@ -197,6 +206,10 @@ describe('Credentials', () => {
     vi.clearAllMocks()
     mockMutate = vi.fn()
     mockSelectedProject.current = { id: 'proj-1', name: 'My Project' }
+    mockAllProjectsRef.current = [
+      { id: 'proj-1', name: 'Project Alpha' },
+      { id: 'proj-2', name: 'Project Beta' },
+    ]
     mockCredentialPermissions.current = {
       canCreate: true,
       canUpdate: true,
@@ -730,6 +743,103 @@ describe('Credentials', () => {
     it('sets the browser tab title', () => {
       render(<Credentials />, { wrapper })
       expectPageTitle(['Credentials'])
+    })
+  })
+
+  describe('builtin project protection', () => {
+    it('disables Create credential button when selected project is builtin', () => {
+      mockSelectedProject.current = { id: 'proj-1', name: 'Builtin Project', is_builtin: true }
+      render(<Credentials />, { wrapper })
+      const createBtn = screen.getByRole('button', { name: 'Create credential' })
+      expect(createBtn).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('disables Create credential button when selected project is builtin and canCreate is false', () => {
+      mockSelectedProject.current = { id: 'proj-1', name: 'Builtin Project', is_builtin: true }
+      mockCredentialPermissions.current = { ...mockCredentialPermissions.current, canCreate: false }
+      render(<Credentials />, { wrapper })
+      const createBtn = screen.getByRole('button', { name: 'Create credential' })
+      expect(createBtn).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('disables Create credential button when canCreate is false and project is not builtin', () => {
+      mockCredentialPermissions.current = { ...mockCredentialPermissions.current, canCreate: false }
+      render(<Credentials />, { wrapper })
+      const createBtn = screen.getByRole('button', { name: 'Create credential' })
+      expect(createBtn).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('disables edit and delete row actions when credential belongs to a builtin project', async () => {
+      mockAllProjectsRef.current = [
+        { id: 'proj-1', name: 'Project Alpha', is_builtin: true },
+        { id: 'proj-2', name: 'Project Beta' },
+      ]
+      const user = userEvent.setup()
+      render(<Credentials />, { wrapper })
+
+      const [firstKebab] = screen.getAllByRole('button', { name: /^Actions for / })
+      await user.click(firstKebab)
+
+      const editItem = await screen.findByRole('menuitem', { name: /Edit credential/ })
+      const deleteItem = screen.getByRole('menuitem', { name: /Delete credential/ })
+      expect(editItem).toHaveAttribute('aria-disabled', 'true')
+      expect(deleteItem).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('disables edit with builtin tooltip even when canUpdate is false', async () => {
+      mockAllProjectsRef.current = [
+        { id: 'proj-1', name: 'Project Alpha', is_builtin: true },
+        { id: 'proj-2', name: 'Project Beta' },
+      ]
+      mockCredentialPermissions.current = { ...mockCredentialPermissions.current, canUpdate: false }
+      const user = userEvent.setup()
+      render(<Credentials />, { wrapper })
+
+      const [firstKebab] = screen.getAllByRole('button', { name: /^Actions for / })
+      await user.click(firstKebab)
+
+      const editItem = await screen.findByRole('menuitem', { name: /Edit credential/ })
+      expect(editItem).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('disables delete with builtin tooltip even when canDelete is false', async () => {
+      mockAllProjectsRef.current = [
+        { id: 'proj-1', name: 'Project Alpha', is_builtin: true },
+        { id: 'proj-2', name: 'Project Beta' },
+      ]
+      mockCredentialPermissions.current = { ...mockCredentialPermissions.current, canDelete: false }
+      const user = userEvent.setup()
+      render(<Credentials />, { wrapper })
+
+      const [firstKebab] = screen.getAllByRole('button', { name: /^Actions for / })
+      await user.click(firstKebab)
+
+      const deleteItem = await screen.findByRole('menuitem', { name: /Delete credential/ })
+      expect(deleteItem).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('disables edit row action when canUpdate is false and project is not builtin', async () => {
+      mockCredentialPermissions.current = { ...mockCredentialPermissions.current, canUpdate: false }
+      const user = userEvent.setup()
+      render(<Credentials />, { wrapper })
+
+      const [firstKebab] = screen.getAllByRole('button', { name: /^Actions for / })
+      await user.click(firstKebab)
+
+      const editItem = await screen.findByRole('menuitem', { name: /Edit credential/ })
+      expect(editItem).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('disables delete row action when canDelete is false and project is not builtin', async () => {
+      mockCredentialPermissions.current = { ...mockCredentialPermissions.current, canDelete: false }
+      const user = userEvent.setup()
+      render(<Credentials />, { wrapper })
+
+      const [firstKebab] = screen.getAllByRole('button', { name: /^Actions for / })
+      await user.click(firstKebab)
+
+      const deleteItem = await screen.findByRole('menuitem', { name: /Delete credential/ })
+      expect(deleteItem).toHaveAttribute('aria-disabled', 'true')
     })
   })
 })

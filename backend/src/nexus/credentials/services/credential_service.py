@@ -397,9 +397,17 @@ class CredentialService(BaseService):
 
     async def create_credential(self, data: CredentialCreate) -> CredentialRead:
         """Create a new credential with encrypted inputs via SecretService."""
+        from nexus.authz.models import Project  # noqa: PLC0415
         from nexus.core.queries.project_queries import assert_project_alive  # noqa: PLC0415
 
         await assert_project_alive(self.session, data.project_id)
+
+        project = await self.session.get(Project, data.project_id)
+        if project and project.is_builtin:
+            from nexus.authz.exceptions import BuiltinProtectionError  # noqa: PLC0415
+
+            msg = f"Cannot create credentials in built-in project '{project.name}'"
+            raise BuiltinProtectionError(msg)
 
         credential_type = await self._get_credential_type(data.credential_type_id)
 
@@ -516,7 +524,16 @@ class CredentialService(BaseService):
 
     async def update_credential(self, credential_id: UUID, data: CredentialUpdate) -> CredentialRead:
         """Update a credential. $encrypted$ preserves existing encrypted values."""
+        from nexus.authz.models import Project  # noqa: PLC0415
+
         credential = await self._get_or_raise(credential_id)
+
+        project = await self.session.get(Project, credential.project_id)
+        if project and project.is_builtin:
+            from nexus.authz.exceptions import BuiltinProtectionError  # noqa: PLC0415
+
+            msg = f"Cannot update credentials in built-in project '{project.name}'"
+            raise BuiltinProtectionError(msg)
 
         assert_project_id_unchanged(credential.project_id, data.project_id)
 
@@ -619,7 +636,16 @@ class CredentialService(BaseService):
 
     async def delete_credential(self, credential_id: UUID) -> None:
         """Delete a credential and its secret data atomically."""
+        from nexus.authz.models import Project  # noqa: PLC0415
+
         credential = await self._get_or_raise(credential_id)
+
+        project = await self.session.get(Project, credential.project_id)
+        if project and project.is_builtin:
+            from nexus.authz.exceptions import BuiltinProtectionError  # noqa: PLC0415
+
+            msg = f"Cannot delete credentials in built-in project '{project.name}'"
+            raise BuiltinProtectionError(msg)
 
         wf_counts = await self.get_workflow_counts([credential_id])
         wf_ref_count = wf_counts.get(credential_id, 0)

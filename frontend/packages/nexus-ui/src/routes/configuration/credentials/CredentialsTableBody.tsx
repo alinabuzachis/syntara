@@ -37,7 +37,7 @@ type CredentialRowProps = {
   onToggleRow: (id: string) => void
   getRowActions: (credential: Credential) => CredentialRowAction[]
   onToggleEnabled: (credential: Credential) => void
-  toggleDisabledTooltip?: string
+  getToggleDisabledTooltip?: (credential: Credential) => string | undefined
 }
 
 function CredentialRow({
@@ -48,10 +48,11 @@ function CredentialRow({
   onToggleRow,
   getRowActions,
   onToggleEnabled,
-  toggleDisabledTooltip,
+  getToggleDisabledTooltip,
 }: Readonly<CredentialRowProps>) {
   const hasDescription = Boolean(credential.description?.trim())
   const actions = getRowActions(credential)
+  const toggleDisabledTooltip = getToggleDisabledTooltip?.(credential)
 
   return (
     <Tbody isExpanded={isExpanded}>
@@ -142,7 +143,7 @@ type GroupedCredentialsTableBodyProps = {
   onToggleRow: (id: string) => void
   getRowActions: (credential: Credential) => CredentialRowAction[]
   onToggleEnabled: (credential: Credential) => void
-  toggleDisabledTooltip?: string
+  getToggleDisabledTooltip?: (credential: Credential) => string | undefined
 }
 
 export function GroupedCredentialsTableBody({
@@ -154,7 +155,7 @@ export function GroupedCredentialsTableBody({
   onToggleRow,
   getRowActions,
   onToggleEnabled,
-  toggleDisabledTooltip,
+  getToggleDisabledTooltip,
 }: Readonly<GroupedCredentialsTableBodyProps>) {
   const credentialIndexMap = new Map<string, number>()
   let globalIndex = 0
@@ -198,7 +199,7 @@ export function GroupedCredentialsTableBody({
                   onToggleRow={onToggleRow}
                   getRowActions={getRowActions}
                   onToggleEnabled={onToggleEnabled}
-                  toggleDisabledTooltip={toggleDisabledTooltip}
+                  getToggleDisabledTooltip={getToggleDisabledTooltip}
                 />
               ))}
           </Fragment>
@@ -215,7 +216,7 @@ type FlatCredentialsTableBodyProps = {
   onToggleRow: (id: string) => void
   getRowActions: (credential: Credential) => CredentialRowAction[]
   onToggleEnabled: (credential: Credential) => void
-  toggleDisabledTooltip?: string
+  getToggleDisabledTooltip?: (credential: Credential) => string | undefined
 }
 
 export function FlatCredentialsTableBody({
@@ -225,7 +226,7 @@ export function FlatCredentialsTableBody({
   onToggleRow,
   getRowActions,
   onToggleEnabled,
-  toggleDisabledTooltip,
+  getToggleDisabledTooltip,
 }: Readonly<FlatCredentialsTableBodyProps>) {
   return (
     <>
@@ -239,7 +240,7 @@ export function FlatCredentialsTableBody({
           onToggleRow={onToggleRow}
           getRowActions={getRowActions}
           onToggleEnabled={onToggleEnabled}
-          toggleDisabledTooltip={toggleDisabledTooltip}
+          getToggleDisabledTooltip={getToggleDisabledTooltip}
         />
       ))}
     </>

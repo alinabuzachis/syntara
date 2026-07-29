@@ -30,6 +30,16 @@ export function permissionTooltip(actionDescription: string, policyName: string)
   return `To ${actionDescription}, you need a role with the ${policyName} policy. Contact your Admin to request access.`
 }
 
+/**
+ * Generates the tooltip message shown when an action is blocked because the
+ * selected project is the read-only built-in project.
+ *
+ * @param actionDescription - Human-readable description, e.g. "create a workflow"
+ */
+export function builtinProjectTooltip(actionDescription: string): string {
+  return `Cannot ${actionDescription} in the built-in project. Select a different project first.`
+}
+
 export type ResourceCrudPermissions = {
   canCreate: boolean
   canUpdate: boolean

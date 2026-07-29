@@ -6,10 +6,10 @@ import { axe } from 'vitest-axe'
 import { ProjectMultiSelect } from './ProjectMultiSelect'
 
 vi.mock('../../../access/useAllProjects', () => ({
-  useAllProjects: vi.fn(() => ({ projects: [], isLoading: false, error: null, refetch: vi.fn() })),
+  useSelectableProjects: vi.fn(() => ({ projects: [], isLoading: false, error: null, refetch: vi.fn() })),
 }))
 
-const { useAllProjects } = await import('../../../access/useAllProjects')
+const { useSelectableProjects } = await import('../../../access/useAllProjects')
 
 const mockProjects = [
   { id: 'proj-1', name: 'Alpha Project' },
@@ -18,8 +18,8 @@ const mockProjects = [
 ]
 
 function mockProjectsLoaded(projects = mockProjects) {
-  vi.mocked(useAllProjects).mockReturnValue({
-    projects: projects as ReturnType<typeof useAllProjects>['projects'],
+  vi.mocked(useSelectableProjects).mockReturnValue({
+    projects: projects as ReturnType<typeof useSelectableProjects>['projects'],
     isLoading: false,
     error: null,
     refetch: vi.fn(),
@@ -27,8 +27,8 @@ function mockProjectsLoaded(projects = mockProjects) {
 }
 
 function mockProjectsLoading() {
-  vi.mocked(useAllProjects).mockReturnValue({
-    projects: [] as ReturnType<typeof useAllProjects>['projects'],
+  vi.mocked(useSelectableProjects).mockReturnValue({
+    projects: [] as ReturnType<typeof useSelectableProjects>['projects'],
     isLoading: true,
     error: null,
     refetch: vi.fn(),

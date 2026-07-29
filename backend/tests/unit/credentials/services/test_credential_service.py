@@ -13,6 +13,7 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
+from nexus.authz.exceptions import BuiltinProtectionError
 from nexus.core.lib.encryption import ENCRYPTED_SENTINEL
 from nexus.credentials.exceptions import (
     CredentialNameConflictError,
@@ -124,7 +125,7 @@ def mock_session() -> MagicMock:
     session.refresh = AsyncMock()
     session.flush = AsyncMock()
     session.delete = AsyncMock()
-    session.get = AsyncMock()
+    session.get = AsyncMock(return_value=None)
     session.exec = AsyncMock()
     return session
 
@@ -220,7 +221,7 @@ class TestCreateCredential:
         mock_secret_service: MagicMock,
         bearer_type: CredentialType,
     ) -> None:
-        mock_session.get.return_value = bearer_type
+        mock_session.get.side_effect = [None, bearer_type]
         project_id = uuid4()
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = None
@@ -255,7 +256,7 @@ class TestCreateCredential:
             injectors={},
             managed=False,
         )
-        mock_session.get.return_value = optional_type
+        mock_session.get.side_effect = [None, optional_type]
         project_id = uuid4()
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = None
@@ -282,7 +283,7 @@ class TestCreateCredential:
         mock_secret_service: MagicMock,
         bearer_type: CredentialType,
     ) -> None:
-        mock_session.get.return_value = bearer_type
+        mock_session.get.side_effect = [None, bearer_type]
         existing_cred = MagicMock()
         project_id = uuid4()
         mock_result = MagicMock()
@@ -299,6 +300,31 @@ class TestCreateCredential:
             project_id=project_id,
         )
         with pytest.raises(CredentialNameConflictError):
+            await service.create_credential(data)
+
+    @pytest.mark.asyncio
+    async def test_raises_when_project_is_builtin(
+        self,
+        mock_session: MagicMock,
+        mock_user: MagicMock,
+        mock_secret_service: MagicMock,
+    ) -> None:
+        builtin_project = MagicMock()
+        builtin_project.is_builtin = True
+        builtin_project.name = "Default"
+        mock_session.get.return_value = builtin_project
+        mock_result = MagicMock()
+        mock_result.first.return_value = uuid4()
+        mock_session.exec.return_value = mock_result
+
+        service = CredentialService(mock_session, mock_user, mock_secret_service)
+        data = CredentialCreate(
+            name="Blocked",
+            credential_type_id=uuid4(),
+            inputs={"token": "x"},
+            project_id=uuid4(),
+        )
+        with pytest.raises(BuiltinProtectionError):
             await service.create_credential(data)
 
 
@@ -383,7 +409,7 @@ class TestUpdateCredential:
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = credential
         mock_session.exec.return_value = mock_result
-        mock_session.get.return_value = basic_auth_type
+        mock_session.get.side_effect = [None, basic_auth_type]
 
         mock_secret_service.retrieve_secret.return_value = {
             "username": "admin",
@@ -422,7 +448,7 @@ class TestUpdateCredential:
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = credential
         mock_session.exec.return_value = mock_result
-        mock_session.get.return_value = aap_type
+        mock_session.get.side_effect = [None, aap_type]
 
         mock_secret_service.retrieve_secret.return_value = {
             "oauth_token": "existing-token",
@@ -458,7 +484,7 @@ class TestUpdateCredential:
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = credential
         mock_session.exec.return_value = mock_result
-        mock_session.get.return_value = aap_type
+        mock_session.get.side_effect = [None, aap_type]
 
         mock_secret_service.retrieve_secret.return_value = {
             "oauth_token": "tok",
@@ -470,6 +496,37 @@ class TestUpdateCredential:
         patch_data = CredentialUpdate(inputs={})
 
         with pytest.raises(CredentialValidationError, match="mutually exclusive"):
+            await service.update_credential(credential.id, patch_data)
+
+        mock_secret_service.update_secret.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_raises_when_project_is_builtin(
+        self,
+        mock_session: MagicMock,
+        mock_user: MagicMock,
+        mock_secret_service: MagicMock,
+    ) -> None:
+        credential = Credential(
+            id=uuid4(),
+            name="Builtin Cred",
+            credential_type_id=uuid4(),
+            secret_id=uuid4(),
+            enabled=True,
+            project_id=uuid4(),
+            created_by=mock_user.id,
+        )
+        builtin_project = MagicMock()
+        builtin_project.is_builtin = True
+        builtin_project.name = "Default"
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = credential
+        mock_session.exec.return_value = mock_result
+        mock_session.get.return_value = builtin_project
+
+        service = CredentialService(mock_session, mock_user, mock_secret_service)
+        patch_data = CredentialUpdate()
+        with pytest.raises(BuiltinProtectionError):
             await service.update_credential(credential.id, patch_data)
 
         mock_secret_service.update_secret.assert_not_called()
@@ -566,6 +623,37 @@ class TestDeleteCredential:
             assert "still referenced by workflows" in mock_logger.warning.call_args[0][0]
 
         mock_session.delete.assert_awaited_once_with(credential)
+
+    @pytest.mark.asyncio
+    async def test_raises_when_project_is_builtin(
+        self,
+        mock_session: MagicMock,
+        mock_user: MagicMock,
+        mock_secret_service: MagicMock,
+    ) -> None:
+        credential = Credential(
+            id=uuid4(),
+            name="Builtin Cred",
+            credential_type_id=uuid4(),
+            secret_id=uuid4(),
+            enabled=True,
+            project_id=uuid4(),
+            created_by=mock_user.id,
+        )
+        builtin_project = MagicMock()
+        builtin_project.is_builtin = True
+        builtin_project.name = "Default"
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = credential
+        mock_session.exec.return_value = mock_result
+        mock_session.get.return_value = builtin_project
+
+        service = CredentialService(mock_session, mock_user, mock_secret_service)
+        with pytest.raises(BuiltinProtectionError):
+            await service.delete_credential(credential.id)
+
+        mock_secret_service.delete_secret.assert_not_called()
+        mock_session.delete.assert_not_awaited()
 
 
 _real_get_integration_counts = CredentialService.get_integration_counts
@@ -1159,7 +1247,7 @@ class TestAuditEventDispatch:
         mock_secret_service: MagicMock,
         bearer_type: CredentialType,
     ) -> None:
-        mock_session.get.return_value = bearer_type
+        mock_session.get.side_effect = [None, bearer_type]
         project_id = uuid4()
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = None
@@ -1203,7 +1291,7 @@ class TestAuditEventDispatch:
         mock_result.one_or_none.return_value = existing
         mock_result.first.return_value = None
         mock_session.exec.return_value = mock_result
-        mock_session.get.return_value = bearer_type
+        mock_session.get.side_effect = [None, bearer_type]
         mock_secret_service.retrieve_secret.return_value = {"token": "sk-old"}
 
         service = CredentialService(mock_session, mock_user, mock_secret_service)
@@ -1237,7 +1325,7 @@ class TestAuditEventDispatch:
         mock_result = MagicMock()
         mock_result.one_or_none.return_value = existing
         mock_session.exec.return_value = mock_result
-        mock_session.get.return_value = bearer_type
+        mock_session.get.side_effect = [None, bearer_type]
         mock_secret_service.retrieve_secret.return_value = {"token": "sk-val"}
 
         service = CredentialService(mock_session, mock_user, mock_secret_service)

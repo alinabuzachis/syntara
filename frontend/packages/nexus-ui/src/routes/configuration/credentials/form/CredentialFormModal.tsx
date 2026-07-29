@@ -20,7 +20,7 @@ import { credentialsClient } from '../../../../client'
 import { FormLabelWithHelp } from '../../../../components/FormLabelWithHelp'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../../providers/alerts'
-import { useAllProjects } from '../../../access/useAllProjects'
+import { useSelectableProjects } from '../../../access/useAllProjects'
 import type { Credential } from '../credentialConstants'
 
 import { AuthMethodSelector } from './AuthMethodSelector'
@@ -66,7 +66,7 @@ export function CredentialFormModal({
 }: Readonly<CredentialFormModalProps>) {
   const isEditMode = !!credentialToEdit
   const { showAlert } = useAlerts()
-  const { projects, isLoading: isLoadingProjects, error: projectsError } = useAllProjects()
+  const { projects, isLoading: isLoadingProjects, error: projectsError } = useSelectableProjects()
 
   // Track which secret fields have been touched by the user (for edit mode)
   const [touchedSecrets, setTouchedSecrets] = useState<Set<string>>(new Set())

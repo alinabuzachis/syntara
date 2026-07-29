@@ -26,7 +26,7 @@ vi.mock('../../access/accessClient', () => ({
 }))
 
 vi.mock('../../access/useAllProjects', () => ({
-  useAllProjects: () => ({
+  useSelectableProjects: () => ({
     projects: [
       { id: PROJECT_UUID, name: 'Default' },
       { id: '00000000-0000-0000-0000-000000000002', name: 'Production' },

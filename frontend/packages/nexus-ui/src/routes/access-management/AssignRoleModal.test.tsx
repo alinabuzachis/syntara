@@ -7,7 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../providers/alerts'
 import { accessClient } from '../access/accessClient'
-import { useAllProjects } from '../access/useAllProjects'
+import { useSelectableProjects } from '../access/useAllProjects'
 
 import { AssignRoleModal } from './AssignRoleModal'
 import type { RolePrincipalType } from './RoleAssignmentTypes'
@@ -29,7 +29,7 @@ vi.mock('../../hooks/useDebouncedValue', () => ({
 }))
 
 vi.mock('../access/useAllProjects', () => ({
-  useAllProjects: vi.fn(),
+  useSelectableProjects: vi.fn(),
 }))
 
 const mockMutateAsync = vi.fn()
@@ -107,7 +107,7 @@ describe('AssignRoleModal', () => {
   const mockOnSuccess = vi.fn()
 
   function setupMocks() {
-    vi.mocked(useAllProjects).mockReturnValue({
+    vi.mocked(useSelectableProjects).mockReturnValue({
       projects: mockProjects,
       isLoading: false,
       error: null,

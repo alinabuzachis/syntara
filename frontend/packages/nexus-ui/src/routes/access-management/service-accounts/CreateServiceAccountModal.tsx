@@ -32,7 +32,7 @@ import { useAlerts } from '../../../providers/alerts'
 import { formatExpirationDate } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 import { accessClient } from '../../access/accessClient'
-import { useAllProjects } from '../../access/useAllProjects'
+import { useSelectableProjects } from '../../access/useAllProjects'
 import { getServiceAccountDetailPath } from '../accessManagementPaths'
 
 import { CredentialExpirationField } from './CredentialExpirationField'
@@ -284,7 +284,7 @@ function CreateServiceAccountFormPhase({
   onListRefresh: () => void
   maxLifetimeDays?: number
 }>) {
-  const { projects } = useAllProjects()
+  const { projects } = useSelectableProjects()
   const {
     value: expiresAt,
     error: dateError,

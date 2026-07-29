@@ -6,8 +6,8 @@ import { axe } from 'vitest-axe'
 
 import { ScopeFields } from './ScopeFields'
 
-vi.mock('../../../access/useAllProjects', () => ({
-  useAllProjects: vi.fn(() => ({
+vi.mock('../../../access/useAllProjects', () => {
+  const projectsMock = vi.fn(() => ({
     projects: [
       { id: 'p-001', name: 'default' },
       { id: 'p-002', name: 'alice-sandbox' },
@@ -15,8 +15,9 @@ vi.mock('../../../access/useAllProjects', () => ({
     isLoading: false,
     error: null,
     refetch: vi.fn(),
-  })),
-}))
+  }))
+  return { useAllProjects: projectsMock, useSelectableProjects: projectsMock }
+})
 
 type TestFormValues = {
   scope: string

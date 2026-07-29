@@ -10,6 +10,7 @@ import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxKebabMenu } from '../../components/NxKebabMenu'
 import { NxPageTitle } from '../../components/NxPageTitle'
 import { NxListPanel } from '../../components/panels/list/NxListPanel'
+import { builtinProjectTooltip } from '../../hooks/permissionUtils'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useDialogState } from '../../hooks/useDialogState'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
@@ -18,6 +19,7 @@ import { getErrorMessage } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
 import { useDocLink } from '../../utils/docs/useDocLink'
 import { downloadWorkflowExportById } from '../../utils/downloadWorkflowExport'
+import { useAllProjects } from '../access/useAllProjects'
 
 import { buildProjectRowActions } from './projectRowActions'
 import { useDuplicateWorkflow } from './useDuplicateWorkflow'
@@ -81,8 +83,17 @@ export default function Workflows() {
   const { showAlert, showSuccess, showError } = useAlerts()
   const navigate = useNavigate()
   const setLocation = useCallback((to: string) => detachPromise(navigate({ to })), [navigate])
-  const { selectedProjectId, stableProjectId, isAllProjects, projects, ProjectSelector, refetchProjects } =
-    useProjectSelector()
+  const {
+    selectedProject,
+    selectedProjectId,
+    stableProjectId,
+    isAllProjects,
+    projects,
+    ProjectSelector,
+    refetchProjects,
+  } = useProjectSelector()
+  const { projects: allProjects } = useAllProjects()
+  const allProjectsById = useMemo(() => new Map(allProjects.map((p) => [p.id, p])), [allProjects])
   // UUID — same as builder `resourceProject` so useCanI cache keys stay aligned.
   const permissions = useWorkflowPermissions({
     resourceProject: selectedProjectId ?? undefined,
@@ -181,8 +192,9 @@ export default function Workflows() {
     projectPermissions,
   })
 
-  const getRowActions = (workflow: Workflow) =>
-    buildWorkflowRowActions(workflow, permissions, {
+  const getRowActions = (workflow: Workflow) => {
+    const isBuiltinProject = !!allProjectsById.get(workflow.project_id)?.is_builtin
+    return buildWorkflowRowActions(workflow, permissions, isBuiltinProject, {
       navigate,
       onRun: (wf) => runDialog.open(wf),
       onDuplicate: (wf) => detachPromise(duplicateWorkflow(wf)),
@@ -200,6 +212,7 @@ export default function Workflows() {
       onDelete: (wf) => deleteDialog.open(wf),
       isDuplicating,
     })
+  }
 
   const hasQueryState = workflowsQuery.isPending || !!workflowsQuery.error
   return (
@@ -214,8 +227,10 @@ export default function Workflows() {
             !hasQueryState && showToolbar ? (
               <WorkflowsPageToolbar
                 headerProjectActions={headerProjectActions}
-                canCreate={permissions.canCreate}
-                createTooltip={permissions.tooltips.create}
+                canCreate={permissions.canCreate && !selectedProject?.is_builtin}
+                createTooltip={
+                  selectedProject?.is_builtin ? builtinProjectTooltip('create a workflow') : permissions.tooltips.create
+                }
                 showWorkflowActions={showWorkflowActions}
                 showImportWorkflow={showImportWorkflow}
                 onImportClick={() => setImportDialogOpen(true)}
@@ -239,7 +254,9 @@ export default function Workflows() {
               onFilterChange={handleFilterChange}
               onClearAllFilters={handleClearAllFilters}
               onCreateWorkflow={
-                permissions.canCreate ? () => detachPromise(navigate({ to: '/workflow-builder/new' })) : undefined
+                permissions.canCreate && !selectedProject?.is_builtin
+                  ? () => detachPromise(navigate({ to: '/workflow-builder/new' }))
+                  : undefined
               }
               footer={getFooterProps(workflowsQuery.data)}
               getSortParams={getSortParams}

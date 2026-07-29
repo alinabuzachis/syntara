@@ -25,8 +25,8 @@ vi.mock('../../../client', () => ({
   },
 }))
 
-vi.mock('../../access/useAllProjects', () => ({
-  useAllProjects: () => ({
+vi.mock('../../access/useAllProjects', () => {
+  const projectsMock = () => ({
     projects: [
       { id: 'p-001', name: 'default' },
       { id: 'p-002', name: 'alice-sandbox' },
@@ -34,8 +34,9 @@ vi.mock('../../access/useAllProjects', () => ({
     isLoading: false,
     error: null,
     refetch: vi.fn(),
-  }),
-}))
+  })
+  return { useAllProjects: projectsMock, useSelectableProjects: projectsMock }
+})
 
 const mockSyncAssignments = vi.fn().mockResolvedValue({ added: [], removed: [], errors: [] })
 vi.mock('./useProjectAssignmentSync', () => ({

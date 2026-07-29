@@ -26,7 +26,7 @@ import { Controller, useForm } from 'react-hook-form'
 
 import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
 import { formatExpirationDate } from '../../../utils/dateUtils'
-import { useAllProjects } from '../../access/useAllProjects'
+import { useSelectableProjects } from '../../access/useAllProjects'
 import { CredentialExpirationField } from '../../access-management/service-accounts/CredentialExpirationField'
 import {
   createServiceAccountSchema,
@@ -228,7 +228,7 @@ type Props = Readonly<{
 }>
 
 export function CreateServiceAccountInlineModal({ isOpen, onClose, onCreated, projectId }: Props) {
-  const { projects } = useAllProjects()
+  const { projects } = useSelectableProjects()
   const projectOptions = useMemo(
     () =>
       projects

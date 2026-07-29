@@ -14,7 +14,7 @@ import { RhUiCloseIcon } from '@patternfly/react-icons'
 import { type Ref, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { NxLabel } from '../../../../components/labels/NxLabel'
-import { useAllProjects } from '../../../access/useAllProjects'
+import { useSelectableProjects } from '../../../access/useAllProjects'
 
 type ProjectMultiSelectProps = Readonly<{
   selectedIds: string[]
@@ -131,7 +131,7 @@ function renderProjectOptions(
 }
 
 export function ProjectMultiSelect({ selectedIds, onChange, validated }: ProjectMultiSelectProps) {
-  const { projects, isLoading } = useAllProjects()
+  const { projects, isLoading } = useSelectableProjects()
   const [isOpen, setIsOpen] = useState(false)
   const [filterValue, setFilterValue] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)

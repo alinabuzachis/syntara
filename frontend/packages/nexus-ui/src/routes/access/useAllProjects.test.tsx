@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { accessFetchClient } from './accessClient'
-import { useAllProjects } from './useAllProjects'
+import { useAllProjects, useSelectableProjects } from './useAllProjects'
 
 vi.mock('./accessClient', () => ({
   accessClient: {
@@ -102,7 +102,7 @@ describe('useAllProjects', () => {
     expect(result.current.projects).toEqual([])
   })
 
-  it('passes correct query parameters', async () => {
+  it('passes correct query parameters without is_builtin filter', async () => {
     vi.mocked(accessFetchClient.GET).mockResolvedValue({
       data: { resources: [] },
       error: null,
@@ -115,5 +115,72 @@ describe('useAllProjects', () => {
         params: { query: { limit: 100, cursor: undefined } },
       })
     })
+  })
+})
+
+describe('useSelectableProjects', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    queryClient.clear()
+  })
+
+  it('passes is_builtin: false to exclude the built-in project', async () => {
+    vi.mocked(accessFetchClient.GET).mockResolvedValue({
+      data: { resources: [] },
+      error: null,
+    } as never)
+
+    renderHook(() => useSelectableProjects(), { wrapper })
+
+    await waitFor(() => {
+      expect(accessFetchClient.GET).toHaveBeenCalledWith('/projects', {
+        params: { query: { limit: 100, cursor: undefined, is_builtin: false } },
+      })
+    })
+  })
+
+  it('returns projects from the response', async () => {
+    const mockProjects = [
+      { id: 'p1', name: 'Alpha', description: null, labels: {}, is_default: false, created_at: null, updated_at: null },
+      { id: 'p2', name: 'Beta', description: null, labels: {}, is_default: false, created_at: null, updated_at: null },
+    ]
+
+    vi.mocked(accessFetchClient.GET).mockResolvedValue({
+      data: { resources: mockProjects },
+      error: null,
+    } as never)
+
+    const { result } = renderHook(() => useSelectableProjects(), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    expect(result.current.projects).toEqual(mockProjects)
+    expect(result.current.error).toBeNull()
+  })
+
+  it('is loading initially', () => {
+    vi.mocked(accessFetchClient.GET).mockReturnValue(new Promise(() => {}))
+
+    const { result } = renderHook(() => useSelectableProjects(), { wrapper })
+
+    expect(result.current.isLoading).toBe(true)
+    expect(result.current.projects).toEqual([])
+  })
+
+  it('returns error when fetch fails', async () => {
+    vi.mocked(accessFetchClient.GET).mockResolvedValue({
+      data: undefined,
+      error: { detail: 'Forbidden' },
+    } as never)
+
+    const { result } = renderHook(() => useSelectableProjects(), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    expect(result.current.error).toBeTruthy()
   })
 })

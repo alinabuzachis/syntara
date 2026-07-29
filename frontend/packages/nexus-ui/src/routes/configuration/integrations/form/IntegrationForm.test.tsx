@@ -36,9 +36,10 @@ vi.mock('../../../../app/tanstackRouter', () => ({
   tanstackRouter: { navigate: vi.fn().mockResolvedValue(undefined) },
 }))
 
-vi.mock('../../../access/useAllProjects', () => ({
-  useAllProjects: vi.fn(() => ({ projects: [], isLoading: false, error: null, refetch: vi.fn() })),
-}))
+vi.mock('../../../access/useAllProjects', () => {
+  const projectsMock = vi.fn(() => ({ projects: [], isLoading: false, error: null, refetch: vi.fn() }))
+  return { useAllProjects: projectsMock, useSelectableProjects: projectsMock }
+})
 
 vi.mock('../../../builder/components/CredentialSelector', () => ({
   CredentialSelector: ({
