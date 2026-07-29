@@ -40,7 +40,7 @@ test('switching users reflects new permissions without hard refresh', async ({ p
 
       // Call the backend directly rather than through the UI proxy to avoid
       // stale proxy config from a previously-started dev server.
-      const backendUrl = process.env.VITE_API_URL ?? 'http://localhost:8000'
+      const backendUrl = process.env.VITE_API_URL ?? process.env.NEXUS_E2E_BASE_URL ?? 'http://localhost:8000'
 
       const tokenResp = await page.request.post(`${backendUrl}/api/v1/auth/login`, {
         data: { username: 'admin', password: adminPassword },
@@ -106,7 +106,7 @@ test('switching users reflects new permissions without hard refresh', async ({ p
     await expect(page.getByRole('link', { name: 'Workflows' })).toBeVisible()
   } finally {
     if (viewerId) {
-      const backendUrl = process.env.VITE_API_URL ?? 'http://localhost:8000'
+      const backendUrl = process.env.VITE_API_URL ?? process.env.NEXUS_E2E_BASE_URL ?? 'http://localhost:8000'
       const tokenResp = await page.request.post(`${backendUrl}/api/v1/auth/login`, {
         data: { username: 'admin', password: adminPassword },
       })
