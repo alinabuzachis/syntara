@@ -1,6 +1,6 @@
 import { Tab } from '@patternfly/react-core'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
@@ -550,6 +550,13 @@ describe('NxListPanelTabs', () => {
     )
 
     await screen.findByRole('tab', { name: 'Members' })
+    // `findByRole` resolves as soon as the tab paints, but RouterProvider is still settling:
+    // TanStack Router's internal `OnRendered` re-renders when the `resolvedLocation` store
+    // updates a microtask later. `axe()` takes long enough that the update would otherwise
+    // land mid-scan and outside act(), which src/test/setup.ts turns into a hard failure.
+    await act(async () => {
+      await Promise.resolve()
+    })
     expect(await axe(container)).toHaveNoViolations()
   })
 })
