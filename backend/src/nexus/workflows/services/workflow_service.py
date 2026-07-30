@@ -58,7 +58,7 @@ from nexus.workflows.models.workflow_publish_event import PublishAction, Workflo
 from nexus.workflows.services.scheduled_trigger_service import ScheduledTriggerService
 from nexus.workflows.services.webhook_trigger_service import WEBHOOK_TRIGGER_TYPES, WebhookTriggerService
 from nexus.workflows.services.workflow_diff import generate_change_summary
-from nexus.workflows.validators import workflow_validator
+from nexus.workflows.validators import validate_workflow_references, workflow_validator
 
 if TYPE_CHECKING:
     from nexus.workflows.models import WorkflowVersionListResponse
@@ -449,6 +449,10 @@ class WorkflowService(BaseService):
             raise BuiltinProtectionError(msg)
 
         await self._validate_credential_project_scope(workflow_definition, project_id)
+        ref_findings = await validate_workflow_references(self.session, workflow_definition, project_id)
+        if ref_findings:
+            result = ValidationResult.from_findings([*result.findings, *ref_findings])
+            has_validation_issues = True
 
         schema_version = workflow_definition.get("schema_version")
         workflow_dict = workflow_definition
@@ -977,6 +981,10 @@ class WorkflowService(BaseService):
                 if prev_version and prev_version.workflow_definition:
                     previous_cred_ids = self._extract_credential_ids(prev_version.workflow_definition)
             await self._validate_credential_project_scope(workflow_definition, workflow.project_id, previous_cred_ids)
+            ref_findings = await validate_workflow_references(self.session, workflow_definition, workflow.project_id)
+            if ref_findings:
+                result = ValidationResult.from_findings([*result.findings, *ref_findings])
+                workflow.has_validation_issues = True
 
         version = await self._create_version_record(workflow, workflow_definition, change_description)
         return version, result
@@ -1100,7 +1108,7 @@ class WorkflowService(BaseService):
 
         return workflow, current_version, validation_result
 
-    async def publish_workflow_version(  # noqa: C901
+    async def publish_workflow_version(  # noqa: C901, PLR0915
         self,
         workflow_id: UUID,
         version: int,
@@ -1150,9 +1158,10 @@ class WorkflowService(BaseService):
                     ),
                 ]
             )
-        if result.error_count > 0 or result.warning_count > 0:
+        if (result.error_count + result.warning_count) > 0:
             raise WorkflowPublishValidationError(result)
 
+        stale_tool_findings: list[ValidationFinding] = []
         if workflow_definition is not None and workflow.project_id is not None:
             # Inline definition provided (atomic save-and-publish). At this point
             # target_version already points to the newly created version, so its
@@ -1161,6 +1170,9 @@ class WorkflowService(BaseService):
             # new definition as candidates for the credential:use check (safe and correct).
             await self._validate_credential_project_scope(
                 workflow_definition, workflow.project_id, previous_credential_ids=None
+            )
+            stale_tool_findings = await validate_workflow_references(
+                self.session, workflow_definition, workflow.project_id
             )
 
         if workflow.published_version_id is not None and workflow.published_version_id != target_version.id:
@@ -1230,6 +1242,10 @@ class WorkflowService(BaseService):
                 "Scheduled triggers could not be activated because the scheduling service is "
                 "temporarily unavailable. Re-publish the workflow to retry."
             )
+
+        if stale_tool_findings:
+            stale_msg = "; ".join(f.message for f in stale_tool_findings)
+            warning = "; ".join(filter(None, [warning, stale_msg]))
 
         AuditEventDispatcher.dispatch(
             WorkflowVersionPublishedEvent(

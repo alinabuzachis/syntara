@@ -9,7 +9,7 @@ import {
   SelectOption,
 } from '@patternfly/react-core'
 import { useQueries } from '@tanstack/react-query'
-import React, { type ReactElement, useCallback, useMemo, useState } from 'react'
+import React, { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { integrationsClient } from '../../../client'
 import { NxLabel } from '../../../components/labels/NxLabel'
@@ -46,6 +46,8 @@ export type LLMModelSelectorProps = {
   projectId?: string
   /** Pre-built label help (takes precedence over helpText) */
   labelHelp?: ReactElement
+  /** Called when models finish loading and the currently selected model is not found in any provider. */
+  onStaleDetected?: () => void
 }
 
 type VisibleGroup = {
@@ -65,6 +67,36 @@ function resolveToggleLabel(
     if (model) return `${integration.name} / ${model.name}`
   }
   return value.llm_model_id
+}
+
+function filterVisibleGroups(
+  integrations: (IntegrationRead & { id: string })[],
+  modelsByIntegration: Map<string, LLMModelRead[]>,
+  filterText: string,
+  failedIntegrationIds: Set<string>
+): VisibleGroup[] {
+  const query = filterText.toLowerCase().trim()
+  const defaultFirst = (a: LLMModelRead, b: LLMModelRead) => {
+    if (a.is_default && !b.is_default) return -1
+    if (!a.is_default && b.is_default) return 1
+    return 0
+  }
+  return integrations
+    .map((integration) => {
+      const models = [...(modelsByIntegration.get(integration.id) ?? [])].sort(defaultFirst)
+      if (!query) return { integration, models }
+      const integrationNameMatches = integration.name.toLowerCase().includes(query)
+      const filteredModels = integrationNameMatches
+        ? models
+        : models.filter(
+            (m) =>
+              m.name.toLowerCase().includes(query) ||
+              m.model_id.toLowerCase().includes(query) ||
+              (m.description?.toLowerCase().includes(query) ?? false)
+          )
+      return { integration, models: filteredModels }
+    })
+    .filter(({ integration, models }) => models.length > 0 || failedIntegrationIds.has(integration.id))
 }
 
 /**
@@ -89,23 +121,24 @@ export function LLMModelSelector({
   helpText,
   projectId,
   labelHelp,
+  onStaleDetected,
 }: Readonly<LLMModelSelectorProps>) {
   const [isOpen, setIsOpen] = useState(false)
   const [filterText, setFilterText] = useState('')
 
-  const { data: integrationsData, isPending: isIntegrationsPending } = integrationsClient.useQuery(
-    'get',
-    '/integrations',
-    {
-      params: {
-        query: {
-          integration_type: IntegrationTypeEnum.LLM_PROVIDER,
-          enabled: true,
-          ...projectIdParam(projectId),
-        },
+  const {
+    data: integrationsData,
+    isPending: isIntegrationsPending,
+    isError: isIntegrationsError,
+  } = integrationsClient.useQuery('get', '/integrations', {
+    params: {
+      query: {
+        integration_type: IntegrationTypeEnum.LLM_PROVIDER,
+        enabled: true,
+        ...projectIdParam(projectId),
       },
-    }
-  )
+    },
+  })
 
   // Only include integrations that have a defined ID
   const integrations: (IntegrationRead & { id: string })[] = useMemo(
@@ -123,7 +156,7 @@ export function LLMModelSelector({
     combine: (results) => ({
       modelsByIntegration: new Map(
         results
-          .map((r, i) => [integrations[i]?.id, r.data] as const)
+          .map((r, i) => [integrations[i]?.id, r.data?.filter((m) => m.enabled !== false)] as const)
           .filter((entry): entry is [string, LLMModelRead[]] => !!entry[0] && !!entry[1])
       ),
       isModelsPending: results.some((r) => r.isPending),
@@ -138,32 +171,27 @@ export function LLMModelSelector({
 
   const isPending = isIntegrationsPending || isModelsPending
 
-  const visibleGroups = useMemo((): VisibleGroup[] => {
-    const query = filterText.toLowerCase().trim()
-    const defaultFirst = (a: LLMModelRead, b: LLMModelRead) => {
-      if (a.is_default && !b.is_default) return -1
-      if (!a.is_default && b.is_default) return 1
-      return 0
-    }
-    return integrations
-      .map((integration) => {
-        const models = [...(modelsByIntegration.get(integration.id) ?? [])]
-          .filter((m) => m.enabled !== false)
-          .sort(defaultFirst)
-        if (!query) return { integration, models }
-        const integrationNameMatches = integration.name.toLowerCase().includes(query)
-        const filteredModels = integrationNameMatches
-          ? models
-          : models.filter(
-              (m) =>
-                m.name.toLowerCase().includes(query) ||
-                m.model_id.toLowerCase().includes(query) ||
-                (m.description?.toLowerCase().includes(query) ?? false)
-            )
-        return { integration, models: filteredModels }
-      })
-      .filter(({ integration, models }) => models.length > 0 || failedIntegrationIds.has(integration.id))
-  }, [integrations, modelsByIntegration, filterText, failedIntegrationIds])
+  const staleFiredForRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (isPending || isIntegrationsError || failedIntegrationIds.size > 0 || !value?.llm_model_id) return
+    if (staleFiredForRef.current === value.llm_model_id) return
+    const allModels = [...modelsByIntegration.values()].flat()
+    if (allModels.some((m) => m.id === value.llm_model_id)) return
+    staleFiredForRef.current = value.llm_model_id
+    onStaleDetected?.()
+  }, [
+    isPending,
+    isIntegrationsError,
+    failedIntegrationIds.size,
+    value?.llm_model_id,
+    modelsByIntegration,
+    onStaleDetected,
+  ])
+
+  const visibleGroups = useMemo(
+    () => filterVisibleGroups(integrations, modelsByIntegration, filterText, failedIntegrationIds),
+    [integrations, modelsByIntegration, filterText, failedIntegrationIds]
+  )
 
   const toggleLabel = useMemo(
     () => resolveToggleLabel(value, integrations, modelsByIntegration),

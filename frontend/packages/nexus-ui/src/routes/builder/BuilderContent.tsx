@@ -71,7 +71,7 @@ export function BuilderContent(props: BuilderContentProps) {
     [navigate]
   )
   const [searchParams, setSearchParams] = useSearchParams()
-  const { showAlert, showSuccess, showError } = useAlerts()
+  const { showAlert, showSuccess, showWarning, showError } = useAlerts()
   const [saveAttemptedWithoutProject, setSaveAttemptedWithoutProject] = useState(false)
   const { selectedProject, stableProjectId, ProjectSelector } = useProjectSelector({
     requireProject: isNew,
@@ -229,6 +229,7 @@ export function BuilderContent(props: BuilderContentProps) {
     queryClient,
     setLocation,
     showSuccess,
+    showWarning,
     showError,
     onMissingProjectForCreate: () => setSaveAttemptedWithoutProject(true),
     markClean,

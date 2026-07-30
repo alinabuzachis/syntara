@@ -68,7 +68,7 @@ export type UseBuilderToolbarHandlersOptions = {
   showSuccess: ShowAlert
   showError: ShowAlert
   setLocation: (to: string) => void
-  handleSaveWorkflow: (options?: { expectedVersionOverride?: number }) => Promise<boolean>
+  handleSaveWorkflow: (options?: { expectedVersionOverride?: number; blockOnWarnings?: boolean }) => Promise<boolean>
   currentWorkflow: WorkflowDefinition | null
   loadedVersion: number | null
   onRunConflict?: (info: ConflictInfo) => void
@@ -113,8 +113,9 @@ export function useBuilderToolbarHandlers({
 
       // Always save before running to ensure node positions are persisted.
       // Auto-layout positions don't mark isDirty, so we save unconditionally.
+      // blockOnWarnings prevents execution when stale tools were auto-cleared.
       try {
-        const saved = await handleSaveWorkflow()
+        const saved = await handleSaveWorkflow({ blockOnWarnings: true })
         if (!saved) {
           dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
           return

@@ -18,6 +18,7 @@ with workflow.unsafe.imports_passed_through():
     from nexus.core.exceptions import SafeValueError
     from nexus.workflows.workflow_engine.activities.credential_resolution_activity import resolve_workflow_credentials
     from nexus.workflows.workflow_engine.activities.integration_resolution_activity import resolve_workflow_integration
+    from nexus.workflows.workflow_engine.activities.integration_scope_activity import validate_node_references
     from nexus.workflows.workflow_engine.activities.wait_activity import complete_wait
     from nexus.workflows.workflow_engine.constants import (
         DEFAULT_ACTIVITY_TIMEOUT_SECONDS,
@@ -1294,6 +1295,35 @@ class NexusWorkflow(WorkflowConvergeMixin, WorkflowApprovalMixin):
         {NodeType.AAP_JOB_TEMPLATE, NodeType.AAP_WORKFLOW_JOB_TEMPLATE}
     )
 
+    _REFERENCE_BEARING_NODE_TYPES: ClassVar[frozenset[str]] = frozenset(
+        {NodeType.AAP_JOB_TEMPLATE, NodeType.AAP_WORKFLOW_JOB_TEMPLATE, NodeType.AGENTIC}
+    )
+
+    async def _validate_node_references(
+        self,
+        node: ActivityNode,
+        resolved_parameters: dict[str, Any],
+    ) -> None:
+        """Validate integration/model/tool references before dispatch."""
+        if node.type not in self._REFERENCE_BEARING_NODE_TYPES:
+            return
+        ref_keys = (
+            "integration_id",
+            "integration_connections",
+            "llm_model_id",
+            "tool_selections",
+            "tool_selection_strategy",
+        )
+        reference_ids = {k: resolved_parameters[k] for k in ref_keys if k in resolved_parameters}
+        if not reference_ids:
+            return
+        await workflow.execute_activity(
+            validate_node_references,
+            args=[node.type, node.id, reference_ids, self._project_id],
+            activity_id=f"__internal__validate_refs_{node.id}",
+            start_to_close_timeout=timedelta(seconds=DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
+        )
+
     async def _resolve_and_inject_integration(
         self,
         node: ActivityNode,
@@ -1339,8 +1369,9 @@ class NexusWorkflow(WorkflowConvergeMixin, WorkflowApprovalMixin):
     ) -> dict[str, Any]:
         """Dispatch a node to the appropriate execution handler.
 
-        Resolves credentials before dispatch and scrubs them after execution.
+        Validates references, resolves credentials, and scrubs them after execution.
         """
+        await self._validate_node_references(node, resolved_parameters)
         await self._resolve_and_inject_credentials(node, resolved_parameters)
         await self._resolve_and_inject_integration(node, resolved_parameters)
 

@@ -256,6 +256,22 @@ describe('useBuilderToolbarHandlers', () => {
     })
   })
 
+  it('handleRunWorkflow passes blockOnWarnings: true to handleSaveWorkflow', async () => {
+    const handleSaveWorkflow = vi.fn().mockResolvedValue(true)
+    const executeWorkflow = vi.fn((...args: Parameters<ExecuteWorkflow>) => {
+      args[1]?.onSuccess?.({ id: 'exec-1' })
+    }) as MockedFunction<ExecuteWorkflow>
+    const dispatch = vi.fn()
+
+    const { result } = renderHook(() =>
+      useBuilderToolbarHandlers(buildOptions({ handleSaveWorkflow, executeWorkflow, dispatch }))
+    )
+
+    await result.current.handleRunWorkflow()
+
+    expect(handleSaveWorkflow).toHaveBeenCalledWith({ blockOnWarnings: true })
+  })
+
   it('handleRunWorkflow saves workflow first when isDirty', async () => {
     const handleSaveWorkflow = vi.fn().mockResolvedValue(true)
     const executeWorkflow = vi.fn((...args: Parameters<ExecuteWorkflow>) => {

@@ -7,6 +7,7 @@ AAP activity executors use the same connection parameters as the UI proxy.
 from typing import Any
 
 import structlog
+from sqlalchemy.exc import OperationalError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from temporalio import activity
@@ -45,6 +46,9 @@ async def resolve_workflow_integration(integration_id: str) -> dict[str, Any]:
             return await _resolve_integration(session, integration_id)
     except ApplicationError:
         raise
+    except OperationalError as e:
+        msg = f"Transient database error during integration resolution: {type(e).__name__}"
+        raise ApplicationError(msg, non_retryable=False) from e
     except Exception as e:
         msg = f"Database error during integration resolution: {type(e).__name__}"
         raise ApplicationError(msg, non_retryable=True) from e

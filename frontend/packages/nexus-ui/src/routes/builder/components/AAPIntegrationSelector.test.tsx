@@ -374,6 +374,37 @@ describe('AAPIntegrationSelector', () => {
     expect(screen.getByText('Integration')).toBeInTheDocument()
   })
 
+  describe('stale integration detection', () => {
+    it('calls onStaleDetected when the selected integration is not in loaded list', () => {
+      const onStaleDetected = vi.fn()
+      renderSelector({ value: 'nonexistent-id', onStaleDetected })
+
+      expect(onStaleDetected).toHaveBeenCalledOnce()
+    })
+
+    it('does not call onStaleDetected when the selected integration exists', () => {
+      const onStaleDetected = vi.fn()
+      renderSelector({ value: 'int-aap-1', onStaleDetected })
+
+      expect(onStaleDetected).not.toHaveBeenCalled()
+    })
+
+    it('does not call onStaleDetected when no integration is selected', () => {
+      const onStaleDetected = vi.fn()
+      renderSelector({ value: undefined, onStaleDetected })
+
+      expect(onStaleDetected).not.toHaveBeenCalled()
+    })
+
+    it('does not call onStaleDetected while integrations are still loading', () => {
+      mockClients({ isPending: true })
+      const onStaleDetected = vi.fn()
+      renderSelector({ value: 'nonexistent-id', onStaleDetected })
+
+      expect(onStaleDetected).not.toHaveBeenCalled()
+    })
+  })
+
   it('does not show no results when filter is empty and integrations exist', async () => {
     const user = userEvent.setup()
     renderSelector()

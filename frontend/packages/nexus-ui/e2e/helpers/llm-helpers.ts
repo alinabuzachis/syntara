@@ -122,30 +122,36 @@ export async function deleteLlmIntegration(page: Page, integrationId: string): P
  * this function will skip the model/credential setup since these tests are focused on
  * v2 schema persistence, not AI agent configuration.
  */
-export async function selectLlmCredential(page: Page, credName: string) {
+export async function selectLlmCredential(page: Page, credName: string, integrationName?: string) {
   // 1. Open the Model dropdown and check for available models
   const modelToggle = page.getByRole('button', { name: 'Model', exact: true })
   await expect(modelToggle).toBeEnabled({ timeout: 10_000 })
   await modelToggle.click()
 
-  // Wait for model options to load
-  await page.waitForTimeout(2000)
-
-  // Check if there are any enabled model options
-  const enabledOptions = page.getByRole('option').filter({ hasNot: page.locator('[aria-disabled="true"]') })
-
-  const enabledCount = await enabledOptions.count()
-
-  if (enabledCount === 0) {
-    // No enabled models available (likely CI environment without LLM integrations)
-    // Close the dropdown and skip model/credential setup
-    await page.keyboard.press('Escape')
-    return
+  // Pick a model from the correct integration to avoid selecting a model from
+  // another parallel worker's integration (which may be deleted during cleanup).
+  let modelOption
+  if (integrationName) {
+    // PF SelectGroup renders as <section><h1>name</h1><ul role="listbox">...</ul></section>.
+    // The a11y tree exposes headings + listboxes — not role="group" — so locate
+    // the group title text and navigate to its parent <section> for scoped option queries.
+    const groupTitle = page.getByText(integrationName, { exact: true })
+    await expect(groupTitle).toBeVisible({ timeout: 15_000 })
+    const integrationGroup = groupTitle.locator('xpath=..')
+    const groupOptions = integrationGroup.getByRole('option').filter({ hasNot: page.locator('[aria-disabled="true"]') })
+    await expect(groupOptions.first()).toBeVisible({ timeout: 5_000 })
+    modelOption = groupOptions.first()
+  } else {
+    // No integration specified — wait for any models and pick the first enabled one
+    await page.waitForTimeout(2000)
+    const enabledOptions = page.getByRole('option').filter({ hasNot: page.locator('[aria-disabled="true"]') })
+    const enabledCount = await enabledOptions.count()
+    if (enabledCount === 0) {
+      await page.keyboard.press('Escape')
+      return
+    }
+    modelOption = enabledOptions.first()
   }
-
-  // Pick the first enabled model option
-  const modelOption = enabledOptions.first()
-  await expect(modelOption).toBeVisible({ timeout: 15_000 })
   await modelOption.click()
 
   // 2. Open the credential section via "Set up connection"

@@ -1,5 +1,6 @@
-import { Button, FormGroup, FormHelperText, HelperText, HelperTextItem, StackItem } from '@patternfly/react-core'
+import { Alert, Button, FormGroup, FormHelperText, HelperText, HelperTextItem, StackItem } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
+import { useState } from 'react'
 import { useFormContext, useWatch } from 'react-hook-form'
 
 import { LLMCredentialStatus } from '../components/LLMCredentialStatus'
@@ -28,6 +29,7 @@ type LLMSectionProps = Readonly<{ isVersionView: boolean; projectId?: string }>
 
 export function LLMSection({ isVersionView, projectId }: LLMSectionProps) {
   const { control, setValue } = useFormContext<AIAgentFormData>()
+  const [staleModelWarning, setStaleModelWarning] = useState('')
 
   // useWatch fires synchronously in the same render as setValue — avoids the stale
   // closure bug that Controller's render prop had when llm_model_id and credential_id
@@ -47,12 +49,25 @@ export function LLMSection({ isVersionView, projectId }: LLMSectionProps) {
           onChange={(newSelection) => {
             setValue('llm_model_id', newSelection?.llm_model_id ?? '', { shouldDirty: true })
             if (!newSelection) setValue('credential_id', undefined, { shouldDirty: true })
+            setStaleModelWarning('')
+          }}
+          onStaleDetected={() => {
+            setValue('llm_model_id', '', { shouldDirty: true })
+            setValue('credential_id', undefined, { shouldDirty: true })
+            setStaleModelWarning(
+              'The previously selected model is no longer available in this project. Select a new model.'
+            )
           }}
           isDisabled={isVersionView}
           projectId={projectId}
           helpText={AI_MODEL_HELP}
         />
       </StackItem>
+      {staleModelWarning && (
+        <StackItem>
+          <Alert variant="warning" isInline isPlain title={staleModelWarning} />
+        </StackItem>
+      )}
       {watchedLlmModelId ? (
         <StackItem>
           <FormGroup label="Credential" labelHelp={nodeHelp.aiCredential} fieldId="agent-credential">

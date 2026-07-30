@@ -251,6 +251,96 @@ describe('LLMModelSelector', () => {
     })
   })
 
+  describe('stale model detection', () => {
+    it('calls onStaleDetected when the selected model is not in loaded models', async () => {
+      const onStaleDetected = vi.fn()
+      renderSelector({ value: { llm_model_id: 'nonexistent-model' }, onStaleDetected })
+
+      await waitFor(() => {
+        expect(onStaleDetected).toHaveBeenCalledOnce()
+      })
+    })
+
+    it('does not call onStaleDetected when the selected model exists', async () => {
+      const onStaleDetected = vi.fn()
+      renderSelector({ value: { llm_model_id: 'model-1' }, onStaleDetected })
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('OpenAI / GPT-4o')).toBeInTheDocument()
+      })
+
+      expect(onStaleDetected).not.toHaveBeenCalled()
+    })
+
+    it('does not call onStaleDetected when no model is selected', async () => {
+      const onStaleDetected = vi.fn()
+      renderSelector({ value: undefined, onStaleDetected })
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /model/i })).toBeInTheDocument()
+      })
+
+      expect(onStaleDetected).not.toHaveBeenCalled()
+    })
+
+    it('does not call onStaleDetected while models are still loading', () => {
+      mockClients({ isPending: true })
+      const onStaleDetected = vi.fn()
+      renderSelector({ value: { llm_model_id: 'nonexistent-model' }, onStaleDetected })
+
+      expect(onStaleDetected).not.toHaveBeenCalled()
+    })
+
+    it('does not call onStaleDetected when a model query failed', async () => {
+      vi.mocked(fetchAllIntegrationModels).mockImplementation((integrationId: string) => {
+        if (integrationId === 'int-1') return Promise.resolve(mockModelsInt1)
+        if (integrationId === 'int-2') return Promise.reject(new Error('network error'))
+        return Promise.resolve([])
+      })
+      const onStaleDetected = vi.fn()
+      renderSelector({ value: { llm_model_id: 'model-from-int-2' }, onStaleDetected })
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('model-from-int-2')).toBeInTheDocument()
+      })
+
+      expect(onStaleDetected).not.toHaveBeenCalled()
+    })
+
+    it('treats a disabled model as stale', async () => {
+      vi.mocked(fetchAllIntegrationModels).mockImplementation((integrationId: string) => {
+        if (integrationId === 'int-1')
+          return Promise.resolve([{ ...mockModelsInt1[0], id: 'disabled-model', enabled: false }])
+        return Promise.resolve([])
+      })
+      const onStaleDetected = vi.fn()
+      renderSelector({ value: { llm_model_id: 'disabled-model' }, onStaleDetected })
+
+      await waitFor(() => {
+        expect(onStaleDetected).toHaveBeenCalledOnce()
+      })
+    })
+  })
+
+  it('excludes disabled models from the dropdown', async () => {
+    const user = userEvent.setup()
+    vi.mocked(fetchAllIntegrationModels).mockImplementation((integrationId: string) => {
+      if (integrationId === 'int-1')
+        return Promise.resolve([mockModelsInt1[0], { ...mockModelsInt1[1], enabled: false }])
+      if (integrationId === 'int-2') return Promise.resolve(mockModelsInt2)
+      return Promise.resolve([])
+    })
+    renderSelector()
+
+    await user.click(screen.getByRole('button', { name: /model/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('GPT-4o')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('GPT-4o Mini')).not.toBeInTheDocument()
+    expect(screen.getByText('Claude Sonnet')).toBeInTheDocument()
+  })
+
   it('renders only models from project-scoped integrations when projectId filters results', async () => {
     mockClients({ integrations: [mockIntegrations[0]] })
     const user = userEvent.setup()
@@ -309,7 +399,7 @@ describe('LLMModelSelector', () => {
     expect(fetchAllIntegrationModels).toHaveBeenCalledWith('int-large')
   })
 
-  it('excludes disabled models from the dropdown', async () => {
+  it('excludes disabled models with a single integration', async () => {
     const user = userEvent.setup()
     const modelsWithDisabled = [
       {

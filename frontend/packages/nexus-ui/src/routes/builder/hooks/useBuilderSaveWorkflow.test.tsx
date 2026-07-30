@@ -71,6 +71,7 @@ function buildParams(overrides: Partial<UseBuilderSaveWorkflowParams> = {}): Use
     } as unknown as UseBuilderSaveWorkflowParams['queryClient'],
     setLocation: vi.fn(),
     showSuccess: vi.fn(),
+    showWarning: vi.fn(),
     showError: vi.fn(),
     markClean: vi.fn(),
     expectedVersion: null,
@@ -292,8 +293,26 @@ describe('useBuilderSaveWorkflow', () => {
     )
   })
 
+  it('returns false when save succeeds with warnings and blockOnWarnings is true', async () => {
+    const showWarning = vi.fn()
+    const onVersionUpdated = vi.fn()
+    const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
+      detachPromise(args[1]?.onSuccess?.(updateResponse({ has_validation_issues: true, current_version: 5 })))
+    }) as MockedFunction<UpdateWorkflow>
+
+    const { result } = renderHook(() =>
+      useBuilderSaveWorkflow(
+        buildParams({ workflowId: 'w1', isNew: false, updateWorkflow, showWarning, onVersionUpdated })
+      )
+    )
+
+    await expect(result.current({ blockOnWarnings: true })).resolves.toBe(false)
+    expect(showWarning).toHaveBeenCalledWith(expect.objectContaining({ title: 'Workflow saved with warnings' }))
+    expect(onVersionUpdated).toHaveBeenCalledWith(5)
+  })
+
   it('shows "saved with warnings", syncs version, and fires onSaveWithValidationIssues when has_validation_issues is true', async () => {
-    const showSuccess = vi.fn()
+    const showWarning = vi.fn()
     const onSaveWithValidationIssues = vi.fn()
     const onVersionUpdated = vi.fn()
     const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
@@ -306,7 +325,7 @@ describe('useBuilderSaveWorkflow', () => {
           workflowId: 'w1',
           isNew: false,
           updateWorkflow,
-          showSuccess,
+          showWarning,
           onSaveWithValidationIssues,
           onVersionUpdated,
         })
@@ -314,7 +333,7 @@ describe('useBuilderSaveWorkflow', () => {
     )
 
     await expect(result.current()).resolves.toBe(true)
-    expect(showSuccess).toHaveBeenCalledWith(expect.objectContaining({ title: 'Workflow saved with warnings' }))
+    expect(showWarning).toHaveBeenCalledWith(expect.objectContaining({ title: 'Workflow saved with warnings' }))
     expect(onSaveWithValidationIssues).toHaveBeenCalledOnce()
     // Prevents false "Run conflict / saved by another user" after our own warnings save
     expect(onVersionUpdated).toHaveBeenCalledWith(4)
@@ -461,7 +480,7 @@ describe('useBuilderSaveWorkflow', () => {
   })
 
   it('shows "created with warnings" when new workflow has validation issues', async () => {
-    const showSuccess = vi.fn()
+    const showWarning = vi.fn()
     const onSaveWithValidationIssues = vi.fn()
     const createWorkflow = vi.fn((...args: Parameters<CreateWorkflow>) => {
       detachPromise(args[1]?.onSuccess?.(createResponse({ id: 'new-id', has_validation_issues: true })))
@@ -471,14 +490,14 @@ describe('useBuilderSaveWorkflow', () => {
       useBuilderSaveWorkflow(
         buildParams({
           createWorkflow,
-          showSuccess,
+          showWarning,
           onSaveWithValidationIssues,
         })
       )
     )
 
     await expect(result.current()).resolves.toBe(true)
-    expect(showSuccess).toHaveBeenCalledWith(expect.objectContaining({ title: 'Workflow created with warnings' }))
+    expect(showWarning).toHaveBeenCalledWith(expect.objectContaining({ title: 'Workflow created with warnings' }))
     expect(onSaveWithValidationIssues).toHaveBeenCalledOnce()
   })
 })
@@ -549,5 +568,338 @@ describe('version conflict detection', () => {
 
     await expect(result.current()).resolves.toBe(true)
     expect(onVersionUpdated).toHaveBeenCalledWith(8)
+  })
+})
+
+describe('tool selection sync from backend', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('syncs cleaned tool_selections from save response', async () => {
+    useWorkflowStore.setState({
+      currentWorkflow: minimalWorkflow({
+        workflow: {
+          activities: [
+            {
+              id: 'node-1',
+              type: 'agentic',
+              name: 'Agent',
+              parameters: {
+                tool_selections: ['tool-a', 'tool-b', 'tool-c'],
+                tool_selection_strategy: 'SELECTED',
+              },
+            },
+          ],
+        },
+      }),
+    })
+
+    const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
+      detachPromise(
+        args[1]?.onSuccess?.(
+          updateResponse({
+            has_validation_issues: true,
+            validation_result: {
+              is_valid: true,
+              error_count: 0,
+              warning_count: 1,
+              findings: [
+                { severity: 'warning', category: 'invalid_reference', message: '1 tool removed', node_id: 'node-1' },
+              ],
+            },
+            version: {
+              ...baseUpdateResponse.version,
+              workflow_definition: {
+                schema_version: '2.0.0',
+                name: 'test-wf',
+                triggers: [],
+                nodes: [
+                  {
+                    id: 'node-1',
+                    parameters: {
+                      tool_selections: ['tool-a', 'tool-c'],
+                      tool_selection_strategy: 'SELECTED',
+                    },
+                  },
+                ],
+                edges: [],
+              },
+            },
+          })
+        )
+      )
+    }) as MockedFunction<UpdateWorkflow>
+
+    const { result } = renderHook(() =>
+      useBuilderSaveWorkflow(buildParams({ updateWorkflow, workflowId: 'w1', isNew: false }))
+    )
+    await expect(result.current()).resolves.toBe(true)
+
+    const state = useWorkflowStore.getState()
+    const activity = state.currentWorkflow?.workflow.activities[0] as { parameters?: Record<string, unknown> }
+    expect(activity?.parameters?.tool_selections).toEqual(['tool-a', 'tool-c'])
+    expect(activity?.parameters?.tool_selection_strategy).toBe('SELECTED')
+    expect(state.isDirty).toBe(false)
+  })
+
+  it('switches strategy to NONE and removes tool_selections when all tools cleared', async () => {
+    useWorkflowStore.setState({
+      currentWorkflow: minimalWorkflow({
+        workflow: {
+          activities: [
+            {
+              id: 'node-1',
+              type: 'agentic',
+              name: 'Agent',
+              parameters: {
+                tool_selections: ['tool-a'],
+                tool_selection_strategy: 'SELECTED',
+              },
+            },
+          ],
+        },
+      }),
+    })
+
+    const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
+      detachPromise(
+        args[1]?.onSuccess?.(
+          updateResponse({
+            has_validation_issues: true,
+            validation_result: {
+              is_valid: true,
+              error_count: 0,
+              warning_count: 1,
+              findings: [
+                { severity: 'warning', category: 'invalid_reference', message: '1 tool removed', node_id: 'node-1' },
+              ],
+            },
+            version: {
+              ...baseUpdateResponse.version,
+              workflow_definition: {
+                schema_version: '2.0.0',
+                name: 'test-wf',
+                triggers: [],
+                nodes: [{ id: 'node-1', parameters: { tool_selection_strategy: 'NONE' } }],
+                edges: [],
+              },
+            },
+          })
+        )
+      )
+    }) as MockedFunction<UpdateWorkflow>
+
+    const { result } = renderHook(() =>
+      useBuilderSaveWorkflow(buildParams({ updateWorkflow, workflowId: 'w1', isNew: false }))
+    )
+    await expect(result.current()).resolves.toBe(true)
+
+    const activity = useWorkflowStore.getState().currentWorkflow?.workflow.activities[0] as {
+      parameters?: Record<string, unknown>
+    }
+    expect(activity?.parameters?.tool_selection_strategy).toBe('NONE')
+    expect(activity?.parameters?.tool_selections).toBeUndefined()
+  })
+
+  it('does not sync when response has no version field (create response)', async () => {
+    useWorkflowStore.setState({
+      currentWorkflow: minimalWorkflow({
+        workflow: {
+          activities: [
+            {
+              id: 'node-1',
+              type: 'agentic',
+              name: 'Agent',
+              parameters: {
+                tool_selections: ['tool-a', 'stale-tool'],
+                tool_selection_strategy: 'SELECTED',
+              },
+            },
+          ],
+        },
+      }),
+    })
+
+    const createWorkflow = vi.fn((...args: Parameters<CreateWorkflow>) => {
+      detachPromise(args[1]?.onSuccess?.(createResponse({ has_validation_issues: true })))
+    }) as MockedFunction<CreateWorkflow>
+
+    const { result } = renderHook(() => useBuilderSaveWorkflow(buildParams({ createWorkflow })))
+    await expect(result.current()).resolves.toBe(true)
+
+    const activity = useWorkflowStore.getState().currentWorkflow?.workflow.activities[0] as {
+      parameters?: Record<string, unknown>
+    }
+    expect(activity?.parameters?.tool_selections).toEqual(['tool-a', 'stale-tool'])
+  })
+
+  it('does not update store when tool_selections already match response', async () => {
+    const markClean = vi.fn()
+    useWorkflowStore.setState({
+      currentWorkflow: minimalWorkflow({
+        workflow: {
+          activities: [
+            {
+              id: 'node-1',
+              type: 'agentic',
+              name: 'Agent',
+              parameters: {
+                tool_selections: ['tool-a', 'tool-b'],
+                tool_selection_strategy: 'SELECTED',
+              },
+            },
+          ],
+        },
+      }),
+      markClean,
+    })
+
+    const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
+      detachPromise(
+        args[1]?.onSuccess?.(
+          updateResponse({
+            has_validation_issues: true,
+            validation_result: {
+              is_valid: true,
+              error_count: 0,
+              warning_count: 1,
+              findings: [
+                { severity: 'warning', category: 'invalid_reference', message: 'tool removed', node_id: 'node-1' },
+              ],
+            },
+            version: {
+              ...baseUpdateResponse.version,
+              workflow_definition: {
+                schema_version: '2.0.0',
+                name: 'test-wf',
+                triggers: [],
+                nodes: [
+                  {
+                    id: 'node-1',
+                    parameters: {
+                      tool_selections: ['tool-a', 'tool-b'],
+                      tool_selection_strategy: 'SELECTED',
+                    },
+                  },
+                ],
+                edges: [],
+              },
+            },
+          })
+        )
+      )
+    }) as MockedFunction<UpdateWorkflow>
+
+    const { result } = renderHook(() =>
+      useBuilderSaveWorkflow(buildParams({ updateWorkflow, workflowId: 'w1', isNew: false }))
+    )
+    await expect(result.current()).resolves.toBe(true)
+
+    expect(markClean).not.toHaveBeenCalled()
+  })
+
+  it('skips activity when response node has no matching id', async () => {
+    useWorkflowStore.setState({
+      currentWorkflow: minimalWorkflow({
+        workflow: {
+          activities: [
+            {
+              id: 'node-1',
+              type: 'agentic',
+              name: 'Agent',
+              parameters: {
+                tool_selections: ['tool-a', 'stale-tool'],
+                tool_selection_strategy: 'SELECTED',
+              },
+            },
+          ],
+        },
+      }),
+    })
+
+    const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
+      detachPromise(
+        args[1]?.onSuccess?.(
+          updateResponse({
+            has_validation_issues: true,
+            validation_result: {
+              is_valid: true,
+              error_count: 0,
+              warning_count: 1,
+              findings: [
+                { severity: 'warning', category: 'invalid_reference', message: 'tool removed', node_id: 'node-1' },
+              ],
+            },
+            version: {
+              ...baseUpdateResponse.version,
+              workflow_definition: {
+                schema_version: '2.0.0',
+                name: 'test-wf',
+                triggers: [],
+                nodes: [
+                  {
+                    id: 'node-99',
+                    parameters: { tool_selections: ['tool-a'], tool_selection_strategy: 'SELECTED' },
+                  },
+                ],
+                edges: [],
+              },
+            },
+          })
+        )
+      )
+    }) as MockedFunction<UpdateWorkflow>
+
+    const { result } = renderHook(() =>
+      useBuilderSaveWorkflow(buildParams({ updateWorkflow, workflowId: 'w1', isNew: false }))
+    )
+    await expect(result.current()).resolves.toBe(true)
+
+    const activity = useWorkflowStore.getState().currentWorkflow?.workflow.activities[0] as {
+      parameters?: Record<string, unknown>
+    }
+    expect(activity?.parameters?.tool_selections).toEqual(['tool-a', 'stale-tool'])
+  })
+
+  it('does not modify activities without tool_selections', async () => {
+    useWorkflowStore.setState({
+      currentWorkflow: minimalWorkflow({
+        workflow: {
+          activities: [{ id: 'node-1', type: 'script', name: 'Script', parameters: { language: 'python' } }],
+        },
+      }),
+    })
+
+    const updateWorkflow = vi.fn((...args: Parameters<UpdateWorkflow>) => {
+      detachPromise(
+        args[1]?.onSuccess?.(
+          updateResponse({
+            has_validation_issues: true,
+            version: {
+              ...baseUpdateResponse.version,
+              workflow_definition: {
+                schema_version: '2.0.0',
+                name: 'test-wf',
+                triggers: [],
+                nodes: [{ id: 'node-1', parameters: { language: 'python' } }],
+                edges: [],
+              },
+            },
+          })
+        )
+      )
+    }) as MockedFunction<UpdateWorkflow>
+
+    const { result } = renderHook(() =>
+      useBuilderSaveWorkflow(buildParams({ updateWorkflow, workflowId: 'w1', isNew: false }))
+    )
+    await expect(result.current()).resolves.toBe(true)
+
+    const activity = useWorkflowStore.getState().currentWorkflow?.workflow.activities[0] as {
+      parameters?: Record<string, unknown>
+    }
+    expect(activity?.parameters?.language).toBe('python')
+    expect(activity?.parameters?.tool_selections).toBeUndefined()
   })
 })

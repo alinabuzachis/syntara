@@ -609,6 +609,104 @@ describe('AIAgentNodeForm', () => {
       expect(screen.getByPlaceholderText('Loading tools...')).toBeInTheDocument()
     })
 
+    describe('Stale tool cleanup', () => {
+      it('removes stale tool selections and shows warning', () => {
+        setupToolMocks()
+
+        renderWithHeader(
+          <AIAgentNodeForm
+            onSubmit={mockOnSubmit}
+            initialData={{
+              tool_selection_strategy: 'SELECTED',
+              tool_selections: ['tool-1', 'stale-tool-id'],
+            }}
+          />
+        )
+
+        expect(screen.getByText(/1 previously selected tool is no longer available/)).toBeInTheDocument()
+        expect(screen.getByDisplayValue('1 of 3 tools selected')).toBeInTheDocument()
+      })
+
+      it('resets to NONE when all selected tools are stale', () => {
+        setupToolMocks()
+
+        renderWithHeader(
+          <AIAgentNodeForm
+            onSubmit={mockOnSubmit}
+            initialData={{
+              tool_selection_strategy: 'SELECTED',
+              tool_selections: ['stale-1', 'stale-2'],
+            }}
+          />
+        )
+
+        expect(screen.getByText(/2 previously selected tools are no longer available/)).toBeInTheDocument()
+        expect(screen.getByDisplayValue('No tools selected')).toBeInTheDocument()
+      })
+
+      it('does not show warning when all selected tools are valid', () => {
+        setupToolMocks()
+
+        renderWithHeader(
+          <AIAgentNodeForm
+            onSubmit={mockOnSubmit}
+            initialData={{
+              tool_selection_strategy: 'SELECTED',
+              tool_selections: ['tool-1', 'tool-3'],
+            }}
+          />
+        )
+
+        expect(screen.queryByText(/no longer available/)).not.toBeInTheDocument()
+        expect(screen.getByDisplayValue('2 of 3 tools selected')).toBeInTheDocument()
+      })
+
+      it('does not clean tools when strategy is ALL', () => {
+        setupToolMocks()
+
+        renderWithHeader(
+          <AIAgentNodeForm
+            onSubmit={mockOnSubmit}
+            initialData={{
+              tool_selection_strategy: 'ALL',
+              tool_selections: [],
+            }}
+          />
+        )
+
+        expect(screen.queryByText(/no longer available/)).not.toBeInTheDocument()
+        expect(screen.getByDisplayValue('All tools selected')).toBeInTheDocument()
+      })
+
+      it('does not clean tools while integrations are still loading', () => {
+        vi.mocked(useAllTools).mockReturnValue({
+          tools: [],
+          isLoading: true,
+          isError: false,
+          refetch: vi.fn().mockResolvedValue({}),
+        } as never)
+
+        vi.mocked(useAllEnabledMcpIntegrations).mockReturnValue({
+          integrations: [],
+          isLoading: true,
+          isError: false,
+          refetch: vi.fn().mockResolvedValue({}),
+        } as never)
+
+        renderWithHeader(
+          <AIAgentNodeForm
+            onSubmit={mockOnSubmit}
+            initialData={{
+              tool_selection_strategy: 'SELECTED',
+              tool_selections: ['stale-1'],
+            }}
+          />
+        )
+
+        expect(screen.queryByText(/no longer available/)).not.toBeInTheDocument()
+      })
+    })
+
     it('submits tool_selection_strategy and tool_selections with form data', async () => {
       setupToolMocks()
 

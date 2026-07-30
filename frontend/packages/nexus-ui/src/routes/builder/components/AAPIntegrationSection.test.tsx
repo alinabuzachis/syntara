@@ -9,7 +9,13 @@ import { AAPIntegrationSection, type AAPIntegrationSectionProps } from './AAPInt
 import type { AAPIntegrationSelectorProps } from './AAPIntegrationSelector'
 
 vi.mock('./AAPIntegrationSelector', () => ({
-  AAPIntegrationSelector: ({ value, onChange, isDisabled, isRequired }: AAPIntegrationSelectorProps) => (
+  AAPIntegrationSelector: ({
+    value,
+    onChange,
+    isDisabled,
+    isRequired,
+    onStaleDetected,
+  }: AAPIntegrationSelectorProps & { onStaleDetected?: () => void }) => (
     <div
       data-testid="integration-selector"
       data-value={value ?? ''}
@@ -22,6 +28,11 @@ vi.mock('./AAPIntegrationSelector', () => ({
       <button data-testid="clear-integration" onClick={() => onChange(undefined)}>
         Clear integration
       </button>
+      {onStaleDetected && (
+        <button data-testid="trigger-stale" onClick={onStaleDetected}>
+          Trigger stale
+        </button>
+      )}
     </div>
   ),
 }))
@@ -186,5 +197,25 @@ describe('AAPIntegrationSection', () => {
   it('renders credential status with no credentialId', () => {
     renderSection({ selectedIntegrationId: 'int-1', selectedCredentialId: undefined })
     expect(screen.getByTestId('credential-status')).toHaveAttribute('data-credential-id', '')
+  })
+
+  it('shows warning and clears integration when stale integration is detected', async () => {
+    const user = userEvent.setup()
+    renderSection({ selectedIntegrationId: 'stale-int', selectedCredentialId: 'cred-1' })
+
+    await user.click(screen.getByTestId('trigger-stale'))
+
+    expect(screen.getByText(/previously selected integration is no longer available/)).toBeInTheDocument()
+  })
+
+  it('clears stale integration warning when user selects a new integration', async () => {
+    const user = userEvent.setup()
+    renderSection({ selectedIntegrationId: 'stale-int' })
+
+    await user.click(screen.getByTestId('trigger-stale'))
+    expect(screen.getByText(/previously selected integration is no longer available/)).toBeInTheDocument()
+
+    await user.click(screen.getByTestId('select-integration'))
+    expect(screen.queryByText(/previously selected integration is no longer available/)).not.toBeInTheDocument()
   })
 })

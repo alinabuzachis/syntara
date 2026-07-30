@@ -172,6 +172,8 @@ function AIAgentFormFields({
   if (!fileContext) throw new Error('AIAgentFormFields must be used within AIAgentFileContext.Provider')
   const { isFilesError } = fileContext
 
+  const [staleToolsWarning, setStaleToolsWarning] = useState('')
+
   const nameField = useMemo(
     () => (
       <ActivityNameField register={register} fieldId="agent-name" placeholder="Enter agent name" ariaLabel="Name" />
@@ -216,8 +218,21 @@ function AIAgentFormFields({
             onChange={handleToolSelectionChange}
             integrations={integrations}
             isLoading={isLoadingIntegrations}
+            isError={isToolsError}
             hasNoIntegrations={hasNoIntegrations}
+            onStaleDetected={({ validToolIds, removedCount }) => {
+              if (validToolIds.length === 0) {
+                handleToolSelectionChange({ strategy: 'NONE' })
+              } else {
+                handleToolSelectionChange({ strategy: 'SELECTED', toolIds: validToolIds })
+              }
+              const plural = removedCount > 1
+              setStaleToolsWarning(
+                `${String(removedCount)} previously selected tool${plural ? 's are' : ' is'} no longer available and ${plural ? 'have' : 'has'} been removed.`
+              )
+            }}
           />
+          {staleToolsWarning && <Alert variant="warning" isInline isPlain title={staleToolsWarning} />}
           {hasNoIntegrations && (
             <FormHelperText>
               <HelperText>

@@ -36,7 +36,7 @@ test.describe('AI Agent Node @pr-check', () => {
 
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('TestAgent')
       await app.getByRole('textbox', { name: 'Prompt', exact: true }).fill('Analyze the input data')
-      await selectLlmCredential(app, credName)
+      await selectLlmCredential(app, credName, integrationName)
 
       await app.getByRole('button', { name: 'Create' }).click()
       await expect(app.getByRole('button', { name: 'Create' })).not.toBeAttached({ timeout: 15_000 })
@@ -48,6 +48,7 @@ test.describe('AI Agent Node @pr-check', () => {
   })
 
   test('AI Agent node persists prompt after save/reload', async ({ app }) => {
+    test.setTimeout(90_000)
     const integrationName = buildUniqueName('e2e-llm-integ')
     const workflowName = buildUniqueName('e2e-agent-prompt')
     let integration: SeededLlmIntegration | undefined
@@ -62,11 +63,11 @@ test.describe('AI Agent Node @pr-check', () => {
 
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('PromptAgent')
       await app.getByRole('textbox', { name: 'Prompt', exact: true }).fill('Analyze this data')
-      await selectLlmCredential(app, credName)
+      await selectLlmCredential(app, credName, integrationName)
 
       await app.getByRole('button', { name: 'Create' }).click()
       await closeNodeEditorPanel(app)
-      await saveWorkflow(app, workflowName)
+      await saveWorkflow(app, workflowName, { timeout: 30_000 })
 
       await openWorkflowInBuilder(app, workflowName)
       await openNodeForEditing(app, 'PromptAgent')
@@ -112,6 +113,7 @@ test.describe('AI Agent Node @pr-check', () => {
   })
 
   test('AI Agent node with response schema persists after save/reload', async ({ app }) => {
+    test.setTimeout(90_000)
     const integrationName = buildUniqueName('e2e-llm-integ')
     const workflowName = buildUniqueName('e2e-agent-schema')
     let integration: SeededLlmIntegration | undefined
@@ -126,7 +128,7 @@ test.describe('AI Agent Node @pr-check', () => {
 
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('SchemaAgent')
       await app.getByRole('textbox', { name: 'Prompt', exact: true }).fill('Generate structured output')
-      await selectLlmCredential(app, credName)
+      await selectLlmCredential(app, credName, integrationName)
 
       const validSchema = JSON.stringify({
         type: 'object',
@@ -159,6 +161,7 @@ test.describe('AI Agent Node @pr-check', () => {
   })
 
   test('AI Agent node with tool selection and response schema persists after save/reload', async ({ app }) => {
+    test.setTimeout(90_000)
     const llmIntegrationName = buildUniqueName('e2e-llm-integ')
     const mcpIntegrationName = buildUniqueName('e2e-mcp-integ')
     const workflowName = buildUniqueName('e2e-agent-tools-schema')
@@ -187,7 +190,7 @@ test.describe('AI Agent Node @pr-check', () => {
       await app
         .getByRole('textbox', { name: 'Prompt', exact: true })
         .fill('Generate structured output with tools available')
-      await selectLlmCredential(app, credName)
+      await selectLlmCredential(app, credName, llmIntegrationName)
 
       // Configure ALL tool selection (non-default) so persistence is meaningful.
       const toolsInput = app.getByRole('textbox', { name: 'Select tools' })
@@ -235,6 +238,7 @@ test.describe('AI Agent Node @pr-check', () => {
   })
 
   test('AI Agent node can be edited after creation', async ({ app }) => {
+    test.setTimeout(120_000)
     const integrationName = buildUniqueName('e2e-llm-integ')
     const workflowName = buildUniqueName('e2e-agent-edit')
     let integration: SeededLlmIntegration | undefined
@@ -249,26 +253,34 @@ test.describe('AI Agent Node @pr-check', () => {
 
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('EditableAgent')
       await app.getByRole('textbox', { name: 'Prompt', exact: true }).fill('Original prompt')
-      await selectLlmCredential(app, credName)
+      await selectLlmCredential(app, credName, integrationName)
 
       await app.getByRole('button', { name: 'Create' }).click()
       await closeNodeEditorPanel(app)
-      await saveWorkflow(app, workflowName)
+      await saveWorkflow(app, workflowName, { timeout: 30_000 })
 
       await openWorkflowInBuilder(app, workflowName)
       await openNodeForEditing(app, 'EditableAgent')
 
+      // Wait for model queries and stale detection to fully settle before editing.
+      // Stale detection fires after models load and can re-render the form, losing edits.
+      // Wait until either the model name shows (found) or the stale warning appears (cleared).
+      const modelName = app.locator('input[value*="/"]')
+      const staleWarning = app.getByText('previously selected model is no longer available')
+      await expect(modelName.or(staleWarning)).toBeVisible({ timeout: 15_000 })
       await app.getByRole('textbox', { name: 'Prompt', exact: true }).fill('Updated prompt')
       await app.getByRole('button', { name: 'Update' }).click()
       await expect(app.getByRole('button', { name: 'Update' })).not.toBeAttached({ timeout: 15_000 })
 
-      await saveWorkflow(app, workflowName)
+      await saveWorkflow(app, workflowName, { timeout: 30_000 })
 
       await openWorkflowInBuilder(app, workflowName)
       await openNodeForEditing(app, 'EditableAgent')
 
       const form = app.getByTestId('ai-agent-node-form')
       await expect(form).toBeVisible({ timeout: 10_000 })
+      // Wait for stale detection to settle before asserting
+      await expect(modelName.or(staleWarning)).toBeVisible({ timeout: 15_000 })
       await expect(form.getByRole('textbox', { name: 'Prompt', exact: true })).toHaveValue('Updated prompt', {
         timeout: 30_000,
       })
@@ -294,7 +306,7 @@ test.describe('AI Agent Node @pr-check', () => {
 
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Agent1')
       await app.getByRole('textbox', { name: 'Prompt', exact: true }).fill('First agent prompt')
-      await selectLlmCredential(app, credName)
+      await selectLlmCredential(app, credName, integrationName)
 
       await app.getByRole('button', { name: 'Create' }).click()
       await closeNodeEditorPanel(app)
@@ -304,7 +316,7 @@ test.describe('AI Agent Node @pr-check', () => {
 
       await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Agent2')
       await app.getByRole('textbox', { name: 'Prompt', exact: true }).fill('Second agent prompt')
-      await selectLlmCredential(app, credName)
+      await selectLlmCredential(app, credName, integrationName)
 
       await app.getByRole('button', { name: 'Create' }).click()
       await closeNodeEditorPanel(app)

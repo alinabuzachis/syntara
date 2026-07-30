@@ -517,11 +517,11 @@ export async function startWorkflowWithTrigger(page: Page) {
 }
 
 /** Save the workflow with the given name. Waits for URL to confirm persistence. */
-export async function saveWorkflow(page: Page, workflowName: string) {
+export async function saveWorkflow(page: Page, workflowName: string, { timeout = 15_000 } = {}) {
   await selectProjectIfRequired(page)
   await page.getByPlaceholder('Workflow name').fill(workflowName)
   await page.getByRole('button', { name: 'Save' }).click()
-  await expect(page).toHaveURL(/workflow-builder\/(?!new)/, { timeout: 15_000 })
+  await expect(page).toHaveURL(/workflow-builder\/(?!new)/, { timeout })
 }
 
 /**

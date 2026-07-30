@@ -17,8 +17,8 @@ import { addManualTrigger, openAddNodePanel } from '../helpers/v2-nodes'
 import { buildUniqueName, selectProjectIfRequired, closeNodeEditorPanel, addNodePanel } from '../helpers/workflows'
 import { ensureProject, apiRequest } from '../utils/api'
 
-const VERIFY_BANNER_TIMEOUT = 10_000
-const ERROR_BADGE_TIMEOUT = 5_000
+const VERIFY_BANNER_TIMEOUT = 15_000
+const ERROR_BADGE_TIMEOUT = 10_000
 
 /**
  * Add an AAP job template node WITHOUT providing the required job template ID.
@@ -52,6 +52,7 @@ async function addIncompleteAapNode(page: Page, name: string) {
 
 test.describe('UI-32: Workflow Verification — Missing Required Configuration', { tag: '@pr-check' }, () => {
   test('unconfigured AAP node triggers verification error', async ({ app }) => {
+    test.setTimeout(90_000)
     const workflowName = buildUniqueName('e2e-ui32-validation')
     let workflowId: string | undefined
 

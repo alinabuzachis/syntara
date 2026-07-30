@@ -1,7 +1,7 @@
 import type { IntegrationsAPI } from '@ansible/nexus-contracts'
 import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
 import { FormGroup, type MenuToggleElement, SelectList, SelectOption } from '@patternfly/react-core'
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { integrationsClient } from '../../../client'
 import { FormLabelWithHelp } from '../../../components/FormLabelWithHelp'
@@ -24,6 +24,8 @@ export type AAPIntegrationSelectorProps = {
   helpText?: React.ReactNode
   /** When provided, filters AAP integrations to those that are global or assigned to this project. */
   projectId?: string
+  /** Called when integrations finish loading and the currently selected integration is not found. */
+  onStaleDetected?: () => void
 }
 
 function getIntegrationUrl(integration: IntegrationRead): string | undefined {
@@ -43,11 +45,16 @@ export function AAPIntegrationSelector({
   isRequired = false,
   helpText,
   projectId,
+  onStaleDetected,
 }: Readonly<AAPIntegrationSelectorProps>) {
   const [isOpen, setIsOpen] = useState(false)
   const [filterText, setFilterText] = useState('')
 
-  const { data: integrationsData, isPending } = integrationsClient.useQuery('get', '/integrations', {
+  const {
+    data: integrationsData,
+    isPending,
+    isError,
+  } = integrationsClient.useQuery('get', '/integrations', {
     params: {
       query: {
         integration_type: IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM,
@@ -61,6 +68,15 @@ export function AAPIntegrationSelector({
     () => (integrationsData?.resources ?? []).filter((i): i is IntegrationRead & { id: string } => !!i.id),
     [integrationsData?.resources]
   )
+
+  const staleFiredForRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (isPending || isError || !value) return
+    if (staleFiredForRef.current === value) return
+    if (integrations.some((i) => i.id === value)) return
+    staleFiredForRef.current = value
+    onStaleDetected?.()
+  }, [isPending, isError, value, integrations, onStaleDetected])
 
   const visibleIntegrations = useMemo(() => {
     const query = filterText.toLowerCase().trim()

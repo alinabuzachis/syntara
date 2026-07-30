@@ -11,7 +11,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.authz.engine import AllowedProjectsResult
 from nexus.authz.models import Project
 from nexus.core.models import User
-from nexus.integrations.exceptions import IntegrationNameConflictError, IntegrationNotFoundError
+from nexus.integrations.exceptions import (
+    IntegrationNameConflictError,
+    IntegrationNotFoundError,
+)
 from nexus.integrations.models.integration import (
     Integration,
     IntegrationCreate,
@@ -470,6 +473,61 @@ class TestIntersectIdRestrictions:
 
     def test_no_overlap_returns_empty(self) -> None:
         result = IntegrationService._intersect_id_restrictions([uuid4()], [uuid4()])
+        assert result == []
+
+
+class TestResolveVisibleIntegrationIds:
+    """Tests for IntegrationService.resolve_visible_integration_ids."""
+
+    @pytest.mark.asyncio
+    async def test_all_projects_returns_none(
+        self, test_db_session: AsyncSession, integration_service: IntegrationService
+    ) -> None:
+        await integration_service.create_integration(_mcp_create(name="RV-Global", scope=IntegrationScope.GLOBAL))
+        result = await IntegrationService.resolve_visible_integration_ids(
+            test_db_session, AllowedProjectsResult(all_projects=True, project_ids=[])
+        )
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_no_project_access_returns_globals_only(
+        self, test_db_session: AsyncSession, integration_service: IntegrationService
+    ) -> None:
+        g = await integration_service.create_integration(_mcp_create(name="RV-G", scope=IntegrationScope.GLOBAL))
+        await integration_service.create_integration(_mcp_create(name="RV-P", scope=IntegrationScope.PROJECT))
+        result = await IntegrationService.resolve_visible_integration_ids(
+            test_db_session, AllowedProjectsResult(all_projects=False, project_ids=[])
+        )
+        assert result is not None
+        assert g.id in result
+
+    @pytest.mark.asyncio
+    async def test_project_access_returns_globals_plus_assigned(
+        self, test_db_session: AsyncSession, integration_service: IntegrationService
+    ) -> None:
+        project = Project(name=f"rv-proj-{uuid4().hex[:8]}")
+        test_db_session.add(project)
+        await test_db_session.flush()
+
+        g = await integration_service.create_integration(_mcp_create(name="RV-G2", scope=IntegrationScope.GLOBAL))
+        p = await integration_service.create_integration(_mcp_create(name="RV-P2", scope=IntegrationScope.PROJECT))
+        test_db_session.add(IntegrationProjectAssignment(integration_id=p.id, project_id=project.id))
+        await test_db_session.flush()
+
+        result = await IntegrationService.resolve_visible_integration_ids(
+            test_db_session, AllowedProjectsResult(all_projects=False, project_ids=[project.id])
+        )
+        assert result is not None
+        ids = set(result)
+        assert g.id in ids
+        assert p.id in ids
+
+    @pytest.mark.asyncio
+    async def test_no_integrations_returns_empty_list(self, test_db_session: AsyncSession) -> None:
+        result = await IntegrationService.resolve_visible_integration_ids(
+            test_db_session, AllowedProjectsResult(all_projects=False, project_ids=[])
+        )
+        assert result is not None
         assert result == []
 
 

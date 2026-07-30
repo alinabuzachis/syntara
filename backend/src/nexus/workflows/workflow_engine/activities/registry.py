@@ -24,6 +24,7 @@ from nexus.workflows.workflow_engine.activities.credential_resolution_activity i
 from nexus.workflows.workflow_engine.activities.eda_trigger import eda_trigger
 from nexus.workflows.workflow_engine.activities.http_request_activity import execute_http_request_activity
 from nexus.workflows.workflow_engine.activities.integration_resolution_activity import resolve_workflow_integration
+from nexus.workflows.workflow_engine.activities.integration_scope_activity import validate_node_references
 from nexus.workflows.workflow_engine.activities.internal import register_activity_monitoring
 from nexus.workflows.workflow_engine.activities.internal_activity import execute_internal_activity
 from nexus.workflows.workflow_engine.activities.loop import loop
@@ -41,6 +42,7 @@ _TEMPORAL_ACTIVITIES: list[Callable[..., Any]] = [
     fetch_workflow_runtime_settings,
     resolve_workflow_credentials,
     resolve_workflow_integration,
+    validate_node_references,
     execute_aap_job_template_activity,
     execute_aap_workflow_job_template_activity,
     execute_agentic_activity,

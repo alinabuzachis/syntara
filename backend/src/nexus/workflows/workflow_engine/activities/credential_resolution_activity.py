@@ -8,6 +8,7 @@ InjectorResolver for consumption by activity executors.
 from typing import Any
 
 import structlog
+from sqlalchemy.exc import OperationalError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from temporalio import activity
@@ -63,6 +64,9 @@ async def resolve_workflow_credentials(credential_map: dict[str, str], project_i
                 results[activity_id] = resolved
     except ApplicationError:
         raise
+    except OperationalError as e:
+        msg = f"Transient database error during credential resolution: {type(e).__name__}"
+        raise ApplicationError(msg, non_retryable=False) from e
     except Exception as e:
         msg = f"Database error during credential resolution: {type(e).__name__}"
         raise ApplicationError(msg, non_retryable=True) from e

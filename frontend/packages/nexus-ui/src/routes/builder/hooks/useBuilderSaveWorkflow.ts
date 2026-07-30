@@ -12,6 +12,50 @@ import { buildWorkflowDefinition } from '../utils/workflowDefinitionBuilder'
 import { DEFAULT_WORKFLOW_NAME, getNextDefaultWorkflowName } from '../utils/workflowNaming'
 import type { ConflictInfo } from '../VersionConflictDialog'
 
+type CleanedNode = { id: string; parameters?: Record<string, unknown> }
+
+function getCleanedNodes(data: SaveResponseData | undefined): CleanedNode[] | undefined {
+  if (!data || !('version' in data) || !data.version?.workflow_definition) return undefined
+  const nodes = data.version.workflow_definition.nodes as CleanedNode[] | undefined
+  return nodes
+}
+
+function syncToolSelectionsFromResponse(responseData: SaveResponseData | undefined): void {
+  const cleanedNodes = getCleanedNodes(responseData)
+  if (!cleanedNodes) return
+
+  const store = useWorkflowStore.getState()
+  const activities = store.currentWorkflow?.workflow.activities
+  if (!activities) return
+
+  let updated = false
+  for (const activity of activities) {
+    const activityParams = (activity as { parameters?: Record<string, unknown> }).parameters
+    if (!activityParams || !('tool_selections' in activityParams)) continue
+
+    const node = cleanedNodes.find((n) => n.id === activity.id)
+    if (!node?.parameters) continue
+
+    const nodeToolSelections = node.parameters.tool_selections as string[] | undefined
+    const nodeStrategy = node.parameters.tool_selection_strategy as string | undefined
+
+    if (
+      JSON.stringify(activityParams.tool_selections) !== JSON.stringify(nodeToolSelections) ||
+      activityParams.tool_selection_strategy !== nodeStrategy
+    ) {
+      const newParams: Record<string, unknown> = { ...activityParams, tool_selection_strategy: nodeStrategy }
+      if (nodeToolSelections !== undefined) {
+        newParams.tool_selections = nodeToolSelections
+      } else {
+        delete newParams.tool_selections
+      }
+      store.updateActivity(activity.id, { parameters: newParams } as Partial<typeof activity>)
+      updated = true
+    }
+  }
+  if (updated) store.markClean()
+}
+
 function formatSaveFailureDescription(error: unknown, action: string): string {
   const findings = extractValidationErrorsFromUnknown(error)
   if (findings && findings.length > 0) {
@@ -108,6 +152,7 @@ export type UseBuilderSaveWorkflowParams = {
   queryClient: QueryClient
   setLocation: (to: string) => void
   showSuccess: (options: AlertMessage) => void
+  showWarning: (options: AlertMessage) => void
   showError: (options: AlertMessage) => void
   /** Called when saving on create path without a project (UI can highlight the project selector). */
   onMissingProjectForCreate?: () => void
@@ -194,12 +239,14 @@ async function processSaveResult(
     nameToSave: string
     showError: (options: AlertMessage) => void
     showSuccess: (options: AlertMessage) => void
+    showWarning: (options: AlertMessage) => void
     markClean: () => void
     queryClient: QueryClient
     setLocation: (to: string) => void
     onVersionUpdated?: (newVersion: number) => void
     onSaveWithValidationIssues?: () => void
     onValidationFindings?: (errors: ValidationError[]) => void
+    blockOnWarnings?: boolean
   }
 ): Promise<boolean> {
   if (saveResult.error) {
@@ -214,21 +261,25 @@ async function processSaveResult(
 
   const hasIssues = saveResult.data?.has_validation_issues === true
   const verb = ctx.isNew ? 'created' : 'saved'
-  const title = hasIssues ? `Workflow ${verb} with warnings` : `Workflow ${verb}`
-  ctx.showSuccess({ title, description: `${ctx.nameToSave} has been saved.` })
+  if (hasIssues) {
+    ctx.showWarning({ title: `Workflow ${verb} with warnings`, description: `${ctx.nameToSave} has been saved.` })
+    reportSaveValidationIssues(saveResult.data, ctx.onValidationFindings, ctx.onSaveWithValidationIssues)
+    syncToolSelectionsFromResponse(saveResult.data)
+  } else {
+    ctx.showSuccess({ title: `Workflow ${verb}`, description: `${ctx.nameToSave} has been saved.` })
+  }
 
   await completeSave(ctx.queryClient, ctx.markClean, ctx.isNew ? saveResult.data?.id : undefined, ctx.setLocation)
   const newVersion = saveResult.data?.current_version
   if (ctx.willPatchExisting && newVersion != null) ctx.onVersionUpdated?.(newVersion)
-  if (hasIssues) {
-    reportSaveValidationIssues(saveResult.data, ctx.onValidationFindings, ctx.onSaveWithValidationIssues)
-  }
+  if (!hasIssues) ctx.onValidationFindings?.([])
+  if (hasIssues && ctx.blockOnWarnings) return false
   return true
 }
 
 export function useBuilderSaveWorkflow(
   params: UseBuilderSaveWorkflowParams
-): (options?: { expectedVersionOverride?: number }) => Promise<boolean> {
+): (options?: { expectedVersionOverride?: number; blockOnWarnings?: boolean }) => Promise<boolean> {
   const {
     currentWorkflow,
     workflowName,
@@ -240,6 +291,7 @@ export function useBuilderSaveWorkflow(
     queryClient,
     setLocation,
     showSuccess,
+    showWarning,
     showError,
     onMissingProjectForCreate,
     markClean,
@@ -264,7 +316,7 @@ export function useBuilderSaveWorkflow(
   }, [workflowName, workflowDescription])
 
   return useCallback(
-    async (options?: { expectedVersionOverride?: number }): Promise<boolean> => {
+    async (options?: { expectedVersionOverride?: number; blockOnWarnings?: boolean }): Promise<boolean> => {
       const effectiveExpectedVersion = options?.expectedVersionOverride ?? expectedVersion
       const willPatchExisting = Boolean(workflowId && !isNew)
       if (!currentWorkflow) {
@@ -308,12 +360,14 @@ export function useBuilderSaveWorkflow(
         nameToSave,
         showError,
         showSuccess,
+        showWarning,
         markClean,
         queryClient,
         setLocation,
         onVersionUpdated,
         onSaveWithValidationIssues,
         onValidationFindings,
+        blockOnWarnings: options?.blockOnWarnings,
       })
     },
     [
@@ -328,6 +382,7 @@ export function useBuilderSaveWorkflow(
       updateWorkflow,
       createWorkflow,
       showSuccess,
+      showWarning,
       showError,
       onMissingProjectForCreate,
       expectedVersion,

@@ -12,9 +12,11 @@ vi.mock('../components/LLMModelSelector', () => ({
   LLMModelSelector: ({
     onChange,
     value,
+    onStaleDetected,
   }: {
     onChange: (selection: { llm_model_id: string } | undefined) => void
     value?: { llm_model_id: string }
+    onStaleDetected?: () => void
   }) => (
     <div>
       <span data-testid="selected-model">{value?.llm_model_id ?? 'none'}</span>
@@ -24,6 +26,11 @@ vi.mock('../components/LLMModelSelector', () => ({
       <button type="button" onClick={() => onChange(undefined)}>
         Clear model
       </button>
+      {onStaleDetected && (
+        <button type="button" onClick={onStaleDetected}>
+          Trigger stale
+        </button>
+      )}
     </div>
   ),
 }))
@@ -160,6 +167,39 @@ describe('AIAgentFormSections', () => {
 
     expect(screen.getByTestId('model-value')).toHaveTextContent('')
     expect(screen.getByTestId('credential-value')).toHaveTextContent('')
+  })
+
+  it('shows warning and clears model when stale model is detected', async () => {
+    const user = userEvent.setup()
+    render(
+      <FormWrapper defaultValues={{ llm_model_id: 'stale-model-id', credential_id: 'cred-1' }}>
+        <LLMSection isVersionView={false} projectId="proj-1" />
+      </FormWrapper>
+    )
+
+    expect(screen.getByTestId('model-value')).toHaveTextContent('stale-model-id')
+    expect(screen.getByTestId('credential-value')).toHaveTextContent('cred-1')
+
+    await user.click(screen.getByRole('button', { name: 'Trigger stale' }))
+
+    expect(screen.getByTestId('model-value')).toHaveTextContent('')
+    expect(screen.getByTestId('credential-value')).toHaveTextContent('')
+    expect(screen.getByText(/previously selected model is no longer available/)).toBeInTheDocument()
+  })
+
+  it('clears stale model warning when user selects a new model', async () => {
+    const user = userEvent.setup()
+    render(
+      <FormWrapper defaultValues={{ llm_model_id: 'stale-model-id', credential_id: 'cred-1' }}>
+        <LLMSection isVersionView={false} projectId="proj-1" />
+      </FormWrapper>
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Trigger stale' }))
+    expect(screen.getByText(/previously selected model is no longer available/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Select model' }))
+    expect(screen.queryByText(/previously selected model is no longer available/)).not.toBeInTheDocument()
   })
 
   it('has no accessibility violations for ToolsLoadError', async () => {
