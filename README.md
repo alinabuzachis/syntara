@@ -66,7 +66,7 @@ TypeScript API types are generated from the backend's OpenAPI specifications. In
 make gen-contracts
 ```
 
-This reads specs from `backend/src/nexus/schemas/` and generates types in `frontend/packages/nexus-contracts/src/`.
+This reads specs from `backend/src/nexus/schemas/` and generates types in `frontend/packages/syntara-contracts/src/`.
 
 ## Container Development
 

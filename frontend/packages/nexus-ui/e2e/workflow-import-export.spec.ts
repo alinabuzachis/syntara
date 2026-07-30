@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 
-import type { V2WorkflowDefinition } from '@ansible/nexus-contracts'
 import type { Page, Locator } from '@playwright/test'
+import type { V2WorkflowDefinition } from '@syntara/contracts'
 
 import { test, expect, toAppUrl } from './fixtures'
 import { createCredentialOfTypeViaUI, deleteCredentialByName, isCredentialsResponse } from './helpers/credentials'

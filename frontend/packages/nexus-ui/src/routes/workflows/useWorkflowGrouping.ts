@@ -1,4 +1,4 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { WorkflowAPI } from '@syntara/contracts'
 import { useMemo, useState } from 'react'
 
 import type { ProjectRead } from '../access/types'

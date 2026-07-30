@@ -92,7 +92,7 @@ describe('executionFilters', () => {
       expect(definition.options).toBeDefined()
       const statusValues = definition.options!.map((o) => o.value)
 
-      // Values derived from ExecutionStatusEnum in @ansible/nexus-contracts
+      // Values derived from ExecutionStatusEnum in @syntara/contracts
       expect(statusValues).toEqual([
         'pending',
         'running',

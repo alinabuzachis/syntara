@@ -1,9 +1,4 @@
-import {
-  MissedSchedulePolicyEnum,
-  ScheduleTypeEnum,
-  TriggerTypeEnum,
-  WEBHOOK_TRIGGER_TYPES,
-} from '@ansible/nexus-contracts'
+import { MissedSchedulePolicyEnum, ScheduleTypeEnum, TriggerTypeEnum, WEBHOOK_TRIGGER_TYPES } from '@syntara/contracts'
 import { z } from 'zod'
 
 import { safeJSONReviver } from '../../../utils/jsonSafeParse'

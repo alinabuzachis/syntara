@@ -1,4 +1,4 @@
-import { type ExecutionStatus, ExecutionStatusEnum } from '@ansible/nexus-contracts'
+import { type ExecutionStatus, ExecutionStatusEnum } from '@syntara/contracts'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 

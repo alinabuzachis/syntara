@@ -1,4 +1,3 @@
-import type { Group } from '@ansible/nexus-contracts'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Button,
@@ -20,6 +19,7 @@ import {
 import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
+import type { Group } from '@syntara/contracts'
 import { useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'

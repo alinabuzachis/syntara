@@ -1,8 +1,8 @@
-import type { IntegrationsAPI } from '@ansible/nexus-contracts'
 import { Badge, Button, Switch, Tooltip, Truncate } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiCheckCircleIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { ThProps } from '@patternfly/react-table'
+import type { IntegrationsAPI } from '@syntara/contracts'
 import { useNavigate } from '@tanstack/react-router'
 import { useMemo } from 'react'
 

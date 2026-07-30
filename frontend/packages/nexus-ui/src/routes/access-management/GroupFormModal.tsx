@@ -1,4 +1,3 @@
-import type { Group } from '@ansible/nexus-contracts'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Button,
@@ -15,6 +14,7 @@ import {
   TextInput,
 } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiErrorIcon } from '@patternfly/react-icons'
+import type { Group } from '@syntara/contracts'
 import { useEffect } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 

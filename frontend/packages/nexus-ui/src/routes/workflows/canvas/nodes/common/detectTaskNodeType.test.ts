@@ -1,4 +1,4 @@
-import type { TaskActivity } from '@ansible/nexus-contracts'
+import type { TaskActivity } from '@syntara/contracts'
 import { describe, expect, it } from 'vitest'
 
 import { DetectedExecutorType, detectTaskNodeType, type TaskActivityWithMetadata } from './detectTaskNodeType'

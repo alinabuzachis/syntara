@@ -1,7 +1,7 @@
-import type { OutputFieldDef } from '@ansible/nexus-contracts'
 import { Content, ContentVariants } from '@patternfly/react-core'
 import { TreeView, type TreeViewDataItem } from '@patternfly/react-core'
 import { InfoCircleIcon } from '@patternfly/react-icons'
+import type { OutputFieldDef } from '@syntara/contracts'
 import { useCallback, useMemo } from 'react'
 
 import { buildExpression } from '../../../../utils/expressions/templateBuilder'

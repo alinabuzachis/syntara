@@ -1,4 +1,3 @@
-import type { SettingsAPI } from '@ansible/nexus-contracts'
 import {
   Dropdown,
   DropdownItem,
@@ -12,6 +11,7 @@ import {
   MenuToggle,
 } from '@patternfly/react-core'
 import { EllipsisVIcon } from '@patternfly/react-icons'
+import type { SettingsAPI } from '@syntara/contracts'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { HelpPopover } from '../../../components/expressions/HelpPopover'

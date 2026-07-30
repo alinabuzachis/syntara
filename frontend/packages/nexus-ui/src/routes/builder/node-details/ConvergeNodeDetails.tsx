@@ -1,4 +1,4 @@
-import type { ConvergeActivity } from '@ansible/nexus-contracts'
+import type { ConvergeActivity } from '@syntara/contracts'
 import type { ReactNode } from 'react'
 
 import { useAlerts } from '../../../providers/alerts'

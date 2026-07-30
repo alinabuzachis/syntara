@@ -1,4 +1,4 @@
-import type { Activity, WorkflowAPI } from '@ansible/nexus-contracts'
+import type { Activity, WorkflowAPI } from '@syntara/contracts'
 
 import { getActivityMetadata } from '../../../stores/useWorkflowStore'
 import type { WorkflowDefinition } from '../../../stores/workflowStoreTypes'

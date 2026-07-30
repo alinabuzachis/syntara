@@ -1,4 +1,4 @@
-import type { ServiceAccountsAPI } from '@ansible/nexus-contracts'
+import type { ServiceAccountsAPI } from '@syntara/contracts'
 
 type Schemas = ServiceAccountsAPI.components['schemas']
 

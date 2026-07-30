@@ -8,14 +8,14 @@ WORKDIR /app
 
 # Copy package files for all required packages
 COPY package*.json ./
-COPY packages/nexus-contracts/package*.json ./packages/nexus-contracts/
+COPY packages/syntara-contracts/package*.json ./packages/syntara-contracts/
 COPY packages/syntara-mock-api/package*.json ./packages/syntara-mock-api/
 
 # Install dependencies
 RUN npm ci
 
 # Copy source files
-COPY packages/nexus-contracts ./packages/nexus-contracts
+COPY packages/syntara-contracts ./packages/syntara-contracts
 COPY packages/syntara-mock-api ./packages/syntara-mock-api
 
 # Production stage - target platform will be used automatically
@@ -25,13 +25,13 @@ WORKDIR /app
 # Copy package files and install production dependencies
 # Note: Explicitly list files instead of wildcards when copying from previous stage
 COPY --from=builder /app/package.json /app/package-lock.json ./
-COPY --from=builder /app/packages/nexus-contracts/package.json ./packages/nexus-contracts/
+COPY --from=builder /app/packages/syntara-contracts/package.json ./packages/syntara-contracts/
 COPY --from=builder /app/packages/syntara-mock-api/package.json ./packages/syntara-mock-api/
 
 RUN npm ci --omit=dev --ignore-scripts
 
 # Copy source code
-COPY --from=builder /app/packages/nexus-contracts ./packages/nexus-contracts
+COPY --from=builder /app/packages/syntara-contracts ./packages/syntara-contracts
 COPY --from=builder /app/packages/syntara-mock-api ./packages/syntara-mock-api
 
 # Set working directory to the mock API package

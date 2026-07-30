@@ -1,4 +1,4 @@
-import type { WaitActivity } from '@ansible/nexus-contracts'
+import type { WaitActivity } from '@syntara/contracts'
 import { render, screen } from '@testing-library/react'
 import { ReactFlowProvider } from '@xyflow/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'

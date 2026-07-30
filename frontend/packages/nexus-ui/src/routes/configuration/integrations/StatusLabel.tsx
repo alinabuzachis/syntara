@@ -1,6 +1,6 @@
-import { IntegrationStatusEnum } from '@ansible/nexus-contracts'
 import { Tooltip } from '@patternfly/react-core'
 import { RhUiCheckCircleIcon, RhUiCloseCircleIcon, RhUiMinusCircleIcon, RhUiSyncIcon } from '@patternfly/react-icons'
+import { IntegrationStatusEnum } from '@syntara/contracts'
 
 import { NxLabel } from '../../../components/labels/NxLabel'
 

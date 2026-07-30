@@ -1,4 +1,4 @@
-import type { Approval } from '@ansible/nexus-contracts'
+import type { Approval } from '@syntara/contracts'
 
 /**
  * Determines if the user can perform approval:decide on a specific approval.

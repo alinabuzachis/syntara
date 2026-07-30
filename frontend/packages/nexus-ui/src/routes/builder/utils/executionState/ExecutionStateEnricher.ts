@@ -1,4 +1,4 @@
-import { ActivityTypeEnum, type Activity } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, type Activity } from '@syntara/contracts'
 
 import type { ActivityState } from '../../../workflows/execution/types'
 import type { EdgeConnection } from '../../types/edge'

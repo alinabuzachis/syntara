@@ -1,4 +1,4 @@
-import type { Activity } from '@ansible/nexus-contracts'
+import type { Activity } from '@syntara/contracts'
 import type { ReactNode } from 'react'
 
 import { useAlerts } from '../../../providers/alerts'

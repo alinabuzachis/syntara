@@ -1,4 +1,4 @@
-import type { ExecutionsAPI } from '@ansible/nexus-contracts'
+import type { ExecutionsAPI } from '@syntara/contracts'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 

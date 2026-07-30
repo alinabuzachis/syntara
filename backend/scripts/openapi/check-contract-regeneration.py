@@ -2,7 +2,7 @@
 """Check that frontend contracts are regenerated when OpenAPI spec changes.
 
 In the monorepo, when backend/src/nexus/schemas/openapi.yaml changes,
-the generated TypeScript contracts in frontend/packages/nexus-contracts/src/
+the generated TypeScript contracts in frontend/packages/syntara-contracts/src/
 must also be updated (via `make gen-contracts`).
 
 Usage:
@@ -36,7 +36,7 @@ from typing import Dict
 
 
 OPENAPI_SPEC = "backend/src/nexus/schemas/openapi.yaml"
-CONTRACTS_DIR = "frontend/packages/nexus-contracts/src/"
+CONTRACTS_DIR = "frontend/packages/syntara-contracts/src/"
 EXCEPTION_PATTERN = re.compile(
     r"no-(?:contract-regen|ui-pr)\s*:\s*(.+)",
     re.IGNORECASE,
@@ -124,7 +124,7 @@ def _build_contracts_updated_result() -> Dict[str, any]:
     """Build result when contracts are updated in the same PR."""
     message = (
         "**Frontend contracts updated** alongside OpenAPI spec changes.\n\n"
-        "The generated TypeScript types in `frontend/packages/nexus-contracts/src/` "
+        "The generated TypeScript types in `frontend/packages/syntara-contracts/src/` "
         "are included in this change set."
     )
 
@@ -184,7 +184,7 @@ def _build_contracts_stale_result() -> Dict[str, any]:
     message = (
         "**OpenAPI spec changed — frontend contracts not updated**\n\n"
         "This PR modifies `backend/src/nexus/schemas/openapi.yaml` but the generated "
-        "TypeScript types in `frontend/packages/nexus-contracts/src/` were not updated.\n\n"
+        "TypeScript types in `frontend/packages/syntara-contracts/src/` were not updated.\n\n"
         "### Action Required\n\n"
         "1. **Regenerate frontend contracts** from the updated spec:\n"
         "   ```bash\n"

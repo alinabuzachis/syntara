@@ -29,7 +29,7 @@ flowchart TB
         Y[OpenAPI YAML Specs]
     end
 
-    subgraph Contracts["nexus-contracts Package"]
+    subgraph Contracts["syntara-contracts Package"]
         G[npm run gen]
         TS[TypeScript Types]
     end
@@ -106,7 +106,7 @@ npm run gen
 
 1. **Clone backend repo** - Downloads latest OpenAPI specs from `syntara-orchestration/syntara`
 2. **Generate types** - Runs `openapi-typescript` on each YAML spec
-3. **Create TypeScript files** - Outputs type definitions to `packages/nexus-contracts/src/`
+3. **Create TypeScript files** - Outputs type definitions to `packages/syntara-contracts/src/`
 4. **Copy examples** - Copies workflow examples for the mock API
 5. **Clean up** - Removes cloned repository
 6. **Format** - Runs prettier on generated files
@@ -114,7 +114,7 @@ npm run gen
 ### Location of Files
 
 ```text
-packages/nexus-contracts/
+packages/syntara-contracts/
 ├── package.json           # Generation scripts
 └── src/
     ├── workflow-api.ts    # Generated workflow types
@@ -137,7 +137,7 @@ The UI creates API clients using the generated types:
 ```typescript
 // packages/nexus-ui/src/client.tsx
 
-import type { ApprovalsAPI, ExecutionsAPI, ToolManagerAPI, WorkflowAPI } from '@ansible/nexus-contracts'
+import type { ApprovalsAPI, ExecutionsAPI, ToolManagerAPI, WorkflowAPI } from '@syntara/contracts'
 import createFetchClient from 'openapi-fetch'
 import createClient from 'openapi-react-query'
 
@@ -547,7 +547,7 @@ sequenceDiagram
 
 | File                                                                                                                                                    | Purpose                   |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| [`packages/nexus-contracts/package.json`](../packages/nexus-contracts/package.json)                                                                     | Type generation scripts   |
+| [`packages/syntara-contracts/package.json`](../packages/syntara-contracts/package.json)                                                                 | Type generation scripts   |
 | [`packages/nexus-ui/src/client.tsx`](../packages/nexus-ui/src/client.tsx)                                                                               | API client creation       |
 | [`packages/nexus-ui/src/routes/builder/utils/processExistingWorkflow.ts`](../packages/nexus-ui/src/routes/builder/utils/processExistingWorkflow.ts)     | Load workflow from API    |
 | [`packages/nexus-ui/src/routes/builder/utils/workflowDefinitionBuilder.ts`](../packages/nexus-ui/src/routes/builder/utils/workflowDefinitionBuilder.ts) | Build v2 save payload     |

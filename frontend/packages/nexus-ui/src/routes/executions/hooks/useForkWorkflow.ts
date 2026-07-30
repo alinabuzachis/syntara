@@ -1,4 +1,4 @@
-import type { V2WorkflowDefinition } from '@ansible/nexus-contracts'
+import type { V2WorkflowDefinition } from '@syntara/contracts'
 import { useCallback } from 'react'
 
 import { workflowClient } from '../../../client'

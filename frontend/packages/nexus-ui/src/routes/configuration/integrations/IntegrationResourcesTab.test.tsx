@@ -1,4 +1,4 @@
-import type { Tool } from '@ansible/nexus-contracts'
+import type { Tool } from '@syntara/contracts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'

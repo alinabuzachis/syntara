@@ -1,4 +1,3 @@
-import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import {
   Button,
   Content,
@@ -14,6 +13,7 @@ import {
   TitleSizes,
 } from '@patternfly/react-core'
 import { RhUiCloseIcon } from '@patternfly/react-icons'
+import type { ExecutionsAPI } from '@syntara/contracts'
 import type React from 'react'
 
 import { ApprovalPendingBadge } from '../../components/labels/ApprovalPendingBadge'

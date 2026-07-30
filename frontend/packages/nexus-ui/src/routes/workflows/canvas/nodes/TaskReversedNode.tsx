@@ -1,4 +1,4 @@
-import type { TaskActivity } from '@ansible/nexus-contracts'
+import type { TaskActivity } from '@syntara/contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
 
 import { FlowNodeType } from '../../../../constants'

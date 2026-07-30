@@ -1,4 +1,4 @@
-import type { MissedSchedulePolicy, NodeSettings } from '@ansible/nexus-contracts'
+import type { MissedSchedulePolicy, NodeSettings } from '@syntara/contracts'
 
 export type TriggerFormData = {
   name?: string

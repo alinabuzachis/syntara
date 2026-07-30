@@ -1,4 +1,4 @@
-import { ActivityTypeEnum, type Approval } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, type Approval } from '@syntara/contracts'
 import type { Node } from '@xyflow/react'
 import { useCallback, useMemo, useState } from 'react'
 

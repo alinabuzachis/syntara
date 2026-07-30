@@ -1,4 +1,4 @@
-import { EdgeHandleEnum } from '@ansible/nexus-contracts'
+import { EdgeHandleEnum } from '@syntara/contracts'
 import { describe, expect, it } from 'vitest'
 
 import type { EdgeConnection } from '../types/edge'

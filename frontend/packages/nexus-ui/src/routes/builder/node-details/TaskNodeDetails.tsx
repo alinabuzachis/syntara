@@ -4,7 +4,7 @@ import {
   type Activity,
   type NodeSettings,
   type TaskActivity,
-} from '@ansible/nexus-contracts'
+} from '@syntara/contracts'
 import type { ReactNode } from 'react'
 
 import { useAlerts, type AlertMessage } from '../../../providers/alerts'

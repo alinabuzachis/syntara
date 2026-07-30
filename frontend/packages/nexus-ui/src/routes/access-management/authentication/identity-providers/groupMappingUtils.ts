@@ -1,4 +1,4 @@
-import type { IdentityProvidersAPI } from '@ansible/nexus-contracts'
+import type { IdentityProvidersAPI } from '@syntara/contracts'
 import jmespath from 'jmespath'
 
 import { generateUUID } from '../../../../utils/generateUUID'

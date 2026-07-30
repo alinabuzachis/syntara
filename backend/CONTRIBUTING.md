@@ -169,7 +169,7 @@ Since backend and frontend live in the same monorepo, include the regenerated Ty
 make gen-contracts
 ```
 
-This updates `frontend/packages/nexus-contracts/src/` with types matching your schema changes.
+This updates `frontend/packages/syntara-contracts/src/` with types matching your schema changes.
 
 CI posts an informational warning if the spec changed but contracts were not regenerated. For spec-only changes with no type impact (descriptions, examples, metadata), add to the PR description: `no-contract-regen: <justification>`.
 

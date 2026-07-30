@@ -1,5 +1,5 @@
-import { ExecutorTypeEnum } from '@ansible/nexus-contracts'
 import { RhUiFileCodeIcon, RhUiElectricityFillIcon, RhUiPlugFillIcon } from '@patternfly/react-icons'
+import { ExecutorTypeEnum } from '@syntara/contracts'
 
 import { RegistryNodeId } from '../../../../constants'
 import { createApiActivity, createScriptActivity, useWorkflowStore } from '../../../../stores/useWorkflowStore'

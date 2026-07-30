@@ -1,4 +1,4 @@
-import type { ConvergeActivity } from '@ansible/nexus-contracts'
+import type { ConvergeActivity } from '@syntara/contracts'
 import { render, screen } from '@testing-library/react'
 import { ReactFlowProvider } from '@xyflow/react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'

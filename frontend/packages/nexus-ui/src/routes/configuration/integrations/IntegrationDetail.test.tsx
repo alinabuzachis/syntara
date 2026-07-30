@@ -1,4 +1,4 @@
-import type { IntegrationsAPI, Tool } from '@ansible/nexus-contracts'
+import type { IntegrationsAPI, Tool } from '@syntara/contracts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { render, screen, within, act, waitFor } from '@testing-library/react'

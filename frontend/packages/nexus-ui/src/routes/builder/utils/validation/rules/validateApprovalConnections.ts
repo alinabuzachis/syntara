@@ -1,4 +1,4 @@
-import { EdgeHandleEnum, type Activity } from '@ansible/nexus-contracts'
+import { EdgeHandleEnum, type Activity } from '@syntara/contracts'
 
 import type { EdgeConnection } from '../../../types/edge'
 import type { ValidationError } from '../types'

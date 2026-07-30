@@ -1,5 +1,5 @@
-import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
 import { Button, Content, ContentVariants, Form, FormGroup, Title } from '@patternfly/react-core'
+import { IntegrationTypeEnum } from '@syntara/contracts'
 import { Controller, type Control, type UseFormSetValue } from 'react-hook-form'
 
 import { CredentialSelector } from '../../../builder/components/CredentialSelector'

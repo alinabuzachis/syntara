@@ -1,4 +1,4 @@
-import type { ExecutionsAPI } from '@ansible/nexus-contracts'
+import type { ExecutionsAPI } from '@syntara/contracts'
 
 import { formatDateTime, formatElapsedTime } from '../../../utils/dateUtils'
 import { isExecutionRetryable } from '../../executions/executionRetryable'

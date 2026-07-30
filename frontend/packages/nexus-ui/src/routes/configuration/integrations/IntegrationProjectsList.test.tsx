@@ -1,4 +1,4 @@
-import type { IntegrationsAPI, Tool } from '@ansible/nexus-contracts'
+import type { IntegrationsAPI, Tool } from '@syntara/contracts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, act } from '@testing-library/react'
 import type { ReactNode } from 'react'

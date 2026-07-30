@@ -1,4 +1,4 @@
-import type { Tool } from '@ansible/nexus-contracts'
+import type { Tool } from '@syntara/contracts'
 
 function makeTool(id: string, integrationId: string, name: string, enabled = true): Tool {
   return {

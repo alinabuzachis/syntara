@@ -1,4 +1,3 @@
-import type { Group } from '@ansible/nexus-contracts'
 import {
   Badge,
   Button,
@@ -13,6 +12,7 @@ import {
   TabTitleText,
 } from '@patternfly/react-core'
 import { RhUiEditIcon } from '@patternfly/react-icons'
+import type { Group } from '@syntara/contracts'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 

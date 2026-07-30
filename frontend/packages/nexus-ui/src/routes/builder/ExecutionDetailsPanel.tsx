@@ -1,6 +1,6 @@
-import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { Alert, Divider, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
 import type { ThProps } from '@patternfly/react-table'
+import type { ExecutionsAPI } from '@syntara/contracts'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { executionsClient } from '../../client'

@@ -1,6 +1,6 @@
-import type { Approval } from '@ansible/nexus-contracts'
 import { Spinner, StackItem } from '@patternfly/react-core'
 import type { ThProps } from '@patternfly/react-table'
+import type { Approval } from '@syntara/contracts'
 import { useMemo, useReducer, useState } from 'react'
 
 import { EmptyStateAccessDenied } from '../../components/EmptyStateAccessDenied'

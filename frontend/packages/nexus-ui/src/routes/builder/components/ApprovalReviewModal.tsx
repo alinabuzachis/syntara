@@ -1,5 +1,5 @@
-import type { Approval } from '@ansible/nexus-contracts'
 import { Modal, ModalBody, ModalHeader } from '@patternfly/react-core'
+import type { Approval } from '@syntara/contracts'
 
 import { useBlurOnOpen } from '../../../hooks/useBlurOnOpen'
 import { ApprovalReviewView } from '../../executions/ApprovalReviewView'

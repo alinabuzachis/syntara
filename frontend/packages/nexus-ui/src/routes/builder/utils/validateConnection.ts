@@ -1,4 +1,4 @@
-import { EdgeHandleEnum } from '@ansible/nexus-contracts'
+import { EdgeHandleEnum } from '@syntara/contracts'
 import type { Connection } from '@xyflow/react'
 
 import type { EdgeType } from './workflowToGraph'

@@ -1,4 +1,4 @@
-import { ActivityTypeEnum } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum } from '@syntara/contracts'
 import { renderHook } from '@testing-library/react'
 import { type Dispatch, type SetStateAction } from 'react'
 import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest'

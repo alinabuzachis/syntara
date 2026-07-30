@@ -1,4 +1,4 @@
-import type { ExecutionsAPI } from '@ansible/nexus-contracts'
+import type { ExecutionsAPI } from '@syntara/contracts'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 

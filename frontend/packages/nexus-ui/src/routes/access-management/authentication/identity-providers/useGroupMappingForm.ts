@@ -1,5 +1,5 @@
-import type { IdentityProvidersAPI } from '@ansible/nexus-contracts'
 import { zodResolver } from '@hookform/resolvers/zod'
+import type { IdentityProvidersAPI } from '@syntara/contracts'
 import { useNavigate } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { useCallback, useMemo, useState } from 'react'

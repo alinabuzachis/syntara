@@ -2,17 +2,17 @@ import { http, HttpResponse } from 'msw'
 import { v4 as uuidv4 } from 'uuid'
 import { mockDate } from './resources/mockDates'
 import { createMockJwt } from './mockJwt'
-import type * as ApprovalsAPI from '@ansible/nexus-contracts/src/approvals-api.js'
-import type * as ExecutionsAPI from '@ansible/nexus-contracts/src/executions-api.js'
-import type * as ToolManagerAPI from '@ansible/nexus-contracts/src/tool-manager.js'
-import type * as WorkflowAPI from '@ansible/nexus-contracts/src/workflow-api.js'
-import type { Approval, Tool, WorkflowWithVersion, WorkflowsResponse } from '@ansible/nexus-contracts'
+import type * as ApprovalsAPI from '@syntara/contracts/src/approvals-api.js'
+import type * as ExecutionsAPI from '@syntara/contracts/src/executions-api.js'
+import type * as ToolManagerAPI from '@syntara/contracts/src/tool-manager.js'
+import type * as WorkflowAPI from '@syntara/contracts/src/workflow-api.js'
+import type { Approval, Tool, WorkflowWithVersion, WorkflowsResponse } from '@syntara/contracts'
 import {
   ExecutionStatusEnum,
   IntegrationStatusEnum,
   IntegrationTypeEnum,
   WorkflowVersionStatusEnum,
-} from '@ansible/nexus-contracts'
+} from '@syntara/contracts'
 import { credentials, credentialTypes, credentialWorkflows } from './resources/credentials'
 import { integrations } from './resources/integrations'
 import { models } from './resources/models'

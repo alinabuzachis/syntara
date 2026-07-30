@@ -1,5 +1,5 @@
-import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
 import { Badge, Content, ContentVariants } from '@patternfly/react-core'
+import { IntegrationTypeEnum } from '@syntara/contracts'
 
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 

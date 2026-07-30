@@ -1,4 +1,4 @@
-import type { Activity } from '@ansible/nexus-contracts'
+import type { Activity } from '@syntara/contracts'
 
 import type { WorkflowDefinition } from '../../../stores/workflowStoreTypes'
 import type { EdgeConnection } from '../types/edge'

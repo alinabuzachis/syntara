@@ -1,4 +1,4 @@
-import { EdgeHandleEnum } from '@ansible/nexus-contracts'
+import { EdgeHandleEnum } from '@syntara/contracts'
 import type { EdgeProps, MarkerType } from '@xyflow/react'
 import { BaseEdge } from '@xyflow/react'
 import { useMemo } from 'react'

@@ -4,7 +4,7 @@ import {
   ScheduleTypeEnum,
   TriggerTypeEnum,
   WEBHOOK_TRIGGER_TYPES,
-} from '@ansible/nexus-contracts'
+} from '@syntara/contracts'
 import { useMemo, type ReactNode } from 'react'
 
 import { useAlerts } from '../../../providers/alerts'

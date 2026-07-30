@@ -1,4 +1,4 @@
-import { type ScheduleType, TriggerTypeEnum, type Activity } from '@ansible/nexus-contracts'
+import { type ScheduleType, TriggerTypeEnum, type Activity } from '@syntara/contracts'
 
 // ============================================================================
 // Trigger Factory Functions

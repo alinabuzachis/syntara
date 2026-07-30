@@ -1,5 +1,5 @@
-import { ActivityTypeEnum, EdgeHandleEnum } from '@ansible/nexus-contracts'
 import Dagre from '@dagrejs/dagre'
+import { ActivityTypeEnum, EdgeHandleEnum } from '@syntara/contracts'
 
 import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 

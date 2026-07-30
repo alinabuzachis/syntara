@@ -1,4 +1,4 @@
-import { EdgeHandleEnum } from '@ansible/nexus-contracts'
+import { EdgeHandleEnum } from '@syntara/contracts'
 
 import { FlowNodeType } from '../../../constants'
 import type { NodeType } from '../../workflows/canvas/nodes/NodeType'

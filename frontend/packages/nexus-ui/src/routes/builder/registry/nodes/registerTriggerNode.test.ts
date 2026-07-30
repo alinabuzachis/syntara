@@ -1,4 +1,4 @@
-import { TriggerTypeEnum } from '@ansible/nexus-contracts'
+import { TriggerTypeEnum } from '@syntara/contracts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { RegistryNodeId } from '../../../../constants'

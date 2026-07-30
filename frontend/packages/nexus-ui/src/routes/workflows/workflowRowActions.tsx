@@ -1,4 +1,3 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import {
   RhUiCheckCircleIcon,
   RhUiDuplicateIcon,
@@ -9,6 +8,7 @@ import {
   RhUiPlayIcon,
   RhUiTrashIcon,
 } from '@patternfly/react-icons'
+import type { WorkflowAPI } from '@syntara/contracts'
 import { useNavigate } from '@tanstack/react-router'
 
 import { IconLabel } from '../../components/IconLabel'

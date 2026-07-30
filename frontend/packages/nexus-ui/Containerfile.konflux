@@ -15,7 +15,7 @@ COPY packages/nexus-ui/LICENSE /licenses/nexus-ui-LICENSE
 
 # Copy package files for dependency installation
 COPY package.json package-lock.json ./
-COPY packages/nexus-contracts/package.json ./packages/nexus-contracts/
+COPY packages/syntara-contracts/package.json ./packages/syntara-contracts/
 COPY packages/nexus-ui/package.json ./packages/nexus-ui/
 
 # Install dependencies (CI=true for deterministic builds)

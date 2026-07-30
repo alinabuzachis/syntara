@@ -1,4 +1,4 @@
-import type { CredentialsAPI } from '@ansible/nexus-contracts'
+import type { CredentialsAPI } from '@syntara/contracts'
 
 type CredentialRead = CredentialsAPI.components['schemas']['CredentialRead']
 type CredentialTypeRead = CredentialsAPI.components['schemas']['CredentialTypeRead']

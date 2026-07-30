@@ -1,4 +1,4 @@
-import type { AuthzAPI } from '@ansible/nexus-contracts'
+import type { AuthzAPI } from '@syntara/contracts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import { createElement } from 'react'

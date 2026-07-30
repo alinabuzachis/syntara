@@ -5,7 +5,7 @@
  * - Keycloak
  * - AAP
  */
-import type { AuthAPI, IdentityProvidersAPI } from '@ansible/nexus-contracts'
+import type { AuthAPI, IdentityProvidersAPI } from '@syntara/contracts'
 
 type IdentityProvider = IdentityProvidersAPI.components['schemas']['IdentityProviderResponse']
 type AuthProviderInfo = AuthAPI.components['schemas']['AuthProviderInfo']

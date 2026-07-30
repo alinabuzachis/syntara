@@ -83,11 +83,11 @@ jobs:
 
       - name: Generate TypeScript contracts from OpenAPI specs
         run: npm run gen:ts
-        working-directory: frontend/packages/nexus-contracts
+        working-directory: frontend/packages/syntara-contracts
 
       - name: Check for uncommitted changes
         run: |
-          if ! git diff --exit-code -- frontend/packages/nexus-contracts/src/ 2>/dev/null; then
+          if ! git diff --exit-code -- frontend/packages/syntara-contracts/src/ 2>/dev/null; then
             echo "::error::Generated contracts have uncommitted changes. Run 'make gen-contracts' locally and commit the changes."
             exit 1
           fi

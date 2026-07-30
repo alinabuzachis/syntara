@@ -1,4 +1,4 @@
-import type { Approval } from '@ansible/nexus-contracts'
+import type { Approval } from '@syntara/contracts'
 import { renderHook, act } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 

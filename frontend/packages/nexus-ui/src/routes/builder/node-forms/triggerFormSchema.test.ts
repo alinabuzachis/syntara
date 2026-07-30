@@ -1,4 +1,4 @@
-import { MissedSchedulePolicyEnum, TriggerTypeEnum } from '@ansible/nexus-contracts'
+import { MissedSchedulePolicyEnum, TriggerTypeEnum } from '@syntara/contracts'
 import { describe, expect, it } from 'vitest'
 
 import { isValidWebhookPath, normalizeWebhookPath, triggerFormSchema } from './triggerFormSchema'

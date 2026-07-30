@@ -1,4 +1,3 @@
-import type { IntegrationsAPI, Tool } from '@ansible/nexus-contracts'
 import {
   Button,
   Content,
@@ -15,6 +14,7 @@ import {
 } from '@patternfly/react-core'
 import { RhUiSyncIcon } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
+import type { IntegrationsAPI, Tool } from '@syntara/contracts'
 import { useMemo, useState } from 'react'
 
 import { integrationsClient } from '../../../client'

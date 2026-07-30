@@ -1,5 +1,5 @@
-import type { SettingsAPI } from '@ansible/nexus-contracts'
 import { ActionGroup, Button, Form, FormSection } from '@patternfly/react-core'
+import type { SettingsAPI } from '@syntara/contracts'
 import { useMemo } from 'react'
 
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'

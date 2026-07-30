@@ -11,7 +11,7 @@ on:
     branches: [devel]
     paths:
       - 'backend/**'
-      - 'frontend/packages/nexus-contracts/src/**'
+      - 'frontend/packages/syntara-contracts/src/**'
       - '.github/workflows/openapi-breaking-changes*.yml'
 
 concurrency:

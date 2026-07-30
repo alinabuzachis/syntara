@@ -1,4 +1,4 @@
-import { ExecutionStatusEnum } from '@ansible/nexus-contracts'
+import { ExecutionStatusEnum } from '@syntara/contracts'
 
 /**
  * Poll execution query every 3s while status is pending or running.

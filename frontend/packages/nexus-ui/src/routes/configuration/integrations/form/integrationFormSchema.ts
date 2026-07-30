@@ -1,4 +1,4 @@
-import { IntegrationTypeEnum, LLMProviderHintEnum } from '@ansible/nexus-contracts'
+import { IntegrationTypeEnum, LLMProviderHintEnum } from '@syntara/contracts'
 import { z } from 'zod'
 
 import { PROVIDERS_REQUIRING_BASE_URL } from '../integrationFilters'

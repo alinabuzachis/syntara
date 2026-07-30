@@ -1,4 +1,4 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { WorkflowAPI } from '@syntara/contracts'
 
 import { workflowFetchClient } from '../../client'
 import { activitiesReferenceTrigger } from '../builder/utils/triggerReferenceCheck'

@@ -1,5 +1,5 @@
-import type { IntegrationsAPI } from '@ansible/nexus-contracts'
 import { Content, ContentVariants, Spinner, Stack, StackItem } from '@patternfly/react-core'
+import type { IntegrationsAPI } from '@syntara/contracts'
 
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 

@@ -1,4 +1,4 @@
-import { ActivityTypeEnum, EdgeHandleEnum } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, EdgeHandleEnum } from '@syntara/contracts'
 import { describe, expect, it } from 'vitest'
 
 import {

@@ -1,4 +1,4 @@
-import type { OutputFieldDef } from '@ansible/nexus-contracts'
+import type { OutputFieldDef } from '@syntara/contracts'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { axe } from 'vitest-axe'

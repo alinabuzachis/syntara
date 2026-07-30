@@ -1,4 +1,3 @@
-import { ExecutionsAPI } from '@ansible/nexus-contracts'
 import {
   Alert,
   Button,
@@ -10,6 +9,7 @@ import {
   Stack,
   StackItem,
 } from '@patternfly/react-core'
+import { ExecutionsAPI } from '@syntara/contracts'
 import { useState, useCallback, useRef, useEffect } from 'react'
 
 import { workflowFetchClient } from '../../../client'

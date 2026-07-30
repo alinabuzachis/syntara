@@ -1,4 +1,4 @@
-import type { Activity } from '@ansible/nexus-contracts'
+import type { Activity } from '@syntara/contracts'
 
 import { generateUUID } from '../../../../utils/generateUUID'
 import type { EdgeConnection } from '../../types/edge'

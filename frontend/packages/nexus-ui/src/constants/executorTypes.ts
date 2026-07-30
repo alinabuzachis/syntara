@@ -1,4 +1,4 @@
-import { ActivityTypeEnum } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum } from '@syntara/contracts'
 
 /**
  * SECURITY: API executor types — used to validate metadata overrides from untrusted workflow JSON.

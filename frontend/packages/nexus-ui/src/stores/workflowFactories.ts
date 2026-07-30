@@ -1,4 +1,4 @@
-import { ActivityTypeEnum, EdgeHandleEnum, type Activity, type NodeSettings } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, EdgeHandleEnum, type Activity, type NodeSettings } from '@syntara/contracts'
 
 import { PROTOTYPE_POLLUTION_KEYS, safeJSONReviver } from '../utils/jsonSafeParse'
 import { parseJsonEnvironment } from '../utils/parseJsonEnvironment'

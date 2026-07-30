@@ -1,4 +1,4 @@
-import type { WaitActivity } from '@ansible/nexus-contracts'
+import type { WaitActivity } from '@syntara/contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
 import { useShallow } from 'zustand/react/shallow'
 

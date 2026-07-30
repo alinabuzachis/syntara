@@ -1,4 +1,4 @@
-import type { IntegrationsAPI, Tool } from '@ansible/nexus-contracts'
+import type { IntegrationsAPI, Tool } from '@syntara/contracts'
 
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
 

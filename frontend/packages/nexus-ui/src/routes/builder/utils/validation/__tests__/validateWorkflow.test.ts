@@ -1,4 +1,4 @@
-import type { Activity } from '@ansible/nexus-contracts'
+import type { Activity } from '@syntara/contracts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { FlowNodeType } from '../../../../../constants'

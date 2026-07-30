@@ -284,7 +284,7 @@ All field names in the approval object use **snake_case** to match the backend A
 - `decision_notes` (not `decisionNotes`)
 - `created_at` (not `createdAt`)
 
-TypeScript types from `@ansible/nexus-contracts` enforce this casing at compile time.
+TypeScript types from `@syntara/contracts` enforce this casing at compile time.
 
 ## Common Patterns
 

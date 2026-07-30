@@ -1,4 +1,3 @@
-import { type IdentityProvidersAPI } from '@ansible/nexus-contracts'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Button,
@@ -9,6 +8,7 @@ import {
   StackItem,
 } from '@patternfly/react-core'
 import { RhUiArrowLeftIcon, RhUiSearchIcon, RhUiSyncIcon } from '@patternfly/react-icons'
+import { type IdentityProvidersAPI } from '@syntara/contracts'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useState, useCallback } from 'react'
 import { useForm } from 'react-hook-form'

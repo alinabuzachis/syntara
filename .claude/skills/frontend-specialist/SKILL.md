@@ -88,7 +88,7 @@ Standards for implementing, reviewing, and refactoring frontend code using React
 - [ ] No duplicated dialogs/logic -- use `NxConfirmationDialog`, `useDialogState`, `useDeleteAction`
 - [ ] List views use `useCursorPagination` -- no manual cursor state
 - [ ] File/function within ESLint size limits -- extraction preferred over suppression
-- [ ] Enum constants from `@ansible/nexus-contracts` -- no string literals for discriminators
+- [ ] Enum constants from `@syntara/contracts` -- no string literals for discriminators
 - [ ] CSS module classes over inline style objects -- more DOM-efficient and cacheable
 - [ ] `RhUi*` icons for all action buttons -- not PatternFly icons like `PlusCircleIcon`
 - [ ] No `eslint-disable` or `eslint-disable-next-line` in new/modified code -- fix the code so every rule passes; pre-existing suppressions are tech debt being cleaned up

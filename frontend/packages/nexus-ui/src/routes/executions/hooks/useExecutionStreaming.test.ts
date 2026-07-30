@@ -1,4 +1,4 @@
-import type { ExecutionsAPI } from '@ansible/nexus-contracts'
+import type { ExecutionsAPI } from '@syntara/contracts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook } from '@testing-library/react'
 import type { ReactNode } from 'react'

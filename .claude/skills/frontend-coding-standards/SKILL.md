@@ -561,10 +561,10 @@ if (activity.type === ActivityTypeEnum.CONDTION) {
 
 ### Available Enum Values
 
-The codebase provides centralized enum constants in `@ansible/nexus-contracts`:
+The codebase provides centralized enum constants in `@syntara/contracts`:
 
 ```typescript
-import { ActivityTypeEnum, TriggerTypeEnum, ExecutorTypeEnum, EdgeHandleEnum } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, TriggerTypeEnum, ExecutorTypeEnum, EdgeHandleEnum } from '@syntara/contracts'
 
 // Activity types (v2 — executor types are first-class node types, no 'task' wrapper)
 ActivityTypeEnum.SCRIPT // 'script'

@@ -1,4 +1,3 @@
-import type { IntegrationsAPI } from '@ansible/nexus-contracts'
 import {
   Button,
   Content,
@@ -20,6 +19,7 @@ import {
 } from '@patternfly/react-core'
 import { WrenchIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import type { IntegrationsAPI } from '@syntara/contracts'
 import { useMemo, useState } from 'react'
 
 import { NxPanelContentStack } from '../../../../components/layout/NxPanelContentStack'

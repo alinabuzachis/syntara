@@ -1,4 +1,4 @@
-import type { CredentialsAPI } from '@ansible/nexus-contracts'
+import type { CredentialsAPI } from '@syntara/contracts'
 
 /** Sentinel value used by the API to represent encrypted secret fields */
 export const ENCRYPTED_SENTINEL = '$encrypted$'

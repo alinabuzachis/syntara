@@ -1,4 +1,4 @@
-import type { Execution } from '@ansible/nexus-contracts'
+import type { Execution } from '@syntara/contracts'
 
 import { mockDate } from './mockDates'
 

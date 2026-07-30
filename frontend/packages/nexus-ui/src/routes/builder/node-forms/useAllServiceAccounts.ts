@@ -1,4 +1,4 @@
-import type { ServiceAccountsAPI } from '@ansible/nexus-contracts'
+import type { ServiceAccountsAPI } from '@syntara/contracts'
 import { useQuery } from '@tanstack/react-query'
 
 import { fetchAllPages, MAX_PAGE_SIZE } from '../../../utils/fetchAllPages'

@@ -8,7 +8,7 @@ import { InputNodeContent, InputPanelNodeSection } from './InputNodeContent'
 import { getTriggerInputSchemaFields } from './utils/triggerSchemaUtils'
 
 // Mock the getNodeOutputSchema function
-vi.mock('@ansible/nexus-contracts', () => ({
+vi.mock('@syntara/contracts', () => ({
   getNodeOutputSchema: vi.fn((type: string) => {
     if (type === 'script') {
       return {

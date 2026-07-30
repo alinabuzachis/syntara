@@ -1,5 +1,5 @@
-import type { ApprovalStatus } from '@ansible/nexus-contracts'
 import { RhUiDislikeFillIcon, RhUiLikeFillIcon, RhUiWarningFillIcon } from '@patternfly/react-icons'
+import type { ApprovalStatus } from '@syntara/contracts'
 
 import { NxLabel } from '../../components/labels/NxLabel'
 

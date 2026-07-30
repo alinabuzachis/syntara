@@ -20,7 +20,7 @@ function parseSchemasDir() {
   if (idx !== -1 && process.argv[idx + 1]) {
     return resolve(process.argv[idx + 1])
   }
-  // Default: monorepo backend path (three levels up from nexus-contracts)
+  // Default: monorepo backend path (three levels up from syntara-contracts)
   return resolve('../../../backend/src/nexus/schemas/workflows/v2')
 }
 

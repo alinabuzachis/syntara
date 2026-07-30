@@ -1,4 +1,3 @@
-import type { CredentialsAPI } from '@ansible/nexus-contracts'
 import {
   Button,
   Divider,
@@ -14,6 +13,7 @@ import {
   Spinner,
 } from '@patternfly/react-core'
 import { PlusIcon, RhUiErrorIcon } from '@patternfly/react-icons'
+import type { CredentialsAPI } from '@syntara/contracts'
 import React, { type ReactElement, useCallback, useMemo, useState } from 'react'
 
 import { credentialsClient } from '../../../client'

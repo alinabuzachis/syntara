@@ -1,4 +1,4 @@
-import { IntegrationStatusEnum, IntegrationTypeEnum, LLMProviderHintEnum } from '@ansible/nexus-contracts'
+import { IntegrationStatusEnum, IntegrationTypeEnum, LLMProviderHintEnum } from '@syntara/contracts'
 
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'

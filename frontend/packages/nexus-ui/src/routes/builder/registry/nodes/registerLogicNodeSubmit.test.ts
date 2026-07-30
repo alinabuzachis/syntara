@@ -1,4 +1,4 @@
-import { ActivityTypeEnum } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum } from '@syntara/contracts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockAddActivity = vi.fn()

@@ -1,4 +1,4 @@
-import { ExecutionStatusEnum } from '@ansible/nexus-contracts'
+import { ExecutionStatusEnum } from '@syntara/contracts'
 import { describe, expect, it } from 'vitest'
 
 import { isExecutionCancellable } from './executionCancellable'

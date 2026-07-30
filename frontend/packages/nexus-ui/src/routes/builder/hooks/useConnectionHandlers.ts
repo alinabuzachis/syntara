@@ -1,4 +1,4 @@
-import { EdgeHandleEnum } from '@ansible/nexus-contracts'
+import { EdgeHandleEnum } from '@syntara/contracts'
 import type { Connection, OnConnect } from '@xyflow/react'
 import { useCallback, useRef, type Dispatch, type SetStateAction } from 'react'
 

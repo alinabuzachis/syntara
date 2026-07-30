@@ -1,4 +1,4 @@
-import type { Tool, ToolManagerAPI } from '@ansible/nexus-contracts'
+import type { Tool, ToolManagerAPI } from '@syntara/contracts'
 import { useQuery } from '@tanstack/react-query'
 
 import { toolManagerFetchClient } from '../../../client'

@@ -1,4 +1,4 @@
-import type { Approval } from '@ansible/nexus-contracts'
+import type { Approval } from '@syntara/contracts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react'
 import { createElement } from 'react'

@@ -19,7 +19,7 @@ v2 OpenAPI spec            to generate v2              to produce v2 shapes     
 
 v2 OpenAPI YAML            v2 TypeScript types          Unit tests go GREEN         Clean codebase
 specs ready in             available in                 one by one as each          using only generated
-backend repo               @ansible/nexus-contracts    factory is updated          v2 types
+backend repo               @syntara/contracts    factory is updated          v2 types
 
                                                         Update save path            E2E tests go GREEN
                                                         (getWorkflowDefinition)     confirming full stack
@@ -31,7 +31,7 @@ backend repo               @ansible/nexus-contracts    factory is updated       
 | Step | Action                                                              | Outcome                                                                                                                         | Tests affected                                       |
 | ---- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
 | 1    | Backend v2 implementation complete                                  | v2 OpenAPI YAML specs in `nexus/src/nexus/schemas/`                                                                             | None yet                                             |
-| 2    | `npm run gen`                                                       | Generated v2 TypeScript types in `packages/nexus-contracts/src/`                                                                | Types available to code against                      |
+| 2    | `npm run gen`                                                       | Generated v2 TypeScript types in `packages/syntara-contracts/src/`                                                              | Types available to code against                      |
 | 3a   | Update factories (`workflowFactories.ts`) to produce v2 node shapes | Factories return `{ type: 'script', config: {...} }` instead of `{ type: 'task', task: { executor: 'script', config: {...} } }` | **Unit tests pass**                                  |
 | 3b   | Update save path (`getWorkflowDefinition()`) to build v2 payload    | Save sends `{ schema_version: '2.0.0', triggers: [], nodes: [], edges: [] }`                                                    | **E2E tests pass**                                   |
 | 4    | Delete `toV2Definition.ts` stub types                               | Only generated types remain                                                                                                     | No change — tests use factory output, not stub types |
@@ -51,7 +51,7 @@ backend repo               @ansible/nexus-contracts    factory is updated       
 Backend (nexus/)                      Contracts                              UI (nexus-ui/)
 ────────────────                      ─────────                              ──────────────
 
-src/nexus/schemas/                    packages/nexus-contracts/              packages/nexus-ui/
+src/nexus/schemas/                    packages/syntara-contracts/              packages/nexus-ui/
   workflows/openapi.yaml     ──┐
   executions_openapi.yaml    ──┤
   approvals/openapi.yaml     ──┼──  npm run gen  ──►  openapi-typescript
@@ -76,7 +76,7 @@ Running `npm run gen` in the nexus-ui repo:
 
 - Clones the backend repository
 - Runs `openapi-typescript` on each YAML spec
-- Outputs generated TypeScript type definitions into `packages/nexus-contracts/src/`
+- Outputs generated TypeScript type definitions into `packages/syntara-contracts/src/`
 - Copies workflow examples from the backend into the mock API
 
 The generated files include full path types (every endpoint with request/response shapes) and component schema types (every data model).

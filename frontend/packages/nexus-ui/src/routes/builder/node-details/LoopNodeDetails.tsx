@@ -1,4 +1,4 @@
-import type { LoopActivity } from '@ansible/nexus-contracts'
+import type { LoopActivity } from '@syntara/contracts'
 import type { ReactNode } from 'react'
 
 import { useAlerts } from '../../../providers/alerts'

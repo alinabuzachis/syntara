@@ -1,4 +1,4 @@
-import { ExecutorTypeEnum, TriggerTypeEnum, type TaskActivity } from '@ansible/nexus-contracts'
+import { ExecutorTypeEnum, TriggerTypeEnum, type TaskActivity } from '@syntara/contracts'
 import type { Node } from '@xyflow/react'
 import type { ComponentType } from 'react'
 

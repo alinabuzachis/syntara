@@ -1,4 +1,4 @@
-import type { Activity } from '@ansible/nexus-contracts'
+import type { Activity } from '@syntara/contracts'
 import { describe, expect, it } from 'vitest'
 
 import { buildNestedConditionStructure } from './buildNestedStructure'

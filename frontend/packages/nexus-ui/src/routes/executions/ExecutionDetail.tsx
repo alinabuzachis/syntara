@@ -1,6 +1,6 @@
-import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { Flex, FlexItem, TitleSizes } from '@patternfly/react-core'
 import type { ThProps } from '@patternfly/react-table'
+import type { ExecutionsAPI } from '@syntara/contracts'
 import { useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 import type React from 'react'
 import '@xyflow/react/dist/style.css'

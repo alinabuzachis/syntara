@@ -1,4 +1,4 @@
-import type { IdentityProvidersAPI } from '@ansible/nexus-contracts'
+import type { IdentityProvidersAPI } from '@syntara/contracts'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'

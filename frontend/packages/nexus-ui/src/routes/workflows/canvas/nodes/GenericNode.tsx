@@ -1,6 +1,6 @@
-import type { TaskActivity } from '@ansible/nexus-contracts'
 import { Content, ContentVariants, Flex, FlexItem } from '@patternfly/react-core'
 import { RhUiSettingsIcon } from '@patternfly/react-icons'
+import type { TaskActivity } from '@syntara/contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
 
 import { FlowNodeType } from '../../../../constants'

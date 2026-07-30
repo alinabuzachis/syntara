@@ -1,6 +1,6 @@
-import { getNodeOutputSchema, TriggerTypeEnum } from '@ansible/nexus-contracts'
 import { Alert, Button, Flex, FlexItem, Label, Stack, StackItem } from '@patternfly/react-core'
 import { RhUiCloseIcon } from '@patternfly/react-icons'
+import { getNodeOutputSchema, TriggerTypeEnum } from '@syntara/contracts'
 
 import type { UpstreamNodeInfo } from './hooks/useUpstreamNodes'
 import { InputEmptyState } from './InputEmptyState'

@@ -1,4 +1,3 @@
-import { ActivityTypeEnum } from '@ansible/nexus-contracts'
 import {
   Content,
   ContentVariants,
@@ -22,6 +21,7 @@ import {
   RhUiLikeFillIcon,
   RhUiWarningFillIcon,
 } from '@patternfly/react-icons'
+import { ActivityTypeEnum } from '@syntara/contracts'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { NxCodeBlock } from '../../components/details/NxCodeBlock'

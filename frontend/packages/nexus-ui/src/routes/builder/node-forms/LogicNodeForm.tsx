@@ -1,4 +1,4 @@
-import { ActivityTypeEnum, type NodeSettings } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, type NodeSettings } from '@syntara/contracts'
 import type { ReactNode } from 'react'
 
 import { ConditionNodeForm, type ConditionFormData } from './ConditionNodeForm'

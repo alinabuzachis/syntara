@@ -1,4 +1,3 @@
-import { ActivityTypeEnum } from '@ansible/nexus-contracts'
 import { Icon, Spinner } from '@patternfly/react-core'
 import {
   RhUiCheckCircleFillIcon,
@@ -8,6 +7,7 @@ import {
   RhUiStopCircleFillIcon,
   RhUiErrorFillIcon,
 } from '@patternfly/react-icons'
+import { ActivityTypeEnum } from '@syntara/contracts'
 
 import type { ActivityStatus } from '../../../routes/workflows/execution/types'
 import { activityStatusColors } from '../executionStatusConstants'

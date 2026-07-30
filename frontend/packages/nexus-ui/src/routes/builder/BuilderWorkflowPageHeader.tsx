@@ -1,6 +1,6 @@
-import type { ExecutionStatus } from '@ansible/nexus-contracts'
 import { Button, Content, ContentVariants, Flex, FlexItem, Icon, TextInput, Tooltip } from '@patternfly/react-core'
 import { RhUiClockIcon, RhUiUndoIcon } from '@patternfly/react-icons'
+import type { ExecutionStatus } from '@syntara/contracts'
 import { type Dispatch, type ReactNode } from 'react'
 
 import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'

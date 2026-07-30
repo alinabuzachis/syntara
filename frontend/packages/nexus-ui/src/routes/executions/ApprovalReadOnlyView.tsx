@@ -7,7 +7,6 @@
  * Used by ApprovalReviewView when useCanDecideApproval returns false.
  */
 
-import type { Approval } from '@ansible/nexus-contracts'
 import {
   Alert,
   Button,
@@ -23,6 +22,7 @@ import {
   StackItem,
   Title,
 } from '@patternfly/react-core'
+import type { Approval } from '@syntara/contracts'
 
 import { NxCodeBlock } from '../../components/details/NxCodeBlock'
 import { NxPanel } from '../../components/layout/NxPanel'

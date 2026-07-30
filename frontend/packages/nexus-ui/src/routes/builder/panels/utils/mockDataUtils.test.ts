@@ -1,11 +1,11 @@
-import type { OutputFieldDef } from '@ansible/nexus-contracts'
+import type { OutputFieldDef } from '@syntara/contracts'
 import { describe, expect, it, vi } from 'vitest'
 
 import { buildMockJsonSkeleton, parseJsonObject } from './mockDataUtils'
 
 const mockGetNodeOutputSchema = vi.fn<(nodeType: string) => OutputFieldDef[] | null>()
 
-vi.mock('@ansible/nexus-contracts', () => ({
+vi.mock('@syntara/contracts', () => ({
   getNodeOutputSchema: (nodeType: string) => mockGetNodeOutputSchema(nodeType),
 }))
 

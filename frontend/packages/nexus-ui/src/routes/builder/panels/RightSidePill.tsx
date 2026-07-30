@@ -1,7 +1,7 @@
-import { EdgeHandleEnum, type SwitchActivity, type SwitchConfig } from '@ansible/nexus-contracts'
 import { Button, Dropdown, DropdownItem, DropdownList, Icon, MenuToggle, Tooltip } from '@patternfly/react-core'
 import type { MenuToggleElement } from '@patternfly/react-core'
 import { RhUiAddIcon } from '@patternfly/react-icons'
+import { EdgeHandleEnum, type SwitchActivity, type SwitchConfig } from '@syntara/contracts'
 import type { Node } from '@xyflow/react'
 import { useCallback, useMemo, useState, type Ref } from 'react'
 

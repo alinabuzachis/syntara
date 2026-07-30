@@ -1,5 +1,5 @@
-import { ActivityTypeEnum, type ConvergeActivity } from '@ansible/nexus-contracts'
 import { Flex } from '@patternfly/react-core'
+import { ActivityTypeEnum, type ConvergeActivity } from '@syntara/contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
 
 import { NxDetail } from '../../../../components/details/NxDetail'

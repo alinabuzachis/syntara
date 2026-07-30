@@ -1,4 +1,4 @@
-import { IntegrationTypeEnum, LLMProviderHintEnum } from '@ansible/nexus-contracts'
+import { IntegrationTypeEnum, LLMProviderHintEnum } from '@syntara/contracts'
 import { describe, expect, it } from 'vitest'
 
 import { integrationFormSchema, getStep1Fields, getDefaultConfiguration } from './integrationFormSchema'

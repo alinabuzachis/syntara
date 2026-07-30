@@ -1,6 +1,6 @@
-import type { IntegrationsAPI } from '@ansible/nexus-contracts'
 import { Content, ContentVariants, Stack, StackItem, Truncate } from '@patternfly/react-core'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import type { IntegrationsAPI } from '@syntara/contracts'
 import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useState } from 'react'
 

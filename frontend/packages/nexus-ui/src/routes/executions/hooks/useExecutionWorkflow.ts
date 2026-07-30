@@ -1,4 +1,4 @@
-import type { ExecutionsAPI } from '@ansible/nexus-contracts'
+import type { ExecutionsAPI } from '@syntara/contracts'
 import { useMemo } from 'react'
 
 type Execution = ExecutionsAPI.components['schemas']['ExecutionRead']

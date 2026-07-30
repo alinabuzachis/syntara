@@ -1,4 +1,4 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { WorkflowAPI } from '@syntara/contracts'
 import { useCallback } from 'react'
 
 import { executionsFetchClient, workflowClient } from '../../client'

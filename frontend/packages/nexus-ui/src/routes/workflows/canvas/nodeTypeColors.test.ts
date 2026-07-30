@@ -1,4 +1,4 @@
-import { ExecutorTypeEnum } from '@ansible/nexus-contracts'
+import { ExecutorTypeEnum } from '@syntara/contracts'
 import { describe, expect, it } from 'vitest'
 
 import { FlowNodeType, RegistryNodeId } from '../../../constants'

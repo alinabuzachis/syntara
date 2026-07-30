@@ -1,4 +1,4 @@
-import type { IntegrationsAPI } from '@ansible/nexus-contracts'
+import type { IntegrationsAPI } from '@syntara/contracts'
 import { describe, expect, it } from 'vitest'
 
 import {

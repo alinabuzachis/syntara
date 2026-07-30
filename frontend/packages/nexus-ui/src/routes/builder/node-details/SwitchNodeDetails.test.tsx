@@ -1,4 +1,4 @@
-import { EdgeHandleEnum, type SwitchActivity } from '@ansible/nexus-contracts'
+import { EdgeHandleEnum, type SwitchActivity } from '@syntara/contracts'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'

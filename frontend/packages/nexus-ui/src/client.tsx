@@ -12,7 +12,7 @@ import type {
   ToolManagerAPI,
   UsersAPI,
   WorkflowAPI,
-} from '@ansible/nexus-contracts'
+} from '@syntara/contracts'
 import createFetchClient, { type Middleware } from 'openapi-fetch'
 import createClient from 'openapi-react-query'
 

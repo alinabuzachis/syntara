@@ -1,4 +1,4 @@
-import { type Activity, TriggerTypeEnum } from '@ansible/nexus-contracts'
+import { type Activity, TriggerTypeEnum } from '@syntara/contracts'
 import { describe, expect, it } from 'vitest'
 
 import { BUTTON_EDGE_DEFAULT_STROKE } from '../edges/buttonEdgeStrokeColor'

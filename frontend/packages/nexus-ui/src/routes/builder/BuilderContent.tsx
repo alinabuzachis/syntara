@@ -1,5 +1,5 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { AlertActionLink, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
+import type { WorkflowAPI } from '@syntara/contracts'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useReactFlow, useNodesInitialized } from '@xyflow/react'

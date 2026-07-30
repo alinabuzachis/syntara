@@ -1,4 +1,4 @@
-import { TriggerTypeEnum } from '@ansible/nexus-contracts'
+import { TriggerTypeEnum } from '@syntara/contracts'
 import { describe, expect, it } from 'vitest'
 
 import {

@@ -1,7 +1,7 @@
 /**
  * Type-safe API client for Access Management (RBAC) endpoints.
  *
- * Uses auto-generated path types from @ansible/nexus-contracts.
+ * Uses auto-generated path types from @syntara/contracts.
  * All RBAC-related specs are merged into a single client so that
  * consumers can call any access endpoint through one import.
  */
@@ -13,7 +13,7 @@ import type {
   RolesAPI,
   ServiceAccountsAPI,
   UsersAPI,
-} from '@ansible/nexus-contracts'
+} from '@syntara/contracts'
 import createFetchClient from 'openapi-fetch'
 import createClient from 'openapi-react-query'
 

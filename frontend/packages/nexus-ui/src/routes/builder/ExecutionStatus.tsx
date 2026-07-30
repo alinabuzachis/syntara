@@ -1,4 +1,3 @@
-import { ActivityTypeEnum, type ExecutionsAPI } from '@ansible/nexus-contracts'
 import {
   RhUiCheckCircleIcon,
   RhUiClockIcon,
@@ -11,6 +10,7 @@ import {
   RhUiSyncIcon,
   RhUiWarningFillIcon,
 } from '@patternfly/react-icons'
+import { ActivityTypeEnum, type ExecutionsAPI } from '@syntara/contracts'
 import type React from 'react'
 
 import { NxLabel } from '../../components/labels/NxLabel'

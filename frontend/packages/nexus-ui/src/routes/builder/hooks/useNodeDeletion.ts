@@ -1,4 +1,4 @@
-import { EdgeHandleEnum } from '@ansible/nexus-contracts'
+import { EdgeHandleEnum } from '@syntara/contracts'
 import type { OnNodesDelete } from '@xyflow/react'
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from 'react'
 

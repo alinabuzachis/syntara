@@ -1,4 +1,4 @@
-import { ActivityTypeEnum, type Activity } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, type Activity } from '@syntara/contracts'
 
 import { parseExpression } from '../../../utils/expressions/parser'
 import { serializeExpression } from '../../../utils/expressions/serializer'

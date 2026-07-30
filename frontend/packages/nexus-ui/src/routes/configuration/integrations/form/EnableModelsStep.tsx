@@ -1,4 +1,3 @@
-import type { IntegrationsAPI } from '@ansible/nexus-contracts'
 import {
   Button,
   Content,
@@ -13,6 +12,7 @@ import {
 } from '@patternfly/react-core'
 import { WrenchIcon } from '@patternfly/react-icons'
 import { Tbody, Th, Thead, Tr } from '@patternfly/react-table'
+import type { IntegrationsAPI } from '@syntara/contracts'
 import { useCallback, useMemo, useState } from 'react'
 
 import { FilterBar } from '../../../../components/filters/FilterBar'

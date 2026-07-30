@@ -1,5 +1,3 @@
-import type { IntegrationsAPI } from '@ansible/nexus-contracts'
-import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
 import {
   Divider,
   FormGroup,
@@ -8,6 +6,8 @@ import {
   SelectList,
   SelectOption,
 } from '@patternfly/react-core'
+import type { IntegrationsAPI } from '@syntara/contracts'
+import { IntegrationTypeEnum } from '@syntara/contracts'
 import { useQueries } from '@tanstack/react-query'
 import React, { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 

@@ -29,7 +29,7 @@ When backend API schemas change, regenerate the frontend TypeScript types:
 make gen-contracts
 ```
 
-This reads OpenAPI specs from `backend/src/nexus/schemas/` and generates types in `frontend/packages/nexus-contracts/src/`. Include the regenerated types in the same PR as the schema changes.
+This reads OpenAPI specs from `backend/src/nexus/schemas/` and generates types in `frontend/packages/syntara-contracts/src/`. Include the regenerated types in the same PR as the schema changes.
 
 ## Commit Conventions
 

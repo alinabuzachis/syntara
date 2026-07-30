@@ -1,4 +1,4 @@
-import type { IntegrationsAPI } from '@ansible/nexus-contracts'
+import type { IntegrationsAPI } from '@syntara/contracts'
 import { useMemo, useState } from 'react'
 
 type LLMModelRead = IntegrationsAPI.components['schemas']['LLMModelRead']

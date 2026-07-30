@@ -1,4 +1,4 @@
-import type { ConditionActivity } from '@ansible/nexus-contracts'
+import type { ConditionActivity } from '@syntara/contracts'
 import type { ReactNode } from 'react'
 
 import { useAlerts } from '../../../providers/alerts'

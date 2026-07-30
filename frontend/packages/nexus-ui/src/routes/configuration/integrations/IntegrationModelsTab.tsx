@@ -1,7 +1,7 @@
-import type { IntegrationsAPI } from '@ansible/nexus-contracts'
 import { Button, Content, ContentVariants, StackItem, ToolbarItem } from '@patternfly/react-core'
 import { RhUiSyncIcon } from '@patternfly/react-icons'
 import { Tbody, Th, Thead, Tr } from '@patternfly/react-table'
+import type { IntegrationsAPI } from '@syntara/contracts'
 import { useCallback, useMemo, useState } from 'react'
 
 import { integrationsClient } from '../../../client'

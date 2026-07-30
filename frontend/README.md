@@ -119,7 +119,7 @@ The frontend uses npm workspaces to organize its packages:
 frontend/
 ├── packages/
 │   ├── nexus-ui/              # Main React 19 application
-│   ├── nexus-contracts/       # OpenAPI TypeScript types
+│   ├── syntara-contracts/       # OpenAPI TypeScript types
 │   └── syntara-mock-api/        # MSW-based mock API server
 ├── docs/                      # Architecture and design documentation
 ├── tools/                     # Developer utilities (workflow creator, CI scripts)
@@ -247,7 +247,7 @@ We welcome contributions! Please read our [Contributing Guidelines](CONTRIBUTING
 - ReactFlow/XYFlow (workflow diagrams)
 - MSW (API mocking)
 
-### Nexus Contracts (Type Definitions)
+### Syntara Contracts (Type Definitions)
 
 - openapi-typescript (type generation)
 - Generated from the backend OpenAPI specs at `../backend/src/nexus/schemas/`

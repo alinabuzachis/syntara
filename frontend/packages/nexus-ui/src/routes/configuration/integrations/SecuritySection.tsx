@@ -1,5 +1,5 @@
-import type { IntegrationsAPI } from '@ansible/nexus-contracts'
 import { Alert, DescriptionList, StackItem, Title } from '@patternfly/react-core'
+import type { IntegrationsAPI } from '@syntara/contracts'
 
 import { NxDetail } from '../../../components/details/NxDetail'
 

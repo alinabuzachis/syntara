@@ -1,4 +1,4 @@
-import type * as AuthAPI from '@ansible/nexus-contracts/src/auth-api.js'
+import type * as AuthAPI from '@syntara/contracts/src/auth-api.js'
 
 export type GroupRead = AuthAPI.components['schemas']['GroupRead']
 

@@ -1,5 +1,3 @@
-import type { IntegrationsAPI } from '@ansible/nexus-contracts'
-import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   ActionGroup,
@@ -18,6 +16,8 @@ import {
   Title,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
+import type { IntegrationsAPI } from '@syntara/contracts'
+import { IntegrationTypeEnum } from '@syntara/contracts'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef } from 'react'

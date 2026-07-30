@@ -88,13 +88,13 @@ admin-password: ## Sync bootstrap admin password from .secrets/admin-password in
 # --- Contract generation ---
 
 gen-contracts: ## Regenerate TypeScript types from backend OpenAPI specs
-	cd frontend/packages/nexus-contracts && npm run gen:local
+	cd frontend/packages/syntara-contracts && npm run gen:local
 
 # --- Standards checks (removed from pre-commit, run in CI) ---
 
 run-standards-checks-frontend: ## Run frontend standards checks (contract generation)
-	cd frontend/packages/nexus-contracts && npm run gen:ts
-	@git diff --exit-code frontend/packages/nexus-contracts/src/ || { \
+	cd frontend/packages/syntara-contracts && npm run gen:ts
+	@git diff --exit-code frontend/packages/syntara-contracts/src/ || { \
 		echo "Generated contracts have uncommitted changes. Commit them."; \
 		exit 1; \
 	}

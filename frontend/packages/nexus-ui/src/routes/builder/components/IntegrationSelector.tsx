@@ -1,5 +1,3 @@
-import type { IntegrationsAPI } from '@ansible/nexus-contracts'
-import { IntegrationStatusEnum, IntegrationTypeEnum } from '@ansible/nexus-contracts'
 import {
   Button,
   FormGroup,
@@ -10,6 +8,8 @@ import {
   Spinner,
 } from '@patternfly/react-core'
 import { RhUiCheckCircleIcon, RhUiCloseCircleIcon, RhUiSyncIcon } from '@patternfly/react-icons'
+import type { IntegrationsAPI } from '@syntara/contracts'
+import { IntegrationStatusEnum, IntegrationTypeEnum } from '@syntara/contracts'
 import React, { type ReactElement, useCallback, useMemo, useState } from 'react'
 
 import { integrationsClient } from '../../../client'

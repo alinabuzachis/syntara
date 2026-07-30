@@ -1,4 +1,4 @@
-import type * as IntegrationsAPI from '@ansible/nexus-contracts/src/integrations-api.js'
+import type * as IntegrationsAPI from '@syntara/contracts/src/integrations-api.js'
 import { mockDate } from './mockDates'
 
 type LLMModelRead = IntegrationsAPI.components['schemas']['LLMModelRead']

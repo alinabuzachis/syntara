@@ -1,4 +1,3 @@
-import type { V2WorkflowDefinition } from '@ansible/nexus-contracts'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   AlertActionLink,
@@ -16,6 +15,7 @@ import {
   TextInput,
 } from '@patternfly/react-core'
 import type { DropEvent } from '@patternfly/react-core'
+import type { V2WorkflowDefinition } from '@syntara/contracts'
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'

@@ -1,4 +1,3 @@
-import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import {
   Button,
   Content,
@@ -17,6 +16,7 @@ import {
 } from '@patternfly/react-core'
 import { RhUiCloseIcon, RhUiHistoryIcon, RhUiRedoIcon } from '@patternfly/react-icons'
 import type { ThProps } from '@patternfly/react-table'
+import type { ExecutionsAPI } from '@syntara/contracts'
 import { useNavigate } from '@tanstack/react-router'
 import { useMemo, useState, type ReactNode } from 'react'
 

@@ -1,4 +1,4 @@
-import type { LoopActivity } from '@ansible/nexus-contracts'
+import type { LoopActivity } from '@syntara/contracts'
 import { describe, expect, it } from 'vitest'
 
 /**

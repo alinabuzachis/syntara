@@ -1,6 +1,6 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { Button } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiImportIcon } from '@patternfly/react-icons'
+import type { WorkflowAPI } from '@syntara/contracts'
 import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useMemo, useState } from 'react'
 

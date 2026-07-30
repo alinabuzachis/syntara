@@ -49,7 +49,7 @@ This skill detects drift between the OpenAPI spec and the implementation, then g
 
 ## Post-Fix: Contract Regeneration
 
-Whenever the bundled `openapi.yaml` changes, CI checks whether the generated TypeScript types in `frontend/packages/nexus-contracts/src/` are still in sync. After resolving all drift:
+Whenever the bundled `openapi.yaml` changes, CI checks whether the generated TypeScript types in `frontend/packages/syntara-contracts/src/` are still in sync. After resolving all drift:
 
 1. **Regenerate frontend contracts:**
 
@@ -60,7 +60,7 @@ Whenever the bundled `openapi.yaml` changes, CI checks whether the generated Typ
 2. **Check if contracts actually changed:**
 
    ```bash
-   git diff --stat -- frontend/packages/nexus-contracts/src/
+   git diff --stat -- frontend/packages/syntara-contracts/src/
    ```
 
    - If there are changes, commit them alongside the spec updates.

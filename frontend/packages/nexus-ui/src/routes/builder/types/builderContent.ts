@@ -1,4 +1,4 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { WorkflowAPI } from '@syntara/contracts'
 
 import type { ExecutionCopyData } from '../hooks/useExecutionCopyToEditor'
 

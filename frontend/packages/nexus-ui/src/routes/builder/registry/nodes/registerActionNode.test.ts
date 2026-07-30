@@ -1,4 +1,4 @@
-import { ExecutorTypeEnum } from '@ansible/nexus-contracts'
+import { ExecutorTypeEnum } from '@syntara/contracts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { RegistryNodeId } from '../../../../constants'

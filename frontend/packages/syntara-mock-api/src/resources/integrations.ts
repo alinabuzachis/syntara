@@ -1,5 +1,5 @@
-import type * as IntegrationsAPI from '@ansible/nexus-contracts/src/integrations-api.js'
-import { IntegrationStatusEnum, IntegrationTypeEnum } from '@ansible/nexus-contracts'
+import type * as IntegrationsAPI from '@syntara/contracts/src/integrations-api.js'
+import { IntegrationStatusEnum, IntegrationTypeEnum } from '@syntara/contracts'
 
 import { mockDate } from './mockDates'
 

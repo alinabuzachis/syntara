@@ -16,7 +16,7 @@ syntara/
 ├── frontend/          # React 19 / TypeScript / PatternFly 6 (npm workspaces)
 │   ├── packages/
 │   │   ├── nexus-ui/          # Main UI application
-│   │   ├── nexus-contracts/   # Generated TypeScript types from backend OpenAPI specs
+│   │   ├── syntara-contracts/   # Generated TypeScript types from backend OpenAPI specs
 │   │   └── syntara-mock-api/    # MSW-based mock API server
 │   └── package.json           # Workspace root (E2E tests at packages/nexus-ui/e2e/)
 ├── podman-compose.yml # Full-stack local dev (all services)
@@ -91,7 +91,7 @@ make -C backend db-clean      # Reset database (destructive)
 
 ## Contract Generation
 
-Backend OpenAPI specs live at `backend/src/nexus/schemas/`. Frontend TypeScript types are generated into `frontend/packages/nexus-contracts/src/`.
+Backend OpenAPI specs live at `backend/src/nexus/schemas/`. Frontend TypeScript types are generated into `frontend/packages/syntara-contracts/src/`.
 
 ```bash
 make gen-contracts

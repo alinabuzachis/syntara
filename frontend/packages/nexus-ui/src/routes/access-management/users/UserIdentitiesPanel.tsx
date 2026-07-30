@@ -1,7 +1,7 @@
-import type { IdentityProvidersAPI } from '@ansible/nexus-contracts'
 import { Button, EmptyState, EmptyStateBody, Flex, FlexItem, Label, StackItem, Truncate } from '@patternfly/react-core'
 import { RhUiKeyIcon, RhUiLinkIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import type { IdentityProvidersAPI } from '@syntara/contracts'
 import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 

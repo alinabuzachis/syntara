@@ -1,4 +1,4 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { WorkflowAPI } from '@syntara/contracts'
 import { describe, expect, it, vi } from 'vitest'
 
 import { builtinProjectTooltip } from '../../hooks/permissionUtils'

@@ -1,4 +1,4 @@
-import type { Activity } from '@ansible/nexus-contracts'
+import type { Activity } from '@syntara/contracts'
 
 /** Options for creating a condition fixture with flexible config */
 type ConditionOverrides = {

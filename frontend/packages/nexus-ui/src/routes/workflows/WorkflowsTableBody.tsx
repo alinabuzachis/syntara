@@ -1,7 +1,7 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { Flex, FlexItem, Truncate } from '@patternfly/react-core'
 import { RhUiCaretDownIcon, RhUiCaretRightIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Tr } from '@patternfly/react-table'
+import type { WorkflowAPI } from '@syntara/contracts'
 
 import groupedTableStyles from '../../components/groupedTable.module.css'
 import { NxLabel } from '../../components/labels/NxLabel'

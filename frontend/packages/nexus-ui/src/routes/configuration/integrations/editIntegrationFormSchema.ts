@@ -1,5 +1,5 @@
-import type { IntegrationsAPI } from '@ansible/nexus-contracts'
-import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
+import type { IntegrationsAPI } from '@syntara/contracts'
+import { IntegrationTypeEnum } from '@syntara/contracts'
 import { z } from 'zod'
 
 function isLoopback(hostname: string): boolean {

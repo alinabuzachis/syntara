@@ -1,4 +1,4 @@
-import type { SettingsAPI } from '@ansible/nexus-contracts'
+import type { SettingsAPI } from '@syntara/contracts'
 
 import { mockDate } from './mockDates'
 

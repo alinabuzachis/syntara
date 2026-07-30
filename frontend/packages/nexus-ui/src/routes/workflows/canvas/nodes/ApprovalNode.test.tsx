@@ -1,4 +1,4 @@
-import type { ApprovalActivity as ApprovalNodeType } from '@ansible/nexus-contracts'
+import type { ApprovalActivity as ApprovalNodeType } from '@syntara/contracts'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 

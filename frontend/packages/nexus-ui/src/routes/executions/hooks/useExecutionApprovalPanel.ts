@@ -1,4 +1,4 @@
-import type { Approval } from '@ansible/nexus-contracts'
+import type { Approval } from '@syntara/contracts'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useAlerts } from '../../../providers/alerts'

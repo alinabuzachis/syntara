@@ -1,3 +1,4 @@
+import { Button, Flex } from '@patternfly/react-core'
 import type {
   ConditionActivity,
   ConvergeActivity,
@@ -5,9 +6,8 @@ import type {
   SwitchActivity,
   TaskActivity,
   WaitActivity,
-} from '@ansible/nexus-contracts'
-import { ExecutorTypeEnum } from '@ansible/nexus-contracts'
-import { Button, Flex } from '@patternfly/react-core'
+} from '@syntara/contracts'
+import { ExecutorTypeEnum } from '@syntara/contracts'
 import type { Node } from '@xyflow/react'
 import type { ReactNode } from 'react'
 import { useState } from 'react'

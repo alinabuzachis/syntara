@@ -1,4 +1,3 @@
-import { ExecutorTypeEnum } from '@ansible/nexus-contracts'
 import {
   Flex,
   FlexItem,
@@ -16,6 +15,7 @@ import {
   TextArea,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
+import { ExecutorTypeEnum } from '@syntara/contracts'
 import React, { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 

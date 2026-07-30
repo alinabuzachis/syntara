@@ -1,10 +1,10 @@
-import type { Activity, WorkflowAPI } from '@ansible/nexus-contracts'
+import type { Activity, WorkflowAPI } from '@syntara/contracts'
 
 import { API_EXECUTOR_TYPES, type ApiExecutorType } from '../constants/executorTypes'
 import type { EdgeConnection } from '../routes/builder/types/edge'
 
 // Re-export v2 node types for backward compatibility
-export type { Activity, TaskActivity } from '@ansible/nexus-contracts'
+export type { Activity, TaskActivity } from '@syntara/contracts'
 
 // Type aliases from API contracts (v2)
 export type WorkflowDefinitionBase = WorkflowAPI.components['schemas']['WorkflowDefinition']

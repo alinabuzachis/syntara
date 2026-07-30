@@ -1,4 +1,4 @@
-import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
+import { IntegrationTypeEnum } from '@syntara/contracts'
 import { useCallback } from 'react'
 
 import { integrationsClient } from '../../../client'

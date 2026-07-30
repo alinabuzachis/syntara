@@ -1,10 +1,4 @@
 import {
-  MissedSchedulePolicyEnum,
-  ScheduleTypeEnum,
-  TriggerTypeEnum,
-  WEBHOOK_TRIGGER_TYPES,
-} from '@ansible/nexus-contracts'
-import {
   Alert,
   Content,
   ContentVariants,
@@ -20,6 +14,7 @@ import {
   StackItem,
   TextInput,
 } from '@patternfly/react-core'
+import { MissedSchedulePolicyEnum, ScheduleTypeEnum, TriggerTypeEnum, WEBHOOK_TRIGGER_TYPES } from '@syntara/contracts'
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'

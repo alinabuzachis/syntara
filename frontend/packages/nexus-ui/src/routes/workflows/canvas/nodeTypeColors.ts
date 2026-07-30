@@ -1,4 +1,4 @@
-import { ActivityTypeEnum, ExecutorTypeEnum, type TaskActivity } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, ExecutorTypeEnum, type TaskActivity } from '@syntara/contracts'
 
 import { AAP_NODE_IDS, FlowNodeType, RegistryNodeId } from '../../../constants'
 

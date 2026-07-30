@@ -1,6 +1,6 @@
-import { ExecutorTypeEnum, type TaskActivity } from '@ansible/nexus-contracts'
 import { Icon, Label } from '@patternfly/react-core'
 import { RhUiWarningFillIcon } from '@patternfly/react-icons'
+import { ExecutorTypeEnum, type TaskActivity } from '@syntara/contracts'
 import { Handle, type NodeProps, Position } from '@xyflow/react'
 import React, { useEffect, useMemo, useState } from 'react'
 

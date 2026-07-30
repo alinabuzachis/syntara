@@ -1,4 +1,4 @@
-import { EdgeHandleEnum, TriggerTypeEnum } from '@ansible/nexus-contracts'
+import { EdgeHandleEnum, TriggerTypeEnum } from '@syntara/contracts'
 import { describe, expect, it } from 'vitest'
 
 import { buildSwitchCasePort } from '../routes/builder/utils/switchCaseHelpers'

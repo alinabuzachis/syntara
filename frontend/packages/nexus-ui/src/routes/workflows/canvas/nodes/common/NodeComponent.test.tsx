@@ -1,4 +1,4 @@
-import { ExecutorTypeEnum } from '@ansible/nexus-contracts'
+import { ExecutorTypeEnum } from '@syntara/contracts'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { NodeProps } from '@xyflow/react'

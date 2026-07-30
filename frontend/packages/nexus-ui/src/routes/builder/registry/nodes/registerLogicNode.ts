@@ -1,4 +1,3 @@
-import { ActivityTypeEnum } from '@ansible/nexus-contracts'
 import {
   RhUiBranchFillIcon,
   RhUiConditionNodeIcon,
@@ -7,6 +6,7 @@ import {
   RhUiMergeNodesIcon,
   RhUiTreeViewIcon,
 } from '@patternfly/react-icons'
+import { ActivityTypeEnum } from '@syntara/contracts'
 
 import { RegistryNodeId } from '../../../../constants'
 import { LogicNodeForm, type LogicFormData } from '../../node-forms/LogicNodeForm'

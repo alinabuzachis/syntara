@@ -1,6 +1,6 @@
-import type { Execution } from '@ansible/nexus-contracts'
 import { StackItem } from '@patternfly/react-core'
 import { Thead, Tr, Th } from '@patternfly/react-table'
+import type { Execution } from '@syntara/contracts'
 import { useSearch } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 

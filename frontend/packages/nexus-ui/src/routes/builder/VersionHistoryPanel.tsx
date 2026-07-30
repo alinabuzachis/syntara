@@ -1,4 +1,3 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import {
   Button,
   Content,
@@ -33,6 +32,7 @@ import {
   RhUiPublishIcon,
   RhUiUndoIcon,
 } from '@patternfly/react-icons'
+import type { WorkflowAPI } from '@syntara/contracts'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react'
 
 import { AppRoute } from '../../app/AppRoute'

@@ -56,14 +56,14 @@ Checks for breaking changes in OpenAPI spec using `oasdiff`. Automatically resol
 ```
 
 #### `check-contract-regeneration.py`
-Checks that frontend contracts are regenerated when the OpenAPI spec changes. In the monorepo, when `backend/src/nexus/schemas/openapi.yaml` changes, the TypeScript types in `frontend/packages/nexus-contracts/src/` should also be updated via `make gen-contracts`. If the bundled spec is unchanged, the check is skipped.
+Checks that frontend contracts are regenerated when the OpenAPI spec changes. In the monorepo, when `backend/src/nexus/schemas/openapi.yaml` changes, the TypeScript types in `frontend/packages/syntara-contracts/src/` should also be updated via `make gen-contracts`. If the bundled spec is unchanged, the check is skipped.
 
 ```bash
 # Check against devel branch (auto-detects changed files)
 ./check-contract-regeneration.py --changed-files-from devel
 
 # Check with explicit file list
-./check-contract-regeneration.py --changed-files backend/src/nexus/schemas/openapi.yaml frontend/packages/nexus-contracts/src/index.ts
+./check-contract-regeneration.py --changed-files backend/src/nexus/schemas/openapi.yaml frontend/packages/syntara-contracts/src/index.ts
 
 # Include PR body for exception justification
 ./check-contract-regeneration.py --changed-files-from devel --pr-body "no-contract-regen: description-only change"
@@ -174,7 +174,7 @@ make check-openapi-contracts
 # Simulate spec + contract update (expect success)
 ./scripts/openapi/check-contract-regeneration.py \
   --changed-files backend/src/nexus/schemas/openapi.yaml \
-    frontend/packages/nexus-contracts/src/index.ts \
+    frontend/packages/syntara-contracts/src/index.ts \
   --format text
 
 # Spec change with no-contract-regen exception in PR body

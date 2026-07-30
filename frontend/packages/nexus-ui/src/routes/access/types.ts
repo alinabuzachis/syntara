@@ -4,12 +4,12 @@
  * Re-exported from auto-generated OpenAPI contracts so that consumer
  * imports stay unchanged while types stay in sync with the backend.
  */
-import type { User } from '@ansible/nexus-contracts'
-import type * as AuthzAPI from '@ansible/nexus-contracts/src/authz-api.js'
-import type * as PoliciesAPI from '@ansible/nexus-contracts/src/policies-api.js'
-import type * as ProjectsAPI from '@ansible/nexus-contracts/src/projects-api.js'
-import type * as RoleAssignmentsAPI from '@ansible/nexus-contracts/src/role-assignments-api.js'
-import type * as RolesAPI from '@ansible/nexus-contracts/src/roles-api.js'
+import type { User } from '@syntara/contracts'
+import type * as AuthzAPI from '@syntara/contracts/src/authz-api.js'
+import type * as PoliciesAPI from '@syntara/contracts/src/policies-api.js'
+import type * as ProjectsAPI from '@syntara/contracts/src/projects-api.js'
+import type * as RoleAssignmentsAPI from '@syntara/contracts/src/role-assignments-api.js'
+import type * as RolesAPI from '@syntara/contracts/src/roles-api.js'
 
 import type { RolePrincipalType } from '../access-management/RoleAssignmentTypes'
 

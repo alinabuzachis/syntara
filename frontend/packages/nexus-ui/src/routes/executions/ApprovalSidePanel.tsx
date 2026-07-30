@@ -1,5 +1,5 @@
-import type { Approval } from '@ansible/nexus-contracts'
 import { Stack, StackItem } from '@patternfly/react-core'
+import type { Approval } from '@syntara/contracts'
 
 import { ApprovalNavigationHeader } from '../../components/ApprovalNavigationHeader'
 import { NxPanel } from '../../components/layout/NxPanel'

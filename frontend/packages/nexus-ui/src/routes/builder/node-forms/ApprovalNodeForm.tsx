@@ -1,4 +1,3 @@
-import type { Activity } from '@ansible/nexus-contracts'
 import {
   FormGroup,
   HelperText,
@@ -11,6 +10,7 @@ import {
   StackItem,
   TextArea,
 } from '@patternfly/react-core'
+import type { Activity } from '@syntara/contracts'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'

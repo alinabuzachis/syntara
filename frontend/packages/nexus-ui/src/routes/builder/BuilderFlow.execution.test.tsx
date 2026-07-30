@@ -4,7 +4,7 @@
  * Tests for execution state enrichment, skip detection, and conditional node inference
  */
 
-import type { Activity } from '@ansible/nexus-contracts'
+import type { Activity } from '@syntara/contracts'
 import { describe, it, expect } from 'vitest'
 
 import type { ActivityState } from '../workflows/execution/types'

@@ -1,4 +1,4 @@
-import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
+import { IntegrationTypeEnum } from '@syntara/contracts'
 import { render, screen, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useForm } from 'react-hook-form'

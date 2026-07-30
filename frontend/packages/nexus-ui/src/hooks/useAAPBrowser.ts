@@ -1,4 +1,4 @@
-import type { AAPAPI } from '@ansible/nexus-contracts'
+import type { AAPAPI } from '@syntara/contracts'
 import { useCallback, useMemo, useState } from 'react'
 
 import { aapClient } from '../client'

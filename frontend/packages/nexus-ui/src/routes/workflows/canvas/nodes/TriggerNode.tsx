@@ -1,5 +1,5 @@
-import { TriggerTypeEnum } from '@ansible/nexus-contracts'
 import { FlexItem, Content, ContentVariants, Title, TitleSizes } from '@patternfly/react-core'
+import { TriggerTypeEnum } from '@syntara/contracts'
 import { type Node, type NodeProps, useStore } from '@xyflow/react'
 import type { CSSProperties } from 'react'
 

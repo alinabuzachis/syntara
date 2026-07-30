@@ -1,4 +1,3 @@
-import type { IntegrationsAPI, ToolManagerAPI } from '@ansible/nexus-contracts'
 import {
   Alert,
   FormGroup,
@@ -10,6 +9,7 @@ import {
   TextArea,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
+import type { IntegrationsAPI, ToolManagerAPI } from '@syntara/contracts'
 import type { ReactNode } from 'react'
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { Control, UseFormSetValue } from 'react-hook-form'

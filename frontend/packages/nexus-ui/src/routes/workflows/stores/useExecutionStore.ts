@@ -11,7 +11,7 @@
  * details with real-time updates via WebSocket or REST API fallback.
  */
 
-import type { ExecutionsAPI } from '@ansible/nexus-contracts'
+import type { ExecutionsAPI } from '@syntara/contracts'
 import { create } from 'zustand'
 
 import type {

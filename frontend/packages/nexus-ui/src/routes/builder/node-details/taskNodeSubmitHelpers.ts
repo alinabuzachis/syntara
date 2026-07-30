@@ -1,4 +1,4 @@
-import { ExecutorTypeEnum, type Activity, type TaskActivity } from '@ansible/nexus-contracts'
+import { ExecutorTypeEnum, type Activity, type TaskActivity } from '@syntara/contracts'
 
 import { generateUUID } from '../../../utils/generateUUID'
 import { PROTOTYPE_POLLUTION_KEYS, safeJSONReviver } from '../../../utils/jsonSafeParse'

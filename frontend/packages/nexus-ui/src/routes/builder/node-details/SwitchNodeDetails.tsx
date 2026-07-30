@@ -1,4 +1,4 @@
-import { EdgeHandleEnum, type SwitchActivity, type SwitchConfig } from '@ansible/nexus-contracts'
+import { EdgeHandleEnum, type SwitchActivity, type SwitchConfig } from '@syntara/contracts'
 import { type ReactNode, useMemo } from 'react'
 import { z } from 'zod'
 

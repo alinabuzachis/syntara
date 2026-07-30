@@ -1,6 +1,6 @@
-import type { IntegrationsAPI } from '@ansible/nexus-contracts'
-import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
 import { FormGroup, type MenuToggleElement, SelectList, SelectOption } from '@patternfly/react-core'
+import type { IntegrationsAPI } from '@syntara/contracts'
+import { IntegrationTypeEnum } from '@syntara/contracts'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { integrationsClient } from '../../../client'

@@ -1,4 +1,4 @@
-import { EdgeHandleEnum } from '@ansible/nexus-contracts'
+import { EdgeHandleEnum } from '@syntara/contracts'
 import { useEffect } from 'react'
 
 import { markerEnd, type EdgeType } from '../utils/workflowToGraph'

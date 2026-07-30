@@ -818,7 +818,7 @@ test('user executes a workflow', async ({ app }) => {
 
 **Benefits:** Fast setup (skips UI), reliable cleanup, test what matters (use UI for assertions, API for setup/teardown).
 
-**Keep API paths in sync:** The paths used in resource utilities (e.g., `/api/v1/workflows`) must match the real backend OpenAPI contract. When backend endpoints change, update these helpers to match. Run `npm run gen` to regenerate contracts and verify paths against the generated types in `@ansible/nexus-contracts`.
+**Keep API paths in sync:** The paths used in resource utilities (e.g., `/api/v1/workflows`) must match the real backend OpenAPI contract. When backend endpoints change, update these helpers to match. Run `npm run gen` to regenerate contracts and verify paths against the generated types in `@syntara/contracts`.
 
 ---
 

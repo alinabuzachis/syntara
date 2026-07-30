@@ -1,6 +1,6 @@
-import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { Content, ContentVariants, Label, Stack, StackItem, Truncate } from '@patternfly/react-core'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import type { ExecutionsAPI } from '@syntara/contracts'
 import { useCallback, useState } from 'react'
 
 import { stackPaddingLgOnlyStyle } from '../../../app/panelContentStackStyle'

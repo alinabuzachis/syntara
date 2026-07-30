@@ -1,4 +1,3 @@
-import type { AAPAPI } from '@ansible/nexus-contracts'
 import {
   FormGroup,
   FormHelperText,
@@ -14,6 +13,7 @@ import {
   StackItem,
   type MenuToggleElement,
 } from '@patternfly/react-core'
+import type { AAPAPI } from '@syntara/contracts'
 import React, { useEffect, useRef, useState, type ReactElement } from 'react'
 import { Controller, useFormContext } from 'react-hook-form'
 

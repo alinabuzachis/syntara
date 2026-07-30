@@ -1,5 +1,3 @@
-import type { IntegrationsAPI, Tool } from '@ansible/nexus-contracts'
-import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
 import {
   ActionGroup,
   Badge,
@@ -14,6 +12,8 @@ import {
   Tooltip,
 } from '@patternfly/react-core'
 import { RhUiCheckCircleIcon, RhUiEditIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import type { IntegrationsAPI, Tool } from '@syntara/contracts'
+import { IntegrationTypeEnum } from '@syntara/contracts'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'

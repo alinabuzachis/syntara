@@ -1,7 +1,7 @@
-import type { Group } from '@ansible/nexus-contracts'
 import { Badge, Button, Content, Truncate } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
+import type { Group } from '@syntara/contracts'
 import { useNavigate } from '@tanstack/react-router'
 import { useMemo } from 'react'
 

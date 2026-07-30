@@ -1,4 +1,4 @@
-import { ActivityTypeEnum, EdgeHandleEnum, type Activity } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, EdgeHandleEnum, type Activity } from '@syntara/contracts'
 import { useMemo } from 'react'
 
 import { FlowNodeType } from '../../../constants'

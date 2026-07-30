@@ -1,4 +1,4 @@
-import { ActivityTypeEnum, EdgeHandleEnum } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, EdgeHandleEnum } from '@syntara/contracts'
 
 import type { EdgeConnection } from '../routes/builder/types/edge'
 import { isSwitchCasePort } from '../routes/builder/utils/switchCaseHelpers'

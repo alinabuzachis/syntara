@@ -1,4 +1,4 @@
-import { TriggerTypeEnum } from '@ansible/nexus-contracts'
+import { TriggerTypeEnum } from '@syntara/contracts'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'

@@ -1,4 +1,4 @@
-import { getNodeOutputSchema, type OutputFieldDef } from '@ansible/nexus-contracts'
+import { getNodeOutputSchema, type OutputFieldDef } from '@syntara/contracts'
 
 /**
  * Build a JSON skeleton string from a node's output schema.

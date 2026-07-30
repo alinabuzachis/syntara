@@ -1,5 +1,3 @@
-import type { IntegrationsAPI } from '@ansible/nexus-contracts'
-import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   ActionList,
@@ -11,6 +9,8 @@ import {
   WizardStep,
   useWizardContext,
 } from '@patternfly/react-core'
+import type { IntegrationsAPI } from '@syntara/contracts'
+import { IntegrationTypeEnum } from '@syntara/contracts'
 import { useCallback, useState } from 'react'
 import { useForm, useWatch, type Resolver, type UseFormTrigger } from 'react-hook-form'
 

@@ -1,4 +1,4 @@
-import { ActivityTypeEnum, EdgeHandleEnum } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, EdgeHandleEnum } from '@syntara/contracts'
 
 import { RegistryNodeId } from '../../../../constants'
 import {

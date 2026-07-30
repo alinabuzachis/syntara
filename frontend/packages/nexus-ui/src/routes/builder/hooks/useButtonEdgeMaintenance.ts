@@ -1,4 +1,4 @@
-import { EdgeHandleEnum, type SwitchConfig } from '@ansible/nexus-contracts'
+import { EdgeHandleEnum, type SwitchConfig } from '@syntara/contracts'
 import { useEffect, useMemo, useRef } from 'react'
 import { flushSync } from 'react-dom'
 

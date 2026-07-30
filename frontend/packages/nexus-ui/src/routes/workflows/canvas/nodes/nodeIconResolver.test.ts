@@ -1,4 +1,4 @@
-import { ExecutorTypeEnum, TriggerTypeEnum, type TaskActivity } from '@ansible/nexus-contracts'
+import { ExecutorTypeEnum, TriggerTypeEnum, type TaskActivity } from '@syntara/contracts'
 import { describe, expect, it, vi } from 'vitest'
 
 import { RegistryNodeId } from '../../../../constants'

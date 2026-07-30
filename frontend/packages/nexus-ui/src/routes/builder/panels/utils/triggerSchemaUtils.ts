@@ -1,4 +1,4 @@
-import type { OutputFieldDef } from '@ansible/nexus-contracts'
+import type { OutputFieldDef } from '@syntara/contracts'
 
 import { parseTriggerIndex } from '../../../../utils/triggerNodeIds'
 

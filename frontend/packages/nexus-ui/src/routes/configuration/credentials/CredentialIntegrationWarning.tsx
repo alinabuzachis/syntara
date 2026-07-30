@@ -1,5 +1,5 @@
-import type { IntegrationsAPI } from '@ansible/nexus-contracts'
 import { Alert, Badge, Content, ContentVariants, List, ListItem } from '@patternfly/react-core'
+import type { IntegrationsAPI } from '@syntara/contracts'
 
 type Integration = IntegrationsAPI.components['schemas']['IntegrationRead']
 

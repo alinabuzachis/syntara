@@ -1,4 +1,3 @@
-import { IntegrationTypeEnum } from '@ansible/nexus-contracts'
 import {
   Checkbox,
   Content,
@@ -18,6 +17,7 @@ import {
   Title,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
+import { IntegrationTypeEnum } from '@syntara/contracts'
 import { type ReactNode, type Ref, useCallback, useState } from 'react'
 import { Controller, useWatch, type Control, type UseFormSetValue } from 'react-hook-form'
 

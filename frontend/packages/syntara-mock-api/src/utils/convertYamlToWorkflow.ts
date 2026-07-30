@@ -1,4 +1,4 @@
-import { WorkflowVersionStatusEnum, type WorkflowAPI } from '@ansible/nexus-contracts'
+import { WorkflowVersionStatusEnum, type WorkflowAPI } from '@syntara/contracts'
 import { readFileSync } from 'fs'
 import yaml from 'js-yaml'
 import { basename, isAbsolute, relative, resolve } from 'path'

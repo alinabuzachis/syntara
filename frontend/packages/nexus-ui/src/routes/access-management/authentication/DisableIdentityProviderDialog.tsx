@@ -1,5 +1,5 @@
-import type { IdentityProvidersAPI } from '@ansible/nexus-contracts'
 import { Content, ContentVariants } from '@patternfly/react-core'
+import type { IdentityProvidersAPI } from '@syntara/contracts'
 
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 

@@ -1,5 +1,5 @@
-import { ExecutionStatusEnum } from '@ansible/nexus-contracts'
-import type { ExecutionStatus } from '@ansible/nexus-contracts'
+import { ExecutionStatusEnum } from '@syntara/contracts'
+import type { ExecutionStatus } from '@syntara/contracts'
 
 const RETRYABLE_STATUSES = new Set<ExecutionStatus>([
   ExecutionStatusEnum.COMPLETED,

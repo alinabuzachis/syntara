@@ -1,5 +1,5 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { AlertActionLink } from '@patternfly/react-core'
+import type { WorkflowAPI } from '@syntara/contracts'
 import { useCallback, useState } from 'react'
 
 import { workflowFetchClient } from '../../client'

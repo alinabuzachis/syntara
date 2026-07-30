@@ -1,4 +1,4 @@
-import type { UsersAPI } from '@ansible/nexus-contracts'
+import type { UsersAPI } from '@syntara/contracts'
 
 type AuthType = UsersAPI.components['schemas']['AuthType']
 

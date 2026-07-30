@@ -1,5 +1,5 @@
-import type { IntegrationsAPI } from '@ansible/nexus-contracts'
-import { IntegrationTypeEnum, LLMProviderHintEnum } from '@ansible/nexus-contracts'
+import type { IntegrationsAPI } from '@syntara/contracts'
+import { IntegrationTypeEnum, LLMProviderHintEnum } from '@syntara/contracts'
 import { z } from 'zod'
 
 type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']

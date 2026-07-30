@@ -38,11 +38,11 @@ jobs:
 
       - name: Check for drift
         run: |
-          if git diff --quiet frontend/packages/nexus-contracts/src/; then
+          if git diff --quiet frontend/packages/syntara-contracts/src/; then
             echo "No contract drift detected."
           else
             echo "::error::Generated contracts are out of date. Run 'make gen-contracts' and commit the result."
-            git diff --stat frontend/packages/nexus-contracts/src/
-            git diff frontend/packages/nexus-contracts/src/
+            git diff --stat frontend/packages/syntara-contracts/src/
+            git diff frontend/packages/syntara-contracts/src/
             exit 1
           fi

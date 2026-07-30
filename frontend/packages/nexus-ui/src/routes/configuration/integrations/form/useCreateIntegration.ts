@@ -1,4 +1,4 @@
-import { IntegrationTypeEnum, type IntegrationsAPI } from '@ansible/nexus-contracts'
+import { IntegrationTypeEnum, type IntegrationsAPI } from '@syntara/contracts'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 

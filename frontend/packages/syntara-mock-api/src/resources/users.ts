@@ -1,4 +1,4 @@
-import type * as UsersAPI from '@ansible/nexus-contracts/src/users-api.js'
+import type * as UsersAPI from '@syntara/contracts/src/users-api.js'
 
 export type UserRead = UsersAPI.components['schemas']['UserRead']
 export type UserIdentityRead = UsersAPI.components['schemas']['UserIdentityRead']

@@ -1,4 +1,3 @@
-import type { SettingsAPI } from '@ansible/nexus-contracts'
 import {
   Button,
   Label,
@@ -15,6 +14,7 @@ import {
   TextInputGroupUtilities,
 } from '@patternfly/react-core'
 import { TimesIcon } from '@patternfly/react-icons'
+import type { SettingsAPI } from '@syntara/contracts'
 import React, { useEffect, useRef, useState } from 'react'
 import { z } from 'zod'
 

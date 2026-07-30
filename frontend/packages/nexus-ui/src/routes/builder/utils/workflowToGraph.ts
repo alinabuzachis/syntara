@@ -1,4 +1,4 @@
-import { ActivityTypeEnum, ScheduleTypeEnum, TriggerTypeEnum, type Activity } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, ScheduleTypeEnum, TriggerTypeEnum, type Activity } from '@syntara/contracts'
 import { MarkerType } from '@xyflow/react'
 
 import { formatScheduleSummary } from '../../../utils/triggerFormatting'

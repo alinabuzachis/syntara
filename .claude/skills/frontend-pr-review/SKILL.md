@@ -97,7 +97,7 @@ Check whether the changes follow:
 | Manual `useState` per form field                            | #4 -- should use Zod + react-hook-form                                          |
 | `useForm` with `defaultValues` in modals                    | #5 -- verify `reset()` in `useEffect([isOpen, item])`                           |
 | Copy-pasted dialogs or action handlers                      | #6 -- extract to shared component/hook                                          |
-| String literals for type discriminators                     | #9 -- use enum constants from `@ansible/nexus-contracts`                        |
+| String literals for type discriminators                     | #9 -- use enum constants from `@syntara/contracts`                        |
 | Display strings in conditionals                             | #10 -- compare API values, not translatable labels                              |
 | New route in `AppRoute.tsx` without registry entry          | Add to `e2e/visual-regression/page-registry.ts` (see `frontend/packages/nexus-ui/VISUAL_REGRESSION.md`)    |
 | Title Case in alert titles                                  | Use sentence case: "Workflow created", not "Created"                            |

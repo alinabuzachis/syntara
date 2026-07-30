@@ -1,5 +1,5 @@
-import type { CredentialsAPI } from '@ansible/nexus-contracts'
 import { Content, ContentVariants } from '@patternfly/react-core'
+import type { CredentialsAPI } from '@syntara/contracts'
 
 import { NxLink } from '../../../components/NxLink'
 import { formatDateTime } from '../../../utils/dateUtils'

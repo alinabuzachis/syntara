@@ -1,4 +1,4 @@
-import { ExecutorTypeEnum } from '@ansible/nexus-contracts'
+import { ExecutorTypeEnum } from '@syntara/contracts'
 import { z } from 'zod'
 
 import { parseJsonEnvironment } from '../../../utils/parseJsonEnvironment'

@@ -1,4 +1,4 @@
-import { ActivityTypeEnum } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum } from '@syntara/contracts'
 import type { ReactFlowInstance } from '@xyflow/react'
 import { useCallback, type Dispatch } from 'react'
 

@@ -1,4 +1,4 @@
-import { EdgeHandleEnum } from '@ansible/nexus-contracts'
+import { EdgeHandleEnum } from '@syntara/contracts'
 
 import { DEFAULT_NEUTRAL_EDGE_STROKE } from '../../../constants/workflowEdgeStrokeTokens'
 

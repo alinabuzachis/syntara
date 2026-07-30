@@ -65,7 +65,7 @@ npm start
 ### Monorepo Structure
 
 - `packages/nexus-ui`: Main React application
-- `packages/nexus-contracts`: OpenAPI TypeScript types
+- `packages/syntara-contracts`: OpenAPI TypeScript types
 - `packages/syntara-mock-api`: MSW-based mock API server
 
 ### Key Architectural Patterns
@@ -77,7 +77,7 @@ npm start
 
 ## Updating API Contracts
 
-The `nexus-contracts` package contains auto-generated TypeScript types from the backend OpenAPI schemas. These must be updated whenever the backend API changes.
+The `syntara-contracts` package contains auto-generated TypeScript types from the backend OpenAPI schemas. These must be updated whenever the backend API changes.
 
 ### Backend Access
 
@@ -89,7 +89,7 @@ The `nexus-contracts` package contains auto-generated TypeScript types from the 
 The recommended approach is using the automated gen script (see below). For manual generation with a local backend clone:
 
 ```bash
-cd packages/nexus-contracts
+cd packages/syntara-contracts
 
 # Replace /path/to/nexus with your local backend clone path
 npx openapi-typescript /path/to/nexus/src/nexus/schemas/workflows/openapi.yaml \
@@ -330,7 +330,7 @@ See [docs/architecture.md](docs/architecture.md) — "Where to look when debuggi
 | Port 5173 or 3000 already in use          | Kill the existing process or change the port                                                                                            |
 | Broad Zustand subscriptions               | Use custom hooks (`useActivities()`, etc.) instead of `useWorkflowStore()` with no selector                                             |
 | Non-atomic coupled state updates          | Use `batchRemoveNodesAndEdges()` instead of separate calls                                                                              |
-| String literals for activity / step types | Use enum constants from `@ansible/nexus-contracts` (e.g., `ActivityTypeEnum.CONDITION`)                                                 |
+| String literals for activity / step types | Use enum constants from `@syntara/contracts` (e.g., `ActivityTypeEnum.CONDITION`)                                                       |
 | Using display strings in logic            | Compare raw API values, not translated labels                                                                                           |
 | Unary `void` for promises or side effects | Use `detachPromise(...)` from `utils/detachPromise`, `await`, or a small `async` helper — ESLint `no-void` and Sonar forbid `void expr` |
 
@@ -348,7 +348,7 @@ See [docs/zustand-architecture.md](docs/zustand-architecture.md) — "Common Pit
 
 ### API Interaction
 
-- Use generated OpenAPI types from `@ansible/nexus-contracts`
+- Use generated OpenAPI types from `@syntara/contracts`
 - Handle loading and error states with `useQueryState` and `useMutationErrorHandler`
 - Use TanStack Query hooks (`workflowClient.useQuery`, `workflowClient.useMutation`)
 - See [docs/data-flow.md](docs/data-flow.md) for the complete API integration guide

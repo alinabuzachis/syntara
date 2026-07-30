@@ -1,4 +1,4 @@
-import { ExecutorTypeEnum, type TaskActivity } from '@ansible/nexus-contracts'
+import { ExecutorTypeEnum, type TaskActivity } from '@syntara/contracts'
 import { describe, expect, it } from 'vitest'
 
 import type { ActionFormData } from '../hooks/useNodeCreation'

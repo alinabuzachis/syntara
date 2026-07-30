@@ -1,4 +1,4 @@
-import type { WaitActivity } from '@ansible/nexus-contracts'
+import type { WaitActivity } from '@syntara/contracts'
 import type { ReactNode } from 'react'
 
 import { useAlerts } from '../../../providers/alerts'

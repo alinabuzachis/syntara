@@ -1,4 +1,4 @@
-import type { FilesAPI } from '@ansible/nexus-contracts'
+import type { FilesAPI } from '@syntara/contracts'
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import { useState, useCallback, useRef } from 'react'
 

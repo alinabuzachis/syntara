@@ -1,7 +1,7 @@
-import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { Content, ContentVariants, Flex, FlexItem, Truncate } from '@patternfly/react-core'
 import { RhUiBanIcon, RhUiRedoIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Tr } from '@patternfly/react-table'
+import type { ExecutionsAPI } from '@syntara/contracts'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'

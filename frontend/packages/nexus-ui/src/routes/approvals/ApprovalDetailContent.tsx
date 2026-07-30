@@ -1,4 +1,3 @@
-import type { Approval } from '@ansible/nexus-contracts'
 import {
   ActionList,
   ActionListItem,
@@ -15,6 +14,7 @@ import {
   TextInput,
 } from '@patternfly/react-core'
 import { RhUiBackwardsIcon, RhUiDislikeIcon, RhUiLikeIcon } from '@patternfly/react-icons'
+import type { Approval } from '@syntara/contracts'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 

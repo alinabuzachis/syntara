@@ -20,7 +20,7 @@ The mock API runs on **http://localhost:3000** by default.
 
 ## How It Works
 
-- Serves mock responses that match the OpenAPI contracts defined in `@ansible/nexus-contracts`
+- Serves mock responses that match the OpenAPI contracts defined in `@syntara/contracts`
 - Includes example workflows loaded from the backend test fixtures
 - Used automatically when running `npm start` from the repository root (starts alongside the UI)
 

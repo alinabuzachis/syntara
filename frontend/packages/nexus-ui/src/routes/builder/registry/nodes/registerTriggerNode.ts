@@ -1,5 +1,5 @@
-import { type ScheduleType, TriggerTypeEnum, WEBHOOK_TRIGGER_TYPES } from '@ansible/nexus-contracts'
 import { RhUiCalendarIcon, RhUiLanguageIcon, RhUiPlayIcon } from '@patternfly/react-icons'
+import { type ScheduleType, TriggerTypeEnum, WEBHOOK_TRIGGER_TYPES } from '@syntara/contracts'
 
 import EdaIcon from '../../../../assets/eda.svg?react'
 import { RegistryNodeId } from '../../../../constants'

@@ -1,4 +1,4 @@
-import type { TaskActivity } from '@ansible/nexus-contracts'
+import type { TaskActivity } from '@syntara/contracts'
 
 import { API_EXECUTOR_TYPES, type ApiExecutorType } from '../../../../../constants/executorTypes'
 

@@ -1,4 +1,3 @@
-import { type IdentityProvidersAPI } from '@ansible/nexus-contracts'
 import {
   Badge,
   Button,
@@ -21,6 +20,7 @@ import {
 import { RhUiArrowLeftIcon, RhUiEditIcon, RhUiSearchIcon, RhUiSyncIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
+import { type IdentityProvidersAPI } from '@syntara/contracts'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useState, type ReactNode } from 'react'
 

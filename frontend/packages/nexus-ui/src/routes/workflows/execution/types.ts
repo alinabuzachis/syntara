@@ -5,7 +5,7 @@
  * edges, and WebSocket messages for real-time activity streaming.
  */
 
-import type { ExecutionsAPI } from '@ansible/nexus-contracts'
+import type { ExecutionsAPI } from '@syntara/contracts'
 
 // ============================================================================
 // API Type Imports

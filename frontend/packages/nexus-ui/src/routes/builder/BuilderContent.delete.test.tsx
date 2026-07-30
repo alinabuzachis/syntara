@@ -1,4 +1,4 @@
-import type { WorkflowWithVersion } from '@ansible/nexus-contracts'
+import type { WorkflowWithVersion } from '@syntara/contracts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'

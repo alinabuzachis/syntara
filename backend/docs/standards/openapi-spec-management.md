@@ -70,7 +70,7 @@ Run `make api-spec-drift` locally to reproduce the same check outside of pre-com
 
 `make api-spec-validation` also runs in CI and validates spec conventions (see below).
 
-When `openapi.yaml` changes, CI also runs a contract regeneration check (informational): if `frontend/packages/nexus-contracts/src/` is not updated in the same PR, run `make gen-contracts` from the repo root and commit the result. For spec-only changes with no type impact, add `no-contract-regen: <justification>` to the PR description.
+When `openapi.yaml` changes, CI also runs a contract regeneration check (informational): if `frontend/packages/syntara-contracts/src/` is not updated in the same PR, run `make gen-contracts` from the repo root and commit the result. For spec-only changes with no type impact, add `no-contract-regen: <justification>` to the PR description.
 
 ## OpenAPI Sub-spec Conventions
 

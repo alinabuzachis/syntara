@@ -1,4 +1,3 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import {
   Button,
   DescriptionList,
@@ -16,6 +15,7 @@ import {
   TitleSizes,
 } from '@patternfly/react-core'
 import { RhUiCodeIcon, RhUiCloseIcon } from '@patternfly/react-icons'
+import type { WorkflowAPI } from '@syntara/contracts'
 
 import { NxCodeBlock } from '../../components/details/NxCodeBlock'
 import { NxPanel } from '../../components/layout/NxPanel'

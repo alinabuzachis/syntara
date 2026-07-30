@@ -1,4 +1,4 @@
-import type { ActivityExecution } from '@ansible/nexus-contracts'
+import type { ActivityExecution } from '@syntara/contracts'
 import { useMemo } from 'react'
 
 import { executionsClient } from '../../../../client'

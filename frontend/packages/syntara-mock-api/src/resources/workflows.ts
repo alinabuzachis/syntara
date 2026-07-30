@@ -1,4 +1,4 @@
-import type { WorkflowWithVersion } from '@ansible/nexus-contracts'
+import type { WorkflowWithVersion } from '@syntara/contracts'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 import { convertYamlToWorkflow } from '../utils/convertYamlToWorkflow'

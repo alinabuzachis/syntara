@@ -1,4 +1,3 @@
-import type { Approval } from '@ansible/nexus-contracts'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Button,
@@ -21,6 +20,7 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from '@patternfly/react-core'
+import type { Approval } from '@syntara/contracts'
 import { useQueryClient } from '@tanstack/react-query'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 

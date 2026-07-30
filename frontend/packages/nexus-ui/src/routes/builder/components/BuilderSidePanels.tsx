@@ -1,6 +1,6 @@
-import type { ExecutionsAPI, WorkflowAPI } from '@ansible/nexus-contracts'
 import { FlexItem } from '@patternfly/react-core'
 import type { ThProps } from '@patternfly/react-table'
+import type { ExecutionsAPI, WorkflowAPI } from '@syntara/contracts'
 import { memo } from 'react'
 
 import type { PaginationFooterProps } from '../../../components/table/PaginationFooter'

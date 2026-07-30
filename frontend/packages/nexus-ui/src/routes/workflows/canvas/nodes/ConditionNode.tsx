@@ -1,5 +1,5 @@
-import type { ConditionActivity } from '@ansible/nexus-contracts'
 import { Flex, FlexItem } from '@patternfly/react-core'
+import type { ConditionActivity } from '@syntara/contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
 
 import { NxDetailList } from '../../../../components/details/NxDetailList'

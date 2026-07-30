@@ -80,7 +80,7 @@ Items enforced by ESLint at error level are omitted -- ESLint is the source of t
 6. **Extract shared patterns** -- use `NxConfirmationDialog`, `useDialogState`, `useDeleteAction`, `useCursorPagination`
 7. **UI PRs must include screenshots** or screen recordings showing key states
 8. **New API endpoints need mock handlers** in `packages/syntara-mock-api/src/handlers.ts`
-9. **Use enum constants** from `@ansible/nexus-contracts` -- never string literals for discriminators
+9. **Use enum constants** from `@syntara/contracts` -- never string literals for discriminators
 10. **Never compare display strings in logic** -- compare API values or enum constants, not translatable labels
 11. **No nested React components (Sonar S6478)** -- do not declare components inside another component; for PatternFly `toggle` / similar props use a **module-scoped** child component and pass data as props (see [`.claude/skills/frontend-coding-standards/SKILL.md`](.claude/skills/frontend-coding-standards/SKILL.md) §18)
 12. **`NxLabel` for system labels, `NxUserTag` for user-authored tags** -- use `NxLabel` (filled, compact by default) for all system-generated labels: statuses, categories, metadata badges, counts, and filter chips. Use `NxUserTag` (outline, compact by default) only for user-authored content such as workflow tags or user-entered values. Never use PF `Label` directly.

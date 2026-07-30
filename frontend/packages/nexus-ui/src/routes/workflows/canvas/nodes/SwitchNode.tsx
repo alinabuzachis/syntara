@@ -1,5 +1,5 @@
-import { EdgeHandleEnum, type SwitchActivity, type SwitchConfig } from '@ansible/nexus-contracts'
 import { Flex, FlexItem, Tooltip } from '@patternfly/react-core'
+import { EdgeHandleEnum, type SwitchActivity, type SwitchConfig } from '@syntara/contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
 import { useEffect, useRef, useState } from 'react'
 

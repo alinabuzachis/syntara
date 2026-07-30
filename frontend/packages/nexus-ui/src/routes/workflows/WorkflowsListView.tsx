@@ -1,5 +1,5 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { Th, Thead, Tr, type ThProps } from '@patternfly/react-table'
+import type { WorkflowAPI } from '@syntara/contracts'
 
 import { NxListPanelTable, NxListPanelToolbar, NxListPanelView } from '../../components/panels/list/NxListPanel'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'

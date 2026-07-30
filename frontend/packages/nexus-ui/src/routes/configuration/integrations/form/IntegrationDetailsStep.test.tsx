@@ -1,4 +1,4 @@
-import { IntegrationTypeEnum, LLMProviderHintEnum } from '@ansible/nexus-contracts'
+import { IntegrationTypeEnum, LLMProviderHintEnum } from '@syntara/contracts'
 import { render, screen, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useCallback } from 'react'

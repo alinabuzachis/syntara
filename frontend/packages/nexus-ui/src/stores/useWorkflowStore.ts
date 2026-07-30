@@ -1,4 +1,4 @@
-import { ActivityTypeEnum } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum } from '@syntara/contracts'
 import { temporal } from 'zundo'
 import type { TemporalState } from 'zundo'
 import { create } from 'zustand'

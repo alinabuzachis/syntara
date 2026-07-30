@@ -1,4 +1,4 @@
-import { EdgeHandleEnum } from '@ansible/nexus-contracts'
+import { EdgeHandleEnum } from '@syntara/contracts'
 import type { ReactFlowInstance, Node as FlowNode } from '@xyflow/react'
 import { describe, expect, it, vi } from 'vitest'
 

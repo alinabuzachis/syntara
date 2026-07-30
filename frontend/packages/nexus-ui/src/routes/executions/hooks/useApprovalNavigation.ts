@@ -1,4 +1,4 @@
-import type { Approval } from '@ansible/nexus-contracts'
+import type { Approval } from '@syntara/contracts'
 import { useCallback, useMemo } from 'react'
 
 type UseApprovalNavigationResult = {

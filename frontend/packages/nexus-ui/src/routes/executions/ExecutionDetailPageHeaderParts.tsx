@@ -1,5 +1,5 @@
-import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { Button, FlexItem, Label } from '@patternfly/react-core'
+import type { ExecutionsAPI } from '@syntara/contracts'
 
 import { ApprovalPendingBadge } from '../../components/labels/ApprovalPendingBadge'
 import { StatusLabel } from '../builder/ExecutionStatus'

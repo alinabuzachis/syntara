@@ -1,4 +1,4 @@
-import type { User } from '@ansible/nexus-contracts'
+import type { User } from '@syntara/contracts'
 
 import { adminClient } from '../../client'
 import { useDialogState } from '../../hooks/useDialogState'

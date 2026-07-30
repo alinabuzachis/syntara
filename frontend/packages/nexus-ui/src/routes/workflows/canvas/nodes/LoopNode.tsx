@@ -1,5 +1,5 @@
-import type { LoopActivity } from '@ansible/nexus-contracts'
 import { Flex } from '@patternfly/react-core'
+import type { LoopActivity } from '@syntara/contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
 
 import type { ActivityStatus } from '../../execution/types'

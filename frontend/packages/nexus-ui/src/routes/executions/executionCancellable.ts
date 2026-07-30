@@ -1,5 +1,5 @@
-import { ExecutionStatusEnum } from '@ansible/nexus-contracts'
-import type { ExecutionStatus } from '@ansible/nexus-contracts'
+import { ExecutionStatusEnum } from '@syntara/contracts'
+import type { ExecutionStatus } from '@syntara/contracts'
 
 export function isExecutionCancellable(status: ExecutionStatus | null | undefined): boolean {
   return (

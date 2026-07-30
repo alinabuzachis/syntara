@@ -1,6 +1,6 @@
-import type { CredentialsAPI } from '@ansible/nexus-contracts'
 import { FormGroup, FormHelperText, HelperText, HelperTextItem, StackItem, TextInput } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
+import type { CredentialsAPI } from '@syntara/contracts'
 import { useMemo } from 'react'
 import { Controller, useFormContext, useWatch } from 'react-hook-form'
 

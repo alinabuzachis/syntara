@@ -1,4 +1,4 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { WorkflowAPI } from '@syntara/contracts'
 import type { Query, QueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 
