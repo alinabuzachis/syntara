@@ -206,6 +206,66 @@ export async function deleteIdentityProviderViaApi(page: Page, idpId: string): P
   }
 }
 
+/**
+ * Create a credential appropriate for a given integration type.
+ *
+ * Looks up the correct credential type by name via the API (not hardcoded IDs),
+ * then creates a credential with sensible defaults. The optional `apiKey` allows
+ * callers to supply real secrets (e.g. OpenRouter API key for LLM tests).
+ */
+export async function createCredentialForIntegrationType(
+  page: Page,
+  options: {
+    name: string
+    integrationType: 'mcp_server' | 'llm_provider' | 'aap_gateway'
+    apiKey?: string
+    token?: string
+  }
+): Promise<SeededCredential | null> {
+  try {
+    const token = options.token ?? (await getAuthToken(page))
+    if (!token) return null
+
+    const project = await ensureProject(page)
+    if (!project) return null
+
+    const typesResp = await apiRequest(page, 'get', '/credential_types', { token })
+    if (!typesResp.ok()) return null
+    const types = (await typesResp.json()) as { resources?: Array<{ id: string; name: string }> }
+    if (!types.resources?.length) return null
+
+    const typeNameMap: Record<string, string> = {
+      mcp_server: 'HTTP Bearer Token',
+      llm_provider: 'LLM Provider',
+      aap_gateway: 'Ansible Automation Platform',
+    }
+    const targetTypeName = typeNameMap[options.integrationType]
+    const credType = types.resources.find((t) => t.name === targetTypeName)
+    if (!credType) return null
+
+    const inputsMap: Record<string, Record<string, string>> = {
+      mcp_server: { token: options.apiKey ?? 'e2e-bearer-token' },
+      llm_provider: { api_key: options.apiKey ?? 'sk-e2e-test-key' },
+      aap_gateway: { oauth_token: options.apiKey ?? 'e2e-aap-oauth-token' },
+    }
+
+    const createResp = await apiRequest(page, 'post', '/credentials', {
+      token,
+      data: {
+        name: options.name,
+        credential_type_id: credType.id,
+        project_id: project.id,
+        inputs: inputsMap[options.integrationType],
+      },
+    })
+    if (!createResp.ok()) return null
+    const cred = (await createResp.json()) as { id: string; name: string }
+    return { id: cred.id, name: cred.name }
+  } catch {
+    return null
+  }
+}
+
 /** Re-export credential helpers from utils/api for convenience. */
 export type SeededCredential = {
   id: string
