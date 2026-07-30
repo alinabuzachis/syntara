@@ -6,6 +6,7 @@ build-backend = "hatchling.build"
 name = "orchestrator-test-sdk"
 version = "0.1.0"
 description = "Reusable pytest fixtures for Orchestrator E2E tests"
+license = "Apache-2.0"
 requires-python = ">=3.12"
 dependencies = [
     "nexus-api-client",
