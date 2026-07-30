@@ -35,6 +35,16 @@ describe('PublishWorkflowDialog', () => {
     expect(screen.getByLabelText('Description')).toBeInTheDocument()
   })
 
+  it('description textarea accumulates typed characters', async () => {
+    const user = userEvent.setup()
+    render(<PublishWorkflowDialog {...defaultProps} />)
+
+    const descInput = screen.getByLabelText('Description')
+    await user.type(descInput, 'hello')
+
+    expect(descInput).toHaveValue('hello')
+  })
+
   it('calls onPublish with version name and description on submit', async () => {
     const user = userEvent.setup()
     const onPublish = vi.fn()
@@ -79,6 +89,31 @@ describe('PublishWorkflowDialog', () => {
   it('does not render when closed', () => {
     render(<PublishWorkflowDialog {...defaultProps} isOpen={false} />)
     expect(screen.queryByText('Publish workflow?')).not.toBeInTheDocument()
+  })
+
+  it('shows validation error when version name is cleared', async () => {
+    const user = userEvent.setup()
+    render(<PublishWorkflowDialog {...defaultProps} />)
+
+    const nameInput = screen.getByLabelText('Version name')
+    await user.clear(nameInput)
+    await user.click(screen.getByRole('button', { name: 'Publish' }))
+
+    expect(defaultProps.onPublish).not.toHaveBeenCalled()
+    expect(screen.getByText('Version name is required')).toBeInTheDocument()
+  })
+
+  it('shows validation error when description exceeds 1000 characters', async () => {
+    const user = userEvent.setup()
+    render(<PublishWorkflowDialog {...defaultProps} />)
+
+    const descInput = screen.getByLabelText('Description')
+    await user.click(descInput)
+    await user.paste('x'.repeat(1001))
+    await user.click(screen.getByRole('button', { name: 'Publish' }))
+
+    expect(defaultProps.onPublish).not.toHaveBeenCalled()
+    expect(screen.getByText('Description must be 1000 characters or fewer')).toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {

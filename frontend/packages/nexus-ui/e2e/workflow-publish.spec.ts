@@ -7,6 +7,32 @@ import {
   deleteWorkflow,
 } from './helpers/workflows'
 
+// Regression: React Compiler memoized the <Controller> element for the description
+// field, causing React to bail out of re-renders and resetting the textarea value to
+// "" after every keystroke. Only manifests in production builds (not dev mode).
+test.describe('Publish dialog regression', () => {
+  test('description textarea accepts multi-character input', async ({ app }) => {
+    const workflowName = buildUniqueName('e2e-publish-desc-input')
+
+    try {
+      const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Desc input step')
+      await openWorkflowInBuilder(app, workflowName, id)
+
+      await app.getByRole('button', { name: /Publish/i }).click()
+
+      const dialog = app.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+
+      const descInput = dialog.getByLabel('Description')
+      await descInput.pressSequentially('hello world')
+
+      await expect(descInput).toHaveValue('hello world')
+    } finally {
+      await deleteWorkflow(app, workflowName)
+    }
+  })
+})
+
 // Skip: publish tests consistently fail in CI — needs investigation
 test.describe.skip('Workflow publish/unpublish', () => {
   test('new workflow shows Draft badge after save', async ({ app }) => {

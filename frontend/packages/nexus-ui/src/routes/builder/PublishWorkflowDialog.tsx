@@ -21,7 +21,7 @@ import { z } from 'zod'
 
 const publishWorkflowSchema = z.object({
   name: z.string().min(1, 'Version name is required').max(255),
-  description: z.string().max(1000).optional().or(z.literal('')),
+  description: z.string().max(1000, 'Description must be 1000 characters or fewer').optional().or(z.literal('')),
 })
 
 type PublishWorkflowFormData = z.infer<typeof publishWorkflowSchema>
@@ -38,12 +38,7 @@ type PublishWorkflowDialogProps = Readonly<{
 }>
 
 export function PublishWorkflowDialog({ isOpen, isPublishing, onClose, onPublish }: PublishWorkflowDialogProps) {
-  const {
-    control,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<PublishWorkflowFormData>({
+  const { control, handleSubmit, reset } = useForm<PublishWorkflowFormData>({
     resolver: zodResolver(publishWorkflowSchema, undefined, { mode: 'sync' }),
     defaultValues: { name: '', description: '' },
   })
@@ -74,21 +69,21 @@ export function PublishWorkflowDialog({ isOpen, isPublishing, onClose, onPublish
             <Controller
               name="name"
               control={control}
-              render={({ field }) => (
+              render={({ field, fieldState }) => (
                 <>
                   <TextInput
                     id="publish-name"
                     type="text"
                     aria-label="Version name"
                     isRequired
-                    validated={errors.name ? 'error' : 'default'}
+                    validated={fieldState.error ? 'error' : 'default'}
                     value={field.value ?? ''}
                     onChange={(_event, value) => field.onChange(value)}
                   />
-                  {errors.name && (
+                  {fieldState.error && (
                     <FormHelperText>
                       <HelperText>
-                        <HelperTextItem variant="error">{errors.name.message}</HelperTextItem>
+                        <HelperTextItem variant="error">{fieldState.error.message}</HelperTextItem>
                       </HelperText>
                     </FormHelperText>
                   )}
@@ -100,15 +95,25 @@ export function PublishWorkflowDialog({ isOpen, isPublishing, onClose, onPublish
             <Controller
               name="description"
               control={control}
-              render={({ field }) => (
-                <TextArea
-                  id="publish-description"
-                  aria-label="Description"
-                  placeholder="Describe what changed"
-                  value={field.value ?? ''}
-                  onChange={(_event, value) => field.onChange(value)}
-                  rows={4}
-                />
+              render={({ field, fieldState }) => (
+                <>
+                  <TextArea
+                    id="publish-description"
+                    aria-label="Description"
+                    placeholder="Describe what changed"
+                    validated={fieldState.error ? 'error' : 'default'}
+                    value={field.value ?? ''}
+                    onChange={(_event, value) => field.onChange(value)}
+                    rows={4}
+                  />
+                  {fieldState.error && (
+                    <FormHelperText>
+                      <HelperText>
+                        <HelperTextItem variant="error">{fieldState.error.message}</HelperTextItem>
+                      </HelperText>
+                    </FormHelperText>
+                  )}
+                </>
               )}
             />
           </FormGroup>
