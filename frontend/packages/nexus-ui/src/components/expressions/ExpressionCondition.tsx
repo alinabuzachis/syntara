@@ -32,6 +32,15 @@ import { NxSelect } from '../NxSelect'
 
 import { HelpPopover } from './HelpPopover'
 
+const MAX_VARIABLE_LENGTH = 256
+const VARIABLE_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_.]*$/
+const RESERVED_NAMES = ['__proto__', 'constructor', 'prototype']
+
+function isValidVariableRef(value: string): boolean {
+  if (value.length > MAX_VARIABLE_LENGTH || !VARIABLE_PATTERN.test(value)) return false
+  return !value.split('.').some((part) => RESERVED_NAMES.includes(part))
+}
+
 const FieldHelp = () => (
   <HelpPopover
     ariaLabel="Field help"
@@ -111,6 +120,52 @@ export function ExpressionCondition(props: ExpressionConditionProps) {
   const { condition, onChange, onRemove, error, fieldErrors } = props
 
   const [isOperatorOpen, setIsOperatorOpen] = useState(false)
+  const [isFieldFocused, setIsFieldFocused] = useState(false)
+  const [editingValue, setEditingValue] = useState('')
+  const [localFieldError, setLocalFieldError] = useState<string | null>(null)
+
+  const handleFieldFocus = useCallback(() => {
+    setIsFieldFocused(true)
+    setEditingValue(condition.variable ? `\${${condition.variable}}` : '')
+  }, [condition.variable])
+
+  const handleFieldBlur = useCallback(() => {
+    setIsFieldFocused(false)
+    const stripped = editingValue.replace(/^\$\{/, '').replace(/\}$/, '')
+    if (stripped && !isValidVariableRef(stripped)) {
+      setLocalFieldError('Invalid variable name. Use letters, numbers, dots, and underscores (e.g. input.age).')
+      return
+    }
+    setLocalFieldError(null)
+    if (stripped !== condition.variable) {
+      onChange({ variable: stripped })
+    }
+  }, [editingValue, condition.variable, onChange])
+
+  const handleFieldDrop = useCallback(
+    (e: React.DragEvent<HTMLInputElement>) => {
+      e.preventDefault()
+      const text = e.dataTransfer.getData('text/plain')
+      if (!text) return
+      const stripped = text.replace(/^\$\{/, '').replace(/\}$/, '')
+      if (!stripped || !isValidVariableRef(stripped)) return
+      setEditingValue(`\${${stripped}}`)
+      onChange({ variable: stripped })
+    },
+    [onChange]
+  )
+
+  const blurredValue = condition.variable ? `\${${condition.variable}}` : ''
+  const fieldDisplayValue = isFieldFocused ? editingValue : blurredValue
+
+  const fieldValidated = (() => {
+    if (localFieldError) return 'error' as const
+    if (!error) return 'default' as const
+    const currentValue = isFieldFocused ? editingValue.replace(/^\$\{/, '').replace(/\}$/, '') : condition.variable
+    return !currentValue.trim() ? ('error' as const) : ('default' as const)
+  })()
+
+  const displayFieldError = localFieldError ?? fieldErrors?.variable
 
   const handleOperatorSelect = useCallback(
     (_event: React.MouseEvent | undefined, value: string | number | undefined) => {
@@ -182,16 +237,23 @@ export function ExpressionCondition(props: ExpressionConditionProps) {
             <FormGroup label="Field" labelHelp={<FieldHelp />} isRequired fieldId={`field-${condition.id}`}>
               <TextInput
                 id={`field-${condition.id}`}
-                value={condition.variable}
-                onChange={(_event, value) => onChange({ variable: value })}
-                placeholder="Enter or drag and drop value"
+                value={fieldDisplayValue}
+                onChange={(_event, value) => {
+                  setEditingValue(value)
+                  if (localFieldError) setLocalFieldError(null)
+                }}
+                onFocus={handleFieldFocus}
+                onBlur={handleFieldBlur}
+                onDrop={handleFieldDrop}
+                onDragOver={(e) => e.preventDefault()}
+                placeholder="e.g. ${input.age}"
                 style={{ fontFamily: 'monospace', fontSize: 'var(--pf-t--global--font--size--body--sm)' }}
-                validated={error && !condition.variable.trim() ? 'error' : 'default'}
+                validated={fieldValidated}
               />
-              {fieldErrors?.variable && (
+              {displayFieldError && (
                 <FormHelperText>
                   <HelperText>
-                    <HelperTextItem variant="error">{fieldErrors.variable}</HelperTextItem>
+                    <HelperTextItem variant="error">{displayFieldError}</HelperTextItem>
                   </HelperText>
                 </FormHelperText>
               )}
