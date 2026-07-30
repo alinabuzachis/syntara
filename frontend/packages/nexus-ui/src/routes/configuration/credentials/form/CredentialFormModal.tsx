@@ -277,7 +277,7 @@ export function CredentialFormModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} variant="medium">
-      <ModalHeader title={isEditMode ? 'Edit credential' : 'Create credential'} />
+      <ModalHeader title={isEditMode && credentialToEdit ? `Edit ${credentialToEdit.name}` : 'Create credential'} />
       <ModalBody>
         <Form>
           {/* Name */}

@@ -231,6 +231,22 @@ describe('AssignProjectRoleModal', () => {
     expect(mockOnClose).toHaveBeenCalledOnce()
   })
 
+  it('shows inline validation errors when Assign is clicked with empty fields', async () => {
+    const user = userEvent.setup()
+    renderModal()
+
+    const assignButton = screen.getByRole('button', { name: 'Assign' })
+    expect(assignButton).toBeEnabled()
+
+    await user.click(assignButton)
+
+    await waitFor(() => {
+      expect(screen.getByText('User is required')).toBeInTheDocument()
+      expect(screen.getByText('Role is required')).toBeInTheDocument()
+    })
+    expect(mockMutate).not.toHaveBeenCalled()
+  })
+
   async function fillAndSubmitForm() {
     const user = userEvent.setup()
     renderModal()

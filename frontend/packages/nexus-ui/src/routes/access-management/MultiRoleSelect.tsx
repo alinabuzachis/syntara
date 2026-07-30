@@ -48,6 +48,7 @@ export function MultiRoleSelect({
   onSearchChange,
   hasMore,
   isLoading,
+  hasError,
 }: Readonly<{
   options: RoleOption[]
   selected: string[]
@@ -55,6 +56,7 @@ export function MultiRoleSelect({
   onSearchChange?: (term: string) => void
   hasMore?: boolean
   isLoading?: boolean
+  hasError?: boolean
 }>) {
   const [isOpen, setIsOpen] = useState(false)
   const [filterValue, setFilterValue] = useState('')
@@ -97,7 +99,14 @@ export function MultiRoleSelect({
   }
 
   const toggle = (toggleRef: Ref<HTMLButtonElement>) => (
-    <MenuToggle ref={toggleRef} variant="typeahead" onClick={() => setIsOpen(!isOpen)} isExpanded={isOpen} isFullWidth>
+    <MenuToggle
+      ref={toggleRef}
+      variant="typeahead"
+      onClick={() => setIsOpen(!isOpen)}
+      isExpanded={isOpen}
+      isFullWidth
+      status={hasError ? 'danger' : undefined}
+    >
       <TextInputGroup isPlain>
         <TextInputGroupMain
           value={filterValue}

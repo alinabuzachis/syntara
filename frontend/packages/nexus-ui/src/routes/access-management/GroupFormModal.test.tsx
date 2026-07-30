@@ -123,7 +123,10 @@ describe('GroupFormModal Component', () => {
       const user = userEvent.setup()
       render(<GroupFormModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
 
-      await user.click(screen.getByRole('button', { name: 'Create group' }))
+      const submitButton = screen.getByRole('button', { name: 'Create group' })
+      expect(submitButton).toBeEnabled()
+
+      await user.click(submitButton)
 
       await waitFor(() => {
         expect(mockCreateMutate).not.toHaveBeenCalled()
@@ -187,7 +190,7 @@ describe('GroupFormModal Component', () => {
         wrapper,
       })
 
-      expect(screen.getByText('Edit group')).toBeInTheDocument()
+      expect(screen.getByText('Edit Admins')).toBeInTheDocument()
       expect(screen.getByText('Save')).toBeInTheDocument()
     })
 

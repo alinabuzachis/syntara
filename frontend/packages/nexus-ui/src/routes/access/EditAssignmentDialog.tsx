@@ -138,7 +138,7 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
 
   return (
     <Modal isOpen onClose={onClose} variant="small">
-      <ModalHeader title="Edit Assignment" />
+      <ModalHeader title="Edit principal assignment" />
       <ModalBody>
         <Form id="edit-assignment-form" onSubmit={handleSubmit(onSubmit)}>
           <FormGroup label="Principal" fieldId="principal-display">

@@ -300,7 +300,7 @@ describe('ProjectsTab', () => {
       await user.click(editOption)
 
       await waitFor(() => {
-        expect(screen.getByText('Edit project')).toBeInTheDocument()
+        expect(screen.getByText('Edit Alpha')).toBeInTheDocument()
       })
     })
 
@@ -482,13 +482,13 @@ describe('ProjectsTab', () => {
       await user.click(editOption)
 
       await waitFor(() => {
-        expect(screen.getByText('Edit project')).toBeInTheDocument()
+        expect(screen.getByText('Edit Alpha')).toBeInTheDocument()
       })
 
       await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
       await waitFor(() => {
-        expect(screen.queryByText('Edit project')).not.toBeInTheDocument()
+        expect(screen.queryByText('Edit Alpha')).not.toBeInTheDocument()
       })
     })
 

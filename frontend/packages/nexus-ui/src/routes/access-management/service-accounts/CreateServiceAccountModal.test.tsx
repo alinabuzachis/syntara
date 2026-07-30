@@ -157,6 +157,28 @@ describe('CreateServiceAccountModal', () => {
       expect(mockCreateSAMutate).not.toHaveBeenCalled()
     })
 
+    it('validates expiration date on click before submit', async () => {
+      const user = userEvent.setup()
+      render(<CreateServiceAccountModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Select a project' }))
+      await user.click(await screen.findByRole('option', { name: 'Project Alpha' }))
+      await user.type(screen.getByRole('textbox', { name: 'Name' }), 'my-new-sa')
+
+      const dateInput = screen.getByLabelText('Credential expiration date')
+      await user.clear(dateInput)
+
+      const submitButton = screen.getByRole('button', { name: 'Create service account' })
+      expect(submitButton).toBeEnabled()
+
+      await user.click(submitButton)
+
+      await waitFor(() => {
+        expect(screen.getByText('Credential expiration date is required')).toBeInTheDocument()
+      })
+      expect(mockCreateSAMutate).not.toHaveBeenCalled()
+    })
+
     it('calls create mutation with correct body on submit', async () => {
       const user = userEvent.setup()
       render(<CreateServiceAccountModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })

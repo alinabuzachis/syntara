@@ -84,7 +84,7 @@ describe('EditServiceAccountModal', () => {
       { wrapper }
     )
 
-    expect(screen.getByRole('heading', { name: 'Edit service account' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Edit my-service-account' })).toBeInTheDocument()
   })
 
   it('pre-populates form fields with service account data', () => {

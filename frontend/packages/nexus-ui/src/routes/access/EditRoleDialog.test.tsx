@@ -108,7 +108,7 @@ describe('EditRoleDialog', () => {
   describe('Rendering', () => {
     it('renders modal with "Edit Role" title', () => {
       renderDialog()
-      expect(screen.getByText('Edit Role')).toBeInTheDocument()
+      expect(screen.getByText('Edit my-custom-role')).toBeInTheDocument()
     })
 
     it('pre-fills name input with role name', () => {

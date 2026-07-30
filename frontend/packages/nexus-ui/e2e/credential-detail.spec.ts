@@ -61,7 +61,7 @@ test.describe('Credential Detail Page & Workflows Tab', () => {
       // Assert - Edit modal opens with pre-populated fields
       const modal = app.getByRole('dialog')
       await expect(modal).toBeVisible()
-      await expect(modal.getByText('Edit credential')).toBeVisible()
+      await expect(modal.getByText(`Edit ${name}`)).toBeVisible()
       await expect(modal.getByRole('textbox', { name: 'Credential name' })).toHaveValue(name)
 
       // Assert - Credential type is disabled in edit mode

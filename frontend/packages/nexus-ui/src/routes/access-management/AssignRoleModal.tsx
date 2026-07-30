@@ -15,6 +15,7 @@ import { type Ref, useEffect, useMemo, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
+import { FormFieldError } from '../../components/FormFieldError'
 import { NxSelect } from '../../components/NxSelect'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useAlerts } from '../../providers/alerts'
@@ -57,6 +58,7 @@ function SingleSelect({
   onChange,
   options,
   placeholder,
+  hasError,
 }: Readonly<{
   id: string
   ariaLabel: string
@@ -64,12 +66,19 @@ function SingleSelect({
   onChange: (value: string) => void
   options: { value: string; label: string }[]
   placeholder?: string
+  hasError?: boolean
 }>) {
   const [isOpen, setIsOpen] = useState(false)
   const selectedLabel = options.find((o) => o.value === value)?.label ?? placeholder ?? 'Select...'
 
   const toggle = (toggleRef: Ref<HTMLButtonElement>) => (
-    <MenuToggle ref={toggleRef} onClick={() => setIsOpen(!isOpen)} isExpanded={isOpen} isFullWidth>
+    <MenuToggle
+      ref={toggleRef}
+      onClick={() => setIsOpen(!isOpen)}
+      isExpanded={isOpen}
+      isFullWidth
+      status={hasError ? 'danger' : undefined}
+    >
       {selectedLabel}
     </MenuToggle>
   )
@@ -109,7 +118,7 @@ export function AssignRoleModal({
   const { showAlert } = useAlerts()
   const defaultScope = principalType === RolePrincipalType.SERVICE_ACCOUNT ? 'project' : 'system'
 
-  const { control, handleSubmit, setValue, reset, formState } = useForm<AssignRoleFormData>({
+  const { control, handleSubmit, setValue, reset } = useForm<AssignRoleFormData>({
     resolver: zodResolver(assignRoleSchema, undefined, { mode: 'sync' }),
     defaultValues: { scope: defaultScope, projectId: '', roleIds: [] },
   })
@@ -248,15 +257,19 @@ export function AssignRoleModal({
               <Controller
                 name="projectId"
                 control={control}
-                render={({ field }) => (
-                  <SingleSelect
-                    id="project-select"
-                    ariaLabel="Project"
-                    value={field.value ?? ''}
-                    onChange={field.onChange}
-                    options={projectOptions}
-                    placeholder="Select a project..."
-                  />
+                render={({ field, fieldState }) => (
+                  <>
+                    <SingleSelect
+                      id="project-select"
+                      ariaLabel="Project"
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      options={projectOptions}
+                      placeholder="Select a project..."
+                      hasError={!!fieldState.error}
+                    />
+                    <FormFieldError message={fieldState.error?.message} />
+                  </>
                 )}
               />
             </FormGroup>
@@ -265,28 +278,26 @@ export function AssignRoleModal({
             <Controller
               name="roleIds"
               control={control}
-              render={({ field }) => (
-                <MultiRoleSelect
-                  options={roleOptions}
-                  selected={field.value}
-                  onChange={field.onChange}
-                  onSearchChange={handleRoleSearchChange}
-                  hasMore={hasMoreRoles}
-                  isLoading={isRolesLoading}
-                />
+              render={({ field, fieldState }) => (
+                <>
+                  <MultiRoleSelect
+                    options={roleOptions}
+                    selected={field.value}
+                    onChange={field.onChange}
+                    onSearchChange={handleRoleSearchChange}
+                    hasMore={hasMoreRoles}
+                    isLoading={isRolesLoading}
+                    hasError={!!fieldState.error}
+                  />
+                  <FormFieldError message={fieldState.error?.message} />
+                </>
               )}
             />
           </FormGroup>
         </Form>
       </ModalBody>
       <ModalFooter>
-        <Button
-          variant="primary"
-          type="submit"
-          form="assign-role-form"
-          isDisabled={!formState.isValid || isPending}
-          isLoading={isPending}
-        >
+        <Button variant="primary" type="submit" form="assign-role-form" isDisabled={isPending} isLoading={isPending}>
           Assign {roleIds.length > 0 ? `(${String(roleIds.length)})` : ''}
         </Button>
         <Button variant="link" onClick={handleClose} isDisabled={isPending}>

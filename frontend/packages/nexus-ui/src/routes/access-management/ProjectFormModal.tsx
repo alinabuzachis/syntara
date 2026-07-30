@@ -45,7 +45,7 @@ export type ProjectFormModalProps = {
 
 export function ProjectFormModal({ project, isOpen, onClose, onSuccess, onCreated }: Readonly<ProjectFormModalProps>) {
   const isEditMode = Boolean(project)
-  const title = isEditMode ? 'Edit project' : 'Create project'
+  const title = isEditMode && project ? `Edit ${project.name}` : 'Create project'
 
   const { showAlert } = useAlerts()
 

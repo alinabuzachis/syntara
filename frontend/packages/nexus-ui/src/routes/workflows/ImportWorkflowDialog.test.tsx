@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -80,10 +80,16 @@ describe('ImportWorkflowDialog', () => {
     expect(screen.getByTestId('project-selector')).toBeInTheDocument()
   })
 
-  it('disables Import button when no file is selected', () => {
+  it('shows validation error when Import is clicked without a file', async () => {
+    const user = userEvent.setup()
     render(<ImportWorkflowDialog {...defaultProps} />)
 
-    expect(screen.getByRole('button', { name: /^Import$/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /^Import$/i })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: /^Import$/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Workflow file is required')).toBeInTheDocument()
+    })
   })
 
   it('shows validation error when submitting with empty name', async () => {
@@ -283,6 +289,76 @@ describe('ImportWorkflowDialog', () => {
     render(<ImportWorkflowDialog {...defaultProps} />)
 
     expect(mockOnProjectSelect).toBeDefined()
+    act(() => {
+      mockOnProjectSelect()
+    })
+  })
+
+  it('shows warning alert when import succeeds with validation issues', async () => {
+    const user = userEvent.setup()
+    const onSuccess = vi.fn()
+    const onClose = vi.fn()
+    mockPost.mockResolvedValue({ data: { id: 'new-wf', has_validation_issues: true } })
+
+    const validContent = JSON.stringify({
+      triggers: [{ id: 't1', type: 'webhook' }],
+      nodes: [{ id: 'n1', type: 'action' }],
+      edges: [{ from: 't1', to: 'n1' }],
+    })
+
+    render(<ImportWorkflowDialog {...defaultProps} onSuccess={onSuccess} onClose={onClose} />)
+
+    const file = new File([validContent], 'workflow.json', { type: 'application/json' })
+    await user.upload(getFileInput(), file)
+    await user.type(screen.getByLabelText(/Workflow name/i), 'Imported WF')
+    await user.click(screen.getByRole('button', { name: /^Import$/i }))
+
+    await waitFor(() => {
+      expect(mockShowAlert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variant: 'warning',
+          title: 'Workflow imported with warnings',
+        })
+      )
+    })
+    expect(onSuccess).toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('includes Open workflow action link when import returns an id', async () => {
+    const user = userEvent.setup()
+    mockPost.mockResolvedValue({ data: { id: 'new-wf-id' } })
+
+    const validContent = JSON.stringify({
+      triggers: [{ id: 't1', type: 'webhook' }],
+      nodes: [{ id: 'n1', type: 'action' }],
+      edges: [{ from: 't1', to: 'n1' }],
+    })
+
+    render(<ImportWorkflowDialog {...defaultProps} />)
+
+    const file = new File([validContent], 'workflow.json', { type: 'application/json' })
+    await user.upload(getFileInput(), file)
+    await user.type(screen.getByLabelText(/Workflow name/i), 'Imported WF')
+    await user.click(screen.getByRole('button', { name: /^Import$/i }))
+
+    await waitFor(() => {
+      expect(mockShowAlert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variant: 'success',
+          title: 'Workflow imported',
+        })
+      )
+    })
+
+    const hasActionLink = mockShowAlert.mock.calls.some(
+      (call) =>
+        typeof call[0] === 'object' &&
+        call[0] !== null &&
+        'actionLinks' in call[0] &&
+        (call[0] as { actionLinks?: unknown }).actionLinks !== undefined
+    )
+    expect(hasActionLink).toBe(true)
   })
 
   it('shows import error when API returns a validation warning', async () => {

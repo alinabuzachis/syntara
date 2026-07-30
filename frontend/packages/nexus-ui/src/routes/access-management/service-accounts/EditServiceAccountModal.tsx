@@ -38,7 +38,7 @@ export function EditServiceAccountModal({
 }: Readonly<EditServiceAccountModalProps>) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} variant="medium">
-      <ModalHeader title="Edit service account" />
+      <ModalHeader title={`Edit ${serviceAccount.name}`} />
       {isOpen && <EditServiceAccountForm serviceAccount={serviceAccount} onClose={onClose} onSuccess={onSuccess} />}
     </Modal>
   )

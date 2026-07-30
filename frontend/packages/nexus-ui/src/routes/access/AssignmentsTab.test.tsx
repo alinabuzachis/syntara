@@ -65,7 +65,7 @@ vi.mock('./AssignRoleDialog', () => ({
 vi.mock('./EditAssignmentDialog', () => ({
   EditAssignmentDialog: (props: { displayName: string; onClose: () => void; onSuccess: () => void }) => (
     <div data-testid="edit-assignment-dialog">
-      <span>Edit Assignment</span>
+      <span>Edit principal assignment</span>
       <span>{props.displayName}</span>
       <button onClick={props.onClose}>Close edit</button>
       <button onClick={props.onSuccess}>Save edit</button>
@@ -464,7 +464,7 @@ describe('AssignmentsTab', () => {
       await user.click(editOption)
 
       await waitFor(() => {
-        expect(screen.getByText('Edit Assignment')).toBeInTheDocument()
+        expect(screen.getByText('Edit principal assignment')).toBeInTheDocument()
       })
     })
 
@@ -1062,7 +1062,7 @@ describe('AssignmentsTab', () => {
       const editOption = await screen.findByRole('menuitem', { name: /Edit assignment/i })
       await user.click(editOption)
 
-      expect(screen.queryByText('Edit Assignment')).not.toBeInTheDocument()
+      expect(screen.queryByText('Edit principal assignment')).not.toBeInTheDocument()
     })
 
     it('does not show empty state add button when canAssign is false', () => {

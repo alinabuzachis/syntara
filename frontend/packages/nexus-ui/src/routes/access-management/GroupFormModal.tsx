@@ -39,7 +39,7 @@ export type GroupFormModalProps = {
 
 export function GroupFormModal({ group, initialName, isOpen, onClose, onSuccess }: Readonly<GroupFormModalProps>) {
   const isEditMode = Boolean(group)
-  const title = isEditMode ? 'Edit group' : 'Create group'
+  const title = isEditMode && group ? `Edit ${group.name}` : 'Create group'
 
   const { showAlert } = useAlerts()
 

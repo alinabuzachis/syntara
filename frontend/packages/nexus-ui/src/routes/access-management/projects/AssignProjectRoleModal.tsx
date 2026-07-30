@@ -1,21 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import {
-  Button,
-  Form,
-  FormGroup,
-  FormHelperText,
-  HelperText,
-  HelperTextItem,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
-} from '@patternfly/react-core'
+import { Button, Form, FormGroup, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/react-core'
 import { useMemo, useState } from 'react'
 import type { Control, FieldValues, Path } from 'react-hook-form'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
+import { FormFieldError } from '../../../components/FormFieldError'
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../providers/alerts'
@@ -99,13 +89,7 @@ function TypeaheadFormField<T extends FieldValues>({
               hasMore={hasMore}
               isLoading={isLoading}
             />
-            {fieldState.error && (
-              <FormHelperText>
-                <HelperText>
-                  <HelperTextItem variant="error">{fieldState.error.message}</HelperTextItem>
-                </HelperText>
-              </FormHelperText>
-            )}
+            <FormFieldError message={fieldState.error?.message} />
           </>
         )}
       />
@@ -137,7 +121,7 @@ export function AssignProjectRoleModal({
 }: Readonly<AssignProjectRoleModalProps>) {
   const { showSuccess } = useAlerts()
 
-  const { control, handleSubmit, reset, setValue, setError, formState } = useForm<AssignProjectRoleFormData>({
+  const { control, handleSubmit, reset, setValue, setError } = useForm<AssignProjectRoleFormData>({
     resolver: zodResolver(assignProjectRoleSchema, undefined, { mode: 'sync' }),
     defaultValues,
   })
@@ -299,7 +283,7 @@ export function AssignProjectRoleModal({
           variant="primary"
           type="submit"
           form="assign-project-role-form"
-          isDisabled={!formState.isValid || isPending}
+          isDisabled={isPending}
           isLoading={isPending}
         >
           Assign

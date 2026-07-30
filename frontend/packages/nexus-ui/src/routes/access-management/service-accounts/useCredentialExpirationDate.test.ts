@@ -1,10 +1,15 @@
 import { act, renderHook } from '@testing-library/react'
 import { addDays, startOfDay } from 'date-fns'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { formatDateYMD } from '../../../utils/dateUtils'
 
 import { useCredentialExpirationDate } from './useCredentialExpirationDate'
+
+vi.mock('../../../utils/dateUtils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../utils/dateUtils')>()
+  return { ...actual }
+})
 
 const today = startOfDay(new Date())
 const tomorrow = addDays(today, 1)
@@ -129,6 +134,60 @@ describe('useCredentialExpirationDate', () => {
       expect(result.current.error).toBe('')
     })
 
+    it('validate returns true for a valid date', () => {
+      const { result } = renderHook(() => useCredentialExpirationDate())
+      const validDate = addDays(today, 10)
+
+      act(() => {
+        result.current.handleChange({} as React.FormEvent<HTMLInputElement>, formatDateYMD(validDate), validDate)
+      })
+
+      let isValid = false
+      act(() => {
+        isValid = result.current.validate()
+      })
+
+      expect(isValid).toBe(true)
+      expect(result.current.error).toBe('')
+    })
+
+    it('validate returns false when value cannot be parsed', async () => {
+      const dateUtils = await import('../../../utils/dateUtils')
+      vi.spyOn(dateUtils, 'parseDateYMD').mockReturnValue(null as unknown as Date)
+
+      const { result } = renderHook(() => useCredentialExpirationDate())
+
+      act(() => {
+        result.current.handleChange({} as React.FormEvent<HTMLInputElement>, 'bad-date', undefined)
+      })
+
+      let isValid = true
+      act(() => {
+        isValid = result.current.validate()
+      })
+
+      expect(isValid).toBe(false)
+      expect(result.current.error).toBe('Invalid date format')
+
+      vi.restoreAllMocks()
+    })
+
+    it('validate returns false and sets required error when value is empty', () => {
+      const { result } = renderHook(() => useCredentialExpirationDate())
+
+      act(() => {
+        result.current.handleChange({} as React.FormEvent<HTMLInputElement>, '', undefined)
+      })
+
+      let isValid = false
+      act(() => {
+        isValid = result.current.validate()
+      })
+
+      expect(isValid).toBe(false)
+      expect(result.current.error).toBe('Credential expiration date is required')
+    })
+
     it('sets error when date is out of range', () => {
       const { result } = renderHook(() => useCredentialExpirationDate(30))
       const tooFar = addDays(today, 31)
@@ -138,6 +197,25 @@ describe('useCredentialExpirationDate', () => {
       })
 
       expect(result.current.error).toBe('Date exceeds maximum credential lifetime')
+    })
+  })
+
+  describe('reset', () => {
+    it('clears error and restores default value', () => {
+      const { result } = renderHook(() => useCredentialExpirationDate())
+      const expectedDefault = result.current.value
+
+      act(() => {
+        result.current.handleChange({} as React.FormEvent<HTMLInputElement>, 'bad', undefined)
+      })
+      expect(result.current.error).toBe('Invalid date format')
+
+      act(() => {
+        result.current.reset()
+      })
+
+      expect(result.current.error).toBe('')
+      expect(result.current.value).toBe(expectedDefault)
     })
   })
 })

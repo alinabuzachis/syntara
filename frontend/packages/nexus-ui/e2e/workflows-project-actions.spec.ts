@@ -93,7 +93,7 @@ test.describe('Workflows Page - Project Actions in All Projects View', () => {
       await app.getByRole('menuitem', { name: /Edit project/i }).click()
 
       // Edit the project name
-      const editDialog = app.getByRole('dialog', { name: /Edit project/i })
+      const editDialog = app.getByRole('dialog', { name: `Edit ${originalName}` })
       await expect(editDialog).toBeVisible()
       const nameInput = editDialog.getByRole('textbox', { name: 'Project name' })
       await nameInput.clear()
@@ -237,7 +237,7 @@ test.describe('Workflows Page - Project Actions in Selected Project View', () =>
       await headerKebab.click()
       await app.getByRole('menuitem', { name: /Edit project/i }).click()
 
-      const editDialog = app.getByRole('dialog', { name: /Edit project/i })
+      const editDialog = app.getByRole('dialog', { name: `Edit ${originalName}` })
       const nameInput = editDialog.getByRole('textbox', { name: 'Project name' })
       await nameInput.clear()
       await nameInput.fill(updatedName)

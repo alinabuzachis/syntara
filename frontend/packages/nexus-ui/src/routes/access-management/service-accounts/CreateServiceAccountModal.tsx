@@ -20,10 +20,11 @@ import {
   TextInput,
 } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiErrorIcon } from '@patternfly/react-icons'
-import { type Ref, useCallback, useMemo, useState } from 'react'
+import { type FormEvent, type Ref, useCallback, useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 
 import { tanstackRouter } from '../../../app/tanstackRouter'
+import { FormFieldError } from '../../../components/FormFieldError'
 import { LONG_SELECT_MAX_MENU_HEIGHT, longSelectMenuPopperProps } from '../../../components/longSelectMenu'
 import longSelectMenuStyles from '../../../components/longSelectMenu.module.css'
 import { NxSelect } from '../../../components/NxSelect'
@@ -52,18 +53,6 @@ type CredentialsResult = {
   identifier: string
   client_secret: string
   expiresAt?: string | null
-}
-
-function FieldError({ message }: Readonly<{ message: string }>) {
-  return (
-    <FormHelperText>
-      <HelperText>
-        <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-          {message}
-        </HelperTextItem>
-      </HelperText>
-    </FormHelperText>
-  )
 }
 
 function ProjectSelectToggle({
@@ -291,6 +280,7 @@ function CreateServiceAccountFormPhase({
     handleChange: handleDateChange,
     validator,
     helperText,
+    validate: validateExpirationDate,
   } = useCredentialExpirationDate(maxLifetimeDays)
   const { submit, isPending } = useCreateServiceAccountSubmit({ expiresAt, onCreated, onCancel, onListRefresh })
 
@@ -312,11 +302,21 @@ function CreateServiceAccountFormPhase({
     (formData: CreateServiceAccountFormData) => submit(formData, handleError),
     [submit, handleError]
   )
+  const handleFormSubmit = useCallback(
+    (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault()
+      if (!validateExpirationDate()) {
+        return
+      }
+      detachPromise(handleSubmit(onSubmit)())
+    },
+    [validateExpirationDate, handleSubmit, onSubmit]
+  )
 
   return (
     <>
       <ModalBody>
-        <Form id="create-service-account-form" onSubmit={handleSubmit(onSubmit)}>
+        <Form id="create-service-account-form" onSubmit={handleFormSubmit}>
           <Controller
             name="project_id"
             control={control}
@@ -328,7 +328,7 @@ function CreateServiceAccountFormPhase({
                   onBlur={field.onBlur}
                   projects={projectOptions}
                 />
-                {fieldState.error?.message && <FieldError message={fieldState.error.message} />}
+                <FormFieldError message={fieldState.error?.message} />
               </FormGroup>
             )}
           />
@@ -377,7 +377,7 @@ function CreateServiceAccountFormPhase({
                   name={field.name}
                   rows={3}
                 />
-                {fieldState.error?.message && <FieldError message={fieldState.error.message} />}
+                <FormFieldError message={fieldState.error?.message} />
               </FormGroup>
             )}
           />
@@ -397,7 +397,7 @@ function CreateServiceAccountFormPhase({
           variant="primary"
           type="submit"
           form="create-service-account-form"
-          isDisabled={isPending || !!dateError || !expiresAt}
+          isDisabled={isPending}
           isLoading={isPending}
           icon={<RhUiAddIcon />}
         >

@@ -45,6 +45,8 @@ vi.mock('../../access-management/service-accounts/useCredentialExpirationDate', 
     handleChange: vi.fn(),
     validator: () => '',
     helperText: 'Maximum lifetime: 180 days',
+    validate: vi.fn(() => true),
+    reset: vi.fn(),
   })),
 }))
 
@@ -131,12 +133,23 @@ describe('CreateServiceAccountInlineModal', () => {
 
   it('calls onClose when cancel is clicked', async () => {
     setupMutationMocks()
+    const resetExpirationDate = vi.fn()
+    vi.mocked(useCredentialExpirationDate).mockReturnValue({
+      value: '2026-12-31',
+      error: '',
+      handleChange: vi.fn(),
+      validator: () => '',
+      helperText: 'Maximum lifetime: 180 days',
+      validate: vi.fn(() => true),
+      reset: resetExpirationDate,
+    })
     const onClose = vi.fn()
     const onCreated = vi.fn()
     const user = userEvent.setup()
     render(<CreateServiceAccountInlineModal isOpen onClose={onClose} onCreated={onCreated} />, { wrapper })
     await user.click(screen.getByText('Cancel'))
     expect(onClose).toHaveBeenCalled()
+    expect(resetExpirationDate).toHaveBeenCalled()
     expect(onCreated).not.toHaveBeenCalled()
   })
 
@@ -173,19 +186,34 @@ describe('CreateServiceAccountInlineModal', () => {
     expect(screen.getByText('Cancel')).toBeInTheDocument()
   })
 
-  it('disables create button when expirationError is set', () => {
+  it('stays enabled when expirationError is set and validates on click', async () => {
     setupMutationMocks()
+    const validate = vi.fn(() => false)
+    const mutateAsync = vi.fn()
+    vi.mocked(accessClient.useMutation).mockReturnValue({
+      mutateAsync,
+      isPending: false,
+    } as ReturnType<typeof accessClient.useMutation>)
     vi.mocked(useCredentialExpirationDate).mockReturnValue({
       value: '2020-01-01',
       error: 'Date must be in the future',
       handleChange: vi.fn(),
       validator: () => 'Date must be in the future',
       helperText: 'Maximum lifetime: 180 days',
+      validate,
+      reset: vi.fn(),
     })
 
+    const user = userEvent.setup()
     render(<CreateServiceAccountInlineModal isOpen onClose={vi.fn()} onCreated={vi.fn()} />, { wrapper })
 
-    expect(screen.getByRole('button', { name: /create service account/i })).toBeDisabled()
+    const createButton = screen.getByRole('button', { name: /create service account/i })
+    expect(createButton).toBeEnabled()
+
+    await user.click(createButton)
+
+    expect(validate).toHaveBeenCalled()
+    expect(mutateAsync).not.toHaveBeenCalled()
   })
 
   it('disables cancel button when isPending is true', () => {

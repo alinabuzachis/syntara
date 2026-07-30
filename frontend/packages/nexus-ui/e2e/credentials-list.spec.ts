@@ -271,7 +271,7 @@ test.describe('Kebab Menu Edit Action', () => {
 
       const modal = app.getByRole('dialog')
       await expect(modal).toBeVisible()
-      await expect(modal.getByText('Edit credential')).toBeVisible()
+      await expect(modal.getByText(`Edit ${credName}`)).toBeVisible()
 
       await expect(modal.getByRole('textbox', { name: 'Credential name' })).toHaveValue(credName)
       await expect(modal.getByRole('button', { name: 'Credential type', exact: true })).toBeDisabled()

@@ -327,7 +327,7 @@ describe('RolesTab', () => {
       await user.click(editOption)
 
       await waitFor(() => {
-        expect(screen.getByText('Edit Role')).toBeInTheDocument()
+        expect(screen.getByText('Edit custom-editor')).toBeInTheDocument()
       })
     })
 

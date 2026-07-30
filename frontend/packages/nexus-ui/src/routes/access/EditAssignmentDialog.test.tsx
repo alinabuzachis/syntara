@@ -196,7 +196,7 @@ describe('EditAssignmentDialog', () => {
     it('renders the dialog with title', () => {
       render(<EditAssignmentDialog {...defaultProps} />, { wrapper })
 
-      expect(screen.getByText('Edit Assignment')).toBeInTheDocument()
+      expect(screen.getByText('Edit principal assignment')).toBeInTheDocument()
     })
 
     it('displays the principal name', () => {

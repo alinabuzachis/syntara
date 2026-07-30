@@ -1,7 +1,7 @@
 import { addDays, startOfDay } from 'date-fns'
 import { useCallback, useMemo, useState } from 'react'
 
-import { formatDateYMD } from '../../../utils/dateUtils'
+import { formatDateYMD, parseDateYMD } from '../../../utils/dateUtils'
 
 function dateRangeValidator(minDate: Date, maxDate: Date | null) {
   return (date: Date): string => {
@@ -38,9 +38,29 @@ export function useCredentialExpirationDate(maxLifetimeDays = 180) {
     [validator]
   )
 
+  const validate = useCallback((): boolean => {
+    if (!value.trim()) {
+      setError('Credential expiration date is required')
+      return false
+    }
+    const dateValue = parseDateYMD(value)
+    if (!dateValue) {
+      setError('Invalid date format')
+      return false
+    }
+    const validationError = validator(dateValue)
+    setError(validationError)
+    return validationError === ''
+  }, [value, validator])
+
+  const reset = useCallback(() => {
+    setValue(formatDateYMD(defaultDate))
+    setError('')
+  }, [defaultDate])
+
   const helperText = isUnlimited
     ? 'No maximum lifetime configured'
     : `Maximum lifetime: ${maxLifetimeDays} days (until ${formatDateYMD(maxDate!)})`
 
-  return { value, error, handleChange, validator, helperText }
+  return { value, error, handleChange, validator, helperText, validate, reset }
 }

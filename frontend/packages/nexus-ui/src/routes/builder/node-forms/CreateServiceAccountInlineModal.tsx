@@ -26,6 +26,7 @@ import { Controller, useForm } from 'react-hook-form'
 import { NxSelect } from '../../../components/NxSelect'
 import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
 import { formatExpirationDate } from '../../../utils/dateUtils'
+import { detachPromise } from '../../../utils/detachPromise'
 import { useSelectableProjects } from '../../access/useAllProjects'
 import { CredentialExpirationField } from '../../access-management/service-accounts/CredentialExpirationField'
 import {
@@ -244,6 +245,8 @@ export function CreateServiceAccountInlineModal({ isOpen, onClose, onCreated, pr
     handleChange: handleExpirationChange,
     validator: expirationValidator,
     helperText: expirationHelperText,
+    validate: validateExpirationDate,
+    reset: resetExpirationDate,
   } = useCredentialExpirationDate()
 
   const { control, handleSubmit, setError, reset } = useForm<CreateServiceAccountFormData>({
@@ -258,9 +261,10 @@ export function CreateServiceAccountInlineModal({ isOpen, onClose, onCreated, pr
   const handleClose = useCallback(() => {
     const saId = resetState()
     reset()
+    resetExpirationDate()
     onClose()
     if (saId) onCreated(saId)
-  }, [resetState, onClose, onCreated, reset])
+  }, [resetState, onClose, onCreated, reset, resetExpirationDate])
 
   const onSubmit = useCallback(
     async (formData: CreateServiceAccountFormData) => {
@@ -268,6 +272,13 @@ export function CreateServiceAccountInlineModal({ isOpen, onClose, onCreated, pr
     },
     [submitForm, handleError]
   )
+
+  const handleCreateClick = useCallback(() => {
+    if (!validateExpirationDate()) {
+      return
+    }
+    detachPromise(handleSubmit(onSubmit)())
+  }, [validateExpirationDate, handleSubmit, onSubmit])
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} variant="medium">
@@ -309,8 +320,8 @@ export function CreateServiceAccountInlineModal({ isOpen, onClose, onCreated, pr
           <>
             <Button
               variant="primary"
-              onClick={handleSubmit(onSubmit)}
-              isDisabled={isPending || !!expirationError}
+              onClick={handleCreateClick}
+              isDisabled={isPending}
               isLoading={isPending}
               icon={<RhUiAddIcon />}
             >

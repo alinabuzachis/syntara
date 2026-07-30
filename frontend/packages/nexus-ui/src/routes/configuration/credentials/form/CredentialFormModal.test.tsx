@@ -145,7 +145,7 @@ describe('CredentialFormModal', () => {
 
   it('renders edit modal title when credential provided', () => {
     render(<CredentialFormModal isOpen onClose={vi.fn()} credentialToEdit={mockCredential} />, { wrapper })
-    expect(screen.getByText('Edit credential')).toBeInTheDocument()
+    expect(screen.getByText('Edit My Token')).toBeInTheDocument()
   })
 
   it('renders name and description fields', () => {

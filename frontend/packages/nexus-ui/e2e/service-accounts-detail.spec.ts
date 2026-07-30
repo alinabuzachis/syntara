@@ -60,7 +60,7 @@ test.describe('UI-5: Service Account Detail — View and Edit', () => {
 
     const modal = app.getByRole('dialog')
     await expect(modal).toBeVisible()
-    await expect(modal.getByText('Edit service account')).toBeVisible()
+    await expect(modal.getByText(`Edit ${sa.name}`)).toBeVisible()
 
     const nameInput = modal.getByLabel('Name')
     await expect(nameInput).toHaveValue(sa.name)

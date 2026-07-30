@@ -119,8 +119,6 @@ export function ImportWorkflowDialog({ isOpen, onClose, onSuccess }: ImportWorkf
   }
 
   const onSubmit = async (data: ImportWorkflowFormData) => {
-    if (!file) return
-
     if (!selectedProjectId) {
       setSaveAttemptedWithoutProject(true)
       showError({ title: 'Project required', description: 'Please select a project to import this workflow.' })
@@ -131,9 +129,10 @@ export function ImportWorkflowDialog({ isOpen, onClose, onSuccess }: ImportWorkf
     setFileError(null)
 
     try {
-      validateFileSize(file)
-      const content = await file.text()
-      const parsed = parseWorkflowFile(content, file.name)
+      // handleImportClick validates file presence before invoking handleSubmit
+      validateFileSize(file!)
+      const content = await file!.text()
+      const parsed = parseWorkflowFile(content, file!.name)
       const fullDefinition = buildFullDefinition(parsed, data.name)
 
       const { data: result, error } = await workflowFetchClient.POST('/workflows', {
@@ -156,6 +155,14 @@ export function ImportWorkflowDialog({ isOpen, onClose, onSuccess }: ImportWorkf
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const handleImportClick = () => {
+    if (!file) {
+      setFileError('Workflow file is required')
+      return
+    }
+    detachPromise(handleSubmit(onSubmit)())
   }
 
   return (
@@ -214,12 +221,7 @@ export function ImportWorkflowDialog({ isOpen, onClose, onSuccess }: ImportWorkf
         </Form>
       </ModalBody>
       <ModalFooter>
-        <Button
-          variant="primary"
-          onClick={() => detachPromise(handleSubmit(onSubmit)())}
-          isDisabled={!file || isSaving}
-          isLoading={isSaving}
-        >
+        <Button variant="primary" onClick={handleImportClick} isDisabled={isSaving} isLoading={isSaving}>
           Import
         </Button>
         <Button variant="link" onClick={handleClose} isDisabled={isSaving}>

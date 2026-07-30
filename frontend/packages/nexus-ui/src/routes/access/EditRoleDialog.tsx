@@ -77,7 +77,7 @@ export function EditRoleDialog({ role, onClose, onSuccess }: Readonly<EditRoleDi
 
   return (
     <Modal isOpen onClose={onClose} variant="medium">
-      <ModalHeader title="Edit Role" />
+      <ModalHeader title={`Edit ${role.name}`} />
       <ModalBody>
         <Form id="edit-role-form" onSubmit={handleSubmit(onSubmit)}>
           <FormGroup label="Name" isRequired fieldId="role-name">

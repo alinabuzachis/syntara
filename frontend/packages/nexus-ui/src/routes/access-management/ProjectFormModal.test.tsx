@@ -231,7 +231,7 @@ describe('ProjectFormModal', () => {
         wrapper,
       })
 
-      expect(screen.getByText('Edit project')).toBeInTheDocument()
+      expect(screen.getByText('Edit Alpha')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
     })
 

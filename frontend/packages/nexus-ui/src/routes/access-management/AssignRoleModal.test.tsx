@@ -294,9 +294,14 @@ describe('AssignRoleModal', () => {
   })
 
   describe('Submit button state', () => {
-    it('is disabled when no roles are selected', () => {
+    it('stays enabled when no roles are selected', async () => {
+      const user = userEvent.setup()
       renderModal()
-      expect(screen.getByRole('button', { name: /Assign/i })).toBeDisabled()
+
+      const submitButton = screen.getByRole('button', { name: /Assign/i })
+      expect(submitButton).toBeEnabled()
+      await user.click(submitButton)
+      expect(mockMutateAsync).not.toHaveBeenCalled()
     })
 
     it('shows role count in button when roles are selected', async () => {
@@ -309,6 +314,60 @@ describe('AssignRoleModal', () => {
       await user.click(screen.getByRole('option', { name: /admin-role/i }))
 
       expect(screen.getByRole('button', { name: /Assign \(1\)/i })).toBeInTheDocument()
+    })
+  })
+
+  describe('Validation errors', () => {
+    it('shows inline error when Assign is clicked with no roles selected', async () => {
+      const user = userEvent.setup()
+      renderModal()
+
+      await user.click(screen.getByRole('button', { name: /Assign/i }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Select at least one role')).toBeInTheDocument()
+      })
+      expect(mockMutateAsync).not.toHaveBeenCalled()
+    })
+
+    it('shows inline error when project scope has roles but no project selected', async () => {
+      const user = userEvent.setup()
+      renderModal()
+
+      await user.click(screen.getByRole('button', { name: 'System' }))
+      await user.click(screen.getByRole('option', { name: 'Project' }))
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Select a project...' })).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByPlaceholderText('Search for roles...'))
+      await user.click(screen.getByRole('option', { name: /project-admin/i }))
+
+      await user.click(screen.getByRole('button', { name: /Assign \(1\)/i }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Project is required')).toBeInTheDocument()
+      })
+      expect(mockMutateAsync).not.toHaveBeenCalled()
+    })
+
+    it('clears role error when a role is selected after failed submit', async () => {
+      const user = userEvent.setup()
+      renderModal()
+
+      await user.click(screen.getByRole('button', { name: /Assign/i }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Select at least one role')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByPlaceholderText('Search for roles...'))
+      await user.click(screen.getByRole('option', { name: /admin-role/i }))
+
+      await waitFor(() => {
+        expect(screen.queryByText('Select at least one role')).not.toBeInTheDocument()
+      })
     })
   })
 
@@ -430,11 +489,9 @@ describe('AssignRoleModal', () => {
       const user = userEvent.setup()
       renderModal()
 
-      // The submit button is disabled when no roles are selected
       const submitButton = screen.getByRole('button', { name: /Assign/i })
-      expect(submitButton).toBeDisabled()
+      expect(submitButton).toBeEnabled()
 
-      // Clicking a disabled button does nothing
       await user.click(submitButton)
       expect(mockMutateAsync).not.toHaveBeenCalled()
     })
@@ -456,8 +513,10 @@ describe('AssignRoleModal', () => {
       await user.click(screen.getByPlaceholderText('Search for roles...'))
       await user.click(screen.getByRole('option', { name: /project-admin/i }))
 
-      // Submit button should be disabled (no project selected)
-      expect(screen.getByRole('button', { name: /Assign \(1\)/i })).toBeDisabled()
+      const submitButton = screen.getByRole('button', { name: /Assign \(1\)/i })
+      expect(submitButton).toBeEnabled()
+      await user.click(submitButton)
+      expect(mockMutateAsync).not.toHaveBeenCalled()
     })
 
     it('shows success alert with count for single role assignment', async () => {

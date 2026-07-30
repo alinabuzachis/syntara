@@ -534,7 +534,7 @@ describe('GroupsTab Component', () => {
       await user.click(editOption)
 
       await waitFor(() => {
-        expect(screen.getByText('Edit group')).toBeInTheDocument()
+        expect(screen.getByText('Edit Admins')).toBeInTheDocument()
       })
     })
 

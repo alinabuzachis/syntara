@@ -175,5 +175,21 @@ describe('MultiRoleSelect', () => {
       // The dropdown should now be open, showing Admin
       expect(screen.getByRole('option', { name: /Admin/i })).toBeInTheDocument()
     })
+
+    it('renders with hasError without crashing', () => {
+      render(<MultiRoleSelect options={options} selected={[]} onChange={mockOnChange} hasError />)
+      expect(screen.getByPlaceholderText('Search for roles...')).toBeInTheDocument()
+    })
+  })
+
+  describe('Loading state', () => {
+    it('shows loading option when isLoading is true', async () => {
+      const user = userEvent.setup()
+      render(<MultiRoleSelect options={options} selected={[]} onChange={mockOnChange} isLoading />)
+
+      await user.click(screen.getByRole('button', { expanded: false }))
+
+      expect(screen.getByRole('option', { name: 'Loading...' })).toBeInTheDocument()
+    })
   })
 })
