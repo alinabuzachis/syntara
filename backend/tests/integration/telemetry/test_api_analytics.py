@@ -13,6 +13,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
+from nexus.api.constants import API_V1_PATH_PREFIX
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.events.http_request import HTTPRequestEvent
 from nexus.audit.middleware import AuditMiddleware
@@ -58,9 +59,13 @@ def _create_test_app() -> FastAPI:
     async def health() -> dict[str, str]:
         return {"status": "healthy"}
 
-    @app.get("/")
-    async def root() -> dict[str, str]:
-        return {"message": "root"}
+    @app.get("/api")
+    async def api_discovery() -> dict[str, str]:
+        return {"current_version": "/api/v1"}
+
+    @app.get(f"{API_V1_PATH_PREFIX}/docs", include_in_schema=False)
+    async def api_v1_docs() -> dict[str, str]:
+        return {"docs": "placeholder"}
 
     app.add_middleware(AuditMiddleware, fastapi_app=app)
     return app
@@ -170,14 +175,14 @@ class TestExcludedPathsIntegration:
         assert response.status_code == 200
         mock_registry.send_event.assert_not_called()
 
-    async def test_root_no_event(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
+    async def test_api_discovery_no_event(self, test_app: FastAPI, mock_registry: MagicMock) -> None:
         transport = ASGITransport(app=test_app)
         with (
             patch(_SETTINGS_PATH, return_value=_make_settings_mock(enabled=True)),
             patch(_REGISTRY_PATH, return_value=mock_registry),
         ):
             async with AsyncClient(transport=transport, base_url="http://test") as client:
-                response = await client.get("/")
+                response = await client.get("/api")
 
         assert response.status_code == 200
         mock_registry.send_event.assert_not_called()
@@ -189,7 +194,7 @@ class TestExcludedPathsIntegration:
             patch(_REGISTRY_PATH, return_value=mock_registry),
         ):
             async with AsyncClient(transport=transport, base_url="http://test") as client:
-                await client.get("/docs")
+                await client.get(f"{API_V1_PATH_PREFIX}/docs")
 
         mock_registry.send_event.assert_not_called()
 

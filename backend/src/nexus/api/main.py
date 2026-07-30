@@ -7,13 +7,15 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 import structlog
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
+from fastapi.responses import HTMLResponse
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import text
@@ -26,6 +28,7 @@ from nexus.audit.lifecycle import start_audit_subsystems, stop_audit_subsystems
 from nexus.audit.middleware import AuditMiddleware
 from nexus.audit.registration import discover_and_register_all_handlers
 from nexus.auth.cert_middleware import ClientCertAuthMiddleware
+from nexus.auth.dependencies import get_current_user
 from nexus.auth.middleware import StaleTokenMiddleware
 from nexus.auth.session.cleanup import get_session_cleanup_worker
 from nexus.authz.evaluator import RegoEvaluator
@@ -50,7 +53,8 @@ from nexus.core.error_handlers import (
 )
 from nexus.core.exception_registry import register_exceptions
 from nexus.core.logging.logging import apply_runtime_log_level, build_uvicorn_logging_config
-from nexus.core.router_discovery import _get_lock_file_path, discover_and_register_routers
+from nexus.core.models.user import User
+from nexus.core.router_discovery import _get_lock_file_path, discover_and_register_routers, iter_api_routes
 from nexus.core.websocket.manager import get_connection_lifecycle_manager
 from nexus.core.websocket.router import build_websocket_router
 from nexus.files.health import check_file_storage_health, validate_file_storage_at_startup
@@ -336,10 +340,10 @@ app = FastAPI(
     title=f"{_settings.product_name} API",
     description="A distributed multi-agent workflow orchestration system",
     version=API_V1_VERSION,
-    docs_url="/docs" if _settings.enable_api_docs else None,
-    redoc_url="/redoc" if _settings.enable_api_docs else None,
-    openapi_url="/openapi.json" if _settings.enable_api_docs else None,
-    swagger_ui_parameters=swagger_ui_parameters(enable_try_it_out=_settings.enable_try_it_out),
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+    swagger_ui_parameters=None,
     lifespan=lifespan,
     responses=problem_details_response_map(),
 )
@@ -462,18 +466,85 @@ async def health_check(request: Request) -> dict[str, Any]:  # noqa: ARG001
 app.get("/metrics", tags=["Observability"], include_in_schema=False)(openmetrics_endpoint)
 
 
-@app.get("/", tags=["Root"], include_in_schema=False)
-async def root() -> dict[str, str]:
-    """Root endpoint.
+@app.get("/api", tags=["API Discovery"], include_in_schema=False)
+async def api_discovery(
+    current_user: Annotated[User, Depends(get_current_user)],  # noqa: ARG001
+) -> dict[str, Any]:
+    """Return available API versions."""
+    return {
+        "current_version": API_V1_PATH_PREFIX,
+        "available_versions": {
+            "v1": API_V1_PATH_PREFIX,
+        },
+    }
 
-    Returns:
-        dict: Welcome message with API information
 
-    """
-    response: dict[str, str] = {"message": f"{_settings.product_name} API", "version": API_V1_VERSION}
+# ---------------------------------------------------------------------------
+# API v1 endpoints
+# ---------------------------------------------------------------------------
+@app.get("/api/v1", tags=["API Discovery"], include_in_schema=False)
+async def api_v1_root(
+    current_user: Annotated[User, Depends(get_current_user)],  # noqa: ARG001
+) -> dict[str, Any]:
+    """List available API v1 endpoints."""
+    return {
+        route.name: route.path
+        for route in iter_api_routes(app)
+        if route.path.startswith(API_V1_PATH_PREFIX) and route.name != api_v1_root.__name__
+    }
+
+
+@app.get("/api/v1/version", tags=["API Discovery"])
+async def api_v1_version(
+    current_user: Annotated[User, Depends(get_current_user)],  # noqa: ARG001
+) -> dict[str, Any]:
+    """Return full API v1 version details."""
+    response: dict[str, Any] = {
+        "api_version": "v1",
+        "info_version": API_V1_VERSION,
+        "status": "current",
+        "links": None,
+    }
+
     if _settings.enable_api_docs:
-        response["docs"] = "/docs"
+        response["links"] = {
+            "docs": f"{API_V1_PATH_PREFIX}/docs",
+            "redoc": f"{API_V1_PATH_PREFIX}/redoc",
+            "openapi": f"{API_V1_PATH_PREFIX}/openapi.json",
+        }
+
     return response
+
+
+if _settings.enable_api_docs:
+    api_v1_openapi_path = f"{API_V1_PATH_PREFIX}/openapi.json"
+
+    @app.get(f"{API_V1_PATH_PREFIX}/docs", tags=["API Docs"], include_in_schema=False)
+    async def api_v1_docs(
+        current_user: Annotated[User, Depends(get_current_user)],  # noqa: ARG001
+    ) -> HTMLResponse:
+        """Serve the Swagger UI for API v1."""
+        return get_swagger_ui_html(
+            openapi_url=api_v1_openapi_path,
+            title=f"{app.title} V1 - Docs",
+            swagger_ui_parameters=swagger_ui_parameters(
+                enable_try_it_out=_settings.enable_try_it_out,
+            ),
+        )
+
+    @app.get(f"{API_V1_PATH_PREFIX}/redoc", tags=["API Docs"], include_in_schema=False)
+    async def api_v1_redoc(
+        current_user: Annotated[User, Depends(get_current_user)],  # noqa: ARG001
+    ) -> HTMLResponse:
+        """Serve the ReDoc UI for API v1."""
+        return get_redoc_html(openapi_url=api_v1_openapi_path, title=f"{app.title} V1 - ReDoc")
+
+    @app.get(api_v1_openapi_path, tags=["API Docs"], include_in_schema=False)
+    async def api_v1_openapi(
+        current_user: Annotated[User, Depends(get_current_user)],  # noqa: ARG001
+    ) -> dict[str, Any]:
+        """Return the OpenAPI spec for API v1."""
+        return app.openapi()
 
 
 # ---------------------------------------------------------------------------

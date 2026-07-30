@@ -14,15 +14,17 @@ API_V1_VERSION = "0.1.0"
 OIDC_CALLBACK_PATH = f"{API_V1_PATH_PREFIX}/auth/oidc/callback"
 
 # Paths excluded from middleware instrumentation (analytics, metrics).
-# Health checks, documentation, and root informational endpoints are not
-# business API endpoints and would generate noise in observability data.
+# Health checks, discovery endpoints, and documentation endpoints are
+# not business API endpoints and would generate noise in observability
+# data.
 EXCLUDED_PATHS: frozenset[str] = frozenset(
     {
         "/health",
-        "/",
-        "/docs",
-        "/redoc",
-        "/openapi.json",
+        "/api",
+        "/api/v1",
+        f"{API_V1_PATH_PREFIX}/docs",
+        f"{API_V1_PATH_PREFIX}/redoc",
+        f"{API_V1_PATH_PREFIX}/openapi.json",
     }
 )
 
