@@ -40,10 +40,4 @@ describe('IntegrationEmptyState', () => {
       expect.objectContaining({ to: '/configuration/integrations/configure' })
     )
   })
-
-  it('renders the PF empty state icon', () => {
-    render(<IntegrationEmptyState />)
-
-    expect(screen.getByRole('img', { name: 'No integrations configured' })).toBeInTheDocument()
-  })
 })

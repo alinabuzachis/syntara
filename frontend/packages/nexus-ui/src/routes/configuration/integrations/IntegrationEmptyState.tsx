@@ -1,7 +1,6 @@
 import { useNavigate } from '@tanstack/react-router'
 
 import { AppRoute } from '../../../app/AppRoute'
-import noDataImage from '../../../assets/collage-circle-sparkles-window-server-dark-RH.png'
 import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
 import { detachPromise } from '../../../utils/detachPromise'
 
@@ -9,8 +8,6 @@ export function IntegrationEmptyState({ canCreate = true }: Readonly<{ canCreate
   const navigate = useNavigate()
   return (
     <NxEmptyStateNoData
-      imageSrc={noDataImage}
-      imageAlt="No integrations configured"
       title="No integrations have been configured yet."
       description="Configure integrations to use them in workflows. Integrations will allow for monitoring of server health and performance metrics, view server logs, and manage server settings and configurations."
       buttonText={canCreate ? 'Configure integration' : undefined}
