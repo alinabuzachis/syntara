@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -69,10 +70,14 @@ describe('AddIdentityProvider', () => {
     expect(screen.getByRole('heading', { name: 'Add OIDC provider' })).toBeInTheDocument()
   })
 
-  it('renders the Add provider submit button', () => {
+  it('renders the Add provider submit button on last step', async () => {
     setupMocks()
+    const user = userEvent.setup()
     render(<AddIdentityProvider />, { wrapper })
 
+    expect(screen.queryByRole('button', { name: 'Add provider' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Claim mapping' }))
     expect(screen.getByRole('button', { name: 'Add provider' })).toBeInTheDocument()
   })
 

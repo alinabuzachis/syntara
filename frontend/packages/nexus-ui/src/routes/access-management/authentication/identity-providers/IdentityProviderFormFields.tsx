@@ -1,6 +1,4 @@
 import {
-  ActionList,
-  ActionListItem,
   Button,
   ClipboardCopy,
   Form,
@@ -18,9 +16,7 @@ import {
   TextInput,
   Title,
   Wizard,
-  WizardFooterWrapper,
   WizardStep,
-  useWizardContext,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import { useCallback, useState } from 'react'
@@ -39,6 +35,7 @@ import styles from './IdentityProviderFormFields.module.css'
 import { type IdentityProviderFormData } from './identityProviderFormSchema'
 import { IdpTypeKey, IDP_TYPE_OPTIONS, IDP_TYPE_PRESETS } from './idpTypePresets'
 import { JmespathExpressionField } from './JmespathExpressionField'
+import { WizardNavFooter } from './WizardNavFooter'
 
 function getScopesHelperText(hasError: unknown, isPresetTemplate: boolean): string | undefined {
   if (hasError) return undefined
@@ -105,59 +102,6 @@ function IdpTypeMenuToggle({
         'Select a provider template...'
       )}
     </MenuToggle>
-  )
-}
-
-// Fields validated before advancing from step 1 to step 2 in the wizard.
-// Boolean toggles (enabled, autoDiscovery, enableRpInitiatedLogout,
-// allowAllAuthenticated) are intentionally excluded — they have no validation
-// constraints and always hold a valid default value.
-const STEP1_FIELDS: (keyof IdentityProviderFormData)[] = [
-  'idpType',
-  'name',
-  'issuerUrl',
-  'clientId',
-  'clientSecret',
-  'scopes',
-  'authorizationEndpoint',
-  'tokenEndpoint',
-  'jwksUri',
-  'endSessionEndpoint',
-]
-
-function WizardNavFooter({ trigger }: Readonly<{ trigger?: UseFormTrigger<IdentityProviderFormData> }>) {
-  const { goToNextStep, goToPrevStep, activeStep, steps } = useWizardContext()
-  const isFirst = activeStep.index === 1
-  const isLast = activeStep.index === steps.length
-
-  const handleNext = useCallback(async () => {
-    if (trigger && isFirst) {
-      const valid = await trigger(STEP1_FIELDS)
-      if (valid) await goToNextStep()
-      return
-    }
-    await goToNextStep()
-  }, [trigger, isFirst, goToNextStep])
-
-  return (
-    <WizardFooterWrapper>
-      <ActionList>
-        {!isFirst && (
-          <ActionListItem>
-            <Button variant="secondary" onClick={goToPrevStep}>
-              Back
-            </Button>
-          </ActionListItem>
-        )}
-        {!isLast && (
-          <ActionListItem>
-            <Button variant="primary" onClick={() => detachPromise(handleNext())}>
-              Next
-            </Button>
-          </ActionListItem>
-        )}
-      </ActionList>
-    </WizardFooterWrapper>
   )
 }
 
@@ -364,6 +308,10 @@ type IdentityProviderFormFieldsProps = {
   testResult?: TestResultData | null
   onTestConnection?: () => Promise<void>
   isTesting?: boolean
+  submitLabel?: string
+  isSaving?: boolean
+  onSubmit?: (goToStepById: (id: string) => void) => void
+  onCancel?: () => void
 }
 
 export function IdentityProviderFormFields({
@@ -374,6 +322,10 @@ export function IdentityProviderFormFields({
   testResult,
   onTestConnection,
   isTesting,
+  submitLabel,
+  isSaving,
+  onSubmit,
+  onCancel,
 }: Readonly<IdentityProviderFormFieldsProps>) {
   const claimsSupported = testResult?.claimsSupported
   const claimAliases = testResult?.claimAliases
@@ -396,7 +348,18 @@ export function IdentityProviderFormFields({
   )
 
   return (
-    <Wizard isVisitRequired={false} footer={<WizardNavFooter trigger={trigger} />}>
+    <Wizard
+      isVisitRequired={false}
+      footer={
+        <WizardNavFooter
+          trigger={trigger}
+          submitLabel={submitLabel}
+          isSaving={isSaving}
+          onSubmit={onSubmit}
+          onCancel={onCancel}
+        />
+      }
+    >
       <WizardStep name="Provider configuration" id="provider-config">
         <Stack hasGutter>
           <StackItem>

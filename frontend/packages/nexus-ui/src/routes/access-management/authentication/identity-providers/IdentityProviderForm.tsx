@@ -77,7 +77,7 @@ function groupMappingFields(formData: IdentityProviderFormData) {
   }
   return {
     group_jmespath_expression: formData.groupMapping.jmespathExpression,
-    group_mapping_entries: formData.groupMapping.entries.map((e) => ({
+    group_mapping_entries: (formData.groupMapping.entries ?? []).map((e) => ({
       idp_group_value: e.idpGroupValue,
       nexus_group_id: e.nexusGroupId,
     })),
@@ -322,37 +322,55 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
   })
   const handleError = useFormMutationErrorHandler<IdentityProviderFormData>(setError)
 
-  const navigateBack = () => detachPromise(navigate({ to: AppRoute.SystemAdministration.Authentication.Root }))
+  const navigateBack = useCallback(
+    () => detachPromise(navigate({ to: AppRoute.SystemAdministration.Authentication.Root })),
+    [navigate]
+  )
 
-  const onSubmit = (formData: IdentityProviderFormData) => {
-    const context = formData.name ? `Identity provider "${formData.name}"` : undefined
-    const errorTitle = isEdit ? 'Failed to update identity provider' : 'Failed to add identity provider'
+  const handleFormSubmit = useCallback(
+    (formData: IdentityProviderFormData, goToStepById: (id: string) => void) => {
+      const context = `Identity provider "${formData.name}"`
+      const errorTitle = isEdit ? 'Failed to update identity provider' : 'Failed to add identity provider'
 
-    const onConflict = (error: unknown) => {
-      if (isConflictError(error)) {
-        setError('name', {
-          message: `An identity provider named "${formData.name}" already exists. Choose a different name.`,
-        })
-        return
+      const onConflict = (error: unknown) => {
+        if (isConflictError(error)) {
+          setError('name', {
+            message: `An identity provider named "${formData.name}" already exists. Choose a different name.`,
+          })
+          goToStepById('provider-config')
+          return
+        }
+        handleError({ title: errorTitle, context })(error)
       }
-      handleError({ title: errorTitle, context })(error)
-    }
 
-    const successTitle = isEdit ? 'Identity provider updated' : 'Identity provider created'
-    const onSuccess = () => {
-      showSuccess({ title: successTitle })
-      navigateBack()
-    }
+      const successTitle = isEdit ? 'Identity provider updated' : 'Identity provider created'
+      const onSuccess = () => {
+        showSuccess({ title: successTitle })
+        navigateBack()
+      }
 
-    if (isEdit && providerId) {
-      patchProvider(
-        { params: { path: { provider_id: providerId } }, body: toPatchPayload(formData) },
-        { onSuccess, onError: onConflict }
-      )
-    } else {
-      createProvider({ body: toCreatePayload(formData) }, { onSuccess, onError: onConflict })
-    }
-  }
+      if (isEdit && providerId) {
+        patchProvider(
+          { params: { path: { provider_id: providerId } }, body: toPatchPayload(formData) },
+          { onSuccess, onError: onConflict }
+        )
+      } else {
+        createProvider({ body: toCreatePayload(formData) }, { onSuccess, onError: onConflict })
+      }
+    },
+    [isEdit, providerId, setError, handleError, showSuccess, navigateBack, patchProvider, createProvider]
+  )
+
+  const normalizeAndSubmit = useCallback(
+    (goToStepById: (id: string) => void) => {
+      const gm = getValues('groupMapping')
+      if (gm && !gm.entries) {
+        setValue('groupMapping', null)
+      }
+      detachPromise(handleSubmit((formData) => handleFormSubmit(formData, goToStepById))())
+    },
+    [getValues, setValue, handleSubmit, handleFormSubmit]
+  )
 
   const onTestConnection = useCallback(async () => {
     // Only validate issuer URL — that's all the test endpoint needs
@@ -429,25 +447,10 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
   return (
     <NxPage>
       <NxPageTitle segments={[pageTitle, 'Identity Providers']} />
-      <NxPageHeader
-        title={pageTitle}
-        docLink={identityProvidersDocLink}
-        breadcrumbs={idpFormCrumbs}
-        toolbar={
-          <>
-            <Button type="submit" form="identity-provider-form" isLoading={isSaving} isDisabled={isSaving}>
-              {submitLabel}
-            </Button>
-            <Button variant="link" onClick={navigateBack}>
-              Cancel
-            </Button>
-          </>
-        }
-      />
+      <NxPageHeader title={pageTitle} docLink={identityProvidersDocLink} breadcrumbs={idpFormCrumbs} />
       <NxPageBody>
         {/* hasNoPadding: PF Wizard applies its own lg padding on __main-body; Panel padding would double it. */}
         <NxPanel isFullHeight isScrollable hasNoPadding>
-          <form id="identity-provider-form" onSubmit={handleSubmit(onSubmit)} hidden />
           <IdentityProviderFormFields
             control={control}
             setValue={setValue}
@@ -456,6 +459,10 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
             testResult={discoveredClaims}
             onTestConnection={onTestConnection}
             isTesting={isTesting}
+            submitLabel={submitLabel}
+            isSaving={isSaving}
+            onSubmit={normalizeAndSubmit}
+            onCancel={navigateBack}
           />
         </NxPanel>
       </NxPageBody>

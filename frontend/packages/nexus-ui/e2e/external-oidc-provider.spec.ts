@@ -65,6 +65,7 @@ test.describe('IdP configuration — keycloak external OIDC', () => {
       })
     })
 
+    await app.getByRole('button', { name: /Claim mapping/i }).click()
     await app.getByRole('button', { name: /Add provider/i }).click()
     await expect(app.getByRole('heading', { name: /Identity provider created/i })).toBeVisible()
 
@@ -113,6 +114,7 @@ test.describe('IdP configuration — keycloak external OIDC', () => {
       })
     })
 
+    await app.getByRole('button', { name: /Claim mapping/i }).click()
     await app.getByRole('button', { name: /Add provider/i }).click()
     await expect(app.getByRole('heading', { name: /Identity provider created/i })).toBeVisible()
 
@@ -132,7 +134,7 @@ test.describe('IdP configuration — keycloak external OIDC', () => {
       .fill('https://keycloak-service.example.com/oauth2/authorize')
     await app.getByRole('textbox', { name: /JWKS URI/i }).fill('https://keycloak-service.example.com/oauth2/keys')
 
-    await app.getByRole('button', { name: /Add provider/i }).click()
+    await app.getByRole('button', { name: /Next/i }).click()
 
     await expect(app.getByRole('textbox', { name: /Token endpoint/i })).toHaveAttribute('aria-invalid', 'true')
     await expect(app.getByText('Required when auto-discovery is disabled')).toBeVisible()
@@ -158,6 +160,7 @@ test.describe('IdP configuration — keycloak external OIDC', () => {
       })
     })
 
+    await app.getByRole('button', { name: /Claim mapping/i }).click()
     await app.getByRole('button', { name: /Add provider/i }).click()
     await expect(app.getByRole('heading', { name: /Identity provider created/i })).toBeVisible()
 

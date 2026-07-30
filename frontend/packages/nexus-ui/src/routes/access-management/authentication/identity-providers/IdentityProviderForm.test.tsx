@@ -86,11 +86,15 @@ describe('IdentityProviderForm', () => {
   })
 
   describe('add mode', () => {
-    it('renders the add form', () => {
+    it('renders the add form with submit button on last step', async () => {
       setupMocks()
+      const user = userEvent.setup()
       render(<IdentityProviderForm mode="add" />, { wrapper })
 
       expect(screen.getByRole('heading', { name: 'Add OIDC provider' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Add provider' })).not.toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Claim mapping' }))
       expect(screen.getByRole('button', { name: 'Add provider' })).toBeInTheDocument()
     })
 
@@ -101,7 +105,7 @@ describe('IdentityProviderForm', () => {
       expect(screen.getByRole('button', { name: 'Test connection' })).toBeInTheDocument()
     })
 
-    it('renders cancel button', () => {
+    it('renders cancel button on all steps', () => {
       setupMocks()
       render(<IdentityProviderForm mode="add" />, { wrapper })
 
@@ -179,11 +183,14 @@ describe('IdentityProviderForm', () => {
       } as never)
     }
 
-    it('renders the edit form with Save button', () => {
+    it('renders the edit form with Save button on last step', async () => {
       setupEditMocks()
+      const user = userEvent.setup()
       render(<IdentityProviderForm mode="edit" />, { wrapper })
 
       expect(screen.getByRole('heading', { name: 'Edit OIDC provider' })).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Claim mapping' }))
       expect(screen.getByRole('button', { name: 'Save provider' })).toBeInTheDocument()
     })
 
@@ -261,6 +268,7 @@ describe('IdentityProviderForm', () => {
       const user = userEvent.setup()
       render(<IdentityProviderForm mode="edit" />, { wrapper })
 
+      await user.click(screen.getByRole('button', { name: 'Claim mapping' }))
       await user.click(screen.getByRole('button', { name: 'Save provider' }))
 
       await waitFor(() => {
@@ -310,6 +318,7 @@ describe('IdentityProviderForm', () => {
       const user = userEvent.setup()
       render(<IdentityProviderForm mode="edit" />, { wrapper })
 
+      await user.click(screen.getByRole('button', { name: 'Claim mapping' }))
       await user.click(screen.getByRole('button', { name: 'Save provider' }))
 
       await waitFor(() => {
@@ -356,6 +365,7 @@ describe('IdentityProviderForm', () => {
 
       expect(screen.getByLabelText(/Disable TLS certificate verification/)).toBeChecked()
 
+      await user.click(screen.getByRole('button', { name: 'Claim mapping' }))
       await user.click(screen.getByRole('button', { name: 'Save provider' }))
 
       await waitFor(() => {
@@ -398,6 +408,7 @@ describe('IdentityProviderForm', () => {
       await user.type(screen.getByLabelText(/Client ID/), 'client-id')
       await user.type(screen.getByLabelText(/Client secret/), 'client-secret')
 
+      await user.click(screen.getByRole('button', { name: 'Claim mapping' }))
       await user.click(screen.getByRole('button', { name: 'Add provider' }))
 
       await waitFor(() => {
@@ -432,6 +443,7 @@ describe('IdentityProviderForm', () => {
       await user.type(screen.getByLabelText(/Client ID/), 'aap-client')
       await user.type(screen.getByLabelText(/Client secret/), 'aap-secret')
 
+      await user.click(screen.getByRole('button', { name: 'Claim mapping' }))
       await user.click(screen.getByRole('button', { name: 'Add provider' }))
 
       await waitFor(() => {
@@ -440,6 +452,33 @@ describe('IdentityProviderForm', () => {
 
       const callArgs = mockCreate.mock.calls[0] as [{ body: { configuration: { aap_role_mapping_enabled: boolean } } }]
       expect(callArgs[0].body.configuration.aap_role_mapping_enabled).toBe(true)
+    })
+
+    it('submits with empty group mapping when step 2 fields are untouched', async () => {
+      const mockCreate = vi.fn()
+      setupMocks()
+
+      vi.mocked(identityProvidersClient.useMutation).mockImplementation(((_method: string, path: string) => {
+        if (path === '/identity_providers') {
+          return { mutate: mockCreate, isPending: false }
+        }
+        return { mutate: vi.fn(), isPending: false }
+      }) as never)
+
+      const user = userEvent.setup()
+      render(<IdentityProviderForm mode="add" />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: /Select a provider template/ }))
+      await user.click(screen.getByRole('option', { name: /Custom/ }))
+      await user.type(screen.getByLabelText(/Provider name/), 'test')
+      await user.type(screen.getByLabelText(/Issuer URL/), 'https://issuer.example.com')
+      await user.type(screen.getByLabelText(/Client ID/), 'cid')
+      await user.type(screen.getByLabelText(/Client secret/), 'csecret')
+
+      await user.click(screen.getByRole('button', { name: 'Claim mapping' }))
+      await user.click(screen.getByRole('button', { name: 'Add provider' }))
+
+      await waitFor(() => expect(mockCreate).toHaveBeenCalled())
     })
 
     it('includes disable_tls_verify in create payload', async () => {
@@ -465,6 +504,7 @@ describe('IdentityProviderForm', () => {
 
       await user.click(screen.getByLabelText(/Disable TLS certificate verification/))
 
+      await user.click(screen.getByRole('button', { name: 'Claim mapping' }))
       await user.click(screen.getByRole('button', { name: 'Add provider' }))
 
       await waitFor(() => {
@@ -497,6 +537,7 @@ describe('IdentityProviderForm', () => {
       await user.type(screen.getByLabelText(/Client ID/), 'client-id')
       await user.type(screen.getByLabelText(/Client secret/), 'secret')
 
+      await user.click(screen.getByRole('button', { name: 'Claim mapping' }))
       await user.click(screen.getByRole('button', { name: 'Add provider' }))
 
       await waitFor(() => {
@@ -509,8 +550,47 @@ describe('IdentityProviderForm', () => {
         getMutationCallbacks(mockCreate).onError?.(conflictError)
       })
 
+      // The form auto-navigates to the provider configuration step on conflict
       await waitFor(() => {
         expect(screen.getByText(/already exists/)).toBeInTheDocument()
+      })
+    })
+
+    it('handles non-conflict submit error via generic error handler', async () => {
+      const mockCreate = vi.fn()
+      setupMocks()
+
+      vi.mocked(identityProvidersClient.useMutation).mockImplementation(((_method: string, path: string) => {
+        if (path === '/identity_providers') {
+          return { mutate: mockCreate, isPending: false }
+        }
+        return { mutate: vi.fn(), isPending: false }
+      }) as never)
+
+      const user = userEvent.setup()
+      render(<IdentityProviderForm mode="add" />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: /Select a provider template/ }))
+      await user.click(screen.getByRole('option', { name: /Custom/ }))
+      await user.type(screen.getByLabelText(/Provider name/), 'Test Provider')
+      await user.type(screen.getByLabelText(/Issuer URL/), 'https://issuer.example.com')
+      await user.type(screen.getByLabelText(/Client ID/), 'client-id')
+      await user.type(screen.getByLabelText(/Client secret/), 'secret')
+
+      await user.click(screen.getByRole('button', { name: 'Claim mapping' }))
+      await user.click(screen.getByRole('button', { name: 'Add provider' }))
+
+      await waitFor(() => {
+        expect(mockCreate).toHaveBeenCalled()
+      })
+
+      const serverError = new Error('Internal server error')
+      act(() => {
+        getMutationCallbacks(mockCreate).onError?.(serverError)
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText(/Failed to add identity provider/)).toBeInTheDocument()
       })
     })
 
