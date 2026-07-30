@@ -630,6 +630,8 @@ class IntegrationService(BaseService):
             )
             await self._handle_integrity_error(e, integration_name)
 
+        await self.session.commit()
+
         result = await self._to_read_with_counts(integration)
         AuditEventDispatcher.dispatch(
             IntegrationUpdateEvent(

@@ -228,4 +228,41 @@ export async function createCredentialSeed(
   }
 }
 
+export async function patchIntegrationScopeViaApi(
+  page: Page,
+  integrationId: string,
+  scope: 'global' | 'project',
+  token?: string
+): Promise<boolean> {
+  try {
+    const t = token ?? (await getAuthToken(page))
+    if (!t) return false
+    const resp = await apiRequest(page, 'patch', `/integrations/${integrationId}`, {
+      token: t,
+      data: { scope },
+    })
+    return resp.ok()
+  } catch {
+    return false
+  }
+}
+
+export async function assignIntegrationProjectViaApi(
+  page: Page,
+  integrationId: string,
+  projectId: string,
+  token?: string
+): Promise<boolean> {
+  try {
+    const t = token ?? (await getAuthToken(page))
+    if (!t) return false
+    const resp = await apiRequest(page, 'post', `/integrations/${integrationId}/projects/${projectId}`, {
+      token: t,
+    })
+    return resp.ok()
+  } catch {
+    return false
+  }
+}
+
 export { deleteCredentialViaApi }
