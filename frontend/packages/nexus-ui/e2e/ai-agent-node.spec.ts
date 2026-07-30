@@ -15,7 +15,7 @@ import {
   startWorkflowWithTrigger,
 } from './helpers/workflows'
 import { createIntegrationViaApi, deleteIntegrationViaApi, type SeededIntegration } from './seeds/resources'
-import { getAuthToken } from './utils/api'
+import { apiRequest, deleteCredentialViaApi, ensureProject, getAuthToken } from './utils/api'
 
 function canvasNode(app: Page, name: string) {
   return app.locator('[role="group"][aria-roledescription="node"]').filter({ hasText: name })
@@ -317,6 +317,115 @@ test.describe('AI Agent Node @pr-check', () => {
       await deleteWorkflow(app, workflowName)
 
       if (integration) await deleteLlmIntegration(app, integration.id)
+    }
+  })
+
+  test('model selector shows only LLM integrations, only enabled models, and default model first', async ({ app }) => {
+    const llmName = buildUniqueName('e2e-llm-t16')
+    const mcpName = buildUniqueName('e2e-mcp-t16')
+    let llmIntegrationId: string | undefined
+    let llmCredentialId: string | undefined
+    let mcpIntegration: SeededIntegration | null = null
+    try {
+      // Create an LLM integration with two enabled models (one default) and one disabled
+      const project = await ensureProject(app)
+      if (!project) throw new Error('Could not ensure project for credential creation')
+
+      const typesResp = await apiRequest(app, 'get', '/credential_types')
+      const types = (await typesResp.json()) as { resources?: Array<{ id: string; name: string }> }
+      const llmType = types.resources?.find((t) => t.name === 'LLM Provider')
+      if (!llmType) throw new Error('LLM Provider credential type not found')
+
+      const credResp = await apiRequest(app, 'post', '/credentials', {
+        data: {
+          name: `${llmName}-cred`,
+          credential_type_id: llmType.id,
+          project_id: project.id,
+          inputs: { api_key: 'sk-e2e-test-key' },
+        },
+      })
+      if (!credResp.ok()) {
+        const text = await credResp.text()
+        throw new Error(`Could not create credential: ${credResp.status()} ${text}`)
+      }
+      const cred = (await credResp.json()) as { id: string }
+      llmCredentialId = cred.id
+
+      const llmResp = await apiRequest(app, 'post', '/integrations', {
+        data: {
+          name: llmName,
+          integration_type: 'llm_provider',
+          configuration: { integration_type: 'llm_provider', provider_hint: 'openai' },
+          management_credential_id: llmCredentialId,
+          scope: 'global',
+          discovered_models: [
+            { model_id: 'model-a', name: 'Model Alpha', enabled: true, is_default: false },
+            { model_id: 'model-b', name: 'Model Beta', enabled: true, is_default: true },
+            { model_id: 'model-c', name: 'Model Gamma', enabled: false, is_default: false },
+          ],
+        },
+      })
+      if (!llmResp.ok()) {
+        const text = await llmResp.text()
+        throw new Error(`Could not create LLM integration: ${llmResp.status()} ${text}`)
+      }
+      const llmIntegration = (await llmResp.json()) as { id: string }
+      llmIntegrationId = llmIntegration.id
+
+      // Create an MCP integration — it should NOT appear in the LLM model selector
+      const token = await getAuthToken(app)
+      mcpIntegration = await createIntegrationViaApi(app, {
+        name: mcpName,
+        token: token ?? undefined,
+        discoveredTools: [{ name: 'e2e_tool', enabled: true }],
+      })
+
+      // Open workflow builder and add an Agent node
+      await startWorkflowWithTrigger(app)
+
+      const panel = await clickAddConnectedStep(app)
+      await panel.getByRole('button', { name: 'Task Agent' }).click()
+
+      // Model selector should show "Select a model" — no pre-selection
+      const modelToggle = app.getByRole('button', { name: 'Model', exact: true })
+      await expect(modelToggle).toBeEnabled({ timeout: 10_000 })
+      await expect(app.getByPlaceholder('Select a model')).toBeVisible()
+
+      // Open the dropdown and filter by the LLM integration name so the test
+      // doesn't depend on scroll position when many integrations exist
+      await modelToggle.click()
+      await app.getByPlaceholder('Select a model').fill(llmName)
+
+      // The LLM integration group should be visible; the MCP integration should not
+      await expect(app.getByText(llmName)).toBeVisible({ timeout: 15_000 })
+      await expect(app.getByText(mcpName)).not.toBeAttached()
+
+      // Only enabled models (Alpha, Beta) should appear; disabled (Gamma) should not
+      await expect(app.getByRole('option', { name: /Model Alpha/ })).toBeVisible()
+      await expect(app.getByRole('option', { name: /Model Beta/ })).toBeVisible()
+      await expect(app.getByRole('option', { name: /Model Gamma/ })).not.toBeAttached()
+
+      // Default model (Beta) should be listed before Alpha within its group,
+      // proving sort is by default status, not alphabetical order.
+      // The typeahead filter already narrows to this integration only.
+      const groupOptionTexts = await app.getByRole('option').allTextContents()
+      const betaIndex = groupOptionTexts.findIndex((t) => t.includes('Model Beta'))
+      const alphaIndex = groupOptionTexts.findIndex((t) => t.includes('Model Alpha'))
+      expect(betaIndex).toBeLessThan(alphaIndex)
+
+      // Beta (the default) should have the Default badge
+      const betaOption = app.getByRole('option', { name: /Model Beta/ })
+      await expect(betaOption.getByText('Default')).toBeVisible()
+
+      // Alpha should not have the Default badge
+      const alphaOption = app.getByRole('option', { name: /Model Alpha/ })
+      await expect(alphaOption.getByText('Default')).not.toBeAttached()
+
+      await app.keyboard.press('Escape')
+    } finally {
+      if (mcpIntegration) await deleteIntegrationViaApi(app, mcpIntegration.id)
+      if (llmIntegrationId) await deleteIntegrationViaApi(app, llmIntegrationId)
+      if (llmCredentialId) await deleteCredentialViaApi(app, llmCredentialId)
     }
   })
 })

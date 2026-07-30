@@ -710,6 +710,11 @@ export const handlers = [
       const lower = nameContains.toLowerCase()
       filtered = filtered.filter((m) => m.name.toLowerCase().includes(lower))
     }
+    const enabledParam = url.searchParams.get('enabled')
+    if (enabledParam !== null) {
+      const enabledValue = enabledParam === 'true'
+      filtered = filtered.filter((m) => m.enabled === enabledValue)
+    }
 
     return HttpResponse.json(paginate(filtered, cursor, limit, includeTotal))
   }),

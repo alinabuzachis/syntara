@@ -147,7 +147,9 @@ export function LLMModelSelector({
     }
     return integrations
       .map((integration) => {
-        const models = [...(modelsByIntegration.get(integration.id) ?? [])].sort(defaultFirst)
+        const models = [...(modelsByIntegration.get(integration.id) ?? [])]
+          .filter((m) => m.enabled !== false)
+          .sort(defaultFirst)
         if (!query) return { integration, models }
         const integrationNameMatches = integration.name.toLowerCase().includes(query)
         const filteredModels = integrationNameMatches

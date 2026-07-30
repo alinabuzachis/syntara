@@ -9,6 +9,7 @@
  * - Remove default model via kebab menu
  * - Filter models by name
  * - Save model changes and verify persistence on revisit
+ * - Allow-list changes propagate to the Agent node model selector (Test 15)
  *
  * Edge cases:
  * - Filter with no results shows empty filter state
@@ -17,7 +18,7 @@
 import { type Page } from '@playwright/test'
 
 import { test, expect, toAppUrl } from './fixtures'
-import { buildUniqueName } from './helpers/workflows'
+import { buildUniqueName, clickAddConnectedStep, startWorkflowWithTrigger } from './helpers/workflows'
 import { deleteIntegrationViaApi, type SeededIntegration } from './seeds/resources'
 import { apiRequest, deleteCredentialViaApi, ensureProject } from './utils/api'
 
@@ -319,6 +320,98 @@ test.describe('LLM Provider Models Tab', () => {
 
       await app.getByRole('button', { name: /Clear all filters/i }).click()
       await expect(modelsTable.locator('tbody tr')).toHaveCount(initialRows)
+    } finally {
+      await deleteIntegrationViaApi(app, integration.id)
+      await deleteCredentialViaApi(app, integration.credentialId)
+    }
+  })
+
+  test('allow-list and default changes propagate to agent node model selector', async ({ app }) => {
+    const name = buildUniqueName('e2e-llm-propagate')
+    const integration = await createLLMIntegration(app, name)
+
+    try {
+      // 1. Open workflow builder, add an Agent node, verify initial model state
+      await startWorkflowWithTrigger(app)
+
+      const panel = await clickAddConnectedStep(app)
+      await panel.getByRole('button', { name: 'Task Agent' }).click()
+
+      const modelToggle = app.getByRole('button', { name: 'Model', exact: true })
+      await expect(modelToggle).toBeEnabled({ timeout: 10_000 })
+      await modelToggle.click()
+
+      // Scope assertions to this test's integration group to avoid collisions with parallel tests.
+      // PatternFly SelectGroup renders a <section> containing the heading and its listbox.
+      const modelGroup = app.locator('section').filter({ has: app.getByRole('heading', { name, level: 1 }) })
+
+      // Only enabled models (Alpha, Beta) should be visible; Gamma (disabled) should not
+      await expect(modelGroup.getByRole('option', { name: /Alpha Model/ })).toBeVisible({ timeout: 15_000 })
+      await expect(modelGroup.getByRole('option', { name: /Beta Model/ })).toBeVisible()
+      await expect(modelGroup.getByRole('option', { name: /Gamma Model/ })).not.toBeAttached()
+
+      // Alpha is the default model — it should have the Default badge
+      const alphaOption = modelGroup.getByRole('option', { name: /Alpha Model/ })
+      await expect(alphaOption.getByText('Default')).toBeVisible()
+
+      await app.keyboard.press('Escape')
+
+      // Close the agent form without saving
+      await app.getByRole('button', { name: 'Cancel step creation' }).click()
+
+      // 2. Navigate to integration models tab and change the allow-list:
+      //    - Disable Beta, enable Gamma, set Gamma as default
+      await navigateToModelsTab(app, name)
+
+      const modelsTable = app.locator('[aria-label="Integration models"]')
+      await expect(modelsTable).toBeVisible()
+
+      // Disable Beta (uncheck)
+      const betaRow = modelsTable.getByRole('row').filter({ hasText: 'Beta Model' })
+      await betaRow.getByRole('checkbox').click()
+      await expect(betaRow.getByRole('checkbox')).not.toBeChecked()
+
+      // Enable Gamma (check)
+      const gammaRow = modelsTable.getByRole('row').filter({ hasText: 'Gamma Model' })
+      await gammaRow.getByRole('checkbox').click()
+      await expect(gammaRow.getByRole('checkbox')).toBeChecked()
+
+      // Set Gamma as default (replacing Alpha)
+      await gammaRow.getByRole('button', { name: /Actions/i }).click()
+      await app.getByRole('menuitem', { name: /Set as default model/i }).click()
+      await expect(gammaRow.getByText('Default')).toBeVisible()
+
+      // Save
+      await app.getByRole('button', { name: 'Save model changes' }).click()
+      await expect(app.getByText('Models updated')).toBeVisible()
+
+      // 3. Return to the workflow builder and verify allow-list changes are reflected
+      await startWorkflowWithTrigger(app)
+
+      const panel2 = await clickAddConnectedStep(app)
+      await panel2.getByRole('button', { name: 'Task Agent' }).click()
+
+      const modelToggle2 = app.getByRole('button', { name: 'Model', exact: true })
+      await expect(modelToggle2).toBeEnabled({ timeout: 10_000 })
+      await modelToggle2.click()
+
+      // Scope to this test's integration group again
+      const modelGroup2 = app.locator('section').filter({ has: app.getByRole('heading', { name, level: 1 }) })
+
+      // Alpha (still enabled) and Gamma (now enabled) should be visible
+      await expect(modelGroup2.getByRole('option', { name: /Alpha Model/ })).toBeVisible({ timeout: 15_000 })
+      await expect(modelGroup2.getByRole('option', { name: /Gamma Model/ })).toBeVisible()
+
+      // Beta (now disabled) should not appear
+      await expect(modelGroup2.getByRole('option', { name: /Beta Model/ })).not.toBeAttached()
+
+      // Gamma should now have the Default badge; Alpha should not
+      const gammaOption = modelGroup2.getByRole('option', { name: /Gamma Model/ })
+      await expect(gammaOption.getByText('Default')).toBeVisible()
+      const alphaOption2 = modelGroup2.getByRole('option', { name: /Alpha Model/ })
+      await expect(alphaOption2.getByText('Default')).not.toBeAttached()
+
+      await app.keyboard.press('Escape')
     } finally {
       await deleteIntegrationViaApi(app, integration.id)
       await deleteCredentialViaApi(app, integration.credentialId)

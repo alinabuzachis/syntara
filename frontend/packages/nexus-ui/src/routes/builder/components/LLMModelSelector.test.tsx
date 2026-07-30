@@ -308,4 +308,38 @@ describe('LLMModelSelector', () => {
 
     expect(fetchAllIntegrationModels).toHaveBeenCalledWith('int-large')
   })
+
+  it('excludes disabled models from the dropdown', async () => {
+    const user = userEvent.setup()
+    const modelsWithDisabled = [
+      {
+        id: 'model-enabled',
+        integration_id: 'int-1',
+        model_id: 'gpt-4o',
+        name: 'GPT-4o',
+        description: null,
+        is_default: true,
+        enabled: true,
+      },
+      {
+        id: 'model-disabled',
+        integration_id: 'int-1',
+        model_id: 'gpt-3.5',
+        name: 'GPT-3.5',
+        description: null,
+        is_default: false,
+        enabled: false,
+      },
+    ]
+
+    mockClients({ integrations: [{ id: 'int-1', name: 'OpenAI' }] })
+    vi.mocked(fetchAllIntegrationModels).mockResolvedValue(modelsWithDisabled)
+
+    renderSelector()
+
+    await user.click(screen.getByRole('button', { name: /model/i }))
+
+    await screen.findByText('GPT-4o')
+    expect(screen.queryByText('GPT-3.5')).not.toBeInTheDocument()
+  })
 })
