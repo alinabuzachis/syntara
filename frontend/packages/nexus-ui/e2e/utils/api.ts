@@ -14,20 +14,38 @@ function apiUrl(path: string): string {
   return new URL(`/api/v1${path}`, appBaseUrl).toString()
 }
 
-/** Authenticate via the API and return an access token */
+const AUTH_ATTEMPTS = 3
+const AUTH_RETRY_DELAY = 500
+
+/**
+ * Authenticate via the API and return an access token.
+ *
+ * Every API setup helper funnels through here, so a single refused or timed-out
+ * login on a loaded cluster fails the whole test before it starts. Retry the
+ * transient cases; a 4xx means the credentials are genuinely wrong, so give up
+ * immediately rather than burning the delay three times over.
+ */
 export async function getAuthToken(app: Page): Promise<string | null> {
   const password = process.env.NEXUS_E2E_PASSWORD
 
-  try {
-    const resp = await app.request.post(apiUrl('/auth/login'), {
-      data: { username: 'admin', password: password ?? 'mock' },
-    })
-    if (!resp.ok()) return null
-    const body = (await resp.json()) as { access_token?: string }
-    return body.access_token ?? null
-  } catch {
-    return null
+  for (let attempt = 1; attempt <= AUTH_ATTEMPTS; attempt++) {
+    try {
+      const resp = await app.request.post(apiUrl('/auth/login'), {
+        data: { username: 'admin', password: password ?? 'mock' },
+      })
+      if (resp.ok()) {
+        const body = (await resp.json()) as { access_token?: string }
+        if (body.access_token) return body.access_token
+      } else if (resp.status() >= 400 && resp.status() < 500) {
+        return null
+      }
+    } catch {
+      // Network-level failure — fall through to the retry
+    }
+    if (attempt < AUTH_ATTEMPTS) await app.waitForTimeout(AUTH_RETRY_DELAY)
   }
+
+  return null
 }
 
 /** Make an authenticated API request */

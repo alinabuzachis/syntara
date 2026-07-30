@@ -14,10 +14,11 @@
 
 import { test, expect, toAppUrl, type Page } from '../fixtures'
 import { addManualTrigger, openAddNodePanel } from '../helpers/v2-nodes'
+import { triggerVerifyWorkflow } from '../helpers/workflow-verify'
 import { buildUniqueName, selectProjectIfRequired, closeNodeEditorPanel, addNodePanel } from '../helpers/workflows'
 import { ensureProject, apiRequest } from '../utils/api'
 
-const VERIFY_BANNER_TIMEOUT = 15_000
+const VERIFY_BANNER_TIMEOUT = 20_000
 const ERROR_BADGE_TIMEOUT = 10_000
 
 /**
@@ -52,6 +53,8 @@ async function addIncompleteAapNode(page: Page, name: string) {
 
 test.describe('UI-32: Workflow Verification — Missing Required Configuration', { tag: '@pr-check' }, () => {
   test('unconfigured AAP node triggers verification error', async ({ app }) => {
+    // Builds the workflow through the UI before verifying — the default budget is
+    // too tight for that plus a verify retry on a loaded cluster.
     test.setTimeout(90_000)
     const workflowName = buildUniqueName('e2e-ui32-validation')
     let workflowId: string | undefined
@@ -72,23 +75,13 @@ test.describe('UI-32: Workflow Verification — Missing Required Configuration',
       workflowId = app.url().match(/workflow-builder\/([a-f0-9-]{36})/)?.[1]
 
       // Verification is a separate action from save — trigger it via the kebab menu.
-      // Retry the open+click sequence because the menu can close between the two actions.
-      // If a prior attempt already ran verify (banner visible) but the menuitem click
-      // threw on detach, short-circuit so we don't toggle the kebab closed and miss
-      // the item on the next try — same race class as the workflows-run-dialog VR fix.
-      const verificationFailed = app.getByRole('heading', { name: /Verification failed/i })
-      await expect(async () => {
-        if (await verificationFailed.isVisible().catch(() => false)) return
-        const actions = app.getByRole('button', { name: 'Workflow actions' })
-        const verifyItem = app.getByRole('menuitem', { name: 'Verify workflow' })
-        if (!(await verifyItem.isVisible().catch(() => false))) {
-          await actions.click()
-        }
-        await verifyItem.click()
-      }).toPass({ timeout: 15_000, intervals: [1_000, 2_000, 3_000] })
+      // The helper retries the open+click until the validate request actually responds,
+      // so neither a swallowed click nor a slow backend leaves us waiting on a banner
+      // that was never going to render.
+      await triggerVerifyWorkflow(app)
 
       // getByRole('heading') is more specific than getByText (avoids matching hidden text)
-      await expect(verificationFailed).toBeVisible({
+      await expect(app.getByRole('heading', { name: /Verification failed/i })).toBeVisible({
         timeout: VERIFY_BANNER_TIMEOUT,
       })
 

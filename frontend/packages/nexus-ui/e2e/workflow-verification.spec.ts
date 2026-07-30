@@ -15,6 +15,7 @@ import { type Page } from '@playwright/test'
 
 import { test, expect } from './fixtures'
 import { WCAG_TAGS } from './fixtures/accessibility'
+import { triggerVerifyWorkflow, VALIDATE_ROUTE } from './helpers/workflow-verify'
 import {
   buildUniqueName,
   createBasicWorkflowViaApi,
@@ -26,21 +27,14 @@ import {
 } from './helpers/workflows'
 import { deleteWorkflowViaApi } from './utils/api'
 
-const VERIFY_BANNER_TIMEOUT = 10_000
+const VERIFY_BANNER_TIMEOUT = 20_000
 const ERROR_BADGE_TIMEOUT = 5_000
 const SAVE_URL_TIMEOUT = 15_000
-
-const VALIDATE_ROUTE = '**/api/v1/workflows/validate'
 
 function getWorkflowIdFromUrl(app: Page): string {
   const id = app.url().match(/workflow-builder\/([^/?]+)/)?.[1]
   expect(id).toBeTruthy()
   return id!
-}
-
-async function clickVerifyWorkflow(app: Page): Promise<void> {
-  await app.getByRole('button', { name: 'Workflow actions' }).click()
-  await app.getByRole('menuitem', { name: /verify workflow/i }).click()
 }
 
 type MockFinding = { message: string; node_id?: string | null; severity?: string; category?: string }
@@ -106,7 +100,7 @@ test.describe('Verify button in toolbar', () => {
         errors: [{ message: 'Mock validation error', node_id: null }],
       })
 
-      await clickVerifyWorkflow(app)
+      await triggerVerifyWorkflow(app)
 
       await expect(app.getByText(/Verification failed/)).toBeVisible({ timeout: VERIFY_BANNER_TIMEOUT })
     } finally {
@@ -124,7 +118,7 @@ test.describe('Verify button in toolbar', () => {
 
       await mockValidateEndpoint(app)
 
-      await clickVerifyWorkflow(app)
+      await triggerVerifyWorkflow(app)
 
       await expect(app.getByText('Workflow definition is valid')).toBeVisible({ timeout: VERIFY_BANNER_TIMEOUT })
     } finally {
@@ -150,7 +144,7 @@ test.describe('Validation error panel', () => {
         ],
       })
 
-      await clickVerifyWorkflow(app)
+      await triggerVerifyWorkflow(app)
 
       const banner = app.getByText(/Verification failed — \d+ issues? found/)
       await expect(banner).toBeVisible({ timeout: VERIFY_BANNER_TIMEOUT })
@@ -172,7 +166,7 @@ test.describe('Validation error panel', () => {
         errors: [{ message: 'Mock validation error', node_id: null }],
       })
 
-      await clickVerifyWorkflow(app)
+      await triggerVerifyWorkflow(app)
 
       const banner = app.getByText(/Verification failed/)
       await expect(banner).toBeVisible({ timeout: VERIFY_BANNER_TIMEOUT })
@@ -204,7 +198,7 @@ test.describe('Validation error panel', () => {
         errors: [{ message: 'Missing required configuration', node_id: nodeId }],
       })
 
-      await clickVerifyWorkflow(app)
+      await triggerVerifyWorkflow(app)
 
       await expect(app.getByText(/Verification failed/)).toBeVisible({ timeout: VERIFY_BANNER_TIMEOUT })
 
@@ -241,7 +235,7 @@ test.describe('Error indicators on canvas nodes', () => {
         errors: [{ message: 'Mock validation error', node_id: nodeId }],
       })
 
-      await clickVerifyWorkflow(app)
+      await triggerVerifyWorkflow(app)
 
       await expect(app.getByText(/Verification failed/)).toBeVisible({ timeout: VERIFY_BANNER_TIMEOUT })
 
@@ -268,7 +262,7 @@ test.describe('Block publish when validation errors exist', () => {
         errors: [{ message: 'Mock validation error', node_id: null }],
       })
 
-      await clickVerifyWorkflow(app)
+      await triggerVerifyWorkflow(app)
 
       await expect(app.getByText(/Verification failed/)).toBeVisible({ timeout: VERIFY_BANNER_TIMEOUT })
 
@@ -319,7 +313,7 @@ test.describe('Save with warnings', () => {
         warnings: [{ message: 'Step has no downstream consumers', node_id: null }],
       })
 
-      await clickVerifyWorkflow(app)
+      await triggerVerifyWorkflow(app)
 
       const warningBanner = app.getByText(/Saved with 1 warning/)
       await expect(warningBanner).toBeVisible({ timeout: VERIFY_BANNER_TIMEOUT })
@@ -346,7 +340,7 @@ test.describe('Variable reference validation', () => {
       await app.getByRole('button', { name: 'Save' }).click()
       await expect(app).toHaveURL(/workflow-builder\/.+/, { timeout: SAVE_URL_TIMEOUT })
 
-      await clickVerifyWorkflow(app)
+      await triggerVerifyWorkflow(app)
 
       await expect(app.getByText(/Verification failed/)).toBeVisible({ timeout: VERIFY_BANNER_TIMEOUT })
 
@@ -377,7 +371,7 @@ test.describe('Variable reference validation', () => {
       await app.getByRole('button', { name: 'Save' }).click()
       await expect(app).toHaveURL(/workflow-builder\/.+/, { timeout: SAVE_URL_TIMEOUT })
 
-      await clickVerifyWorkflow(app)
+      await triggerVerifyWorkflow(app)
 
       await expect(app.getByText(/Verification failed/)).toBeVisible({ timeout: VERIFY_BANNER_TIMEOUT })
 
@@ -401,7 +395,7 @@ test.describe('Variable reference validation', () => {
       await app.getByRole('button', { name: 'Save' }).click()
       await expect(app).toHaveURL(/workflow-builder\/.+/, { timeout: SAVE_URL_TIMEOUT })
 
-      await clickVerifyWorkflow(app)
+      await triggerVerifyWorkflow(app)
 
       await expect(app.getByText(/Verification failed/)).toBeVisible({ timeout: VERIFY_BANNER_TIMEOUT })
 
@@ -426,7 +420,7 @@ test.describe('Accessibility', () => {
         errors: [{ message: 'Mock validation error', node_id: null }],
       })
 
-      await clickVerifyWorkflow(app)
+      await triggerVerifyWorkflow(app)
 
       await expect(app.getByText(/Verification failed/)).toBeVisible({ timeout: VERIFY_BANNER_TIMEOUT })
 
@@ -453,7 +447,7 @@ test.describe('Empty workflow verification', () => {
         errors: [{ message: 'Workflow must have at least one action step', node_id: null }],
       })
 
-      await clickVerifyWorkflow(app)
+      await triggerVerifyWorkflow(app)
 
       await expect(app.getByText(/Verification failed/)).toBeVisible({ timeout: VERIFY_BANNER_TIMEOUT })
     } finally {
