@@ -437,6 +437,53 @@ class TestTokenEndpoint:
         assert cred.last_used_at is not None  # type: ignore[unreachable]
 
     @pytest.mark.asyncio
+    async def test_token_sets_actor_context_for_timestamp_audit(
+        self, mock_db: AsyncMock, mock_settings: MagicMock
+    ) -> None:
+        """Client-credentials token must attribute timestamp CRUD to the SA (AAP-83651).
+
+        /auth/token has no Bearer JWT for audit middleware; without actor_context,
+        last_authenticated_at / last_used_at CRUD events stay null-actor.
+        """
+        from nexus.audit.emitter import actor_context_var
+
+        cred, sa, secret = _make_sa_and_credential()
+        self._setup_db_result(mock_db, (cred, sa))
+
+        seen_actor_id = None
+        seen_username = None
+        seen_actor_type = None
+
+        async def _capture_commit() -> None:
+            nonlocal seen_actor_id, seen_username, seen_actor_type
+            actor = actor_context_var.get()
+            assert actor is not None
+            seen_actor_id = actor.actor_id
+            seen_username = actor.actor_username
+            seen_actor_type = actor.actor_type
+
+        mock_db.commit.side_effect = _capture_commit
+
+        req = _mock_request()
+        with (
+            patch("nexus.auth.router.get_settings", return_value=mock_settings),
+            patch("nexus.auth.router._get_token_service") as mock_ts,
+            patch("nexus.auth.router.AuditEventDispatcher"),
+        ):
+            mock_ts.return_value.create_access_token.return_value = "jwt"
+            await token(
+                request=req,
+                db=mock_db,
+                grant_type="client_credentials",
+                client_id=cred.identifier,
+                client_secret=secret,
+            )
+
+        assert seen_actor_id == sa.id
+        assert seen_username == sa.name
+        assert seen_actor_type == PrincipalType.SERVICE_ACCOUNT
+
+    @pytest.mark.asyncio
     async def test_disabled_credential_returns_401(self, mock_db: AsyncMock) -> None:
         """Disabled credential (independent of SA status) returns 401."""
         cred, sa, secret = _make_sa_and_credential(cred_status=ServiceAccountCredentialStatus.DISABLED)

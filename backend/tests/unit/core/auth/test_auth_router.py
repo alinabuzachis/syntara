@@ -182,6 +182,52 @@ class TestLoginEndpoint:
         mock_set_csrf.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_login_sets_actor_context_for_last_login_audit(self) -> None:
+        """Password login must attribute last_login CRUD to the user (AAP-83651)."""
+        from nexus.audit.emitter import actor_context_var
+
+        user = _make_user()
+        request = _make_request()
+        response = _make_response()
+        body = LoginRequest(username="testuser", password="correct-password")  # noqa: S106
+
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = user
+        db.exec.return_value = mock_result
+
+        seen_actor_id = None
+
+        async def _capture_commit() -> None:
+            nonlocal seen_actor_id
+            actor = actor_context_var.get()
+            assert actor is not None
+            seen_actor_id = actor.actor_id
+
+        db.commit.side_effect = _capture_commit
+
+        mock_token_service = MagicMock()
+        mock_token_service.create_access_token.return_value = "access-token-123"
+        mock_token_service.create_refresh_token.return_value = ("refresh-jwt", "jti-1", datetime.now(UTC))
+
+        mock_settings = MagicMock()
+        mock_settings.jwt_refresh_token_lifetime_hours = 8
+        mock_settings.jwt_access_token_lifetime_minutes = 15
+
+        with (
+            patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
+            patch("nexus.auth.router.verify_password", return_value=True),
+            patch("nexus.auth.router.create_session_store", _patch_session_store(AsyncMock())),
+            patch("nexus.auth.router.get_settings", return_value=mock_settings),
+            patch("nexus.auth.router.set_refresh_cookie"),
+            patch("nexus.auth.router.set_csrf_cookie"),
+            patch("nexus.auth.router.get_runtime_settings", _mock_runtime_settings()),
+        ):
+            await login(body, request, response, db)
+
+        assert seen_actor_id == user.id
+
+    @pytest.mark.asyncio
     async def test_login_normalizes_username_to_lowercase(self) -> None:
         """Login should normalize username to lowercase before DB lookup."""
         user = _make_user()
@@ -814,6 +860,46 @@ class TestLogoutEndpoint:
             await logout(payload, request, response, db)
 
         mock_store.increment_token_version.assert_called_once_with(UUID(user_id))
+
+    @pytest.mark.asyncio
+    async def test_logout_sets_actor_context_for_token_version_audit(self) -> None:
+        """Logout must establish actor ContextVars before token_version bump (AAP-83651).
+
+        Refresh-cookie logout has no Bearer JWT for audit middleware; without an
+        explicit actor_context, CRUD audit for token_version stays null-actor.
+        """
+        from nexus.audit.emitter import actor_context_var
+
+        request = _make_request()
+        response = _make_response()
+        db = AsyncMock()
+        user_id = str(uuid4())
+        payload = _make_payload(jti="jti-actor", sub=user_id, preferred_username="logout-user")
+
+        seen_actor_id: UUID | None = None
+        seen_username: str | None = None
+
+        async def _capture_increment(uid: UUID) -> int:
+            nonlocal seen_actor_id, seen_username
+            actor = actor_context_var.get()
+            assert actor is not None
+            seen_actor_id = actor.actor_id
+            seen_username = actor.actor_username
+            return 1
+
+        mock_store = AsyncMock()
+        mock_store.get.return_value = None
+        mock_store.revoke.return_value = True
+        mock_store.increment_token_version.side_effect = _capture_increment
+
+        with (
+            patch("nexus.auth.router.create_session_store", _patch_session_store(mock_store)),
+            patch("nexus.auth.router.clear_refresh_cookie"),
+        ):
+            await logout(payload, request, response, db)
+
+        assert seen_actor_id == UUID(user_id)
+        assert seen_username == "logout-user"
 
     @pytest.mark.asyncio
     async def test_rp_logout_returns_auth_error_when_endpoint_unresolvable(self) -> None:

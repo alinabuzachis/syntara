@@ -145,16 +145,27 @@ async def _revoke_sessions_and_dispatch(
     audit_event: AccountEnableEvent | PasswordResetEvent,
 ) -> None:
     """Revoke all sessions, increment token version, and dispatch an audit event."""
+    from nexus.audit.context_managers import actor_context  # noqa: PLC0415
     from nexus.audit.dispatcher import AuditEventDispatcher  # noqa: PLC0415
+    from nexus.audit.emitter import AuditActorContext  # noqa: PLC0415
     from nexus.auth.session import create_session_store  # noqa: PLC0415
     from nexus.core.database.session import AsyncSessionLocal  # noqa: PLC0415
+    from nexus.core.models.principal import PrincipalType  # noqa: PLC0415
 
     async with AsyncSessionLocal() as session:
         session.add(user)
         store = create_session_store(session)
         revoked_count = await store.revoke_all_for_user(user.id)
-        await store.increment_token_version(user.id)
-        await session.commit()
+        # CLI has no JWT middleware — attribute token_version CRUD (AAP-83651).
+        with actor_context(
+            actor=AuditActorContext(
+                actor_id=None,
+                actor_username=audit_event.actor_username,
+                actor_type=PrincipalType.USER,
+            )
+        ):
+            await store.increment_token_version(user.id)
+            await session.commit()
 
     audit_event.sessions_revoked = revoked_count
 

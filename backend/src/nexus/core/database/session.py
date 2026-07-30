@@ -65,12 +65,15 @@ def register_sqlalchemy_events() -> None:
         event.listen(target, "before_flush", _before_flush)
 
 
-def set_audit_context(session: Session, _flush_context: object, _instances: object) -> None:
+def apply_audit_context(session: Session) -> None:
     """Set transaction-scoped Postgres variables for audit triggers.
 
-    Called by the before_flush event listener. Reads actor and workflow context
-    from ContextVars (set by middleware or actor_context) and propagates them
-    to Postgres as session variables.
+    Reads actor and workflow context from ContextVars (set by middleware or
+    ``actor_context``) and propagates them to Postgres as session variables.
+
+    Called automatically from the ORM ``before_flush`` hook. Callers that issue
+    Core/raw SQL DML (which bypasses ``before_flush``) must invoke this before
+    the mutating statement so audit triggers see the acting principal.
 
     Variables are transaction-scoped via SET LOCAL and automatically
     cleared on COMMIT or ROLLBACK.
@@ -119,6 +122,11 @@ def set_audit_context(session: Session, _flush_context: object, _instances: obje
         # Escape single quotes in activity_id (PostgreSQL string literal escaping)
         escaped_activity_id = activity_id.replace("'", "''")
         session.execute(text(f"SET LOCAL app.activity_id = '{escaped_activity_id}'"))
+
+
+def set_audit_context(session: Session, _flush_context: object, _instances: object) -> None:
+    """SQLAlchemy ``before_flush`` adapter for :func:`apply_audit_context`."""
+    apply_audit_context(session)
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

@@ -142,7 +142,25 @@ async def revoke_user_sessions(
     """
     store = create_session_store(db)
     revoked_count = await store.revoke_all_for_user(user.id)
-    await store.increment_token_version(user.id)
+    # Prefer request-scoped actor from audit middleware (API). Only fall back to
+    # a username-only ContextVar when none is present (CLI) — never clobber a
+    # populated actor_id (AAP-83651).
+    from nexus.audit.context_managers import actor_context  # noqa: PLC0415
+    from nexus.audit.emitter import AuditActorContext, actor_context_var  # noqa: PLC0415
+    from nexus.core.models.principal import PrincipalType  # noqa: PLC0415
+
+    existing = actor_context_var.get()
+    if existing and existing.actor_id:
+        await store.increment_token_version(user.id)
+    else:
+        with actor_context(
+            actor=AuditActorContext(
+                actor_id=None,
+                actor_username=actor_username,
+                actor_type=PrincipalType.USER,
+            )
+        ):
+            await store.increment_token_version(user.id)
 
     try:
         AuditEventDispatcher.dispatch(

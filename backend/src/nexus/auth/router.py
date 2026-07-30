@@ -25,8 +25,10 @@ from sqlalchemy.exc import DataError, IntegrityError, SQLAlchemyError
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.audit.context_managers import actor_context
 from nexus.audit.decorators import audit
 from nexus.audit.dispatcher import AuditEventDispatcher
+from nexus.audit.emitter import AuditActorContext
 from nexus.audit.models.audit_event import EventCategory
 from nexus.audit.sanitization import EMAIL_PATTERN
 from nexus.auth.audit.login_attempt import LoginAttemptEvent, LoginErrorReason, LoginMethod
@@ -273,9 +275,12 @@ async def login(
         )
     )
 
-    user.update_last_login()
-    db.add(user)
-    await db.commit()
+    # Login has no JWT yet, so audit middleware cannot attribute the CRUD
+    # last_login write — establish the logging-in user as actor (AAP-83651).
+    with actor_context(actor=user):
+        user.update_last_login()
+        db.add(user)
+        await db.commit()
     AuditEventDispatcher.dispatch(
         UserLoginEvent(
             user_id=user.id, username=user.username, amr=[AMR.PASSWORD], idp="local", is_first_login=is_first_login
@@ -437,11 +442,15 @@ async def token(
         principal_type=PrincipalType.SERVICE_ACCOUNT,
     )
 
-    sa.last_authenticated_at = datetime.now(UTC)
-    credential.last_used_at = datetime.now(UTC)
-    db.add(sa)
-    db.add(credential)
-    await db.commit()
+    # Client-credentials has no Bearer JWT, so audit middleware leaves actor
+    # ContextVars empty — attribute timestamp CRUD to the authenticating SA
+    # (same AAP-83651 pattern as login/logout/OIDC).
+    with actor_context(actor=sa):
+        sa.last_authenticated_at = datetime.now(UTC)
+        credential.last_used_at = datetime.now(UTC)
+        db.add(sa)
+        db.add(credential)
+        await db.commit()
 
     AuditEventDispatcher.dispatch(
         LoginAttemptEvent(
@@ -861,9 +870,18 @@ async def logout(
         store = create_session_store(db)
         session_metadata = await store.get(payload.jti)
 
-        await store.increment_token_version(UUID(payload.sub))
-        revoked = await store.revoke(payload.jti)
-        await db.commit()
+        # Logout authenticates via refresh cookie only — audit middleware does
+        # not seed actor ContextVars from Bearer. Attribute the token_version
+        # CRUD event from the validated refresh payload (AAP-83651).
+        logout_actor = AuditActorContext(
+            actor_id=UUID(payload.sub),
+            actor_username=payload.preferred_username,
+            actor_type=PrincipalType.USER,
+        )
+        with actor_context(actor=logout_actor):
+            await store.increment_token_version(UUID(payload.sub))
+            revoked = await store.revoke(payload.jti)
+            await db.commit()
 
         if revoked:
             logger.info(
@@ -1847,9 +1865,11 @@ async def _build_login_session_redirect(
         )
     )
 
-    user.update_last_login()
-    db.add(user)
-    await db.commit()
+    # OIDC callback has no JWT yet — attribute last_login CRUD to the user (AAP-83651).
+    with actor_context(actor=user):
+        user.update_last_login()
+        db.add(user)
+        await db.commit()
 
     stored_origin = _revalidate_origin(state_data.get("origin"))
     redirect_to = _safe_redirect_url(state_data.get("redirect_to"), origin=stored_origin)

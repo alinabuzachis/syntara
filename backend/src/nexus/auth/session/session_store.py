@@ -240,6 +240,13 @@ class SessionStore:
 
     async def increment_token_version(self, user_id: UUID | str) -> int:
         """Increment the token version counter for a user. Returns new version."""
+        # Core/raw SQL bypasses SQLAlchemy before_flush, so propagate actor
+        # ContextVars to Postgres session vars before the UPDATE fires the
+        # audit trigger (AAP-83651).
+        from nexus.core.database.session import apply_audit_context  # noqa: PLC0415
+
+        await self._db.run_sync(apply_audit_context)
+
         user_id_str = str(user_id)
         result = await self._db.exec(  # type: ignore[call-overload]
             text("UPDATE users SET token_version = token_version + 1 WHERE id = :user_id RETURNING token_version"),

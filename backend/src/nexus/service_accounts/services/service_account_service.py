@@ -255,6 +255,10 @@ class ServiceAccountService(BaseService):
         """
         service_account = await self.get_service_account(service_account_id)
 
+        # Core UPDATE bypasses before_flush — apply actor ContextVars first (AAP-83651).
+        from nexus.core.database.session import apply_audit_context  # noqa: PLC0415
+
+        await self.session.run_sync(apply_audit_context)
         await self.session.exec(
             update(ServiceAccount)
             .where(ServiceAccount.id == service_account_id)  # type: ignore[arg-type]
