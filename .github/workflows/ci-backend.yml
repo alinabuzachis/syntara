@@ -490,7 +490,13 @@ jobs:
     name: (Backend) Test Compose
     needs: changes
     if: needs.changes.outputs.backend == 'true'
-    runs-on: ubuntu-latest
+    # TODO(alex): temporal workaround, actions/runner-images#14473 will fix it
+    # The 20260726.254 ubuntu-24.04 image ships a static podman 5.8.4 bundle
+    # that resolves a stale crun ("unknown version specified" on every RUN
+    # step) and, being built without systemd support, never runs healthchecks,
+    # so compose hangs waiting for services to become healthy. ubuntu-26.04
+    # has a working distro podman; move back to ubuntu-latest once fixed.
+    runs-on: ubuntu-26.04
     steps:
       - name: Free disk space
         run: |

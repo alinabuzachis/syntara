@@ -8,7 +8,13 @@ on:
 
 jobs:
   dast:
-    runs-on: ubuntu-latest
+    # TODO(alex): temporal workaround, actions/runner-images#14473 will fix it
+    # The 20260726.254 ubuntu-24.04 image ships a static podman 5.8.4 bundle
+    # that resolves a stale crun ("unknown version specified" on every RUN
+    # step) and, being built without systemd support, never runs healthchecks,
+    # so compose hangs waiting for services to become healthy. ubuntu-26.04
+    # has a working distro podman; move back to ubuntu-latest once fixed.
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
