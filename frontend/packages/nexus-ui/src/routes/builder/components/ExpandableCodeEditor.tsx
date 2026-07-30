@@ -1,8 +1,8 @@
 import { CodeEditor, CodeEditorControl, Language } from '@patternfly/react-code-editor'
 import { Button, Content, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/react-core'
 import { RhUiExternalLinkIcon } from '@patternfly/react-icons'
-import type { KeyboardEvent } from 'react'
-import { forwardRef, useCallback, useImperativeHandle, useState } from 'react'
+import type { KeyboardEvent, Ref } from 'react'
+import { useCallback, useImperativeHandle, useState } from 'react'
 
 import { useBlurOnOpen } from '../../../hooks/useBlurOnOpen'
 import { useDropTarget } from '../../../hooks/useDropTarget'
@@ -27,6 +27,14 @@ const languageMap: Record<CodeLanguage, Language> = {
  */
 function stopKeyboardPropagation(e: KeyboardEvent) {
   e.stopPropagation()
+}
+
+export type ExpandableCodeEditorHandle = {
+  getValue: () => string
+  /** Focus the editor (e.g. when validation fails and this is the first error field). */
+  focus: () => void
+  /** Insert text at the current cursor position, or append if no cursor. */
+  insertAtCursor: (text: string) => void
 }
 
 /**
@@ -71,165 +79,155 @@ export type ExpandableCodeEditorProps = {
   onDropText?: (text: string) => void
   /** Extra CodeEditorControl elements rendered in the editor toolbar alongside the expand button. */
   additionalControls?: React.ReactNode
+  /** Imperative handle (`getValue` / `focus` / `insertAtCursor`). React 19: `ref` is a regular prop. */
+  ref?: Ref<ExpandableCodeEditorHandle>
 }
 
-export type ExpandableCodeEditorHandle = {
-  getValue: () => string
-  /** Focus the editor (e.g. when validation fails and this is the first error field). */
-  focus: () => void
-  /** Insert text at the current cursor position, or append if no cursor. */
-  insertAtCursor: (text: string) => void
-}
+export function ExpandableCodeEditor({
+  code,
+  onCodeChange,
+  language = 'plaintext',
+  height = '200px',
+  modalHeight = '500px',
+  modalTitle = 'Edit script',
+  isReadOnly = false,
+  ariaLabel = 'Code editor',
+  isLineNumbersVisible = true,
+  isDarkTheme,
+  onBlur,
+  onDropText,
+  additionalControls,
+  ref,
+}: ExpandableCodeEditorProps) {
+  const { colorScheme } = useColorScheme()
 
-export const ExpandableCodeEditor = forwardRef<ExpandableCodeEditorHandle, ExpandableCodeEditorProps>(
-  function ExpandableCodeEditor(
-    {
-      code,
-      onCodeChange,
-      language = 'plaintext',
-      height = '200px',
-      modalHeight = '500px',
-      modalTitle = 'Edit script',
-      isReadOnly = false,
-      ariaLabel = 'Code editor',
-      isLineNumbersVisible = true,
-      isDarkTheme,
-      onBlur,
-      onDropText,
-      additionalControls,
+  // Use prop if provided (for testing), otherwise use app theme
+  const effectiveTheme = isDarkTheme ?? colorScheme === 'dark'
+
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  useBlurOnOpen(isModalOpen)
+  const monacoLanguage = languageMap[language]
+  const { getValue, focus, handleEditorDidMount, setValue, editorRef } = useMonacoBlur(code, onBlur)
+
+  const handleDroppedText = useCallback(
+    (text: string) => {
+      if (onDropText) {
+        onDropText(text)
+      }
     },
-    ref
-  ) {
-    const { colorScheme } = useColorScheme()
+    [onDropText]
+  )
 
-    // Use prop if provided (for testing), otherwise use app theme
-    const effectiveTheme = isDarkTheme ?? colorScheme === 'dark'
+  const { isDropTarget, handleDragOver, handleDragLeave, handleDrop } = useDropTarget({
+    onDropText: handleDroppedText,
+  })
 
-    const [isModalOpen, setIsModalOpen] = useState(false)
-    useBlurOnOpen(isModalOpen)
-    const monacoLanguage = languageMap[language]
-    const { getValue, focus, handleEditorDidMount, setValue, editorRef } = useMonacoBlur(code, onBlur)
+  useImperativeHandle(ref, () => ({
+    getValue,
+    focus,
+    insertAtCursor: (text: string) => {
+      const editor = editorRef.current
+      if (!editor) {
+        onCodeChange(code + text)
+        return
+      }
+      const selection = editor.getSelection()
+      if (selection) {
+        editor.executeEdits('drop-insert', [
+          {
+            range: selection,
+            text,
+            forceMoveMarkers: true,
+          },
+        ])
+        onCodeChange(editor.getValue())
+      }
+    },
+  }))
 
-    const handleDroppedText = useCallback(
-      (text: string) => {
-        if (onDropText) {
-          onDropText(text)
-        }
-      },
-      [onDropText]
-    )
-
-    const { isDropTarget, handleDragOver, handleDragLeave, handleDrop } = useDropTarget({
-      onDropText: handleDroppedText,
-    })
-
-    useImperativeHandle(ref, () => ({
-      getValue,
-      focus,
-      insertAtCursor: (text: string) => {
-        const editor = editorRef.current
-        if (!editor) {
-          onCodeChange(code + text)
-          return
-        }
-        const selection = editor.getSelection()
-        if (selection) {
-          editor.executeEdits('drop-insert', [
-            {
-              range: selection,
-              text,
-              forceMoveMarkers: true,
-            },
-          ])
-          onCodeChange(editor.getValue())
-        }
-      },
-    }))
-
-    const handleModalClose = () => {
-      onBlur?.(getValue())
-      setIsModalOpen(false)
-    }
-
-    const expandControl = (
-      <CodeEditorControl
-        icon={<RhUiExternalLinkIcon />}
-        aria-label="Open in new window"
-        tooltipProps={{ content: 'Open in new window' }}
-        onClick={() => setIsModalOpen(true)}
-      />
-    )
-
-    return (
-      <>
-        {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- drag-and-drop target wrapper */}
-        <div
-          data-testid="inline-code-editor"
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          style={isDropTarget ? DROP_TARGET_OUTLINE : undefined}
-        >
-          <CodeEditor
-            code={code}
-            onCodeChange={(value) => {
-              setValue(value)
-              onCodeChange(value)
-            }}
-            onEditorDidMount={handleEditorDidMount}
-            onKeyDown={stopKeyboardPropagation}
-            language={monacoLanguage}
-            height={height}
-            isReadOnly={isReadOnly}
-            isLineNumbersVisible={isLineNumbersVisible}
-            isDarkTheme={effectiveTheme}
-            customControls={
-              <>
-                {additionalControls}
-                {expandControl}
-              </>
-            }
-            aria-label={ariaLabel}
-            options={{ ariaLabel }}
-          />
-        </div>
-
-        <Modal isOpen={isModalOpen} onClose={handleModalClose} variant="large" aria-label={`${modalTitle} modal`}>
-          <ModalHeader
-            title={modalTitle}
-            description={
-              <Content component="p">
-                Enter or edit the code below. Clicking close will only close this window, the code will still persist in
-                the code editor.
-              </Content>
-            }
-          />
-          <ModalBody>
-            <div data-testid="modal-code-editor">
-              <CodeEditor
-                code={code}
-                onCodeChange={(value) => {
-                  setValue(value)
-                  onCodeChange(value)
-                }}
-                onKeyDown={stopKeyboardPropagation}
-                language={monacoLanguage}
-                height={modalHeight}
-                isReadOnly={isReadOnly}
-                isLineNumbersVisible={isLineNumbersVisible}
-                isDarkTheme={effectiveTheme}
-                aria-label={`${ariaLabel} expanded`}
-                options={{ ariaLabel: `${ariaLabel} expanded` }}
-              />
-            </div>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="primary" onClick={handleModalClose}>
-              Close
-            </Button>
-          </ModalFooter>
-        </Modal>
-      </>
-    )
+  const handleModalClose = () => {
+    onBlur?.(getValue())
+    setIsModalOpen(false)
   }
-)
+
+  const expandControl = (
+    <CodeEditorControl
+      icon={<RhUiExternalLinkIcon />}
+      aria-label="Open in new window"
+      tooltipProps={{ content: 'Open in new window' }}
+      onClick={() => setIsModalOpen(true)}
+    />
+  )
+
+  return (
+    <>
+      <div
+        role="none"
+        data-testid="inline-code-editor"
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        style={isDropTarget ? DROP_TARGET_OUTLINE : undefined}
+      >
+        <CodeEditor
+          code={code}
+          onCodeChange={(value) => {
+            setValue(value)
+            onCodeChange(value)
+          }}
+          onEditorDidMount={handleEditorDidMount}
+          onKeyDown={stopKeyboardPropagation}
+          language={monacoLanguage}
+          height={height}
+          isReadOnly={isReadOnly}
+          isLineNumbersVisible={isLineNumbersVisible}
+          isDarkTheme={effectiveTheme}
+          customControls={
+            <>
+              {additionalControls}
+              {expandControl}
+            </>
+          }
+          aria-label={ariaLabel}
+          options={{ ariaLabel }}
+        />
+      </div>
+
+      <Modal isOpen={isModalOpen} onClose={handleModalClose} variant="large" aria-label={`${modalTitle} modal`}>
+        <ModalHeader
+          title={modalTitle}
+          description={
+            <Content component="p">
+              Enter or edit the code below. Clicking close will only close this window, the code will still persist in
+              the code editor.
+            </Content>
+          }
+        />
+        <ModalBody>
+          <div data-testid="modal-code-editor">
+            <CodeEditor
+              code={code}
+              onCodeChange={(value) => {
+                setValue(value)
+                onCodeChange(value)
+              }}
+              onKeyDown={stopKeyboardPropagation}
+              language={monacoLanguage}
+              height={modalHeight}
+              isReadOnly={isReadOnly}
+              isLineNumbersVisible={isLineNumbersVisible}
+              isDarkTheme={effectiveTheme}
+              aria-label={`${ariaLabel} expanded`}
+              options={{ ariaLabel: `${ariaLabel} expanded` }}
+            />
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="primary" onClick={handleModalClose}>
+            Close
+          </Button>
+        </ModalFooter>
+      </Modal>
+    </>
+  )
+}

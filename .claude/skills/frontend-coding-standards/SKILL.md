@@ -401,7 +401,7 @@ Before writing any new UI code, follow this checklist:
    - Follow DRY (Don't Repeat Yourself) principles
 
 6. **React Best Practices**
-   - Leverage React 19 features
+   - Leverage React 19 features (see §38 for ref-as-prop and ref cleanup functions)
    - Use functional components and hooks
    - Use proper TypeScript typing (avoid `any`)
    - Implement proper error boundaries
@@ -1880,3 +1880,51 @@ export default function Workflows() {
 - **Dynamic pages**: pass the entity name — `toPageTitle([integration.name])` (falls back gracefully if undefined/null)
 - **Loading/error states**: use a static fallback — `toPageTitle(['Integration'])`
 - **Multi-segment pages**: `toPageTitle(['admin', 'Users'])` → `admin | Users | Nexus`
+
+## 38. React 19 Ref Patterns — No `forwardRef`; Prefer Ref Cleanup Functions
+
+React 19 passes `ref` as a regular prop. Prefer the patterns below for all new and migrated code. See the [React 19 release notes](https://react.dev/blog/2024/12/05/react-19#ref-as-a-prop) and [cleanup functions for refs](https://react.dev/blog/2024/12/05/react-19#cleanup-functions-for-refs).
+
+### Ref as a prop (do not use `forwardRef`)
+
+```tsx
+// ❌ BAD — React 19 makes forwardRef unnecessary
+export const NxPanel = forwardRef<HTMLDivElement, NxPanelProps>(function NxPanel(props, ref) {
+  return <Panel ref={ref} {...props} />
+})
+
+// ✅ GOOD — accept ref as a regular prop
+export function NxPanel({ ref, ...props }: NxPanelProps & { ref?: Ref<HTMLDivElement> }) {
+  return <Panel ref={ref} {...props} />
+}
+```
+
+For imperative handles, keep `useImperativeHandle` and still take `ref` as a prop (see `ExpandableCodeEditor`).
+
+### Ref callback cleanup functions
+
+When attaching DOM listeners or observers to a mounted element, return a cleanup from the ref callback instead of pairing `useRef` + `useEffect`:
+
+```tsx
+// ❌ BAD — paired useRef + useEffect for element lifecycle
+const scrollRef = useRef<HTMLDivElement>(null)
+useEffect(() => {
+  const el = scrollRef.current
+  if (!el) return
+  el.addEventListener('scroll', onScroll, { passive: true })
+  return () => el.removeEventListener('scroll', onScroll)
+}, [])
+
+// ✅ GOOD — React 19 calls the returned cleanup when the node unmounts
+const scrollRef = useCallback((node: HTMLElement | null) => {
+  if (!node) return
+  node.addEventListener('scroll', onScroll, { passive: true })
+  return () => {
+    node.removeEventListener('scroll', onScroll)
+  }
+}, [])
+```
+
+Wrap callback refs that return cleanups in `useCallback`. A new function identity each render makes React run the previous cleanup and re-attach listeners even when the DOM node is unchanged.
+
+`useScrollOverflow` is the reference implementation for multi-node setup with stable ref cleanups.

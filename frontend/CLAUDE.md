@@ -104,6 +104,8 @@ Items enforced by ESLint at error level are omitted -- ESLint is the source of t
 30. **Use `useDocLink` for documentation URLs** -- never hardcode doc URLs; use `useDocLink('workflows')` from `src/utils/docs/useDocLink.ts`; pass the result to `NxPageHeader`'s `docLink` prop; add new keys to `docsUrls.json` when adding new pages (see [`.claude/skills/frontend-coding-standards/SKILL.md`](.claude/skills/frontend-coding-standards/SKILL.md) section 33)
 31. **No `new Date()` in mock API seed data** -- seed data in `packages/syntara-mock-api/src/resources/` and `utils/` must use deterministic timestamps from `mockDates.ts`, never `new Date()`. Dynamic timestamps cause visual regression baselines to go stale across CI runs because rendered dates change daily
 32. **New pages must render `<title>{toPageTitle(['...'])}</title>`** -- every top-level page component (default export with `<NxPage>`) must render a `<title>` as its first `<NxPage>` child. Use `toPageTitle` from `src/utils/toPageTitle.ts`
+33. **No new `forwardRef`** -- React 19 passes `ref` as a regular prop; accept `ref` on the props type instead of wrapping with `forwardRef` (see [`.claude/skills/frontend-coding-standards/SKILL.md`](.claude/skills/frontend-coding-standards/SKILL.md) §38)
+34. **Prefer ref callback cleanup functions** -- when attaching DOM listeners or observers, return a cleanup from the ref callback instead of pairing `useRef` + `useEffect` (see [`.claude/skills/frontend-coding-standards/SKILL.md`](.claude/skills/frontend-coding-standards/SKILL.md) §38)
 
 ### Feature Preservation Rules
 

@@ -28,6 +28,8 @@ Standards for implementing, reviewing, and refactoring frontend code using React
 ### React 19
 
 - Use functional components exclusively with proper hook patterns
+- Accept `ref` as a regular prop — do **not** use `forwardRef` ([ref as a prop](https://react.dev/blog/2024/12/05/react-19#ref-as-a-prop))
+- Prefer ref callback cleanup functions over paired `useRef` + `useEffect` for DOM listener/observer lifecycle ([cleanup functions for refs](https://react.dev/blog/2024/12/05/react-19#cleanup-functions-for-refs)); see coding standards §38
 - Implement proper component composition over prop drilling
 - Apply memoization strategically — only when profiling indicates performance issues
 - Use proper error boundaries for graceful error handling

@@ -1,6 +1,6 @@
 import { Stack, StackItem } from '@patternfly/react-core'
 import { Caption, Table } from '@patternfly/react-table'
-import { type ReactNode, useRef } from 'react'
+import type { ReactNode } from 'react'
 
 import { NxPanel } from '../layout/NxPanel'
 
@@ -39,9 +39,7 @@ export function NxScrollableTableContainer({
   useFixedLayout = true,
 }: NxScrollableTableContainerProps) {
   const useFixed = !isExpandable && useFixedLayout
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const wrapperRef = useRef<HTMLDivElement>(null)
-  useScrollOverflow(scrollRef, wrapperRef)
+  const { scrollRef, wrapperRef } = useScrollOverflow()
   const tableClassName = useFixed ? `${styles.table} ${styles.tableFixedLayout}` : styles.table
   return (
     <StackItem isFilled data-testid="scrollable-table-container-root" className={styles.root}>

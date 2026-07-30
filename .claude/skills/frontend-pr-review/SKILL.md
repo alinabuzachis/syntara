@@ -87,7 +87,7 @@ Check whether the changes follow:
 
 ### 3a. Recurring Issues Checklist (MANDATORY)
 
-**Run through every item in frontend/CLAUDE.md's "Common PR Mistakes -- Quick Checklist" (items 1-30).** That checklist is the single source of truth. Items enforced by ESLint at error level are omitted from this table -- ESLint is the source of truth for those. Below are review-specific verification tips for patterns ESLint cannot catch:
+**Run through every item in frontend/CLAUDE.md's "Common PR Mistakes -- Quick Checklist" (items 1-34).** That checklist is the single source of truth. Items enforced by ESLint at error level are omitted from this table -- ESLint is the source of truth for those. Below are review-specific verification tips for patterns ESLint cannot catch:
 
 | Search for...                                               | Flags violation of checklist item...                                            |
 | ----------------------------------------------------------- | ------------------------------------------------------------------------------- |
@@ -124,6 +124,8 @@ Check whether the changes follow:
 | Raw text for invalid ID or not-found states                 | §36 -- use `NxEmptyState` or `Nx*` empty state components                       |
 | New page test without `expectPageTitle(...)` assertion      | testing guidelines -- add at least one `expectPageTitle` call per page component |
 | Empty-state CTA without permission check                    | UX §15 -- gate `addData` with permission flag (pass `undefined` if denied)      |
+| New `forwardRef(` usage                                     | #33 -- accept `ref` as a prop (React 19); do not add `forwardRef`               |
+| New `useRef` + `useEffect` only to attach/detach DOM listeners | #34 -- prefer ref callback cleanup functions (coding standards §38)          |
 
 ### 3b. Rule Bypass Checks (BLOCKING -- do not approve if any are found)
 
@@ -284,7 +286,7 @@ When reviewing your own implementation before committing, verify these gates pas
 
 ### Implementation Standards
 
-- **React 19**: Functional components with proper hook patterns; component composition over prop drilling; controlled components for forms using react-hook-form; Single Responsibility Principle
+- **React 19**: Functional components with proper hook patterns; `ref` as a prop (no new `forwardRef`); prefer ref callback cleanup functions over `useRef` + `useEffect` for DOM listener lifecycle; component composition over prop drilling; controlled components for forms using react-hook-form; Single Responsibility Principle. See [ref as a prop](https://react.dev/blog/2024/12/05/react-19#ref-as-a-prop) and [cleanup functions for refs](https://react.dev/blog/2024/12/05/react-19#cleanup-functions-for-refs).
 - **TypeScript**: No `any` types — use `unknown` and narrow with type guards; leverage type inference; discriminated unions for state machines; `as const` for literal narrowing
 - **PatternFly 6**: PF6 components for all UI (no native HTML when a PF component exists); layout components (Stack, Flex, Grid) for spacing; design tokens only — no hardcoded values
 - **Vitest**: AAA pattern; test user behavior not implementation; Testing Library query priority (`getByRole` > `getByLabelText` > `getByText`); `userEvent.setup()` always; `vitest-axe` for every new component

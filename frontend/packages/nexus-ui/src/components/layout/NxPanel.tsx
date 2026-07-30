@@ -1,6 +1,5 @@
 import { Panel, PanelFooter, PanelMain, PanelMainBody, type PanelProps } from '@patternfly/react-core'
-import type { ComponentProps, CSSProperties, ReactNode } from 'react'
-import { forwardRef } from 'react'
+import type { ComponentProps, CSSProperties, ReactNode, Ref } from 'react'
 
 import styles from './NxPanel.module.css'
 
@@ -41,6 +40,8 @@ export type NxPanelProps = Omit<PanelProps, 'children'> & {
   panelMainProps?: PanelMainProps
   /** Props forwarded to the inner `PanelMainBody` element. */
   panelMainBodyProps?: Omit<PanelMainBodyProps, 'children'>
+  /** React 19: `ref` is a regular prop (no `forwardRef`). */
+  ref?: Ref<HTMLDivElement>
 }
 
 function defaultIsGlass(
@@ -53,26 +54,24 @@ function defaultIsGlass(
   return true
 }
 
-export const NxPanel = forwardRef<HTMLDivElement, NxPanelProps>(function NxPanel(
-  {
-    hasNoPadding,
-    children,
-    footer,
-    panelMainProps,
-    panelMainBodyProps,
-    isScrollable,
-    isFullHeight,
-    isAutoHeight,
-    style: panelStyle,
-    className,
-    isPill,
-    variant,
-    isGlass,
-    opaqueFloatingFill,
-    ...panelProps
-  },
-  ref
-) {
+export function NxPanel({
+  ref,
+  hasNoPadding,
+  children,
+  footer,
+  panelMainProps,
+  panelMainBodyProps,
+  isScrollable,
+  isFullHeight,
+  isAutoHeight,
+  style: panelStyle,
+  className,
+  isPill,
+  variant,
+  isGlass,
+  opaqueFloatingFill,
+  ...panelProps
+}: NxPanelProps) {
   const { style: mainStyle, ...restPanelMain } = panelMainProps ?? {}
   const { style: bodyStyle, className: bodyClassName, ...restBody } = panelMainBodyProps ?? {}
 
@@ -140,6 +139,4 @@ export const NxPanel = forwardRef<HTMLDivElement, NxPanelProps>(function NxPanel
       {footer != null && <PanelFooter className={styles.footer}>{footer}</PanelFooter>}
     </Panel>
   )
-})
-
-NxPanel.displayName = 'NxPanel'
+}
