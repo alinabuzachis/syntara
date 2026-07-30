@@ -100,7 +100,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: RoleCreate,
 ) -> Response[ErrorData | RoleRead]:
-    """Create Role
+    """Create role
 
      Create a custom role. Requires: role:create permission.
 
@@ -131,7 +131,7 @@ def sync(
     client: AuthenticatedClient,
     body: RoleCreate,
 ) -> ErrorData | RoleRead | None:
-    """Create Role
+    """Create role
 
      Create a custom role. Requires: role:create permission.
 
@@ -157,7 +157,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: RoleCreate,
 ) -> Response[ErrorData | RoleRead]:
-    """Create Role
+    """Create role
 
      Create a custom role. Requires: role:create permission.
 
@@ -186,7 +186,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: RoleCreate,
 ) -> ErrorData | RoleRead | None:
-    """Create Role
+    """Create role
 
      Create a custom role. Requires: role:create permission.
 

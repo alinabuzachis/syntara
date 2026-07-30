@@ -159,7 +159,7 @@ def sync_detailed(
     for_action: Literal["use"] | None | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[CredentialListResponse | ErrorData]:
-    """List Project Credentials
+    """List project credentials
 
      List credentials belonging to this project. Requires: credential:read permission.
 
@@ -217,7 +217,7 @@ def sync(
     enabled: bool | None | Unset = UNSET,
     for_action: Literal["use"] | None | Unset = UNSET,
 ) -> CredentialListResponse | ErrorData | None:
-    """List Project Credentials
+    """List project credentials
 
      List credentials belonging to this project. Requires: credential:read permission.
 
@@ -269,7 +269,7 @@ async def asyncio_detailed(
     enabled: bool | None | Unset = UNSET,
     for_action: Literal["use"] | None | Unset = UNSET,
 ) -> Response[CredentialListResponse | ErrorData]:
-    """List Project Credentials
+    """List project credentials
 
      List credentials belonging to this project. Requires: credential:read permission.
 
@@ -324,7 +324,7 @@ async def asyncio(
     enabled: bool | None | Unset = UNSET,
     for_action: Literal["use"] | None | Unset = UNSET,
 ) -> CredentialListResponse | ErrorData | None:
-    """List Project Credentials
+    """List project credentials
 
      List credentials belonging to this project. Requires: credential:read permission.
 

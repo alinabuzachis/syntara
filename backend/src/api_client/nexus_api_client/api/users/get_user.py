@@ -92,7 +92,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | UserRead]:
-    """Get User
+    """Get user
 
      Get a user by ID.
 
@@ -123,7 +123,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | UserRead | None:
-    """Get User
+    """Get user
 
      Get a user by ID.
 
@@ -149,7 +149,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | UserRead]:
-    """Get User
+    """Get user
 
      Get a user by ID.
 
@@ -178,7 +178,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | UserRead | None:
-    """Get User
+    """Get user
 
      Get a user by ID.
 

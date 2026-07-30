@@ -183,7 +183,7 @@ paths:
 
   /authz/validate_name:
     get:
-      summary: Validate Name
+      summary: Validate name
       description: |
         Validate a resource name against naming rules.
         Returns whether the name is valid and, if not, why.

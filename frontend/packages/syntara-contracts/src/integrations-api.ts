@@ -12,13 +12,13 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Integrations
+     * List integrations
      * @description List integrations with filtering and pagination.
      */
     get: operations['list_integrations']
     put?: never
     /**
-     * Create Integration
+     * Create integration
      * @description Create a new integration.
      */
     post: operations['create_integration']
@@ -36,21 +36,21 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Integration
+     * Get integration
      * @description Get an integration by ID.
      */
     get: operations['get_integration']
     put?: never
     post?: never
     /**
-     * Delete Integration
+     * Delete integration
      * @description Delete an integration.
      */
     delete: operations['delete_integration']
     options?: never
     head?: never
     /**
-     * Update Integration
+     * Update integration
      * @description Update an integration.
      */
     patch: operations['update_integration']
@@ -66,7 +66,7 @@ export interface paths {
     get?: never
     put?: never
     /**
-     * Discover Integration Connection
+     * Discover integration connection
      * @description Test a connection and discover resources without saving an integration.
      *
      *     Accepts integration configuration and a credential ID, resolves the
@@ -91,7 +91,7 @@ export interface paths {
     get?: never
     put?: never
     /**
-     * Validate Integration
+     * Validate integration
      * @description Validate a saved integration with a lightweight connectivity ping.
      *
      *     Resolves the management credential, dispatches to the type-specific
@@ -115,7 +115,7 @@ export interface paths {
     get?: never
     put?: never
     /**
-     * Refresh Resources
+     * Refresh resources
      * @description Sync resources (tools) for a saved integration from the external service.
      *
      *     Connects to the MCP server, fetches the current tool list, and upserts
@@ -137,7 +137,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Integration Projects
+     * List integration projects
      * @description List project assignments for an integration.
      */
     get: operations['list_integration_projects']
@@ -159,12 +159,12 @@ export interface paths {
     get?: never
     put?: never
     /**
-     * Assign Integration Project
+     * Assign integration project
      * @description Assign a project to a project-scoped integration.
      */
     post: operations['assign_integration_project']
     /**
-     * Unassign Integration Project
+     * Unassign integration project
      * @description Remove a project assignment from an integration.
      */
     delete: operations['unassign_integration_project']
@@ -181,7 +181,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Integration Models
+     * List integration models
      * @description List LLM models for an integration with filtering, sorting, and pagination.
      */
     get: operations['list_integration_models']
@@ -201,7 +201,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Integration Model
+     * Get integration model
      * @description Get an LLM model by ID.
      */
     get: operations['get_integration_model']
@@ -211,7 +211,7 @@ export interface paths {
     options?: never
     head?: never
     /**
-     * Update Integration Model
+     * Update integration model
      * @description Update an LLM model (enable/disable).
      */
     patch: operations['update_integration_model']
@@ -231,7 +231,7 @@ export interface paths {
     options?: never
     head?: never
     /**
-     * Bulk Update Integration Models
+     * Bulk update integration models
      * @description Bulk enable/disable LLM models.
      */
     patch: operations['bulk_update_integration_models']

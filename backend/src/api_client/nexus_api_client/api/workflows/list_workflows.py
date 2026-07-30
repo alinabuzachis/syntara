@@ -127,7 +127,7 @@ def sync_detailed(
     include_total: bool | Unset = False,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | WorkflowListResponse]:
-    """List Workflows
+    """List workflows
 
      List workflows the current user has read access to.
 
@@ -171,7 +171,7 @@ def sync(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> ErrorData | WorkflowListResponse | None:
-    """List Workflows
+    """List workflows
 
      List workflows the current user has read access to.
 
@@ -213,7 +213,7 @@ async def asyncio_detailed(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> Response[ErrorData | WorkflowListResponse]:
-    """List Workflows
+    """List workflows
 
      List workflows the current user has read access to.
 
@@ -258,7 +258,7 @@ async def asyncio(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> ErrorData | WorkflowListResponse | None:
-    """List Workflows
+    """List workflows
 
      List workflows the current user has read access to.
 

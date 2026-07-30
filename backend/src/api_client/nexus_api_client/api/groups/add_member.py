@@ -105,7 +105,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: GroupMemberAdd,
 ) -> Response[ErrorData | GroupMemberAddResponse]:
-    """Add Member
+    """Add member
 
      Add a user to a group.
 
@@ -139,7 +139,7 @@ def sync(
     client: AuthenticatedClient,
     body: GroupMemberAdd,
 ) -> ErrorData | GroupMemberAddResponse | None:
-    """Add Member
+    """Add member
 
      Add a user to a group.
 
@@ -168,7 +168,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: GroupMemberAdd,
 ) -> Response[ErrorData | GroupMemberAddResponse]:
-    """Add Member
+    """Add member
 
      Add a user to a group.
 
@@ -200,7 +200,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: GroupMemberAdd,
 ) -> ErrorData | GroupMemberAddResponse | None:
-    """Add Member
+    """Add member
 
      Add a user to a group.
 

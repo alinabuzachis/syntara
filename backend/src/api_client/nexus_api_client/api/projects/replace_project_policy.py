@@ -105,7 +105,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: PolicyUpdate,
 ) -> Response[ErrorData | PolicyRead]:
-    """Replace Project Policy
+    """Replace project policy
 
      Replace a project policy. Only project-owned policies can be modified.
 
@@ -142,7 +142,7 @@ def sync(
     client: AuthenticatedClient,
     body: PolicyUpdate,
 ) -> ErrorData | PolicyRead | None:
-    """Replace Project Policy
+    """Replace project policy
 
      Replace a project policy. Only project-owned policies can be modified.
 
@@ -174,7 +174,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: PolicyUpdate,
 ) -> Response[ErrorData | PolicyRead]:
-    """Replace Project Policy
+    """Replace project policy
 
      Replace a project policy. Only project-owned policies can be modified.
 
@@ -209,7 +209,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: PolicyUpdate,
 ) -> ErrorData | PolicyRead | None:
-    """Replace Project Policy
+    """Replace project policy
 
      Replace a project policy. Only project-owned policies can be modified.
 

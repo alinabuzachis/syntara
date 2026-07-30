@@ -103,7 +103,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: ProjectPolicyCreate,
 ) -> Response[ErrorData | PolicyRead]:
-    """Create Project Policy
+    """Create project policy
 
      Create a policy scoped to this project. Requires: policy:create permission.
 
@@ -138,7 +138,7 @@ def sync(
     client: AuthenticatedClient,
     body: ProjectPolicyCreate,
 ) -> ErrorData | PolicyRead | None:
-    """Create Project Policy
+    """Create project policy
 
      Create a policy scoped to this project. Requires: policy:create permission.
 
@@ -168,7 +168,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: ProjectPolicyCreate,
 ) -> Response[ErrorData | PolicyRead]:
-    """Create Project Policy
+    """Create project policy
 
      Create a policy scoped to this project. Requires: policy:create permission.
 
@@ -201,7 +201,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: ProjectPolicyCreate,
 ) -> ErrorData | PolicyRead | None:
-    """Create Project Policy
+    """Create project policy
 
      Create a policy scoped to this project. Requires: policy:create permission.
 

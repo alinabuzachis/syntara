@@ -6,7 +6,7 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.aap_list_response_aap_execution_environment import AAPListResponseAAPExecutionEnvironment
+from ...models.aap_list_response_aap_job_template import AAPListResponseAAPJobTemplate
 from ...models.error_data import ErrorData
 from ...types import UNSET, Response, Unset
 
@@ -62,7 +62,7 @@ def _get_kwargs(
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/aap/execution_environments",
+        "url": "/aap/job_templates",
         "params": params,
     }
 
@@ -71,9 +71,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> AAPListResponseAAPExecutionEnvironment | ErrorData | None:
+) -> AAPListResponseAAPJobTemplate | ErrorData | None:
     if response.status_code == 200:
-        response_200 = AAPListResponseAAPExecutionEnvironment.from_dict(response.json())
+        response_200 = AAPListResponseAAPJobTemplate.from_dict(response.json())
 
         return response_200
 
@@ -125,7 +125,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[AAPListResponseAAPExecutionEnvironment | ErrorData]:
+) -> Response[AAPListResponseAAPJobTemplate | ErrorData]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -145,10 +145,10 @@ def sync_detailed(
     integration_id: None | Unset | UUID = UNSET,
     organization: None | str | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
-) -> Response[AAPListResponseAAPExecutionEnvironment | ErrorData]:
-    """List Execution Environments
+) -> Response[AAPListResponseAAPJobTemplate | ErrorData]:
+    """List job templates
 
-     List AAP execution environments, optionally filtered by organization.
+     List Ansible Automation Platform job templates, optionally filtered by organization.
 
     Args:
         search (None | str | Unset):
@@ -162,7 +162,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[AAPListResponseAAPExecutionEnvironment | ErrorData]
+        Response[AAPListResponseAAPJobTemplate | ErrorData]
     """
 
     kwargs = _get_kwargs(
@@ -189,10 +189,10 @@ def sync(
     credential_id: None | Unset | UUID = UNSET,
     integration_id: None | Unset | UUID = UNSET,
     organization: None | str | Unset = UNSET,
-) -> AAPListResponseAAPExecutionEnvironment | ErrorData | None:
-    """List Execution Environments
+) -> AAPListResponseAAPJobTemplate | ErrorData | None:
+    """List job templates
 
-     List AAP execution environments, optionally filtered by organization.
+     List Ansible Automation Platform job templates, optionally filtered by organization.
 
     Args:
         search (None | str | Unset):
@@ -206,7 +206,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        AAPListResponseAAPExecutionEnvironment | ErrorData
+        AAPListResponseAAPJobTemplate | ErrorData
     """
 
     return sync_detailed(
@@ -227,10 +227,10 @@ async def asyncio_detailed(
     credential_id: None | Unset | UUID = UNSET,
     integration_id: None | Unset | UUID = UNSET,
     organization: None | str | Unset = UNSET,
-) -> Response[AAPListResponseAAPExecutionEnvironment | ErrorData]:
-    """List Execution Environments
+) -> Response[AAPListResponseAAPJobTemplate | ErrorData]:
+    """List job templates
 
-     List AAP execution environments, optionally filtered by organization.
+     List Ansible Automation Platform job templates, optionally filtered by organization.
 
     Args:
         search (None | str | Unset):
@@ -244,7 +244,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[AAPListResponseAAPExecutionEnvironment | ErrorData]
+        Response[AAPListResponseAAPJobTemplate | ErrorData]
     """
 
     kwargs = _get_kwargs(
@@ -268,10 +268,10 @@ async def asyncio(
     credential_id: None | Unset | UUID = UNSET,
     integration_id: None | Unset | UUID = UNSET,
     organization: None | str | Unset = UNSET,
-) -> AAPListResponseAAPExecutionEnvironment | ErrorData | None:
-    """List Execution Environments
+) -> AAPListResponseAAPJobTemplate | ErrorData | None:
+    """List job templates
 
-     List AAP execution environments, optionally filtered by organization.
+     List Ansible Automation Platform job templates, optionally filtered by organization.
 
     Args:
         search (None | str | Unset):
@@ -285,7 +285,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        AAPListResponseAAPExecutionEnvironment | ErrorData
+        AAPListResponseAAPJobTemplate | ErrorData
     """
 
     return (

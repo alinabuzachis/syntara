@@ -94,7 +94,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | WorkflowReadWithVersion]:
-    """Get Workflow
+    """Get workflow
 
      Get a workflow by ID including its current active version.
 
@@ -125,7 +125,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | WorkflowReadWithVersion | None:
-    """Get Workflow
+    """Get workflow
 
      Get a workflow by ID including its current active version.
 
@@ -151,7 +151,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | WorkflowReadWithVersion]:
-    """Get Workflow
+    """Get workflow
 
      Get a workflow by ID including its current active version.
 
@@ -180,7 +180,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | WorkflowReadWithVersion | None:
-    """Get Workflow
+    """Get workflow
 
      Get a workflow by ID including its current active version.
 

@@ -577,42 +577,42 @@ export interface components {
     }
     /**
      * AAPVerbosity
-     * @description AAP job verbosity levels (0-5).
+     * @description Ansible Automation Platform job verbosity levels (0-5).
      * @enum {integer}
      */
     AAPVerbosity: 0 | 1 | 2 | 3 | 4 | 5
     /**
      * AAPJobType
-     * @description AAP job type values.
+     * @description Ansible Automation Platform job type values.
      * @enum {string}
      */
     AAPJobType: 'run' | 'check'
     /**
      * AAPJobTemplateExecutorParameters
-     * @description Parameters for AAP Job Template executor.
+     * @description Parameters for Ansible Automation Platform Job Template executor.
      *
-     *     Inherits common AAP fields from AAPResourceReferenceMixin (credential_id, organization,
+     *     Inherits common Ansible Automation Platform fields from AAPResourceReferenceMixin (credential_id, organization,
      *     inventory, extra_vars, limit, tags, skip_tags, labels, timeout).
      */
     AAPJobTemplateExecutorParameters: {
       /**
        * Credential Id
-       * @description Nexus credential UUID for AAP API authentication. Separate from legacy credentials list.
+       * @description Nexus credential UUID for Ansible Automation Platform API authentication. Separate from legacy credentials list.
        */
       credential_id?: string | null
       /**
        * Integration Id
-       * @description UUID of the AAP Gateway integration for connection URL resolution.
+       * @description UUID of the Ansible Automation Platform Gateway integration for connection URL resolution.
        */
       integration_id?: string | null
       /**
        * Organizationid
-       * @description AAP organization ID (takes precedence over organization_name)
+       * @description Ansible Automation Platform organization ID (takes precedence over organization_name)
        */
       organizationId?: number | null
       /**
        * Organization Name
-       * @description AAP organization name (used with template_name or inventory_name)
+       * @description Ansible Automation Platform organization name (used with template_name or inventory_name)
        */
       organization_name?: string | null
       /**
@@ -649,27 +649,27 @@ export interface components {
       skip_tags?: string | null
       /**
        * Labels
-       * @description AAP label names to append to template's default labels. Names are resolved to IDs at launch time. New labels that don't exist in AAP will be created automatically. Note: Labels are APPENDED to template defaults, not replaced.
+       * @description Ansible Automation Platform label names to append to template's default labels. Names are resolved to IDs at launch time. New labels that don't exist in Ansible Automation Platform will be created automatically. Note: Labels are APPENDED to template defaults, not replaced.
        */
       labels?: string[] | null
       /**
        * Job Template Id
-       * @description AAP job template ID to launch
+       * @description Ansible Automation Platform job template ID to launch
        */
       job_template_id?: number | null
       /**
        * Job Template Name
-       * @description AAP job template name (used with organization_name)
+       * @description Ansible Automation Platform job template name (used with organization_name)
        */
       job_template_name?: string | null
       /**
        * Job Credentials
-       * @description List of AAP credential IDs to use (takes precedence over credential_names)
+       * @description List of Ansible Automation Platform credential IDs to use (takes precedence over credential_names)
        */
       job_credentials?: number[] | null
       /**
        * Credentialnames
-       * @description List of AAP credential names to use (requires organization_name, resolved at launch time)
+       * @description List of Ansible Automation Platform credential names to use (requires organization_name, resolved at launch time)
        */
       credentialNames?: string[] | null
       /**
@@ -758,7 +758,7 @@ export interface components {
     }
     /**
      * AAPJobTemplateNode
-     * @description AAP job template executor node.
+     * @description Ansible Automation Platform job template executor node.
      */
     AAPJobTemplateNode: {
       /**
@@ -797,30 +797,30 @@ export interface components {
     }
     /**
      * AAPWorkflowJobTemplateExecutorParameters
-     * @description Parameters for AAP Workflow Job Template executor.
+     * @description Parameters for Ansible Automation Platform Workflow Job Template executor.
      *
-     *     Inherits common AAP fields from AAPResourceReferenceMixin (credential_id, organization,
+     *     Inherits common Ansible Automation Platform fields from AAPResourceReferenceMixin (credential_id, organization,
      *     inventory, extra_vars, limit, tags, skip_tags, labels, timeout).
      */
     AAPWorkflowJobTemplateExecutorParameters: {
       /**
        * Credential Id
-       * @description Nexus credential UUID for AAP API authentication. Separate from legacy credentials list.
+       * @description Nexus credential UUID for Ansible Automation Platform API authentication. Separate from legacy credentials list.
        */
       credential_id?: string | null
       /**
        * Integration Id
-       * @description UUID of the AAP Gateway integration for connection URL resolution.
+       * @description UUID of the Ansible Automation Platform Gateway integration for connection URL resolution.
        */
       integration_id?: string | null
       /**
        * Organizationid
-       * @description AAP organization ID (takes precedence over organization_name)
+       * @description Ansible Automation Platform organization ID (takes precedence over organization_name)
        */
       organizationId?: number | null
       /**
        * Organization Name
-       * @description AAP organization name (used with template_name or inventory_name)
+       * @description Ansible Automation Platform organization name (used with template_name or inventory_name)
        */
       organization_name?: string | null
       /**
@@ -857,17 +857,17 @@ export interface components {
       skip_tags?: string | null
       /**
        * Labels
-       * @description AAP label names to append to template's default labels. Names are resolved to IDs at launch time. New labels that don't exist in AAP will be created automatically. Note: Labels are APPENDED to template defaults, not replaced.
+       * @description Ansible Automation Platform label names to append to template's default labels. Names are resolved to IDs at launch time. New labels that don't exist in Ansible Automation Platform will be created automatically. Note: Labels are APPENDED to template defaults, not replaced.
        */
       labels?: string[] | null
       /**
        * Workflow Job Template Id
-       * @description AAP workflow job template ID to launch
+       * @description Ansible Automation Platform workflow job template ID to launch
        */
       workflow_job_template_id?: number | null
       /**
        * Workflow Job Template Name
-       * @description AAP workflow job template name (used with organization_name)
+       * @description Ansible Automation Platform workflow job template name (used with organization_name)
        */
       workflow_job_template_name?: string | null
       /**
@@ -878,7 +878,7 @@ export interface components {
     }
     /**
      * AAPWorkflowJobTemplateNode
-     * @description AAP workflow job template executor node.
+     * @description Ansible Automation Platform workflow job template executor node.
      */
     AAPWorkflowJobTemplateNode: {
       /**

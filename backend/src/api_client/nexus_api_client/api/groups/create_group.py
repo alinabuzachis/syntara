@@ -100,7 +100,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: GroupCreate,
 ) -> Response[ErrorData | GroupRead]:
-    """Create Group
+    """Create group
 
      Create a new group for organizing users.
 
@@ -131,7 +131,7 @@ def sync(
     client: AuthenticatedClient,
     body: GroupCreate,
 ) -> ErrorData | GroupRead | None:
-    """Create Group
+    """Create group
 
      Create a new group for organizing users.
 
@@ -157,7 +157,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: GroupCreate,
 ) -> Response[ErrorData | GroupRead]:
-    """Create Group
+    """Create group
 
      Create a new group for organizing users.
 
@@ -186,7 +186,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: GroupCreate,
 ) -> ErrorData | GroupRead | None:
-    """Create Group
+    """Create group
 
      Create a new group for organizing users.
 

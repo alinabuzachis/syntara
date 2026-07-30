@@ -100,7 +100,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: UserCreate,
 ) -> Response[ErrorData | UserRead]:
-    """Create User
+    """Create user
 
      Create a new local user.
 
@@ -133,7 +133,7 @@ def sync(
     client: AuthenticatedClient,
     body: UserCreate,
 ) -> ErrorData | UserRead | None:
-    """Create User
+    """Create user
 
      Create a new local user.
 
@@ -161,7 +161,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: UserCreate,
 ) -> Response[ErrorData | UserRead]:
-    """Create User
+    """Create user
 
      Create a new local user.
 
@@ -192,7 +192,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: UserCreate,
 ) -> ErrorData | UserRead | None:
-    """Create User
+    """Create user
 
      Create a new local user.
 

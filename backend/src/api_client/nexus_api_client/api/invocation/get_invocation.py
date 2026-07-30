@@ -91,7 +91,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | Invocation]:
-    """Get Invocation Details (Testing/Debug)
+    """Get invocation details (testing/debug)
 
      Retrieve full invocation details including the result. NOTE: This endpoint is for testing and
     debugging. Production systems should use WebSockets for real-time results.
@@ -123,7 +123,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | Invocation | None:
-    """Get Invocation Details (Testing/Debug)
+    """Get invocation details (testing/debug)
 
      Retrieve full invocation details including the result. NOTE: This endpoint is for testing and
     debugging. Production systems should use WebSockets for real-time results.
@@ -150,7 +150,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | Invocation]:
-    """Get Invocation Details (Testing/Debug)
+    """Get invocation details (testing/debug)
 
      Retrieve full invocation details including the result. NOTE: This endpoint is for testing and
     debugging. Production systems should use WebSockets for real-time results.
@@ -180,7 +180,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | Invocation | None:
-    """Get Invocation Details (Testing/Debug)
+    """Get invocation details (testing/debug)
 
      Retrieve full invocation details including the result. NOTE: This endpoint is for testing and
     debugging. Production systems should use WebSockets for real-time results.

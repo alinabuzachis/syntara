@@ -203,7 +203,7 @@ def sync_detailed(
     scope: ListRoleAssignmentsScopeType0 | None | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | RoleAssignmentListResponse]:
-    """List Role Assignments
+    """List role assignments
 
      List role assignments with policy-driven visibility.
 
@@ -269,7 +269,7 @@ def sync(
     project_id: None | Unset | UUID = UNSET,
     scope: ListRoleAssignmentsScopeType0 | None | Unset = UNSET,
 ) -> ErrorData | RoleAssignmentListResponse | None:
-    """List Role Assignments
+    """List role assignments
 
      List role assignments with policy-driven visibility.
 
@@ -329,7 +329,7 @@ async def asyncio_detailed(
     project_id: None | Unset | UUID = UNSET,
     scope: ListRoleAssignmentsScopeType0 | None | Unset = UNSET,
 ) -> Response[ErrorData | RoleAssignmentListResponse]:
-    """List Role Assignments
+    """List role assignments
 
      List role assignments with policy-driven visibility.
 
@@ -392,7 +392,7 @@ async def asyncio(
     project_id: None | Unset | UUID = UNSET,
     scope: ListRoleAssignmentsScopeType0 | None | Unset = UNSET,
 ) -> ErrorData | RoleAssignmentListResponse | None:
-    """List Role Assignments
+    """List role assignments
 
      List role assignments with policy-driven visibility.
 

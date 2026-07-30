@@ -94,7 +94,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | InvocationTraceRead]:
-    """Get Invocation Trace
+    """Get invocation trace
 
      Retrieve the agent execution trace for a completed invocation, including reasoning steps, tool
     calls, and tool results.
@@ -126,7 +126,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | InvocationTraceRead | None:
-    """Get Invocation Trace
+    """Get invocation trace
 
      Retrieve the agent execution trace for a completed invocation, including reasoning steps, tool
     calls, and tool results.
@@ -153,7 +153,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | InvocationTraceRead]:
-    """Get Invocation Trace
+    """Get invocation trace
 
      Retrieve the agent execution trace for a completed invocation, including reasoning steps, tool
     calls, and tool results.
@@ -183,7 +183,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | InvocationTraceRead | None:
-    """Get Invocation Trace
+    """Get invocation trace
 
      Retrieve the agent execution trace for a completed invocation, including reasoning steps, tool
     calls, and tool results.

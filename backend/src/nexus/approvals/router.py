@@ -26,7 +26,7 @@ from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.nexus_router import NexusRouter
 
-router = NexusRouter(prefix="/approvals", tags=["approvals"])
+router = NexusRouter(prefix="/approvals", tags=["Approvals"])
 
 _ALL_ROLES = ["admin", "auditor", "user", "project-admin", "project-user", "project-auditor"]
 

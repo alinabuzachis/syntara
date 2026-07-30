@@ -169,7 +169,7 @@ def sync_detailed(
     prompt: None | str | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | InvocationListResponse]:
-    """List Invocations
+    """List invocations
 
      List invocations with cursor-based pagination and filtering
 
@@ -222,7 +222,7 @@ def sync(
     session_id: None | str | Unset = UNSET,
     prompt: None | str | Unset = UNSET,
 ) -> ErrorData | InvocationListResponse | None:
-    """List Invocations
+    """List invocations
 
      List invocations with cursor-based pagination and filtering
 
@@ -269,7 +269,7 @@ async def asyncio_detailed(
     session_id: None | str | Unset = UNSET,
     prompt: None | str | Unset = UNSET,
 ) -> Response[ErrorData | InvocationListResponse]:
-    """List Invocations
+    """List invocations
 
      List invocations with cursor-based pagination and filtering
 
@@ -319,7 +319,7 @@ async def asyncio(
     session_id: None | str | Unset = UNSET,
     prompt: None | str | Unset = UNSET,
 ) -> ErrorData | InvocationListResponse | None:
-    """List Invocations
+    """List invocations
 
      List invocations with cursor-based pagination and filtering
 

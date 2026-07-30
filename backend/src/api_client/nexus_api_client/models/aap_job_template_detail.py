@@ -18,13 +18,13 @@ T = TypeVar("T", bound="AAPJobTemplateDetail")
 
 @_attrs_define
 class AAPJobTemplateDetail:
-    """AAP job template with prompt-on-launch capabilities and default values.
+    """Ansible Automation Platform job template with prompt-on-launch capabilities and default values.
 
     Attributes:
         id (int):
         name (str):
         description (None | str | Unset):
-        url (None | str | Unset): Link to the job template in AAP Controller UI
+        url (None | str | Unset): Link to the job template in Ansible Automation Platform Controller UI
         ask_job_type_on_launch (bool | Unset):  Default: False.
         ask_inventory_on_launch (bool | Unset):  Default: False.
         ask_credential_on_launch (bool | Unset):  Default: False.

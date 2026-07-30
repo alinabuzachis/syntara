@@ -12,7 +12,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Tool Metrics Summary
+     * Get tool metrics summary
      * @description Return aggregated per-tool metrics summary.
      *
      *     Supports filtering by namespaced_name and time range.
@@ -36,7 +36,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Tool Executions
+     * List tool executions
      * @description Return paginated tool execution history.
      *
      *     Supports filtering by namespaced_name, status, and time range.

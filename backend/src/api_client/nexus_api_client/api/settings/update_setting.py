@@ -104,7 +104,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: SettingUpdate,
 ) -> Response[ErrorData | RuntimeSettingRead]:
-    """Update Setting
+    """Update setting
 
      Update a runtime setting value with optimistic locking.
 
@@ -138,7 +138,7 @@ def sync(
     client: AuthenticatedClient,
     body: SettingUpdate,
 ) -> ErrorData | RuntimeSettingRead | None:
-    """Update Setting
+    """Update setting
 
      Update a runtime setting value with optimistic locking.
 
@@ -167,7 +167,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: SettingUpdate,
 ) -> Response[ErrorData | RuntimeSettingRead]:
-    """Update Setting
+    """Update setting
 
      Update a runtime setting value with optimistic locking.
 
@@ -199,7 +199,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: SettingUpdate,
 ) -> ErrorData | RuntimeSettingRead | None:
-    """Update Setting
+    """Update setting
 
      Update a runtime setting value with optimistic locking.
 

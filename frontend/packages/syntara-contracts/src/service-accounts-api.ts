@@ -12,13 +12,13 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Service Accounts
+     * List service accounts
      * @description List service accounts with project-scoped visibility and pagination.
      */
     get: operations['list_service_accounts']
     put?: never
     /**
-     * Create Service Account
+     * Create service account
      * @description Create a new service account.
      */
     post: operations['create_service_account']
@@ -36,21 +36,21 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Service Account
+     * Get service account
      * @description Get a service account by ID (secret is never included).
      */
     get: operations['get_service_account']
     put?: never
     post?: never
     /**
-     * Delete Service Account
+     * Delete service account
      * @description Soft-delete a service account.
      */
     delete: operations['delete_service_account']
     options?: never
     head?: never
     /**
-     * Update Service Account
+     * Update service account
      * @description Update a service account's name and/or description.
      */
     patch: operations['update_service_account']
@@ -66,7 +66,7 @@ export interface paths {
     get?: never
     put?: never
     /**
-     * Disable Service Account
+     * Disable service account
      * @description Set a service account's status to disabled.
      */
     post: operations['disable_service_account']
@@ -86,7 +86,7 @@ export interface paths {
     get?: never
     put?: never
     /**
-     * Enable Service Account
+     * Enable service account
      * @description Set a service account's status to active.
      */
     post: operations['enable_service_account']
@@ -104,13 +104,13 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Credentials
+     * List credentials
      * @description List credentials for a service account with pagination.
      */
     get: operations['list_service_account_credentials']
     put?: never
     /**
-     * Create Credential
+     * Create credential
      * @description Create a new credential for a service account; returns the one-time plaintext secret.
      */
     post: operations['create_service_account_credential']
@@ -128,14 +128,14 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Credential
+     * Get credential
      * @description Get a credential by ID (secret is never included).
      */
     get: operations['get_service_account_credential']
     put?: never
     post?: never
     /**
-     * Delete Credential
+     * Delete credential
      * @description Hard-delete a credential.
      */
     delete: operations['delete_service_account_credential']
@@ -154,7 +154,7 @@ export interface paths {
     get?: never
     put?: never
     /**
-     * Rotate Credential
+     * Rotate credential
      * @description Rotate a credential's secret; returns the new one-time plaintext secret.
      */
     post: operations['rotate_service_account_credential']
@@ -174,7 +174,7 @@ export interface paths {
     get?: never
     put?: never
     /**
-     * Disable Credential
+     * Disable credential
      * @description Set a credential's status to disabled.
      */
     post: operations['disable_service_account_credential']
@@ -194,7 +194,7 @@ export interface paths {
     get?: never
     put?: never
     /**
-     * Enable Credential
+     * Enable credential
      * @description Set a credential's status to active.
      */
     post: operations['enable_service_account_credential']

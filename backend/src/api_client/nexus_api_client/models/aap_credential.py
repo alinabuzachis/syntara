@@ -11,7 +11,7 @@ T = TypeVar("T", bound="AAPCredential")
 
 @_attrs_define
 class AAPCredential:
-    """AAP credential resource.
+    """Ansible Automation Platform credential resource.
 
     Only ``id`` and ``name`` are exposed — descriptions are omitted to avoid
     leaking infrastructure details (e.g. "prod-aws-root-key") to all users.

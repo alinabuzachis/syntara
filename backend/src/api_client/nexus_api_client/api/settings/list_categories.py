@@ -90,7 +90,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[CategoriesListResponse | ErrorData]:
-    """List Categories
+    """List categories
 
      List all setting categories with their group names.
 
@@ -115,7 +115,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> CategoriesListResponse | ErrorData | None:
-    """List Categories
+    """List categories
 
      List all setting categories with their group names.
 
@@ -136,7 +136,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[CategoriesListResponse | ErrorData]:
-    """List Categories
+    """List categories
 
      List all setting categories with their group names.
 
@@ -159,7 +159,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> CategoriesListResponse | ErrorData | None:
-    """List Categories
+    """List categories
 
      List all setting categories with their group names.
 

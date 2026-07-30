@@ -26,7 +26,7 @@ tags:
 paths:
   /integrations:
     get:
-      summary: List Integrations
+      summary: List integrations
       description: |-
         List integrations with filtering and pagination.
       operationId: list_integrations
@@ -124,7 +124,7 @@ paths:
       security:
         - bearerAuth: []
     post:
-      summary: Create Integration
+      summary: Create integration
       description: |-
         Create a new integration.
       operationId: create_integration
@@ -167,7 +167,7 @@ paths:
         - bearerAuth: []
   /integrations/{integration_id}:
     get:
-      summary: Get Integration
+      summary: Get integration
       description: |-
         Get an integration by ID.
       operationId: get_integration
@@ -211,7 +211,7 @@ paths:
       security:
         - bearerAuth: []
     patch:
-      summary: Update Integration
+      summary: Update integration
       description: |-
         Update an integration.
       operationId: update_integration
@@ -261,7 +261,7 @@ paths:
       security:
         - bearerAuth: []
     delete:
-      summary: Delete Integration
+      summary: Delete integration
       description: Delete an integration.
       operationId: delete_integration
       tags:
@@ -302,7 +302,7 @@ paths:
 
   /integrations/discover:
     post:
-      summary: Discover Integration Connection
+      summary: Discover integration connection
       description: |-
         Test a connection and discover resources without saving an integration.
 
@@ -351,7 +351,7 @@ paths:
 
   /integrations/{integration_id}/validate:
     post:
-      summary: Validate Integration
+      summary: Validate integration
       description: |-
         Validate a saved integration with a lightweight connectivity ping.
 
@@ -401,7 +401,7 @@ paths:
 
   /integrations/{integration_id}/refresh:
     post:
-      summary: Refresh Resources
+      summary: Refresh resources
       description: |-
         Sync resources (tools) for a saved integration from the external service.
 
@@ -451,7 +451,7 @@ paths:
 
   /integrations/{integration_id}/projects:
     get:
-      summary: List Integration Projects
+      summary: List integration projects
       description: List project assignments for an integration.
       operationId: list_integration_projects
       tags:
@@ -499,7 +499,7 @@ paths:
 
   /integrations/{integration_id}/projects/{project_id}:
     post:
-      summary: Assign Integration Project
+      summary: Assign integration project
       description: Assign a project to a project-scoped integration.
       operationId: assign_integration_project
       tags:
@@ -548,7 +548,7 @@ paths:
       security:
         - bearerAuth: []
     delete:
-      summary: Unassign Integration Project
+      summary: Unassign integration project
       description: Remove a project assignment from an integration.
       operationId: unassign_integration_project
       tags:
@@ -595,7 +595,7 @@ paths:
 
   /integrations/{integration_id}/models:
     get:
-      summary: List Integration Models
+      summary: List integration models
       description: List LLM models for an integration with filtering, sorting, and pagination.
       operationId: list_integration_models
       x-app-permission:
@@ -653,7 +653,7 @@ paths:
 
   /integrations/{integration_id}/models/{model_id}:
     get:
-      summary: Get Integration Model
+      summary: Get integration model
       description: Get an LLM model by ID.
       operationId: get_integration_model
       x-app-permission:
@@ -702,7 +702,7 @@ paths:
       tags:
         - Integrations
     patch:
-      summary: Update Integration Model
+      summary: Update integration model
       description: Update an LLM model (enable/disable).
       operationId: update_integration_model
       x-app-permission:
@@ -759,7 +759,7 @@ paths:
 
   /integrations/{integration_id}/models/bulk_update:
     patch:
-      summary: Bulk Update Integration Models
+      summary: Bulk update integration models
       description: Bulk enable/disable LLM models.
       operationId: bulk_update_integration_models
       x-app-permission:

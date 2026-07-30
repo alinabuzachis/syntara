@@ -12,7 +12,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Tools
+     * Get tools
      * @description List tools with filtering, sorting, and pagination.
      *
      *     Tools are filtered by the caller's integration visibility — only tools
@@ -35,7 +35,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Tool
+     * Get tool
      * @description Get tool details by ID.
      */
     get: operations['get_tool']
@@ -45,7 +45,7 @@ export interface paths {
     options?: never
     head?: never
     /**
-     * Patch Tool
+     * Patch tool
      * @description Update tool status (enable/disable).
      */
     patch: operations['patch_tool']
@@ -65,7 +65,7 @@ export interface paths {
     options?: never
     head?: never
     /**
-     * Bulk Update Tools
+     * Bulk update tools
      * @description Bulk update tool status (enable/disable multiple tools).
      */
     patch: operations['bulk_update_tools']

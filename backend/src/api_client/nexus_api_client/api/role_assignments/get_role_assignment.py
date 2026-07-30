@@ -94,7 +94,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | RoleAssignmentRead]:
-    """Get Role Assignment
+    """Get role assignment
 
      Get a single role assignment by ID.
 
@@ -128,7 +128,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | RoleAssignmentRead | None:
-    """Get Role Assignment
+    """Get role assignment
 
      Get a single role assignment by ID.
 
@@ -157,7 +157,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | RoleAssignmentRead]:
-    """Get Role Assignment
+    """Get role assignment
 
      Get a single role assignment by ID.
 
@@ -189,7 +189,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | RoleAssignmentRead | None:
-    """Get Role Assignment
+    """Get role assignment
 
      Get a single role assignment by ID.
 

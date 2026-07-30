@@ -100,7 +100,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: UploadFilesBody,
 ) -> Response[ErrorData | FileUploadResponse]:
-    """Upload Files (Design Time)
+    """Upload files (design time)
 
      Upload files independently of invocations for later use in agent execution. Returns file_ids that
     can be stored in workflow configuration and passed to invocations. Files are validated, stored, and
@@ -133,7 +133,7 @@ def sync(
     client: AuthenticatedClient,
     body: UploadFilesBody,
 ) -> ErrorData | FileUploadResponse | None:
-    """Upload Files (Design Time)
+    """Upload files (design time)
 
      Upload files independently of invocations for later use in agent execution. Returns file_ids that
     can be stored in workflow configuration and passed to invocations. Files are validated, stored, and
@@ -161,7 +161,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: UploadFilesBody,
 ) -> Response[ErrorData | FileUploadResponse]:
-    """Upload Files (Design Time)
+    """Upload files (design time)
 
      Upload files independently of invocations for later use in agent execution. Returns file_ids that
     can be stored in workflow configuration and passed to invocations. Files are validated, stored, and
@@ -192,7 +192,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: UploadFilesBody,
 ) -> ErrorData | FileUploadResponse | None:
-    """Upload Files (Design Time)
+    """Upload files (design time)
 
      Upload files independently of invocations for later use in agent execution. Returns file_ids that
     can be stored in workflow configuration and passed to invocations. Files are validated, stored, and

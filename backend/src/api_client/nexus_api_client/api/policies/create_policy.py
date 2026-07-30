@@ -100,7 +100,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: PolicyCreate,
 ) -> Response[ErrorData | PolicyRead]:
-    """Create Policy
+    """Create policy
 
      Create a custom policy. Requires: policy:create permission.
 
@@ -131,7 +131,7 @@ def sync(
     client: AuthenticatedClient,
     body: PolicyCreate,
 ) -> ErrorData | PolicyRead | None:
-    """Create Policy
+    """Create policy
 
      Create a custom policy. Requires: policy:create permission.
 
@@ -157,7 +157,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: PolicyCreate,
 ) -> Response[ErrorData | PolicyRead]:
-    """Create Policy
+    """Create policy
 
      Create a custom policy. Requires: policy:create permission.
 
@@ -186,7 +186,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: PolicyCreate,
 ) -> ErrorData | PolicyRead | None:
-    """Create Policy
+    """Create policy
 
      Create a custom policy. Requires: policy:create permission.
 

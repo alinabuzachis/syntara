@@ -13,7 +13,7 @@ T = TypeVar("T", bound="AAPInventory")
 
 @_attrs_define
 class AAPInventory:
-    """AAP inventory resource.
+    """Ansible Automation Platform inventory resource.
 
     Attributes:
         id (int):

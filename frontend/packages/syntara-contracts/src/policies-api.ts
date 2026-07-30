@@ -12,13 +12,13 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Policies
+     * List policies
      * @description List policies with filtering and pagination.
      */
     get: operations['list_policies']
     put?: never
     /**
-     * Create Policy
+     * Create policy
      * @description Create a custom policy. Requires: policy:create permission.
      */
     post: operations['create_policy']
@@ -36,25 +36,25 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Policy
+     * Get policy
      * @description Get a policy by ID.
      */
     get: operations['get_policy']
     /**
-     * Replace Policy
+     * Replace policy
      * @description Replace a policy. Builtin policies cannot be modified. Requires: policy:update permission.
      */
     put: operations['replace_policy']
     post?: never
     /**
-     * Delete Policy
+     * Delete policy
      * @description Delete a policy. Builtin policies cannot be deleted. Requires: policy:delete permission.
      */
     delete: operations['delete_policy']
     options?: never
     head?: never
     /**
-     * Update Policy
+     * Update policy
      * @description Patch a policy. Builtin policies cannot be modified. Requires: policy:update permission.
      */
     patch: operations['update_policy']

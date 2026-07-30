@@ -1,21 +1,21 @@
 ---
 openapi: 3.1.0
 info:
-  title: Nexus AAP Proxy API
+  title: Nexus Ansible Automation Platform Proxy API
   version: 1.0.0
   description: |
     Backend-for-Frontend proxy that forwards requests to a configured
-    AAP (Ansible Automation Platform) Controller instance.
+    Ansible Automation Platform Controller instance.
 
-    Enables the workflow-builder UI to browse AAP resources
+    Enables the workflow-builder UI to browse Ansible Automation Platform resources
     (organizations, job templates, inventories) via cascading dropdowns
-    without direct AAP Controller access.
+    without direct Ansible Automation Platform Controller access.
 
-    Authentication to the AAP Controller is resolved server-side from
+    Authentication to the Ansible Automation Platform Controller is resolved server-side from
     environment variables (`APP_AAP_BASE_URL`, `APP_AAP_TOKEN`).
 
     Note: This API intentionally diverges from standard Nexus response conventions.
-    As a BFF proxy, it mirrors the upstream AAP API shape (count/results, page_size)
+    As a BFF proxy, it mirrors the upstream Ansible Automation Platform API shape (count/results, page_size)
     rather than the standard ResourcesResponseBase format.
 
 servers:
@@ -23,20 +23,20 @@ servers:
     description: API v1
 
 tags:
-  - name: aap
+  - name: Ansible Automation Platform
     description: Ansible Automation Platform resource proxy
 
 paths:
   /aap/organizations:
     get:
-      summary: List Organizations
-      description: List AAP organizations.
+      summary: List organizations
+      description: List Ansible Automation Platform organizations.
       operationId: list_aap_organizations
       x-app-permission:
         resource: null
         action: null
       tags:
-        - aap
+        - Ansible Automation Platform
       parameters:
         - in: query
           name: search
@@ -86,14 +86,14 @@ paths:
 
   /aap/job_templates:
     get:
-      summary: List Job Templates
-      description: List AAP job templates, optionally filtered by organization.
+      summary: List job templates
+      description: List Ansible Automation Platform job templates, optionally filtered by organization.
       operationId: list_aap_job_templates
       x-app-permission:
         resource: null
         action: null
       tags:
-        - aap
+        - Ansible Automation Platform
       parameters:
         - in: query
           name: search
@@ -152,14 +152,14 @@ paths:
 
   /aap/job_templates/{job_template_id}:
     get:
-      summary: Get Job Template
-      description: Get AAP job template details including prompt-on-launch capabilities.
+      summary: Get job template
+      description: Get Ansible Automation Platform job template details including prompt-on-launch capabilities.
       operationId: get_aap_job_template
       x-app-permission:
         resource: null
         action: null
       tags:
-        - aap
+        - Ansible Automation Platform
       parameters:
         - in: path
           name: job_template_id
@@ -216,14 +216,14 @@ paths:
 
   /aap/workflow_job_templates:
     get:
-      summary: List Workflow Job Templates
-      description: List AAP workflow job templates, optionally filtered by organization.
+      summary: List workflow job templates
+      description: List Ansible Automation Platform workflow job templates, optionally filtered by organization.
       operationId: list_aap_workflow_job_templates
       x-app-permission:
         resource: null
         action: null
       tags:
-        - aap
+        - Ansible Automation Platform
       parameters:
         - in: query
           name: search
@@ -282,14 +282,14 @@ paths:
 
   /aap/workflow_job_templates/{workflow_job_template_id}:
     get:
-      summary: Get Workflow Job Template
-      description: Get AAP workflow job template details including prompt-on-launch capabilities.
+      summary: Get workflow job template
+      description: Get Ansible Automation Platform workflow job template details including prompt-on-launch capabilities.
       operationId: get_aap_workflow_job_template
       x-app-permission:
         resource: null
         action: null
       tags:
-        - aap
+        - Ansible Automation Platform
       parameters:
         - in: path
           name: workflow_job_template_id
@@ -346,14 +346,14 @@ paths:
 
   /aap/inventories:
     get:
-      summary: List Inventories
-      description: List AAP inventories, optionally filtered by organization.
+      summary: List inventories
+      description: List Ansible Automation Platform inventories, optionally filtered by organization.
       operationId: list_aap_inventories
       x-app-permission:
         resource: null
         action: null
       tags:
-        - aap
+        - Ansible Automation Platform
       parameters:
         - in: query
           name: search
@@ -412,14 +412,14 @@ paths:
 
   /aap/execution_environments:
     get:
-      summary: List Execution Environments
-      description: List AAP execution environments, optionally filtered by organization.
+      summary: List execution environments
+      description: List Ansible Automation Platform execution environments, optionally filtered by organization.
       operationId: list_aap_execution_environments
       x-app-permission:
         resource: null
         action: null
       tags:
-        - aap
+        - Ansible Automation Platform
       parameters:
         - in: query
           name: search
@@ -478,14 +478,14 @@ paths:
 
   /aap/credentials:
     get:
-      summary: List Credentials
-      description: List AAP credentials (not organization-scoped).
+      summary: List credentials
+      description: List Ansible Automation Platform credentials (not organization-scoped).
       operationId: list_aap_credentials
       x-app-permission:
         resource: null
         action: null
       tags:
-        - aap
+        - Ansible Automation Platform
       parameters:
         - in: query
           name: search
@@ -535,14 +535,14 @@ paths:
 
   /aap/instance_groups:
     get:
-      summary: List Instance Groups
-      description: List AAP instance groups (not organization-scoped).
+      summary: List instance groups
+      description: List Ansible Automation Platform instance groups (not organization-scoped).
       operationId: list_aap_instance_groups
       x-app-permission:
         resource: null
         action: null
       tags:
-        - aap
+        - Ansible Automation Platform
       parameters:
         - in: query
           name: search
@@ -593,9 +593,9 @@ paths:
   /aap/labels:
     get:
       tags:
-        - aap
-      summary: List Labels
-      description: List AAP labels.
+        - Ansible Automation Platform
+      summary: List labels
+      description: List Ansible Automation Platform labels.
       operationId: list_aap_labels
       security:
         - bearerAuth: []
@@ -652,7 +652,7 @@ components:
     AAPOrganization:
       type: object
       title: AAPOrganization
-      description: AAP organization resource.
+      description: Ansible Automation Platform organization resource.
       required:
         - id
         - name
@@ -667,7 +667,7 @@ components:
     AAPJobTemplate:
       type: object
       title: AAPJobTemplate
-      description: AAP job template resource.
+      description: Ansible Automation Platform job template resource.
       required:
         - id
         - name
@@ -687,7 +687,7 @@ components:
     AAPWorkflowJobTemplate:
       type: object
       title: AAPWorkflowJobTemplate
-      description: AAP workflow job template resource.
+      description: Ansible Automation Platform workflow job template resource.
       required:
         - id
         - name
@@ -707,7 +707,7 @@ components:
     AAPSummaryField:
       type: object
       title: AAPSummaryField
-      description: Summary field with id and name from AAP summary_fields.
+      description: Summary field with id and name from Ansible Automation Platform summary_fields.
       required:
         - id
         - name
@@ -722,7 +722,7 @@ components:
     AAPJobType:
       type: string
       title: AAPJobType
-      description: AAP job type values.
+      description: Ansible Automation Platform job type values.
       enum:
         - run
         - check
@@ -730,7 +730,7 @@ components:
     AAPJobTemplateDetail:
       type: object
       title: AAPJobTemplateDetail
-      description: AAP job template with prompt-on-launch capabilities and default values.
+      description: Ansible Automation Platform job template with prompt-on-launch capabilities and default values.
       required:
         - id
         - name
@@ -751,7 +751,7 @@ components:
             - type: string
             - type: "null"
           title: Url
-          description: Link to the job template in AAP Controller UI
+          description: Link to the job template in Ansible Automation Platform Controller UI
         ask_job_type_on_launch:
           type: boolean
           default: false
@@ -919,7 +919,7 @@ components:
     AAPWorkflowJobTemplateDetail:
       type: object
       title: AAPWorkflowJobTemplateDetail
-      description: AAP workflow job template with prompt-on-launch capabilities and default values.
+      description: Ansible Automation Platform workflow job template with prompt-on-launch capabilities and default values.
       required:
         - id
         - name
@@ -940,7 +940,7 @@ components:
             - type: string
             - type: "null"
           title: Url
-          description: Link to the workflow template in AAP Controller UI
+          description: Link to the workflow template in Ansible Automation Platform Controller UI
         ask_inventory_on_launch:
           type: boolean
           default: false
@@ -1028,7 +1028,7 @@ components:
     AAPInventory:
       type: object
       title: AAPInventory
-      description: AAP inventory resource.
+      description: Ansible Automation Platform inventory resource.
       required:
         - id
         - name
@@ -1048,7 +1048,7 @@ components:
     AAPExecutionEnvironment:
       type: object
       title: AAPExecutionEnvironment
-      description: AAP execution environment resource.
+      description: Ansible Automation Platform execution environment resource.
       required:
         - id
         - name
@@ -1069,7 +1069,7 @@ components:
       type: object
       title: AAPCredential
       description: |-
-        AAP credential resource.
+        Ansible Automation Platform credential resource.
 
         Only ``id`` and ``name`` are exposed — descriptions are omitted to avoid
         leaking infrastructure details (e.g. "prod-aws-root-key") to all users.
@@ -1087,7 +1087,7 @@ components:
     AAPInstanceGroup:
       type: object
       title: AAPInstanceGroup
-      description: AAP instance group resource.
+      description: Ansible Automation Platform instance group resource.
       required:
         - id
         - name
@@ -1102,7 +1102,7 @@ components:
     AAPLabel:
       type: object
       title: AAPLabel
-      description: AAP label resource.
+      description: Ansible Automation Platform label resource.
       required:
         - id
         - name
@@ -1259,7 +1259,7 @@ components:
           - type: "null"
         title: Credential Id
       description: |
-        Optional Nexus credential ID for AAP Controller authentication.
+        Optional Nexus credential ID for Ansible Automation Platform Controller authentication.
         If provided, the credential is decrypted and used instead of environment variables.
         Credential must be of type "Ansible Automation Platform".
     integrationId:
@@ -1273,7 +1273,7 @@ components:
           - type: "null"
         title: Integration Id
       description: |
-        Optional AAP Gateway integration ID for connection URL resolution.
+        Optional Ansible Automation Platform Gateway integration ID for connection URL resolution.
         When provided, the integration's configured URL is used instead of environment variables.
 
   securitySchemes:

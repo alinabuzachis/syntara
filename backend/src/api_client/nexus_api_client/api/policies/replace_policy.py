@@ -103,7 +103,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: PolicyUpdate,
 ) -> Response[ErrorData | PolicyRead]:
-    """Replace Policy
+    """Replace policy
 
      Replace a policy. Builtin policies cannot be modified. Requires: policy:update permission.
 
@@ -137,7 +137,7 @@ def sync(
     client: AuthenticatedClient,
     body: PolicyUpdate,
 ) -> ErrorData | PolicyRead | None:
-    """Replace Policy
+    """Replace policy
 
      Replace a policy. Builtin policies cannot be modified. Requires: policy:update permission.
 
@@ -166,7 +166,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: PolicyUpdate,
 ) -> Response[ErrorData | PolicyRead]:
-    """Replace Policy
+    """Replace policy
 
      Replace a policy. Builtin policies cannot be modified. Requires: policy:update permission.
 
@@ -198,7 +198,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: PolicyUpdate,
 ) -> ErrorData | PolicyRead | None:
-    """Replace Policy
+    """Replace policy
 
      Replace a policy. Builtin policies cannot be modified. Requires: policy:update permission.
 

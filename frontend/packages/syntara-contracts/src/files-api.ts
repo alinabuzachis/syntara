@@ -14,7 +14,7 @@ export interface paths {
     get?: never
     put?: never
     /**
-     * Upload Files (Design Time)
+     * Upload files (design time)
      * @description Upload files independently of invocations for later use in agent execution. Returns file_ids that can be stored in workflow configuration and passed to invocations. Files are validated, stored, and queued for document conversion.
      */
     post: operations['upload_files']
@@ -32,7 +32,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Files Metadata (Batch)
+     * Get files metadata (batch)
      * @description Retrieve metadata for one or more files by their IDs. Returns file information (filename, size, MIME type, status) without file content.
      */
     get: operations['get_files_metadata']
@@ -52,7 +52,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Download File
+     * Download file
      * @description Download a file by its ID. Serves the file from whichever storage backend it was uploaded to.
      */
     get: operations['download_file']

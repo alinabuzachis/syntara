@@ -27,6 +27,9 @@ _ACTION_OPERATION_PREFIXES = (
     "retry_",
 )
 
+# OpenAPI tag for AAP Controller BFF proxy endpoints (locked to upstream response shape).
+_AAP_PROXY_TAG = "Ansible Automation Platform"
+
 EXCLUSIONS_FILE = Path(__file__).parent / "list_compliance_exclusions.yaml"
 CRUD_EXCLUSIONS_FILE = Path(__file__).parent / "crud_compliance_exclusions.yaml"
 
@@ -285,7 +288,7 @@ def discover_testable_list_endpoints() -> list[EndpointInfo]:
     """Discover list endpoints that should be tested for compliance.
 
     Filters out:
-    - AAP proxy endpoints (tagged "aap" in OpenAPI spec, locked to upstream format)
+    - AAP proxy endpoints (tagged "Ansible Automation Platform" in OpenAPI spec, locked to upstream format)
     - Explicitly excluded endpoints from list_compliance_exclusions.yaml
 
     Includes:
@@ -304,8 +307,12 @@ def discover_testable_list_endpoints() -> list[EndpointInfo]:
 
     excluded_operation_ids = {exc["operation_id"] for exc in exclusions.get("exclusions", []) if "operation_id" in exc}
 
-    # Filter AAP proxy endpoints (tagged "aap" in OpenAPI spec) and excluded endpoints
-    return [ep for ep in all_list_endpoints if "aap" not in ep.tags and ep.operation_id not in excluded_operation_ids]
+    # Filter AAP proxy endpoints and excluded endpoints
+    return [
+        ep
+        for ep in all_list_endpoints
+        if _AAP_PROXY_TAG not in ep.tags and ep.operation_id not in excluded_operation_ids
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -366,7 +373,7 @@ def _discover_crud_endpoints(
             operation_id = operation.get("operationId", "")
             tags = operation.get("tags", [])
 
-            if "aap" in tags:
+            if _AAP_PROXY_TAG in tags:
                 continue
 
             if not qualifies(operation_id, path, operation, schemas):

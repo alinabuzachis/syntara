@@ -90,7 +90,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Detach User Identity
+    """Detach user identity
 
      Detach (hard-delete) a federated identity from a user.
 
@@ -124,7 +124,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Detach User Identity
+    """Detach user identity
 
      Detach (hard-delete) a federated identity from a user.
 
@@ -153,7 +153,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Detach User Identity
+    """Detach user identity
 
      Detach (hard-delete) a federated identity from a user.
 
@@ -185,7 +185,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Detach User Identity
+    """Detach user identity
 
      Detach (hard-delete) a federated identity from a user.
 

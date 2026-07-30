@@ -130,7 +130,7 @@ def sync_detailed(
     include_total: bool | Unset = False,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | LLMModelListResponse]:
-    """List Integration Models
+    """List integration models
 
      List LLM models for an integration with filtering, sorting, and pagination.
 
@@ -174,7 +174,7 @@ def sync(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> ErrorData | LLMModelListResponse | None:
-    """List Integration Models
+    """List integration models
 
      List LLM models for an integration with filtering, sorting, and pagination.
 
@@ -212,7 +212,7 @@ async def asyncio_detailed(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> Response[ErrorData | LLMModelListResponse]:
-    """List Integration Models
+    """List integration models
 
      List LLM models for an integration with filtering, sorting, and pagination.
 
@@ -253,7 +253,7 @@ async def asyncio(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> ErrorData | LLMModelListResponse | None:
-    """List Integration Models
+    """List integration models
 
      List LLM models for an integration with filtering, sorting, and pagination.
 

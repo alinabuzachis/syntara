@@ -154,7 +154,7 @@ def sync_detailed(
     status: None | ServiceAccountCredentialStatus | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | SACredentialListResponse]:
-    """List Credentials
+    """List credentials
 
      List credentials for a service account with pagination.
 
@@ -204,7 +204,7 @@ def sync(
     credential_type: None | ServiceAccountCredentialType | Unset = UNSET,
     status: None | ServiceAccountCredentialStatus | Unset = UNSET,
 ) -> ErrorData | SACredentialListResponse | None:
-    """List Credentials
+    """List credentials
 
      List credentials for a service account with pagination.
 
@@ -248,7 +248,7 @@ async def asyncio_detailed(
     credential_type: None | ServiceAccountCredentialType | Unset = UNSET,
     status: None | ServiceAccountCredentialStatus | Unset = UNSET,
 ) -> Response[ErrorData | SACredentialListResponse]:
-    """List Credentials
+    """List credentials
 
      List credentials for a service account with pagination.
 
@@ -295,7 +295,7 @@ async def asyncio(
     credential_type: None | ServiceAccountCredentialType | Unset = UNSET,
     status: None | ServiceAccountCredentialStatus | Unset = UNSET,
 ) -> ErrorData | SACredentialListResponse | None:
-    """List Credentials
+    """List credentials
 
      List credentials for a service account with pagination.
 

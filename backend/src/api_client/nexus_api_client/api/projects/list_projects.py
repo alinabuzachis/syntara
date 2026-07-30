@@ -154,7 +154,7 @@ def sync_detailed(
     is_builtin: bool | None | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | ProjectListResponse]:
-    """List Projects
+    """List projects
 
      List projects the current user has read access to.
 
@@ -204,7 +204,7 @@ def sync(
     is_default: bool | None | Unset = UNSET,
     is_builtin: bool | None | Unset = UNSET,
 ) -> ErrorData | ProjectListResponse | None:
-    """List Projects
+    """List projects
 
      List projects the current user has read access to.
 
@@ -248,7 +248,7 @@ async def asyncio_detailed(
     is_default: bool | None | Unset = UNSET,
     is_builtin: bool | None | Unset = UNSET,
 ) -> Response[ErrorData | ProjectListResponse]:
-    """List Projects
+    """List projects
 
      List projects the current user has read access to.
 
@@ -295,7 +295,7 @@ async def asyncio(
     is_default: bool | None | Unset = UNSET,
     is_builtin: bool | None | Unset = UNSET,
 ) -> ErrorData | ProjectListResponse | None:
-    """List Projects
+    """List projects
 
      List projects the current user has read access to.
 

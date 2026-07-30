@@ -6,18 +6,18 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.aap_job_template_detail import AAPJobTemplateDetail
+from ...models.aap_list_response_aap_execution_environment import AAPListResponseAAPExecutionEnvironment
 from ...models.error_data import ErrorData
 from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
-    job_template_id: int,
     *,
     search: None | str | Unset = UNSET,
     page_size: int | Unset = 50,
     credential_id: None | Unset | UUID = UNSET,
     integration_id: None | Unset | UUID = UNSET,
+    organization: None | str | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
@@ -51,11 +51,18 @@ def _get_kwargs(
         json_integration_id = integration_id
     params["integration_id"] = json_integration_id
 
+    json_organization: None | str | Unset
+    if isinstance(organization, Unset):
+        json_organization = UNSET
+    else:
+        json_organization = organization
+    params["organization"] = json_organization
+
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": f"/aap/job_templates/{job_template_id}",
+        "url": "/aap/execution_environments",
         "params": params,
     }
 
@@ -64,9 +71,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> AAPJobTemplateDetail | ErrorData | None:
+) -> AAPListResponseAAPExecutionEnvironment | ErrorData | None:
     if response.status_code == 200:
-        response_200 = AAPJobTemplateDetail.from_dict(response.json())
+        response_200 = AAPListResponseAAPExecutionEnvironment.from_dict(response.json())
 
         return response_200
 
@@ -118,7 +125,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[AAPJobTemplateDetail | ErrorData]:
+) -> Response[AAPListResponseAAPExecutionEnvironment | ErrorData]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -130,40 +137,40 @@ def _build_response(
 
 
 def sync_detailed(
-    job_template_id: int,
     *,
     client: AuthenticatedClient,
     search: None | str | Unset = UNSET,
     page_size: int | Unset = 50,
     credential_id: None | Unset | UUID = UNSET,
     integration_id: None | Unset | UUID = UNSET,
+    organization: None | str | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
-) -> Response[AAPJobTemplateDetail | ErrorData]:
-    """Get Job Template
+) -> Response[AAPListResponseAAPExecutionEnvironment | ErrorData]:
+    """List execution environments
 
-     Get AAP job template details including prompt-on-launch capabilities.
+     List Ansible Automation Platform execution environments, optionally filtered by organization.
 
     Args:
-        job_template_id (int):
         search (None | str | Unset):
         page_size (int | Unset):  Default: 50.
         credential_id (None | Unset | UUID):
         integration_id (None | Unset | UUID):
+        organization (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[AAPJobTemplateDetail | ErrorData]
+        Response[AAPListResponseAAPExecutionEnvironment | ErrorData]
     """
 
     kwargs = _get_kwargs(
-        job_template_id=job_template_id,
         search=search,
         page_size=page_size,
         credential_id=credential_id,
         integration_id=integration_id,
+        organization=organization,
         additional_params=additional_params,
     )
 
@@ -175,77 +182,77 @@ def sync_detailed(
 
 
 def sync(
-    job_template_id: int,
     *,
     client: AuthenticatedClient,
     search: None | str | Unset = UNSET,
     page_size: int | Unset = 50,
     credential_id: None | Unset | UUID = UNSET,
     integration_id: None | Unset | UUID = UNSET,
-) -> AAPJobTemplateDetail | ErrorData | None:
-    """Get Job Template
+    organization: None | str | Unset = UNSET,
+) -> AAPListResponseAAPExecutionEnvironment | ErrorData | None:
+    """List execution environments
 
-     Get AAP job template details including prompt-on-launch capabilities.
+     List Ansible Automation Platform execution environments, optionally filtered by organization.
 
     Args:
-        job_template_id (int):
         search (None | str | Unset):
         page_size (int | Unset):  Default: 50.
         credential_id (None | Unset | UUID):
         integration_id (None | Unset | UUID):
+        organization (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        AAPJobTemplateDetail | ErrorData
+        AAPListResponseAAPExecutionEnvironment | ErrorData
     """
 
     return sync_detailed(
-        job_template_id=job_template_id,
         client=client,
         search=search,
         page_size=page_size,
         credential_id=credential_id,
         integration_id=integration_id,
+        organization=organization,
     ).parsed
 
 
 async def asyncio_detailed(
-    job_template_id: int,
     *,
     client: AuthenticatedClient,
     search: None | str | Unset = UNSET,
     page_size: int | Unset = 50,
     credential_id: None | Unset | UUID = UNSET,
     integration_id: None | Unset | UUID = UNSET,
-) -> Response[AAPJobTemplateDetail | ErrorData]:
-    """Get Job Template
+    organization: None | str | Unset = UNSET,
+) -> Response[AAPListResponseAAPExecutionEnvironment | ErrorData]:
+    """List execution environments
 
-     Get AAP job template details including prompt-on-launch capabilities.
+     List Ansible Automation Platform execution environments, optionally filtered by organization.
 
     Args:
-        job_template_id (int):
         search (None | str | Unset):
         page_size (int | Unset):  Default: 50.
         credential_id (None | Unset | UUID):
         integration_id (None | Unset | UUID):
+        organization (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[AAPJobTemplateDetail | ErrorData]
+        Response[AAPListResponseAAPExecutionEnvironment | ErrorData]
     """
 
     kwargs = _get_kwargs(
-        job_template_id=job_template_id,
         search=search,
         page_size=page_size,
         credential_id=credential_id,
         integration_id=integration_id,
+        organization=organization,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -254,40 +261,40 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    job_template_id: int,
     *,
     client: AuthenticatedClient,
     search: None | str | Unset = UNSET,
     page_size: int | Unset = 50,
     credential_id: None | Unset | UUID = UNSET,
     integration_id: None | Unset | UUID = UNSET,
-) -> AAPJobTemplateDetail | ErrorData | None:
-    """Get Job Template
+    organization: None | str | Unset = UNSET,
+) -> AAPListResponseAAPExecutionEnvironment | ErrorData | None:
+    """List execution environments
 
-     Get AAP job template details including prompt-on-launch capabilities.
+     List Ansible Automation Platform execution environments, optionally filtered by organization.
 
     Args:
-        job_template_id (int):
         search (None | str | Unset):
         page_size (int | Unset):  Default: 50.
         credential_id (None | Unset | UUID):
         integration_id (None | Unset | UUID):
+        organization (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        AAPJobTemplateDetail | ErrorData
+        AAPListResponseAAPExecutionEnvironment | ErrorData
     """
 
     return (
         await asyncio_detailed(
-            job_template_id=job_template_id,
             client=client,
             search=search,
             page_size=page_size,
             credential_id=credential_id,
             integration_id=integration_id,
+            organization=organization,
         )
     ).parsed

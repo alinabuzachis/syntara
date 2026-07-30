@@ -12,13 +12,13 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Invocations
+     * List invocations
      * @description List invocations with cursor-based pagination and filtering
      */
     get: operations['list_invocations']
     put?: never
     /**
-     * Create Invocation (Async)
+     * Create invocation (async)
      * @description Accept async agent invocation request and return invocation ID immediately.
      */
     post: operations['create_invocation']
@@ -38,7 +38,7 @@ export interface paths {
     get?: never
     put?: never
     /**
-     * Create Invocation with File Uploads (Async)
+     * Create invocation with file uploads (async)
      * @description Accept async agent invocation request with optional file uploads via multipart/form-data.
      */
     post: operations['create_invocation_chat']
@@ -56,7 +56,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Invocation Details (Testing/Debug)
+     * Get invocation details (testing/debug)
      * @description Retrieve full invocation details including the result. NOTE: This endpoint is for testing and debugging. Production systems should use WebSockets for real-time results.
      */
     get: operations['get_invocation']
@@ -76,7 +76,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Invocation Trace
+     * Get invocation trace
      * @description Retrieve the agent execution trace for a completed invocation, including reasoning steps, tool calls, and tool results.
      */
     get: operations['get_invocation_trace']
@@ -98,7 +98,7 @@ export interface paths {
     get?: never
     put?: never
     /**
-     * Cancel Invocation
+     * Cancel invocation
      * @description Cancel a running or pending invocation.
      */
     post: operations['cancel_invocation']

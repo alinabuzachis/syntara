@@ -84,6 +84,7 @@ def _get_role_assignment_service(
 
 @router.post(
     "",
+    summary="Create group",
     response_model=GroupRead,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(_group_create)],
@@ -102,7 +103,13 @@ async def create_group(
     )
 
 
-@router.get("", dependencies=[NO_PERMISSION], operation_id="list_groups", response_description="List of groups")
+@router.get(
+    "",
+    summary="List groups",
+    dependencies=[NO_PERMISSION],
+    operation_id="list_groups",
+    response_description="List of groups",
+)
 async def list_groups(
     request: Request,
     service: Annotated[GroupsService, Depends(get_group_service)],
@@ -125,7 +132,11 @@ async def list_groups(
 
 
 @router.get(
-    "/{group_id}", dependencies=[Depends(_group_read)], operation_id="get_group", response_description="Group details"
+    "/{group_id}",
+    summary="Get group",
+    dependencies=[Depends(_group_read)],
+    operation_id="get_group",
+    response_description="Group details",
 )
 async def get_group(
     group_id: UUID,
@@ -139,6 +150,7 @@ async def get_group(
 
 @router.patch(
     "/{group_id}",
+    summary="Update group",
     dependencies=[Depends(_group_update)],
     operation_id="update_group",
     response_description="Updated group",
@@ -161,6 +173,7 @@ async def update_group(
 
 @router.delete(
     "/{group_id}",
+    summary="Delete group",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(_group_delete)],
     operation_id="delete_group",
@@ -182,6 +195,7 @@ async def delete_group(
 
 @router.post(
     "/{group_id}/members",
+    summary="Add member",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(_group_member_manage)],
     operation_id="add_member",
@@ -204,6 +218,7 @@ async def add_member(
 
 @router.delete(
     "/{group_id}/members/{user_id}",
+    summary="Remove member",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(_group_member_manage)],
     operation_id="remove_member",
@@ -225,6 +240,7 @@ async def remove_member(
 
 @router.get(
     "/{group_id}/members",
+    summary="List members",
     dependencies=[Depends(_group_read)],
     operation_id="list_members",
     response_description="List of group members",
@@ -249,6 +265,7 @@ async def list_members(
 
 @router.post(
     "/{group_id}/role_assignments",
+    summary="Create group role assignment",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(PermissionChecker("role-assignment", "assign", body_project_field="project_id"))],
     operation_id="create_group_role_assignment",
@@ -271,6 +288,7 @@ async def create_group_role_assignment(
 
 @router.get(
     "/{group_id}/role_assignments",
+    summary="List group role assignments",
     dependencies=[NO_PERMISSION],
     operation_id="list_group_role_assignments",
     response_description="List of role assignments for this group",
@@ -296,6 +314,7 @@ async def list_group_role_assignments(
 
 @router.delete(
     "/{group_id}/role_assignments/{assignment_id}",
+    summary="Delete group role assignment",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[
         Depends(

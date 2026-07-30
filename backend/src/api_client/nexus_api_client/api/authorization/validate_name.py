@@ -114,7 +114,7 @@ def sync_detailed(
     resource_type: ValidateNameResourceType | Unset = ValidateNameResourceType.PROJECT,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | ValidateNameResponse]:
-    """Validate Name
+    """Validate name
 
      Validate a resource name against naming rules.
     Returns whether the name is valid and, if not, why.
@@ -148,7 +148,7 @@ def sync(
     name: str,
     resource_type: ValidateNameResourceType | Unset = ValidateNameResourceType.PROJECT,
 ) -> ErrorData | ValidateNameResponse | None:
-    """Validate Name
+    """Validate name
 
      Validate a resource name against naming rules.
     Returns whether the name is valid and, if not, why.
@@ -180,7 +180,7 @@ async def asyncio_detailed(
     name: str,
     resource_type: ValidateNameResourceType | Unset = ValidateNameResourceType.PROJECT,
 ) -> Response[ErrorData | ValidateNameResponse]:
-    """Validate Name
+    """Validate name
 
      Validate a resource name against naming rules.
     Returns whether the name is valid and, if not, why.
@@ -215,7 +215,7 @@ async def asyncio(
     name: str,
     resource_type: ValidateNameResourceType | Unset = ValidateNameResourceType.PROJECT,
 ) -> ErrorData | ValidateNameResponse | None:
-    """Validate Name
+    """Validate name
 
      Validate a resource name against naming rules.
     Returns whether the name is valid and, if not, why.

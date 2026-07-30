@@ -88,7 +88,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | UserRead]:
-    """Get Current User Profile
+    """Get current user profile
 
      Return information about the currently authenticated user.
 
@@ -113,7 +113,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | UserRead | None:
-    """Get Current User Profile
+    """Get current user profile
 
      Return information about the currently authenticated user.
 
@@ -134,7 +134,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | UserRead]:
-    """Get Current User Profile
+    """Get current user profile
 
      Return information about the currently authenticated user.
 
@@ -157,7 +157,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | UserRead | None:
-    """Get Current User Profile
+    """Get current user profile
 
      Return information about the currently authenticated user.
 

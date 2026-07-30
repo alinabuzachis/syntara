@@ -88,7 +88,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Delete Role
+    """Delete role
 
      Delete a role. Builtin roles cannot be deleted. Requires: role:delete permission.
 
@@ -119,7 +119,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Delete Role
+    """Delete role
 
      Delete a role. Builtin roles cannot be deleted. Requires: role:delete permission.
 
@@ -145,7 +145,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Delete Role
+    """Delete role
 
      Delete a role. Builtin roles cannot be deleted. Requires: role:delete permission.
 
@@ -174,7 +174,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Delete Role
+    """Delete role
 
      Delete a role. Builtin roles cannot be deleted. Requires: role:delete permission.
 

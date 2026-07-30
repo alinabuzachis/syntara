@@ -105,7 +105,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: ProjectUpdate,
 ) -> Response[ErrorData | ProjectRead]:
-    """Replace Project
+    """Replace project
 
      Replace a project. Requires: project:update permission scoped to this project.
 
@@ -139,7 +139,7 @@ def sync(
     client: AuthenticatedClient,
     body: ProjectUpdate,
 ) -> ErrorData | ProjectRead | None:
-    """Replace Project
+    """Replace project
 
      Replace a project. Requires: project:update permission scoped to this project.
 
@@ -168,7 +168,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: ProjectUpdate,
 ) -> Response[ErrorData | ProjectRead]:
-    """Replace Project
+    """Replace project
 
      Replace a project. Requires: project:update permission scoped to this project.
 
@@ -200,7 +200,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: ProjectUpdate,
 ) -> ErrorData | ProjectRead | None:
-    """Replace Project
+    """Replace project
 
      Replace a project. Requires: project:update permission scoped to this project.
 

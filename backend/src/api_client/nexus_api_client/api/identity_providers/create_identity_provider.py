@@ -102,7 +102,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: IdentityProviderCreate,
 ) -> Response[ErrorData | IdentityProviderResponse]:
-    """Create Identity Provider
+    """Create identity provider
 
      Create a new identity provider.
 
@@ -133,7 +133,7 @@ def sync(
     client: AuthenticatedClient,
     body: IdentityProviderCreate,
 ) -> ErrorData | IdentityProviderResponse | None:
-    """Create Identity Provider
+    """Create identity provider
 
      Create a new identity provider.
 
@@ -159,7 +159,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: IdentityProviderCreate,
 ) -> Response[ErrorData | IdentityProviderResponse]:
-    """Create Identity Provider
+    """Create identity provider
 
      Create a new identity provider.
 
@@ -188,7 +188,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: IdentityProviderCreate,
 ) -> ErrorData | IdentityProviderResponse | None:
-    """Create Identity Provider
+    """Create identity provider
 
      Create a new identity provider.
 

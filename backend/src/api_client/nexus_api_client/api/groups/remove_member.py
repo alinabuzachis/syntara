@@ -90,7 +90,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Remove Member
+    """Remove member
 
      Remove a user from a group.
 
@@ -124,7 +124,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Remove Member
+    """Remove member
 
      Remove a user from a group.
 
@@ -153,7 +153,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Remove Member
+    """Remove member
 
      Remove a user from a group.
 
@@ -185,7 +185,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Remove Member
+    """Remove member
 
      Remove a user from a group.
 

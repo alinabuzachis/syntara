@@ -12,17 +12,20 @@ T = TypeVar("T", bound="AAPOIDCSetupRequest")
 
 @_attrs_define
 class AAPOIDCSetupRequest:
-    """Request body for push-button AAP OIDC identity provider setup.
+    """Request body for push-button Ansible Automation Platform OIDC identity provider setup.
 
     Attributes:
-        aap_url (str): AAP base URL (e.g., https://aap.example.com)
-        organization (str | Unset): AAP organization name to create the OAuth2 application in Default: 'Default'.
-        admin_username (None | str | Unset): AAP platform admin username (required when using basic auth)
-        admin_password (None | str | Unset): AAP platform admin password (used only for setup, never stored)
-        personal_access_token (None | str | Unset): AAP personal access token (alternative to username/password, never
-            stored)
-        insecure_skip_tls_verify (bool | Unset): Skip TLS certificate verification for the AAP connection Default:
-            False.
+        aap_url (str): Ansible Automation Platform base URL (e.g., https://aap.example.com)
+        organization (str | Unset): Ansible Automation Platform organization name to create the OAuth2 application in
+            Default: 'Default'.
+        admin_username (None | str | Unset): Ansible Automation Platform platform admin username (required when using
+            basic auth)
+        admin_password (None | str | Unset): Ansible Automation Platform platform admin password (used only for setup,
+            never stored)
+        personal_access_token (None | str | Unset): Ansible Automation Platform personal access token (alternative to
+            username/password, never stored)
+        insecure_skip_tls_verify (bool | Unset): Skip TLS certificate verification for the Ansible Automation Platform
+            connection Default: False.
     """
 
     aap_url: str

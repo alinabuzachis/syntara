@@ -105,7 +105,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: ToolUpdate,
 ) -> Response[ErrorData | ToolWithParameters]:
-    """Patch Tool
+    """Patch tool
 
      Update tool status (enable/disable).
 
@@ -139,7 +139,7 @@ def sync(
     client: AuthenticatedClient,
     body: ToolUpdate,
 ) -> ErrorData | ToolWithParameters | None:
-    """Patch Tool
+    """Patch tool
 
      Update tool status (enable/disable).
 
@@ -168,7 +168,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: ToolUpdate,
 ) -> Response[ErrorData | ToolWithParameters]:
-    """Patch Tool
+    """Patch tool
 
      Update tool status (enable/disable).
 
@@ -200,7 +200,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: ToolUpdate,
 ) -> ErrorData | ToolWithParameters | None:
-    """Patch Tool
+    """Patch tool
 
      Update tool status (enable/disable).
 

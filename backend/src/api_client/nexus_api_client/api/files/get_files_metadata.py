@@ -104,7 +104,7 @@ def _build_response(
 def sync_detailed(
     *, client: AuthenticatedClient, file_ids: list[UUID], additional_params: dict[str, Any] | None = None
 ) -> Response[ErrorData | FilesMetadataResponse]:
-    """Get Files Metadata (Batch)
+    """Get files metadata (batch)
 
      Retrieve metadata for one or more files by their IDs. Returns file information (filename, size, MIME
     type, status) without file content.
@@ -134,7 +134,7 @@ def sync(
     client: AuthenticatedClient,
     file_ids: list[UUID],
 ) -> ErrorData | FilesMetadataResponse | None:
-    """Get Files Metadata (Batch)
+    """Get files metadata (batch)
 
      Retrieve metadata for one or more files by their IDs. Returns file information (filename, size, MIME
     type, status) without file content.
@@ -161,7 +161,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     file_ids: list[UUID],
 ) -> Response[ErrorData | FilesMetadataResponse]:
-    """Get Files Metadata (Batch)
+    """Get files metadata (batch)
 
      Retrieve metadata for one or more files by their IDs. Returns file information (filename, size, MIME
     type, status) without file content.
@@ -191,7 +191,7 @@ async def asyncio(
     client: AuthenticatedClient,
     file_ids: list[UUID],
 ) -> ErrorData | FilesMetadataResponse | None:
-    """Get Files Metadata (Batch)
+    """Get files metadata (batch)
 
      Retrieve metadata for one or more files by their IDs. Returns file information (filename, size, MIME
     type, status) without file content.

@@ -6,7 +6,7 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.aap_list_response_aap_label import AAPListResponseAAPLabel
+from ...models.aap_list_response_aap_credential import AAPListResponseAAPCredential
 from ...models.error_data import ErrorData
 from ...types import UNSET, Response, Unset
 
@@ -54,7 +54,7 @@ def _get_kwargs(
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/aap/labels",
+        "url": "/aap/credentials",
         "params": params,
     }
 
@@ -63,9 +63,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> AAPListResponseAAPLabel | ErrorData | None:
+) -> AAPListResponseAAPCredential | ErrorData | None:
     if response.status_code == 200:
-        response_200 = AAPListResponseAAPLabel.from_dict(response.json())
+        response_200 = AAPListResponseAAPCredential.from_dict(response.json())
 
         return response_200
 
@@ -117,7 +117,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[AAPListResponseAAPLabel | ErrorData]:
+) -> Response[AAPListResponseAAPCredential | ErrorData]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -136,10 +136,10 @@ def sync_detailed(
     credential_id: None | Unset | UUID = UNSET,
     integration_id: None | Unset | UUID = UNSET,
     additional_params: dict[str, Any] | None = None,
-) -> Response[AAPListResponseAAPLabel | ErrorData]:
-    """List Labels
+) -> Response[AAPListResponseAAPCredential | ErrorData]:
+    """List credentials
 
-     List AAP labels.
+     List Ansible Automation Platform credentials (not organization-scoped).
 
     Args:
         search (None | str | Unset):
@@ -152,7 +152,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[AAPListResponseAAPLabel | ErrorData]
+        Response[AAPListResponseAAPCredential | ErrorData]
     """
 
     kwargs = _get_kwargs(
@@ -177,10 +177,10 @@ def sync(
     page_size: int | Unset = 50,
     credential_id: None | Unset | UUID = UNSET,
     integration_id: None | Unset | UUID = UNSET,
-) -> AAPListResponseAAPLabel | ErrorData | None:
-    """List Labels
+) -> AAPListResponseAAPCredential | ErrorData | None:
+    """List credentials
 
-     List AAP labels.
+     List Ansible Automation Platform credentials (not organization-scoped).
 
     Args:
         search (None | str | Unset):
@@ -193,7 +193,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        AAPListResponseAAPLabel | ErrorData
+        AAPListResponseAAPCredential | ErrorData
     """
 
     return sync_detailed(
@@ -212,10 +212,10 @@ async def asyncio_detailed(
     page_size: int | Unset = 50,
     credential_id: None | Unset | UUID = UNSET,
     integration_id: None | Unset | UUID = UNSET,
-) -> Response[AAPListResponseAAPLabel | ErrorData]:
-    """List Labels
+) -> Response[AAPListResponseAAPCredential | ErrorData]:
+    """List credentials
 
-     List AAP labels.
+     List Ansible Automation Platform credentials (not organization-scoped).
 
     Args:
         search (None | str | Unset):
@@ -228,7 +228,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[AAPListResponseAAPLabel | ErrorData]
+        Response[AAPListResponseAAPCredential | ErrorData]
     """
 
     kwargs = _get_kwargs(
@@ -250,10 +250,10 @@ async def asyncio(
     page_size: int | Unset = 50,
     credential_id: None | Unset | UUID = UNSET,
     integration_id: None | Unset | UUID = UNSET,
-) -> AAPListResponseAAPLabel | ErrorData | None:
-    """List Labels
+) -> AAPListResponseAAPCredential | ErrorData | None:
+    """List credentials
 
-     List AAP labels.
+     List Ansible Automation Platform credentials (not organization-scoped).
 
     Args:
         search (None | str | Unset):
@@ -266,7 +266,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        AAPListResponseAAPLabel | ErrorData
+        AAPListResponseAAPCredential | ErrorData
     """
 
     return (

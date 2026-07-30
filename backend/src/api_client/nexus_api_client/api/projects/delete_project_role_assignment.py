@@ -90,7 +90,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Delete Project Role Assignment
+    """Delete project role assignment
 
      Remove a role assignment from a project.
 
@@ -124,7 +124,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Delete Project Role Assignment
+    """Delete project role assignment
 
      Remove a role assignment from a project.
 
@@ -153,7 +153,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Delete Project Role Assignment
+    """Delete project role assignment
 
      Remove a role assignment from a project.
 
@@ -185,7 +185,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Delete Project Role Assignment
+    """Delete project role assignment
 
      Remove a role assignment from a project.
 

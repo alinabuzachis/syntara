@@ -90,7 +90,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Delete User Role Assignment
+    """Delete user role assignment
 
      Remove a role assignment from this user.
 
@@ -124,7 +124,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Delete User Role Assignment
+    """Delete user role assignment
 
      Remove a role assignment from this user.
 
@@ -153,7 +153,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Delete User Role Assignment
+    """Delete user role assignment
 
      Remove a role assignment from this user.
 
@@ -185,7 +185,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Delete User Role Assignment
+    """Delete user role assignment
 
      Remove a role assignment from this user.
 

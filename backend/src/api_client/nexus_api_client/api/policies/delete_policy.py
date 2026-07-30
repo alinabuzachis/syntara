@@ -88,7 +88,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Delete Policy
+    """Delete policy
 
      Delete a policy. Builtin policies cannot be deleted. Requires: policy:delete permission.
 
@@ -119,7 +119,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Delete Policy
+    """Delete policy
 
      Delete a policy. Builtin policies cannot be deleted. Requires: policy:delete permission.
 
@@ -145,7 +145,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Delete Policy
+    """Delete policy
 
      Delete a policy. Builtin policies cannot be deleted. Requires: policy:delete permission.
 
@@ -174,7 +174,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Delete Policy
+    """Delete policy
 
      Delete a policy. Builtin policies cannot be deleted. Requires: policy:delete permission.
 

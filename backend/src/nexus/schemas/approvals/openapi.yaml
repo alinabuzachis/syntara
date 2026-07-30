@@ -22,7 +22,7 @@ servers:
     description: API v1
 
 tags:
-  - name: approvals
+  - name: Approvals
     description: Human-in-the-loop approval request management
 
 paths:
@@ -39,7 +39,7 @@ paths:
         Uses cursor-based pagination for scalability and consistency.
       operationId: list_approvals
       tags:
-        - approvals
+        - Approvals
       x-app-permission:
         resource: approval
         action: read
@@ -100,7 +100,7 @@ paths:
         directly by end users.
       operationId: create_approval
       tags:
-        - approvals
+        - Approvals
       x-app-permission:
         resource: approval
         action: create
@@ -148,7 +148,7 @@ paths:
         - Decision history if already decided
       operationId: get_approval
       tags:
-        - approvals
+        - Approvals
       x-app-permission:
         resource: approval
         action: read
@@ -200,7 +200,7 @@ paths:
         3. A signal is sent to the workflow to resume execution on the appropriate path
       operationId: decide_approval
       tags:
-        - approvals
+        - Approvals
       x-app-permission:
         resource: approval
         action: decide
@@ -253,7 +253,7 @@ paths:
         already-decided approval returns 409 Conflict.
       operationId: delete_approval
       tags:
-        - approvals
+        - Approvals
       x-app-permission:
         resource: approval
         action: delete
@@ -306,7 +306,7 @@ paths:
         - Bulk rejection of stale or irrelevant requests
       operationId: batch_decide_approvals
       tags:
-        - approvals
+        - Approvals
       x-app-permission:
         resource: null
         action: null

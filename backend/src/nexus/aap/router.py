@@ -53,7 +53,7 @@ from nexus.core.models import User
 
 logger = structlog.stdlib.get_logger(__name__)
 
-router = APIRouter(prefix="/aap", tags=["aap"])
+router = APIRouter(prefix="/aap", tags=["Ansible Automation Platform"])
 
 _integration_scope = ProjectScopeFilter("integration", "read")
 
@@ -81,13 +81,13 @@ async def _get_aap_proxy_service(
 # ============================================================================
 
 
-@router.get("/organizations", operation_id="list_aap_organizations")
+@router.get("/organizations", summary="List organizations", operation_id="list_aap_organizations")
 async def list_organizations(
     query: Annotated[AAPBaseQuery, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[AAPProxyService, Depends(_get_aap_proxy_service)],
 ) -> AAPListResponse[AAPOrganization]:
-    """List AAP organizations."""
+    """List Ansible Automation Platform organizations."""
     error_type = None
     result_count = None
     try:
@@ -113,13 +113,13 @@ async def list_organizations(
     return result
 
 
-@router.get("/job_templates", operation_id="list_aap_job_templates")
+@router.get("/job_templates", summary="List job templates", operation_id="list_aap_job_templates")
 async def list_job_templates(
     query: Annotated[AAPResourceQuery, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[AAPProxyService, Depends(_get_aap_proxy_service)],
 ) -> AAPListResponse[AAPJobTemplate]:
-    """List AAP job templates, optionally filtered by organization."""
+    """List Ansible Automation Platform job templates, optionally filtered by organization."""
     error_type = None
     result_count = None
     try:
@@ -146,14 +146,14 @@ async def list_job_templates(
     return result
 
 
-@router.get("/job_templates/{job_template_id}", operation_id="get_aap_job_template")
+@router.get("/job_templates/{job_template_id}", summary="Get job template", operation_id="get_aap_job_template")
 async def get_job_template(
     job_template_id: Annotated[int, Path(ge=1)],
     query: Annotated[AAPBaseQuery, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[AAPProxyService, Depends(_get_aap_proxy_service)],
 ) -> AAPJobTemplateDetail:
-    """Get AAP job template details including prompt-on-launch capabilities."""
+    """Get Ansible Automation Platform job template details including prompt-on-launch capabilities."""
     credential_id_str = str(query.credential_id) if query.credential_id else None
     error_type = None
     resource_name = None
@@ -186,13 +186,15 @@ async def get_job_template(
     return result
 
 
-@router.get("/workflow_job_templates", operation_id="list_aap_workflow_job_templates")
+@router.get(
+    "/workflow_job_templates", summary="List workflow job templates", operation_id="list_aap_workflow_job_templates"
+)
 async def list_workflow_job_templates(
     query: Annotated[AAPResourceQuery, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[AAPProxyService, Depends(_get_aap_proxy_service)],
 ) -> AAPListResponse[AAPWorkflowJobTemplate]:
-    """List AAP workflow job templates, optionally filtered by organization."""
+    """List Ansible Automation Platform workflow job templates, optionally filtered by organization."""
     error_type = None
     result_count = None
     try:
@@ -219,14 +221,18 @@ async def list_workflow_job_templates(
     return result
 
 
-@router.get("/workflow_job_templates/{workflow_job_template_id}", operation_id="get_aap_workflow_job_template")
+@router.get(
+    "/workflow_job_templates/{workflow_job_template_id}",
+    summary="Get workflow job template",
+    operation_id="get_aap_workflow_job_template",
+)
 async def get_workflow_job_template(
     workflow_job_template_id: Annotated[int, Path(ge=1)],
     query: Annotated[AAPBaseQuery, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[AAPProxyService, Depends(_get_aap_proxy_service)],
 ) -> AAPWorkflowJobTemplateDetail:
-    """Get AAP workflow job template details including prompt-on-launch capabilities."""
+    """Get Ansible Automation Platform workflow job template details including prompt-on-launch capabilities."""
     credential_id_str = str(query.credential_id) if query.credential_id else None
     error_type = None
     resource_name = None
@@ -259,13 +265,13 @@ async def get_workflow_job_template(
     return result
 
 
-@router.get("/inventories", operation_id="list_aap_inventories")
+@router.get("/inventories", summary="List inventories", operation_id="list_aap_inventories")
 async def list_inventories(
     query: Annotated[AAPResourceQuery, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[AAPProxyService, Depends(_get_aap_proxy_service)],
 ) -> AAPListResponse[AAPInventory]:
-    """List AAP inventories, optionally filtered by organization."""
+    """List Ansible Automation Platform inventories, optionally filtered by organization."""
     error_type = None
     result_count = None
     try:
@@ -292,13 +298,15 @@ async def list_inventories(
     return result
 
 
-@router.get("/execution_environments", operation_id="list_aap_execution_environments")
+@router.get(
+    "/execution_environments", summary="List execution environments", operation_id="list_aap_execution_environments"
+)
 async def list_execution_environments(
     query: Annotated[AAPResourceQuery, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[AAPProxyService, Depends(_get_aap_proxy_service)],
 ) -> AAPListResponse[AAPExecutionEnvironment]:
-    """List AAP execution environments, optionally filtered by organization."""
+    """List Ansible Automation Platform execution environments, optionally filtered by organization."""
     error_type = None
     result_count = None
     try:
@@ -325,13 +333,13 @@ async def list_execution_environments(
     return result
 
 
-@router.get("/credentials", operation_id="list_aap_credentials")
+@router.get("/credentials", summary="List credentials", operation_id="list_aap_credentials")
 async def list_credentials(
     query: Annotated[AAPBaseQuery, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[AAPProxyService, Depends(_get_aap_proxy_service)],
 ) -> AAPListResponse[AAPCredential]:
-    """List AAP credentials (not organization-scoped)."""
+    """List Ansible Automation Platform credentials (not organization-scoped)."""
     error_type = None
     result_count = None
     try:
@@ -357,13 +365,13 @@ async def list_credentials(
     return result
 
 
-@router.get("/instance_groups", operation_id="list_aap_instance_groups")
+@router.get("/instance_groups", summary="List instance groups", operation_id="list_aap_instance_groups")
 async def list_instance_groups(
     query: Annotated[AAPBaseQuery, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[AAPProxyService, Depends(_get_aap_proxy_service)],
 ) -> AAPListResponse[AAPInstanceGroup]:
-    """List AAP instance groups (not organization-scoped)."""
+    """List Ansible Automation Platform instance groups (not organization-scoped)."""
     error_type = None
     result_count = None
     try:
@@ -389,13 +397,13 @@ async def list_instance_groups(
     return result
 
 
-@router.get("/labels", operation_id="list_aap_labels")
+@router.get("/labels", summary="List labels", operation_id="list_aap_labels")
 async def list_labels(
     query: Annotated[AAPBaseQuery, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[AAPProxyService, Depends(_get_aap_proxy_service)],
 ) -> AAPListResponse[AAPLabel]:
-    """List AAP labels."""
+    """List Ansible Automation Platform labels."""
     error_type = None
     result_count = None
     try:

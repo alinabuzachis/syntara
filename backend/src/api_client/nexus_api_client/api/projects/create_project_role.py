@@ -103,7 +103,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: ProjectRoleCreate,
 ) -> Response[ErrorData | RoleRead]:
-    """Create Project Role
+    """Create project role
 
      Create a role scoped to this project. Requires: role:create permission.
 
@@ -138,7 +138,7 @@ def sync(
     client: AuthenticatedClient,
     body: ProjectRoleCreate,
 ) -> ErrorData | RoleRead | None:
-    """Create Project Role
+    """Create project role
 
      Create a role scoped to this project. Requires: role:create permission.
 
@@ -168,7 +168,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: ProjectRoleCreate,
 ) -> Response[ErrorData | RoleRead]:
-    """Create Project Role
+    """Create project role
 
      Create a role scoped to this project. Requires: role:create permission.
 
@@ -201,7 +201,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: ProjectRoleCreate,
 ) -> ErrorData | RoleRead | None:
-    """Create Project Role
+    """Create project role
 
      Create a role scoped to this project. Requires: role:create permission.
 

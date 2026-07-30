@@ -11,7 +11,7 @@ T = TypeVar("T", bound="AAPInstanceGroup")
 
 @_attrs_define
 class AAPInstanceGroup:
-    """AAP instance group resource.
+    """Ansible Automation Platform instance group resource.
 
     Attributes:
         id (int):

@@ -93,7 +93,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | RuntimeSettingRead]:
-    """Get Setting
+    """Get setting
 
      Get a single runtime setting by its dot-namespaced key.
 
@@ -124,7 +124,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | RuntimeSettingRead | None:
-    """Get Setting
+    """Get setting
 
      Get a single runtime setting by its dot-namespaced key.
 
@@ -150,7 +150,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | RuntimeSettingRead]:
-    """Get Setting
+    """Get setting
 
      Get a single runtime setting by its dot-namespaced key.
 
@@ -179,7 +179,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | RuntimeSettingRead | None:
-    """Get Setting
+    """Get setting
 
      Get a single runtime setting by its dot-namespaced key.
 

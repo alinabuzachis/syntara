@@ -105,7 +105,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: RoleUpdate,
 ) -> Response[ErrorData | RoleRead]:
-    """Replace Project Role
+    """Replace project role
 
      Replace a project role. Builtin roles cannot be modified.
 
@@ -142,7 +142,7 @@ def sync(
     client: AuthenticatedClient,
     body: RoleUpdate,
 ) -> ErrorData | RoleRead | None:
-    """Replace Project Role
+    """Replace project role
 
      Replace a project role. Builtin roles cannot be modified.
 
@@ -174,7 +174,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: RoleUpdate,
 ) -> Response[ErrorData | RoleRead]:
-    """Replace Project Role
+    """Replace project role
 
      Replace a project role. Builtin roles cannot be modified.
 
@@ -209,7 +209,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: RoleUpdate,
 ) -> ErrorData | RoleRead | None:
-    """Replace Project Role
+    """Replace project role
 
      Replace a project role. Builtin roles cannot be modified.
 

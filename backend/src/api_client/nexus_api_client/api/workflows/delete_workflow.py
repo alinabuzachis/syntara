@@ -88,7 +88,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Delete Workflow
+    """Delete workflow
 
      Soft delete a workflow.
 
@@ -119,7 +119,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Delete Workflow
+    """Delete workflow
 
      Soft delete a workflow.
 
@@ -145,7 +145,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Delete Workflow
+    """Delete workflow
 
      Soft delete a workflow.
 
@@ -174,7 +174,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Delete Workflow
+    """Delete workflow
 
      Soft delete a workflow.
 

@@ -105,7 +105,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: SubResourceRoleAssignmentCreate,
 ) -> Response[ErrorData | RoleAssignmentRead]:
-    """Create Group Role Assignment
+    """Create group role assignment
 
      Assign a role to this group.
 
@@ -142,7 +142,7 @@ def sync(
     client: AuthenticatedClient,
     body: SubResourceRoleAssignmentCreate,
 ) -> ErrorData | RoleAssignmentRead | None:
-    """Create Group Role Assignment
+    """Create group role assignment
 
      Assign a role to this group.
 
@@ -174,7 +174,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: SubResourceRoleAssignmentCreate,
 ) -> Response[ErrorData | RoleAssignmentRead]:
-    """Create Group Role Assignment
+    """Create group role assignment
 
      Assign a role to this group.
 
@@ -209,7 +209,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: SubResourceRoleAssignmentCreate,
 ) -> ErrorData | RoleAssignmentRead | None:
-    """Create Group Role Assignment
+    """Create group role assignment
 
      Assign a role to this group.
 

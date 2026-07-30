@@ -23,10 +23,10 @@ from nexus.tool_manager.services.tool_metrics_service import (
     get_tool_metrics_service,
 )
 
-router = APIRouter(prefix="/tool_manager/metrics", tags=["ToolMetrics"])
+router = APIRouter(prefix="/tool_manager/metrics", tags=["Tool Metrics"])
 
 
-@router.get("/tools", operation_id="get_tool_metrics")
+@router.get("/tools", summary="Get tool metrics summary", operation_id="get_tool_metrics")
 async def get_tool_metrics_summary(
     service: Annotated[ToolMetricsService, Depends(get_tool_metrics_service)],
     params: Annotated[ToolMetricsQuery, Query()],
@@ -41,7 +41,7 @@ async def get_tool_metrics_summary(
     return ToolMetricsToolSummaryListResponse(resources=summaries)
 
 
-@router.get("/executions", operation_id="get_tool_executions")
+@router.get("/executions", summary="List tool executions", operation_id="get_tool_executions")
 async def list_tool_executions(
     service: Annotated[ToolMetricsService, Depends(get_tool_metrics_service)],
     params: Annotated[ToolExecutionListParams, Query()],

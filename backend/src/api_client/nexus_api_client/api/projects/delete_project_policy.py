@@ -90,7 +90,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Delete Project Policy
+    """Delete project policy
 
      Delete a project policy. Only project-owned policies can be deleted.
 
@@ -124,7 +124,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Delete Project Policy
+    """Delete project policy
 
      Delete a project policy. Only project-owned policies can be deleted.
 
@@ -153,7 +153,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Delete Project Policy
+    """Delete project policy
 
      Delete a project policy. Only project-owned policies can be deleted.
 
@@ -185,7 +185,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Delete Project Policy
+    """Delete project policy
 
      Delete a project policy. Only project-owned policies can be deleted.
 

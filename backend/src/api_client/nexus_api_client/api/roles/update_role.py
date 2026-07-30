@@ -103,7 +103,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: RoleUpdate,
 ) -> Response[ErrorData | RoleRead]:
-    """Update Role
+    """Update role
 
      Patch a role. Builtin roles cannot be modified. Requires: role:update permission.
 
@@ -137,7 +137,7 @@ def sync(
     client: AuthenticatedClient,
     body: RoleUpdate,
 ) -> ErrorData | RoleRead | None:
-    """Update Role
+    """Update role
 
      Patch a role. Builtin roles cannot be modified. Requires: role:update permission.
 
@@ -166,7 +166,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: RoleUpdate,
 ) -> Response[ErrorData | RoleRead]:
-    """Update Role
+    """Update role
 
      Patch a role. Builtin roles cannot be modified. Requires: role:update permission.
 
@@ -198,7 +198,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: RoleUpdate,
 ) -> ErrorData | RoleRead | None:
-    """Update Role
+    """Update role
 
      Patch a role. Builtin roles cannot be modified. Requires: role:update permission.
 

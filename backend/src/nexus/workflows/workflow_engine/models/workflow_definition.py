@@ -534,7 +534,7 @@ class AgenticExecutorParameters(TemplateAwareBaseModel, populate_by_name=True):
 
 
 class AAPVerbosity(IntEnum):
-    """AAP job verbosity levels (0-5)."""
+    """Ansible Automation Platform job verbosity levels (0-5)."""
 
     NORMAL = 0
     VERBOSE = 1
@@ -555,23 +555,26 @@ class AAPResourceReferenceMixin(BaseModel):
     # Authentication
     credential_id: str | None = Field(
         default=None,
-        description="Nexus credential UUID for AAP API authentication. Separate from legacy credentials list.",
+        description=(
+            "Nexus credential UUID for Ansible Automation Platform API authentication. "
+            "Separate from legacy credentials list."
+        ),
     )
     integration_id: str | None = Field(
         default=None,
-        description="UUID of the AAP Gateway integration for connection URL resolution.",
+        description="UUID of the Ansible Automation Platform Gateway integration for connection URL resolution.",
     )
 
     # Organization and inventory references
     organization_id: int | None = Field(
         default=None,
         ge=1,
-        description="AAP organization ID (takes precedence over organization_name)",
+        description="Ansible Automation Platform organization ID (takes precedence over organization_name)",
         alias="organizationId",
     )
     organization_name: str | None = Field(
         default=None,
-        description="AAP organization name (used with template_name or inventory_name)",
+        description="Ansible Automation Platform organization name (used with template_name or inventory_name)",
     )
     inventory_id: int | None = Field(
         default=None,
@@ -603,9 +606,9 @@ class AAPResourceReferenceMixin(BaseModel):
     labels: list[str] | None = Field(
         default=None,
         description=(
-            "AAP label names to append to template's default labels. "
+            "Ansible Automation Platform label names to append to template's default labels. "
             "Names are resolved to IDs at launch time. "
-            "New labels that don't exist in AAP will be created automatically. "
+            "New labels that don't exist in Ansible Automation Platform will be created automatically. "
             "Note: Labels are APPENDED to template defaults, not replaced."
         ),
     )
@@ -651,9 +654,9 @@ class AAPResourceReferenceMixin(BaseModel):
 
 
 class AAPJobTemplateExecutorParameters(AAPResourceReferenceMixin, TemplateAwareBaseModel):
-    """Parameters for AAP Job Template executor.
+    """Parameters for Ansible Automation Platform Job Template executor.
 
-    Inherits common AAP fields from AAPResourceReferenceMixin (credential_id, organization,
+    Inherits common Ansible Automation Platform fields from AAPResourceReferenceMixin (credential_id, organization,
     inventory, extra_vars, limit, tags, skip_tags, labels, timeout).
     """
 
@@ -661,21 +664,26 @@ class AAPJobTemplateExecutorParameters(AAPResourceReferenceMixin, TemplateAwareB
     job_template_id: int | None = Field(
         default=None,
         ge=1,
-        description="AAP job template ID to launch",
+        description="Ansible Automation Platform job template ID to launch",
     )
     job_template_name: str | None = Field(
         default=None,
-        description="AAP job template name (used with organization_name)",
+        description="Ansible Automation Platform job template name (used with organization_name)",
     )
 
     # Job-specific credentials (workflow jobs don't support this)
     job_credentials: list[int] | None = Field(
         default=None,
-        description="List of AAP credential IDs to use (takes precedence over credential_names)",
+        description=(
+            "List of Ansible Automation Platform credential IDs to use (takes precedence over credential_names)"
+        ),
     )
     credential_names: list[str] | None = Field(
         default=None,
-        description="List of AAP credential names to use (requires organization_name, resolved at launch time)",
+        description=(
+            "List of Ansible Automation Platform credential names to use "
+            "(requires organization_name, resolved at launch time)"
+        ),
         alias="credentialNames",
     )
 
@@ -743,9 +751,9 @@ class AAPJobTemplateExecutorParameters(AAPResourceReferenceMixin, TemplateAwareB
 
 
 class AAPWorkflowJobTemplateExecutorParameters(AAPResourceReferenceMixin, TemplateAwareBaseModel):
-    """Parameters for AAP Workflow Job Template executor.
+    """Parameters for Ansible Automation Platform Workflow Job Template executor.
 
-    Inherits common AAP fields from AAPResourceReferenceMixin (credential_id, organization,
+    Inherits common Ansible Automation Platform fields from AAPResourceReferenceMixin (credential_id, organization,
     inventory, extra_vars, limit, tags, skip_tags, labels, timeout).
     """
 
@@ -753,11 +761,11 @@ class AAPWorkflowJobTemplateExecutorParameters(AAPResourceReferenceMixin, Templa
     workflow_job_template_id: int | None = Field(
         default=None,
         ge=1,
-        description="AAP workflow job template ID to launch",
+        description="Ansible Automation Platform workflow job template ID to launch",
     )
     workflow_job_template_name: str | None = Field(
         default=None,
-        description="AAP workflow job template name (used with organization_name)",
+        description="Ansible Automation Platform workflow job template name (used with organization_name)",
     )
 
     # Workflow-specific prompt-on-launch field (not available for regular job templates)

@@ -20,7 +20,7 @@ tags:
 paths:
   /roles:
     post:
-      summary: Create Role
+      summary: Create role
       description: |-
         Create a custom role. Requires: role:create permission.
       operationId: create_role
@@ -62,7 +62,7 @@ paths:
       security:
         - bearerAuth: []
     get:
-      summary: List Roles
+      summary: List roles
       description: List roles with filtering and pagination.
       operationId: list_roles
       x-app-permission:
@@ -148,7 +148,7 @@ paths:
         - bearerAuth: []
   /roles/{role_id}:
     get:
-      summary: Get Role
+      summary: Get role
       description: Get a role by ID.
       operationId: get_role
       x-app-permission:
@@ -191,7 +191,7 @@ paths:
       security:
         - bearerAuth: []
     patch:
-      summary: Update Role
+      summary: Update role
       description: |-
         Patch a role. Builtin roles cannot be modified. Requires: role:update permission.
       operationId: update_role
@@ -241,7 +241,7 @@ paths:
       security:
         - bearerAuth: []
     put:
-      summary: Replace Role
+      summary: Replace role
       description: |-
         Replace a role. Builtin roles cannot be modified. Requires: role:update permission.
       operationId: replace_role
@@ -291,7 +291,7 @@ paths:
       security:
         - bearerAuth: []
     delete:
-      summary: Delete Role
+      summary: Delete role
       description: |-
         Delete a role. Builtin roles cannot be deleted. Requires: role:delete permission.
       operationId: delete_role

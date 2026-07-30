@@ -148,7 +148,7 @@ def sync_detailed(
     name: None | str | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | ServiceAccountListResponse]:
-    """List Service Accounts
+    """List service accounts
 
      List service accounts with project-scoped visibility and pagination.
 
@@ -195,7 +195,7 @@ def sync(
     status: None | ServiceAccountStatus | Unset = UNSET,
     name: None | str | Unset = UNSET,
 ) -> ErrorData | ServiceAccountListResponse | None:
-    """List Service Accounts
+    """List service accounts
 
      List service accounts with project-scoped visibility and pagination.
 
@@ -236,7 +236,7 @@ async def asyncio_detailed(
     status: None | ServiceAccountStatus | Unset = UNSET,
     name: None | str | Unset = UNSET,
 ) -> Response[ErrorData | ServiceAccountListResponse]:
-    """List Service Accounts
+    """List service accounts
 
      List service accounts with project-scoped visibility and pagination.
 
@@ -280,7 +280,7 @@ async def asyncio(
     status: None | ServiceAccountStatus | Unset = UNSET,
     name: None | str | Unset = UNSET,
 ) -> ErrorData | ServiceAccountListResponse | None:
-    """List Service Accounts
+    """List service accounts
 
      List service accounts with project-scoped visibility and pagination.
 

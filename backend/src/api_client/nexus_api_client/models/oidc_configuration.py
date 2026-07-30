@@ -40,7 +40,8 @@ class OIDCConfiguration:
         group_mapping_entries (list[OIDCGroupMappingEntry] | Unset): IdP-to-Nexus group mapping entries
         allow_all_authenticated (bool | Unset): Allow all users from this IdP to log in regardless of group mapping
             results Default: False.
-        aap_role_mapping_enabled (bool | Unset): Map AAP aap_system_role claim to built-in groups Default: False.
+        aap_role_mapping_enabled (bool | Unset): Map Ansible Automation Platform aap_system_role claim to built-in
+            groups Default: False.
         disable_tls_verify (bool | Unset): Disable TLS certificate verification for requests to this identity provider
             (insecure) Default: False.
     """

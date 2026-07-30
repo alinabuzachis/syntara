@@ -24,7 +24,7 @@ tags:
 paths:
   /settings:
     get:
-      summary: List Settings
+      summary: List settings
       description: |-
         List all runtime settings with pagination, filtering, and sorting.
       operationId: list_settings
@@ -81,7 +81,7 @@ paths:
       security:
         - bearerAuth: []
     patch:
-      summary: Bulk Update Settings
+      summary: Bulk update settings
       description: |-
         Update multiple settings in a single request.
       operationId: bulk_update_settings
@@ -124,7 +124,7 @@ paths:
         - bearerAuth: []
   /settings/categories:
     get:
-      summary: List Categories
+      summary: List categories
       description: |-
         List all setting categories with their group names.
       operationId: list_categories
@@ -161,7 +161,7 @@ paths:
         - bearerAuth: []
   /settings/{key}:
     get:
-      summary: Get Setting
+      summary: Get setting
       description: |-
         Get a single runtime setting by its dot-namespaced key.
       operationId: get_setting
@@ -205,7 +205,7 @@ paths:
       security:
         - bearerAuth: []
     patch:
-      summary: Update Setting
+      summary: Update setting
       description: |-
         Update a runtime setting value with optimistic locking.
       operationId: update_setting

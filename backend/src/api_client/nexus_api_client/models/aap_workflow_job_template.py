@@ -13,7 +13,7 @@ T = TypeVar("T", bound="AAPWorkflowJobTemplate")
 
 @_attrs_define
 class AAPWorkflowJobTemplate:
-    """AAP workflow job template resource.
+    """Ansible Automation Platform workflow job template resource.
 
     Attributes:
         id (int):

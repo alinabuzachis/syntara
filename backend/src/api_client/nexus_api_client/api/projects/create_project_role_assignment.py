@@ -105,7 +105,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: RoleAssignmentCreate,
 ) -> Response[ErrorData | RoleAssignmentRead]:
-    """Create Project Role Assignment
+    """Create project role assignment
 
      Assign a role to a user or group within a project.
 
@@ -141,7 +141,7 @@ def sync(
     client: AuthenticatedClient,
     body: RoleAssignmentCreate,
 ) -> ErrorData | RoleAssignmentRead | None:
-    """Create Project Role Assignment
+    """Create project role assignment
 
      Assign a role to a user or group within a project.
 
@@ -172,7 +172,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: RoleAssignmentCreate,
 ) -> Response[ErrorData | RoleAssignmentRead]:
-    """Create Project Role Assignment
+    """Create project role assignment
 
      Assign a role to a user or group within a project.
 
@@ -206,7 +206,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: RoleAssignmentCreate,
 ) -> ErrorData | RoleAssignmentRead | None:
-    """Create Project Role Assignment
+    """Create project role assignment
 
      Assign a role to a user or group within a project.
 

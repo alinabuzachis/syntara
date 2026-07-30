@@ -60,6 +60,7 @@ def _validate_key(key: str) -> None:
 
 @router.get(
     "",
+    summary="List settings",
     dependencies=[Depends(_require_settings_read)],
     operation_id="list_settings",
     response_description="Paginated list of runtime settings",
@@ -81,6 +82,7 @@ async def list_settings(
 
 @router.get(
     "/categories",
+    summary="List categories",
     dependencies=[Depends(_require_settings_read)],
     operation_id="list_categories",
     response_description="List of setting categories",
@@ -94,6 +96,7 @@ async def list_categories(
 
 @router.get(
     "/{key}",
+    summary="Get setting",
     dependencies=[Depends(_require_settings_read)],
     operation_id="get_setting",
     response_description="Setting details",
@@ -109,6 +112,7 @@ async def get_setting(
 
 @router.patch(
     "/{key}",
+    summary="Update setting",
     dependencies=[Depends(_require_settings_write)],
     operation_id="update_setting",
     response_description="Setting updated",
@@ -129,6 +133,7 @@ async def update_setting(
 
 @router.patch(
     "",
+    summary="Bulk update settings",
     dependencies=[Depends(_require_settings_write)],
     operation_id="bulk_update_settings",
     response_description="All settings updated successfully",

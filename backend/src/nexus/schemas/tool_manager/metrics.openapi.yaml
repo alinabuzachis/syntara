@@ -9,6 +9,10 @@ servers:
   - url: /api/v1
     description: API server (relative path)
 
+tags:
+  - name: Tool Metrics
+    description: Tool usage metrics and execution history
+
 # Reference shared resource schemas
 x-shared-contracts:
   - path: ../base/shared-resources.openapi.yaml
@@ -21,7 +25,7 @@ paths:
       x-app-permission:
         resource: null
         action: null
-      summary: Get Tool Metrics Summary
+      summary: Get tool metrics summary
       description: |-
         Return aggregated per-tool metrics summary.
 
@@ -88,14 +92,14 @@ paths:
       security:
         - bearerAuth: []
       tags:
-        - ToolMetrics
+        - Tool Metrics
   /tool_manager/metrics/executions:
     get:
       operationId: get_tool_executions
       x-app-permission:
         resource: null
         action: null
-      summary: List Tool Executions
+      summary: List tool executions
       description: |-
         Return paginated tool execution history.
 
@@ -175,7 +179,7 @@ paths:
       security:
         - bearerAuth: []
       tags:
-        - ToolMetrics
+        - Tool Metrics
 components:
   schemas:
     ToolExecutionStatus:

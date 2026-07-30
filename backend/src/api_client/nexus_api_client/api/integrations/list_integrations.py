@@ -195,7 +195,7 @@ def sync_detailed(
     project_id: None | Unset | UUID = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | IntegrationListResponse]:
-    """List Integrations
+    """List integrations
 
      List integrations with filtering and pagination.
 
@@ -254,7 +254,7 @@ def sync(
     management_credential_id: None | Unset | UUID = UNSET,
     project_id: None | Unset | UUID = UNSET,
 ) -> ErrorData | IntegrationListResponse | None:
-    """List Integrations
+    """List integrations
 
      List integrations with filtering and pagination.
 
@@ -307,7 +307,7 @@ async def asyncio_detailed(
     management_credential_id: None | Unset | UUID = UNSET,
     project_id: None | Unset | UUID = UNSET,
 ) -> Response[ErrorData | IntegrationListResponse]:
-    """List Integrations
+    """List integrations
 
      List integrations with filtering and pagination.
 
@@ -363,7 +363,7 @@ async def asyncio(
     management_credential_id: None | Unset | UUID = UNSET,
     project_id: None | Unset | UUID = UNSET,
 ) -> ErrorData | IntegrationListResponse | None:
-    """List Integrations
+    """List integrations
 
      List integrations with filtering and pagination.
 

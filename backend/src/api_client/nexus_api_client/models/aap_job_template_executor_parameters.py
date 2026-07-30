@@ -19,33 +19,37 @@ T = TypeVar("T", bound="AAPJobTemplateExecutorParameters")
 
 @_attrs_define
 class AAPJobTemplateExecutorParameters:
-    """Parameters for AAP Job Template executor.
+    """Parameters for Ansible Automation Platform Job Template executor.
 
-    Inherits common AAP fields from AAPResourceReferenceMixin (credential_id, organization,
+    Inherits common Ansible Automation Platform fields from AAPResourceReferenceMixin (credential_id, organization,
     inventory, extra_vars, limit, tags, skip_tags, labels, timeout).
 
         Attributes:
-            credential_id (None | str | Unset): Nexus credential UUID for AAP API authentication. Separate from legacy
-                credentials list.
-            integration_id (None | str | Unset): UUID of the AAP Gateway integration for connection URL resolution.
-            organization_id (int | None | Unset): AAP organization ID (takes precedence over organization_name)
-            organization_name (None | str | Unset): AAP organization name (used with template_name or inventory_name)
+            credential_id (None | str | Unset): Nexus credential UUID for Ansible Automation Platform API authentication.
+                Separate from legacy credentials list.
+            integration_id (None | str | Unset): UUID of the Ansible Automation Platform Gateway integration for connection
+                URL resolution.
+            organization_id (int | None | Unset): Ansible Automation Platform organization ID (takes precedence over
+                organization_name)
+            organization_name (None | str | Unset): Ansible Automation Platform organization name (used with template_name
+                or inventory_name)
             inventory_id (int | None | Unset): Override default inventory by ID (mutually exclusive with inventory_name)
             inventory_name (None | str | Unset): Override default inventory by name (requires organization_name)
             extra_vars (AAPJobTemplateExecutorParametersExtraVars | Unset): Extra variables to pass to job/workflow job
             limit (None | str | Unset): Limit job execution to specific hosts
             tags (None | str | Unset): Ansible tags to run (comma-separated)
             skip_tags (None | str | Unset): Ansible tags to skip (comma-separated)
-            labels (list[str] | None | Unset): AAP label names to append to template's default labels. Names are resolved to
-                IDs at launch time. New labels that don't exist in AAP will be created automatically. Note: Labels are APPENDED
-                to template defaults, not replaced.
-            job_template_id (int | None | Unset): AAP job template ID to launch
-            job_template_name (None | str | Unset): AAP job template name (used with organization_name)
-            job_credentials (list[int] | None | Unset): List of AAP credential IDs to use (takes precedence over
-                credential_names)
-            credential_names (list[str] | None | Unset): List of AAP credential names to use (requires organization_name,
-                resolved at launch time)
-            verbosity (AAPVerbosity | Unset): AAP job verbosity levels (0-5).
+            labels (list[str] | None | Unset): Ansible Automation Platform label names to append to template's default
+                labels. Names are resolved to IDs at launch time. New labels that don't exist in Ansible Automation Platform
+                will be created automatically. Note: Labels are APPENDED to template defaults, not replaced.
+            job_template_id (int | None | Unset): Ansible Automation Platform job template ID to launch
+            job_template_name (None | str | Unset): Ansible Automation Platform job template name (used with
+                organization_name)
+            job_credentials (list[int] | None | Unset): List of Ansible Automation Platform credential IDs to use (takes
+                precedence over credential_names)
+            credential_names (list[str] | None | Unset): List of Ansible Automation Platform credential names to use
+                (requires organization_name, resolved at launch time)
+            verbosity (AAPVerbosity | Unset): Ansible Automation Platform job verbosity levels (0-5).
             job_type (AAPJobType | None | Unset): Job type override: 'run' or 'check' (dry run)
             forks (int | None | Unset): Number of parallel forks for job execution
             job_slicing (int | None | Unset): Number of job slices

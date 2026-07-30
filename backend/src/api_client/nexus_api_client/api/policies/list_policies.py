@@ -175,7 +175,7 @@ def sync_detailed(
     scope: None | str | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | PolicyListResponse]:
-    """List Policies
+    """List policies
 
      List policies with filtering and pagination.
 
@@ -231,7 +231,7 @@ def sync(
     project_eligible: bool | None | Unset = UNSET,
     scope: None | str | Unset = UNSET,
 ) -> ErrorData | PolicyListResponse | None:
-    """List Policies
+    """List policies
 
      List policies with filtering and pagination.
 
@@ -281,7 +281,7 @@ async def asyncio_detailed(
     project_eligible: bool | None | Unset = UNSET,
     scope: None | str | Unset = UNSET,
 ) -> Response[ErrorData | PolicyListResponse]:
-    """List Policies
+    """List policies
 
      List policies with filtering and pagination.
 
@@ -334,7 +334,7 @@ async def asyncio(
     project_eligible: bool | None | Unset = UNSET,
     scope: None | str | Unset = UNSET,
 ) -> ErrorData | PolicyListResponse | None:
-    """List Policies
+    """List policies
 
      List policies with filtering and pagination.
 

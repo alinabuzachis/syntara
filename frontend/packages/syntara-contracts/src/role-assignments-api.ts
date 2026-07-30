@@ -12,7 +12,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Role Assignments
+     * List role assignments
      * @description List role assignments with policy-driven visibility.
      *
      *     Users with ``role-assignment:read:any`` see all.
@@ -22,7 +22,7 @@ export interface paths {
     get: operations['list_role_assignments']
     put?: never
     /**
-     * Create Role Assignment
+     * Create role assignment
      * @description Assign a role to a user or group.
      *
      *     When project_id is provided the assignment is project-scoped;
@@ -43,7 +43,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Role Assignment
+     * Get role assignment
      * @description Get a single role assignment by ID.
      *
      *     Visibility rules match the list endpoint: admins see all,
@@ -53,7 +53,7 @@ export interface paths {
     put?: never
     post?: never
     /**
-     * Delete Role Assignment
+     * Delete role assignment
      * @description Remove a role assignment.
      */
     delete: operations['delete_role_assignment']

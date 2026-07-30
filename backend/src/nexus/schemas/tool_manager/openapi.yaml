@@ -9,6 +9,10 @@ servers:
   - url: /api/v1
     description: API server (relative path)
 
+tags:
+  - name: Tool Manager
+    description: Tool discovery and configuration
+
 # Reference shared resource schemas
 x-shared-contracts:
   - path: ../base/shared-resources.openapi.yaml
@@ -17,7 +21,7 @@ x-shared-contracts:
 paths:
   /tool_manager/tools:
     get:
-      summary: Get Tools
+      summary: Get tools
       description: |-
         List tools with filtering, sorting, and pagination.
 
@@ -59,10 +63,10 @@ paths:
       security:
         - bearerAuth: []
       tags:
-        - ToolManager
+        - Tool Manager
   /tool_manager/tools/{tool_id}:
     get:
-      summary: Get Tool
+      summary: Get tool
       description: Get tool details by ID.
       operationId: get_tool
       x-app-permission:
@@ -103,9 +107,9 @@ paths:
       security:
         - bearerAuth: []
       tags:
-        - ToolManager
+        - Tool Manager
     patch:
-      summary: Patch Tool
+      summary: Patch tool
       description: Update tool status (enable/disable).
       operationId: patch_tool
       x-app-permission:
@@ -152,10 +156,10 @@ paths:
       security:
         - bearerAuth: []
       tags:
-        - ToolManager
+        - Tool Manager
   /tool_manager/tools/bulk_update:
     patch:
-      summary: Bulk Update Tools
+      summary: Bulk update tools
       description: Bulk update tool status (enable/disable multiple tools).
       operationId: bulk_update_tools
       x-app-permission:
@@ -196,7 +200,7 @@ paths:
       security:
         - bearerAuth: []
       tags:
-        - ToolManager
+        - Tool Manager
 components:
   schemas:
     ToolListResponse:

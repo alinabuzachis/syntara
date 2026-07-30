@@ -17,13 +17,13 @@ T = TypeVar("T", bound="AAPWorkflowJobTemplateDetail")
 
 @_attrs_define
 class AAPWorkflowJobTemplateDetail:
-    """AAP workflow job template with prompt-on-launch capabilities and default values.
+    """Ansible Automation Platform workflow job template with prompt-on-launch capabilities and default values.
 
     Attributes:
         id (int):
         name (str):
         description (None | str | Unset):
-        url (None | str | Unset): Link to the workflow template in AAP Controller UI
+        url (None | str | Unset): Link to the workflow template in Ansible Automation Platform Controller UI
         ask_inventory_on_launch (bool | Unset):  Default: False.
         ask_credential_on_launch (bool | Unset):  Default: False.
         ask_variables_on_launch (bool | Unset):  Default: False.

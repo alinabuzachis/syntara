@@ -136,7 +136,7 @@ def sync_detailed(
     username: None | str | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | ResourcesResponseUserDirectoryEntry]:
-    """List Users Directory
+    """List users directory
 
      Return a lightweight directory of users (id + username only).
 
@@ -181,7 +181,7 @@ def sync(
     include_total: bool | Unset = False,
     username: None | str | Unset = UNSET,
 ) -> ErrorData | ResourcesResponseUserDirectoryEntry | None:
-    """List Users Directory
+    """List users directory
 
      Return a lightweight directory of users (id + username only).
 
@@ -220,7 +220,7 @@ async def asyncio_detailed(
     include_total: bool | Unset = False,
     username: None | str | Unset = UNSET,
 ) -> Response[ErrorData | ResourcesResponseUserDirectoryEntry]:
-    """List Users Directory
+    """List users directory
 
      Return a lightweight directory of users (id + username only).
 
@@ -262,7 +262,7 @@ async def asyncio(
     include_total: bool | Unset = False,
     username: None | str | Unset = UNSET,
 ) -> ErrorData | ResourcesResponseUserDirectoryEntry | None:
-    """List Users Directory
+    """List users directory
 
      Return a lightweight directory of users (id + username only).
 

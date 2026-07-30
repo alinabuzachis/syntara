@@ -102,7 +102,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: CredentialCreate,
 ) -> Response[CredentialRead | ErrorData]:
-    """Create Credential
+    """Create credential
 
      Create a new Credential with encrypted inputs.
 
@@ -133,7 +133,7 @@ def sync(
     client: AuthenticatedClient,
     body: CredentialCreate,
 ) -> CredentialRead | ErrorData | None:
-    """Create Credential
+    """Create credential
 
      Create a new Credential with encrypted inputs.
 
@@ -159,7 +159,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: CredentialCreate,
 ) -> Response[CredentialRead | ErrorData]:
-    """Create Credential
+    """Create credential
 
      Create a new Credential with encrypted inputs.
 
@@ -188,7 +188,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: CredentialCreate,
 ) -> CredentialRead | ErrorData | None:
-    """Create Credential
+    """Create credential
 
      Create a new Credential with encrypted inputs.
 

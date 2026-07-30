@@ -128,7 +128,7 @@ def _validate_multipart_required_fields(prompt: str | None, session_id: str | No
 @router.post(
     "",
     status_code=status.HTTP_202_ACCEPTED,
-    summary="Create Invocation (Async)",
+    summary="Create invocation (async)",
     description="Accept async agent invocation request and return invocation ID immediately.",
     dependencies=[Depends(_invocation_perm_create_json)],
     operation_id="create_invocation",
@@ -199,7 +199,7 @@ async def create_invocation(
 @router.post(
     "/chat",
     status_code=status.HTTP_202_ACCEPTED,
-    summary="Create Invocation with File Uploads (Async)",
+    summary="Create invocation with file uploads (async)",
     description="Accept async agent invocation request with optional file uploads via multipart/form-data.",
     dependencies=[Depends(_invocation_perm_create_form)],
     operation_id="create_invocation_chat",
@@ -243,7 +243,7 @@ async def create_invocation_chat(
 
 @router.get(
     "",
-    summary="List Invocations",
+    summary="List invocations",
     description="List invocations with cursor-based pagination and filtering",
     dependencies=[Depends(_invocation_perm_read)],
     operation_id="list_invocations",
@@ -314,7 +314,7 @@ async def list_invocations(
 
 @router.get(
     "/{invocation_id}/trace",
-    summary="Get Invocation Trace",
+    summary="Get invocation trace",
     description="Retrieve the agent execution trace for a completed invocation, "
     "including reasoning steps, tool calls, and tool results.",
     dependencies=[Depends(_invocation_perm_read)],
@@ -377,7 +377,7 @@ async def get_invocation_trace(
 # - Debug routing decisions and agent behavior
 @router.get(
     "/{invocation_id}",
-    summary="Get Invocation Details (Testing/Debug)",
+    summary="Get invocation details (testing/debug)",
     description="Retrieve full invocation details including the result. "
     "NOTE: This endpoint is for testing and debugging. "
     "Production systems should use WebSockets for real-time results.",
@@ -461,7 +461,7 @@ async def get_invocation(
 
 @router.post(
     "/{invocation_id}/cancel",
-    summary="Cancel Invocation",
+    summary="Cancel invocation",
     description="Cancel a running or pending invocation.",
     dependencies=[Depends(_invocation_perm_cancel)],
     operation_id="cancel_invocation",

@@ -101,7 +101,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | list[CredentialWorkflowRef]]:
-    """Get Project Credential Workflows
+    """Get project credential workflows
 
      Get workflows that reference this credential. Requires: credential:read permission.
 
@@ -135,7 +135,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | list[CredentialWorkflowRef] | None:
-    """Get Project Credential Workflows
+    """Get project credential workflows
 
      Get workflows that reference this credential. Requires: credential:read permission.
 
@@ -164,7 +164,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | list[CredentialWorkflowRef]]:
-    """Get Project Credential Workflows
+    """Get project credential workflows
 
      Get workflows that reference this credential. Requires: credential:read permission.
 
@@ -196,7 +196,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | list[CredentialWorkflowRef] | None:
-    """Get Project Credential Workflows
+    """Get project credential workflows
 
      Get workflows that reference this credential. Requires: credential:read permission.
 

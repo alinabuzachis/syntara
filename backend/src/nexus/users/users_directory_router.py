@@ -70,6 +70,7 @@ def _get_service(
 
 @router.get(
     "",
+    summary="List users directory",
     dependencies=[Depends(_user_directory_read)],
     operation_id="list_users_directory",
     response_description="Lightweight list of users",

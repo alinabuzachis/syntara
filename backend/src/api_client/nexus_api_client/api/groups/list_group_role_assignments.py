@@ -150,7 +150,7 @@ def sync_detailed(
     project_id: None | Unset | UUID = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | RoleAssignmentListResponse]:
-    """List Group Role Assignments
+    """List group role assignments
 
      List role assignments for a specific group.
 
@@ -200,7 +200,7 @@ def sync(
     role_name: None | str | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
 ) -> ErrorData | RoleAssignmentListResponse | None:
-    """List Group Role Assignments
+    """List group role assignments
 
      List role assignments for a specific group.
 
@@ -244,7 +244,7 @@ async def asyncio_detailed(
     role_name: None | str | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
 ) -> Response[ErrorData | RoleAssignmentListResponse]:
-    """List Group Role Assignments
+    """List group role assignments
 
      List role assignments for a specific group.
 
@@ -291,7 +291,7 @@ async def asyncio(
     role_name: None | str | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
 ) -> ErrorData | RoleAssignmentListResponse | None:
-    """List Group Role Assignments
+    """List group role assignments
 
      List role assignments for a specific group.
 

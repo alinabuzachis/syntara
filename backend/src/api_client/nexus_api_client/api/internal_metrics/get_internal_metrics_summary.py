@@ -90,7 +90,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[ErrorData | MetricsStoreSummary]:
-    """Metrics Store Summary
+    """Metrics store summary
 
      Return a lightweight summary of the in-memory metrics store.
 
@@ -115,7 +115,7 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
 ) -> ErrorData | MetricsStoreSummary | None:
-    """Metrics Store Summary
+    """Metrics store summary
 
      Return a lightweight summary of the in-memory metrics store.
 
@@ -136,7 +136,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[ErrorData | MetricsStoreSummary]:
-    """Metrics Store Summary
+    """Metrics store summary
 
      Return a lightweight summary of the in-memory metrics store.
 
@@ -159,7 +159,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
 ) -> ErrorData | MetricsStoreSummary | None:
-    """Metrics Store Summary
+    """Metrics store summary
 
      Return a lightweight summary of the in-memory metrics store.
 

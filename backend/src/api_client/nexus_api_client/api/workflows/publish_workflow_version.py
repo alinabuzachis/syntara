@@ -107,7 +107,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: PublishVersionRequest,
 ) -> Response[ErrorData | PublishWorkflowVersionResponse]:
-    """Publish Workflow Version
+    """Publish workflow version
 
      Publish a specific workflow version.
 
@@ -144,7 +144,7 @@ def sync(
     client: AuthenticatedClient,
     body: PublishVersionRequest,
 ) -> ErrorData | PublishWorkflowVersionResponse | None:
-    """Publish Workflow Version
+    """Publish workflow version
 
      Publish a specific workflow version.
 
@@ -176,7 +176,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: PublishVersionRequest,
 ) -> Response[ErrorData | PublishWorkflowVersionResponse]:
-    """Publish Workflow Version
+    """Publish workflow version
 
      Publish a specific workflow version.
 
@@ -211,7 +211,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: PublishVersionRequest,
 ) -> ErrorData | PublishWorkflowVersionResponse | None:
-    """Publish Workflow Version
+    """Publish workflow version
 
      Publish a specific workflow version.
 

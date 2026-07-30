@@ -103,7 +103,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: GroupUpdate,
 ) -> Response[ErrorData | GroupRead]:
-    """Update Group
+    """Update group
 
      Update a group partially; only provided fields are changed.
 
@@ -139,7 +139,7 @@ def sync(
     client: AuthenticatedClient,
     body: GroupUpdate,
 ) -> ErrorData | GroupRead | None:
-    """Update Group
+    """Update group
 
      Update a group partially; only provided fields are changed.
 
@@ -170,7 +170,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: GroupUpdate,
 ) -> Response[ErrorData | GroupRead]:
-    """Update Group
+    """Update group
 
      Update a group partially; only provided fields are changed.
 
@@ -204,7 +204,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: GroupUpdate,
 ) -> ErrorData | GroupRead | None:
-    """Update Group
+    """Update group
 
      Update a group partially; only provided fields are changed.
 

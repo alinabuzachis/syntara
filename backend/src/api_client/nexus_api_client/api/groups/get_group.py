@@ -92,7 +92,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | GroupRead]:
-    """Get Group
+    """Get group
 
      Retrieve a group by its UUID.
 
@@ -123,7 +123,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | GroupRead | None:
-    """Get Group
+    """Get group
 
      Retrieve a group by its UUID.
 
@@ -149,7 +149,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | GroupRead]:
-    """Get Group
+    """Get group
 
      Retrieve a group by its UUID.
 
@@ -178,7 +178,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | GroupRead | None:
-    """Get Group
+    """Get group
 
      Retrieve a group by its UUID.
 

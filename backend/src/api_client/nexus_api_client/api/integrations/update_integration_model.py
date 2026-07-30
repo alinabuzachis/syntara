@@ -107,7 +107,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: LLMModelUpdate,
 ) -> Response[ErrorData | LLMModelRead]:
-    """Update Integration Model
+    """Update integration model
 
      Update an LLM model (enable/disable).
 
@@ -144,7 +144,7 @@ def sync(
     client: AuthenticatedClient,
     body: LLMModelUpdate,
 ) -> ErrorData | LLMModelRead | None:
-    """Update Integration Model
+    """Update integration model
 
      Update an LLM model (enable/disable).
 
@@ -176,7 +176,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: LLMModelUpdate,
 ) -> Response[ErrorData | LLMModelRead]:
-    """Update Integration Model
+    """Update integration model
 
      Update an LLM model (enable/disable).
 
@@ -211,7 +211,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: LLMModelUpdate,
 ) -> ErrorData | LLMModelRead | None:
-    """Update Integration Model
+    """Update integration model
 
      Update an LLM model (enable/disable).
 

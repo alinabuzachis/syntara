@@ -105,7 +105,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: IdentityProviderPatch,
 ) -> Response[ErrorData | IdentityProviderResponse]:
-    """Patch Identity Provider
+    """Patch identity provider
 
      Patch an identity provider.
 
@@ -139,7 +139,7 @@ def sync(
     client: AuthenticatedClient,
     body: IdentityProviderPatch,
 ) -> ErrorData | IdentityProviderResponse | None:
-    """Patch Identity Provider
+    """Patch identity provider
 
      Patch an identity provider.
 
@@ -168,7 +168,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: IdentityProviderPatch,
 ) -> Response[ErrorData | IdentityProviderResponse]:
-    """Patch Identity Provider
+    """Patch identity provider
 
      Patch an identity provider.
 
@@ -200,7 +200,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: IdentityProviderPatch,
 ) -> ErrorData | IdentityProviderResponse | None:
-    """Patch Identity Provider
+    """Patch identity provider
 
      Patch an identity provider.
 

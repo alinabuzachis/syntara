@@ -94,7 +94,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | ServiceAccountRead]:
-    """Get Service Account
+    """Get service account
 
      Get a service account by ID (secret is never included).
 
@@ -125,7 +125,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | ServiceAccountRead | None:
-    """Get Service Account
+    """Get service account
 
      Get a service account by ID (secret is never included).
 
@@ -151,7 +151,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | ServiceAccountRead]:
-    """Get Service Account
+    """Get service account
 
      Get a service account by ID (secret is never included).
 
@@ -180,7 +180,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | ServiceAccountRead | None:
-    """Get Service Account
+    """Get service account
 
      Get a service account by ID (secret is never included).
 

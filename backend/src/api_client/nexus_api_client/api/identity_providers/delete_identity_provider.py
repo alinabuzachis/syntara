@@ -88,7 +88,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Delete Identity Provider
+    """Delete identity provider
 
      Soft delete an identity provider.
 
@@ -119,7 +119,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Delete Identity Provider
+    """Delete identity provider
 
      Soft delete an identity provider.
 
@@ -145,7 +145,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Delete Identity Provider
+    """Delete identity provider
 
      Soft delete an identity provider.
 
@@ -174,7 +174,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Delete Identity Provider
+    """Delete identity provider
 
      Soft delete an identity provider.
 

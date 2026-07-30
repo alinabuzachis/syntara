@@ -94,7 +94,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | ToolWithParameters]:
-    """Get Tool
+    """Get tool
 
      Get tool details by ID.
 
@@ -125,7 +125,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | ToolWithParameters | None:
-    """Get Tool
+    """Get tool
 
      Get tool details by ID.
 
@@ -151,7 +151,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | ToolWithParameters]:
-    """Get Tool
+    """Get tool
 
      Get tool details by ID.
 
@@ -180,7 +180,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | ToolWithParameters | None:
-    """Get Tool
+    """Get tool
 
      Get tool details by ID.
 

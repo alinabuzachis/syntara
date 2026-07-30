@@ -96,7 +96,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | WorkflowReadWithVersion]:
-    """Restore Workflow Version
+    """Restore workflow version
 
      Restore a previous workflow version as a new draft.
 
@@ -130,7 +130,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | WorkflowReadWithVersion | None:
-    """Restore Workflow Version
+    """Restore workflow version
 
      Restore a previous workflow version as a new draft.
 
@@ -159,7 +159,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | WorkflowReadWithVersion]:
-    """Restore Workflow Version
+    """Restore workflow version
 
      Restore a previous workflow version as a new draft.
 
@@ -191,7 +191,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | WorkflowReadWithVersion | None:
-    """Restore Workflow Version
+    """Restore workflow version
 
      Restore a previous workflow version as a new draft.
 

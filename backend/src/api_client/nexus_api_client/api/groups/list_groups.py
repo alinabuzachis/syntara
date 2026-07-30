@@ -127,7 +127,7 @@ def sync_detailed(
     include_total: bool | Unset = False,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | GroupListResponse]:
-    """List Groups
+    """List groups
 
      Retrieve list of groups with visibility filtering.
 
@@ -167,7 +167,7 @@ def sync(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> ErrorData | GroupListResponse | None:
-    """List Groups
+    """List groups
 
      Retrieve list of groups with visibility filtering.
 
@@ -205,7 +205,7 @@ async def asyncio_detailed(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> Response[ErrorData | GroupListResponse]:
-    """List Groups
+    """List groups
 
      Retrieve list of groups with visibility filtering.
 
@@ -246,7 +246,7 @@ async def asyncio(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> ErrorData | GroupListResponse | None:
-    """List Groups
+    """List groups
 
      Retrieve list of groups with visibility filtering.
 

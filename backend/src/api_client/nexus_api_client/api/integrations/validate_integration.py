@@ -94,7 +94,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | ValidateResult]:
-    """Validate Integration
+    """Validate integration
 
      Validate a saved integration with a lightweight connectivity ping.
 
@@ -129,7 +129,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | ValidateResult | None:
-    """Validate Integration
+    """Validate integration
 
      Validate a saved integration with a lightweight connectivity ping.
 
@@ -159,7 +159,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | ValidateResult]:
-    """Validate Integration
+    """Validate integration
 
      Validate a saved integration with a lightweight connectivity ping.
 
@@ -192,7 +192,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | ValidateResult | None:
-    """Validate Integration
+    """Validate integration
 
      Validate a saved integration with a lightweight connectivity ping.
 

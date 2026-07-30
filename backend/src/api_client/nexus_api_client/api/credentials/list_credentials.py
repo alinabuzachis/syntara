@@ -157,7 +157,7 @@ def sync_detailed(
     for_action: Literal["use"] | None | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[CredentialListResponse | ErrorData]:
-    """List Credentials
+    """List credentials
 
      List Credentials with filtering and pagination. Metadata only, no secrets.
 
@@ -210,7 +210,7 @@ def sync(
     enabled: bool | None | Unset = UNSET,
     for_action: Literal["use"] | None | Unset = UNSET,
 ) -> CredentialListResponse | ErrorData | None:
-    """List Credentials
+    """List credentials
 
      List Credentials with filtering and pagination. Metadata only, no secrets.
 
@@ -257,7 +257,7 @@ async def asyncio_detailed(
     enabled: bool | None | Unset = UNSET,
     for_action: Literal["use"] | None | Unset = UNSET,
 ) -> Response[CredentialListResponse | ErrorData]:
-    """List Credentials
+    """List credentials
 
      List Credentials with filtering and pagination. Metadata only, no secrets.
 
@@ -307,7 +307,7 @@ async def asyncio(
     enabled: bool | None | Unset = UNSET,
     for_action: Literal["use"] | None | Unset = UNSET,
 ) -> CredentialListResponse | ErrorData | None:
-    """List Credentials
+    """List credentials
 
      List Credentials with filtering and pagination. Metadata only, no secrets.
 

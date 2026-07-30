@@ -79,6 +79,7 @@ def get_service_account_service(
 
 @router.post(
     "",
+    summary="Create service account",
     response_model=ServiceAccountRead,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(_sa_create)],
@@ -101,6 +102,7 @@ async def create_service_account(
 
 @router.get(
     "",
+    summary="List service accounts",
     operation_id="list_service_accounts",
     response_description="List of service accounts",
 )
@@ -123,6 +125,7 @@ async def list_service_accounts(
 
 @router.get(
     "/{service_account_id}",
+    summary="Get service account",
     dependencies=[Depends(_sa_read)],
     operation_id="get_service_account",
     response_description="Service account details",
@@ -138,6 +141,7 @@ async def get_service_account(
 
 @router.patch(
     "/{service_account_id}",
+    summary="Update service account",
     dependencies=[Depends(_sa_update)],
     operation_id="update_service_account",
     response_description="Updated service account",
@@ -160,6 +164,7 @@ async def update_service_account(
 
 @router.delete(
     "/{service_account_id}",
+    summary="Delete service account",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(_sa_delete)],
     operation_id="delete_service_account",
@@ -176,6 +181,7 @@ async def delete_service_account(
 
 @router.post(
     "/{service_account_id}/disable",
+    summary="Disable service account",
     dependencies=[Depends(_sa_disable)],
     operation_id="disable_service_account",
     response_description="Service account disabled",
@@ -192,6 +198,7 @@ async def disable_service_account(
 
 @router.post(
     "/{service_account_id}/enable",
+    summary="Enable service account",
     dependencies=[Depends(_sa_enable)],
     operation_id="enable_service_account",
     response_description="Service account enabled",

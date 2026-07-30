@@ -128,14 +128,14 @@ logger = structlog.get_logger(__name__)
 
 
 class AAPOrganization(BaseModel):
-    """AAP organization resource."""
+    """Ansible Automation Platform organization resource."""
 
     id: int
     name: str
 
 
 class AAPJobTemplate(BaseModel):
-    """AAP job template resource."""
+    """Ansible Automation Platform job template resource."""
 
     id: int
     name: str
@@ -143,7 +143,7 @@ class AAPJobTemplate(BaseModel):
 
 
 class AAPWorkflowJobTemplate(BaseModel):
-    """AAP workflow job template resource."""
+    """Ansible Automation Platform workflow job template resource."""
 
     id: int
     name: str
@@ -151,14 +151,14 @@ class AAPWorkflowJobTemplate(BaseModel):
 
 
 class AAPSummaryField(BaseModel):
-    """Summary field with id and name from AAP summary_fields."""
+    """Summary field with id and name from Ansible Automation Platform summary_fields."""
 
     id: int
     name: str
 
 
 class AAPJobType(StrEnum):
-    """AAP job type values."""
+    """Ansible Automation Platform job type values."""
 
     RUN = "run"
     CHECK = "check"
@@ -278,12 +278,12 @@ def _extract_and_set_field(
 
 
 class AAPJobTemplateDetail(BaseModel):
-    """AAP job template with prompt-on-launch capabilities and default values."""
+    """Ansible Automation Platform job template with prompt-on-launch capabilities and default values."""
 
     id: int
     name: str
     description: str | None = None
-    url: str | None = Field(None, description="Link to the job template in AAP Controller UI")
+    url: str | None = Field(None, description="Link to the job template in Ansible Automation Platform Controller UI")
     # Prompt-on-launch flags
     ask_job_type_on_launch: bool = False
     ask_inventory_on_launch: bool = False
@@ -389,12 +389,14 @@ class AAPJobTemplateDetail(BaseModel):
 
 
 class AAPWorkflowJobTemplateDetail(BaseModel):
-    """AAP workflow job template with prompt-on-launch capabilities and default values."""
+    """Ansible Automation Platform workflow job template with prompt-on-launch capabilities and default values."""
 
     id: int
     name: str
     description: str | None = None
-    url: str | None = Field(None, description="Link to the workflow template in AAP Controller UI")
+    url: str | None = Field(
+        None, description="Link to the workflow template in Ansible Automation Platform Controller UI"
+    )
     # Prompt-on-launch flags
     ask_inventory_on_launch: bool = False
     ask_credential_on_launch: bool = False
@@ -461,7 +463,7 @@ class AAPWorkflowJobTemplateDetail(BaseModel):
 
 
 class AAPInventory(BaseModel):
-    """AAP inventory resource."""
+    """Ansible Automation Platform inventory resource."""
 
     id: int
     name: str
@@ -469,7 +471,7 @@ class AAPInventory(BaseModel):
 
 
 class AAPExecutionEnvironment(BaseModel):
-    """AAP execution environment resource."""
+    """Ansible Automation Platform execution environment resource."""
 
     id: int
     name: str
@@ -477,7 +479,7 @@ class AAPExecutionEnvironment(BaseModel):
 
 
 class AAPCredential(BaseModel):
-    """AAP credential resource.
+    """Ansible Automation Platform credential resource.
 
     Only ``id`` and ``name`` are exposed — descriptions are omitted to avoid
     leaking infrastructure details (e.g. "prod-aws-root-key") to all users.
@@ -488,14 +490,14 @@ class AAPCredential(BaseModel):
 
 
 class AAPInstanceGroup(BaseModel):
-    """AAP instance group resource."""
+    """Ansible Automation Platform instance group resource."""
 
     id: int
     name: str
 
 
 class AAPLabel(BaseModel):
-    """AAP label resource."""
+    """Ansible Automation Platform label resource."""
 
     id: int
     name: str
@@ -503,7 +505,7 @@ class AAPLabel(BaseModel):
 
 
 class AAPListResponse[T](BaseModel):
-    """Paginated list response from AAP Controller."""
+    """Paginated list response from Ansible Automation Platform Controller."""
 
     count: int
     results: list[T]

@@ -102,7 +102,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: ToolBulkUpdate,
 ) -> Response[BulkUpdateToolsResponseBulkUpdateTools | ErrorData]:
-    """Bulk Update Tools
+    """Bulk update tools
 
      Bulk update tool status (enable/disable multiple tools).
 
@@ -137,7 +137,7 @@ def sync(
     client: AuthenticatedClient,
     body: ToolBulkUpdate,
 ) -> BulkUpdateToolsResponseBulkUpdateTools | ErrorData | None:
-    """Bulk Update Tools
+    """Bulk update tools
 
      Bulk update tool status (enable/disable multiple tools).
 
@@ -167,7 +167,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: ToolBulkUpdate,
 ) -> Response[BulkUpdateToolsResponseBulkUpdateTools | ErrorData]:
-    """Bulk Update Tools
+    """Bulk update tools
 
      Bulk update tool status (enable/disable multiple tools).
 
@@ -200,7 +200,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: ToolBulkUpdate,
 ) -> BulkUpdateToolsResponseBulkUpdateTools | ErrorData | None:
-    """Bulk Update Tools
+    """Bulk update tools
 
      Bulk update tool status (enable/disable multiple tools).
 

@@ -42,8 +42,8 @@ class OIDCConfigurationPatch:
             keep existing)
         allow_all_authenticated (bool | None | Unset): Allow all users from this IdP to log in regardless of group
             mapping results (omit to keep existing)
-        aap_role_mapping_enabled (bool | None | Unset): Map AAP aap_system_role claim to built-in groups (omit to keep
-            existing)
+        aap_role_mapping_enabled (bool | None | Unset): Map Ansible Automation Platform aap_system_role claim to built-
+            in groups (omit to keep existing)
         disable_tls_verify (bool | None | Unset): Disable TLS certificate verification for this identity provider (omit
             to keep existing)
     """

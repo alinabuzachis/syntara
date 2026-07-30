@@ -93,6 +93,7 @@ def _get_role_assignment_service(
 
 @router.post(
     "",
+    summary="Create user",
     response_model=UserRead,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(_user_create)],
@@ -117,7 +118,13 @@ async def create_user(
     return await service.to_read(user)
 
 
-@router.get("", dependencies=[NO_PERMISSION], operation_id="list_users", response_description="List of users")
+@router.get(
+    "",
+    summary="List users",
+    dependencies=[NO_PERMISSION],
+    operation_id="list_users",
+    response_description="List of users",
+)
 async def list_users(
     request: Request,
     service: Annotated[UsersService, Depends(get_user_service)],
@@ -141,6 +148,7 @@ async def list_users(
 
 @router.get(
     "/me",
+    summary="Get current user profile",
     dependencies=[NO_PERMISSION],
     operation_id="get_current_user_profile",
     response_description="Current user profile",
@@ -155,7 +163,11 @@ async def get_current_user_profile(
 
 
 @router.get(
-    "/{user_id}", dependencies=[Depends(_user_read)], operation_id="get_user", response_description="User details"
+    "/{user_id}",
+    summary="Get user",
+    dependencies=[Depends(_user_read)],
+    operation_id="get_user",
+    response_description="User details",
 )
 async def get_user(
     user_id: UUID,
@@ -167,7 +179,11 @@ async def get_user(
 
 
 @router.patch(
-    "/{user_id}", dependencies=[Depends(_user_update)], operation_id="update_user", response_description="Updated user"
+    "/{user_id}",
+    summary="Update user",
+    dependencies=[Depends(_user_update)],
+    operation_id="update_user",
+    response_description="Updated user",
 )
 @audit(EventCategory.USER_ACTION, event_action="user_update", capture_args={"user_id"})
 async def update_user(
@@ -241,6 +257,7 @@ async def update_user(
 
 @router.delete(
     "/{user_id}",
+    summary="Delete user",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(_user_delete)],
     operation_id="delete_user",
@@ -265,6 +282,7 @@ async def delete_user(
 
 @router.get(
     "/{user_id}/groups",
+    summary="List user groups",
     dependencies=[Depends(_user_read)],
     operation_id="list_user_groups",
     response_description="List of groups the user belongs to",
@@ -284,6 +302,7 @@ async def list_user_groups(
 
 @router.put(
     "/{user_id}/groups",
+    summary="Set user groups",
     dependencies=[Depends(_user_update)],
     operation_id="set_user_groups",
     response_description="Updated group memberships",
@@ -313,6 +332,7 @@ async def set_user_groups(
 
 @router.post(
     "/{user_id}/role_assignments",
+    summary="Create user role assignment",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(PermissionChecker("role-assignment", "assign", body_project_field="project_id"))],
     operation_id="create_user_role_assignment",
@@ -335,6 +355,7 @@ async def create_user_role_assignment(
 
 @router.get(
     "/{user_id}/role_assignments",
+    summary="List user role assignments",
     dependencies=[NO_PERMISSION],
     operation_id="list_user_role_assignments",
     response_description="List of role assignments for this user",
@@ -360,6 +381,7 @@ async def list_user_role_assignments(
 
 @router.delete(
     "/{user_id}/role_assignments/{assignment_id}",
+    summary="Delete user role assignment",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[
         Depends(
@@ -393,7 +415,12 @@ async def delete_user_role_assignment(
 # ============================================================================
 
 
-@router.get("/{user_id}/identities", dependencies=[Depends(_identity_read)], operation_id="list_user_identities")
+@router.get(
+    "/{user_id}/identities",
+    summary="List user identities",
+    dependencies=[Depends(_identity_read)],
+    operation_id="list_user_identities",
+)
 async def list_user_identities(
     user_id: UUID,
     service: Annotated[UserIdentityService, Depends(get_identity_service)],
@@ -404,6 +431,7 @@ async def list_user_identities(
 
 @router.post(
     "/{user_id}/identities",
+    summary="Attach user identity",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(_identity_attach)],
     operation_id="attach_user_identity",
@@ -423,6 +451,7 @@ async def attach_user_identity(
 
 @router.delete(
     "/{user_id}/identities/{identity_id}",
+    summary="Detach user identity",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(_identity_detach)],
     operation_id="detach_user_identity",

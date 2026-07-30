@@ -90,7 +90,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Delete Project Credential
+    """Delete project credential
 
      Delete a credential in this project. Requires: credential:delete permission.
 
@@ -124,7 +124,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Delete Project Credential
+    """Delete project credential
 
      Delete a credential in this project. Requires: credential:delete permission.
 
@@ -153,7 +153,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Delete Project Credential
+    """Delete project credential
 
      Delete a credential in this project. Requires: credential:delete permission.
 
@@ -185,7 +185,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Delete Project Credential
+    """Delete project credential
 
      Delete a credential in this project. Requires: credential:delete permission.
 

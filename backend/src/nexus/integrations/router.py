@@ -141,6 +141,7 @@ async def integration_read_visibility(
 
 @router.post(
     "/integrations",
+    summary="Create integration",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(_perm_create)],
     operation_id="create_integration",
@@ -156,6 +157,7 @@ async def create_integration(
 
 @router.get(
     "/integrations",
+    summary="List integrations",
     dependencies=[Depends(_read_gate), Depends(_read_all_scope)],
     operation_id="list_integrations",
 )
@@ -179,6 +181,7 @@ async def list_integrations(
 
 @router.get(
     "/integrations/{integration_id}",
+    summary="Get integration",
     dependencies=[Depends(_read_gate), Depends(_read_all_scope)],
     operation_id="get_integration",
 )
@@ -195,6 +198,7 @@ async def get_integration(
 # and admins have unrestricted project access (all_projects=True).
 @router.patch(
     "/integrations/{integration_id}",
+    summary="Update integration",
     dependencies=[Depends(_perm_update)],
     operation_id="update_integration",
 )
@@ -210,6 +214,7 @@ async def update_integration(
 
 @router.delete(
     "/integrations/{integration_id}",
+    summary="Delete integration",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(_perm_delete)],
     operation_id="delete_integration",
@@ -225,6 +230,7 @@ async def delete_integration(
 
 @router.post(
     "/integrations/discover",
+    summary="Discover integration connection",
     dependencies=[Depends(_perm_discover)],
     operation_id="discover_integration_connection",
 )
@@ -245,6 +251,7 @@ async def discover_integration_connection(
 
 @router.post(
     "/integrations/{integration_id}/validate",
+    summary="Validate integration",
     dependencies=[Depends(_perm_validate)],
     operation_id="validate_integration",
 )
@@ -264,6 +271,7 @@ async def validate_integration(
 
 @router.post(
     "/integrations/{integration_id}/refresh",
+    summary="Refresh resources",
     dependencies=[Depends(_perm_refresh)],
     operation_id="refresh_resources",
 )
@@ -288,6 +296,7 @@ async def refresh_resources(
 
 @router.post(
     "/integrations/{integration_id}/projects/{project_id}",
+    summary="Assign integration project",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(_perm_update)],
     operation_id="assign_integration_project",
@@ -308,6 +317,7 @@ async def assign_integration_project(
 
 @router.delete(
     "/integrations/{integration_id}/projects/{project_id}",
+    summary="Unassign integration project",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(_perm_update)],
     operation_id="unassign_integration_project",
@@ -328,6 +338,7 @@ async def unassign_integration_project(
 
 @router.get(
     "/integrations/{integration_id}/projects",
+    summary="List integration projects",
     dependencies=[Depends(_read_gate), Depends(_read_all_scope)],
     operation_id="list_integration_projects",
 )
@@ -417,6 +428,7 @@ async def _require_visible_llm_provider(
 
 @router.get(
     "/integrations/{integration_id}/models",
+    summary="List integration models",
     dependencies=[Depends(_model_read_gate), Depends(_require_visible_llm_provider)],
     operation_id="list_integration_models",
 )
@@ -439,6 +451,7 @@ async def list_integration_models(
 
 @router.patch(
     "/integrations/{integration_id}/models/bulk_update",
+    summary="Bulk update integration models",
     dependencies=[Depends(_perm_model_update), Depends(_require_llm_provider)],
     operation_id="bulk_update_integration_models",
 )
@@ -454,6 +467,7 @@ async def bulk_update_integration_models(
 
 @router.get(
     "/integrations/{integration_id}/models/{model_id}",
+    summary="Get integration model",
     dependencies=[Depends(_model_read_gate), Depends(_require_visible_llm_provider)],
     operation_id="get_integration_model",
 )
@@ -468,6 +482,7 @@ async def get_integration_model(
 
 @router.patch(
     "/integrations/{integration_id}/models/{model_id}",
+    summary="Update integration model",
     dependencies=[Depends(_perm_model_update), Depends(_require_llm_provider)],
     operation_id="update_integration_model",
 )

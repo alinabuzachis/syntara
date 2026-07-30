@@ -10,12 +10,14 @@ servers:
 tags:
   - name: Service Accounts
     description: Service account CRUD operations
+  - name: Service Account Credentials
+    description: Service account credential lifecycle management
 paths:
   /service_accounts:
     post:
       tags:
         - Service Accounts
-      summary: Create Service Account
+      summary: Create service account
       description: Create a new service account.
       operationId: create_service_account
       security:
@@ -55,7 +57,7 @@ paths:
     get:
       tags:
         - Service Accounts
-      summary: List Service Accounts
+      summary: List service accounts
       description: List service accounts with project-scoped visibility and pagination.
       operationId: list_service_accounts
       security:
@@ -152,7 +154,7 @@ paths:
     get:
       tags:
         - Service Accounts
-      summary: Get Service Account
+      summary: Get service account
       description: Get a service account by ID (secret is never included).
       operationId: get_service_account
       security:
@@ -194,7 +196,7 @@ paths:
     patch:
       tags:
         - Service Accounts
-      summary: Update Service Account
+      summary: Update service account
       description: Update a service account's name and/or description.
       operationId: update_service_account
       security:
@@ -242,7 +244,7 @@ paths:
     delete:
       tags:
         - Service Accounts
-      summary: Delete Service Account
+      summary: Delete service account
       description: Soft-delete a service account.
       operationId: delete_service_account
       security:
@@ -281,7 +283,7 @@ paths:
     post:
       tags:
         - Service Accounts
-      summary: Disable Service Account
+      summary: Disable service account
       description: Set a service account's status to disabled.
       operationId: disable_service_account
       security:
@@ -324,7 +326,7 @@ paths:
     post:
       tags:
         - Service Accounts
-      summary: Enable Service Account
+      summary: Enable service account
       description: Set a service account's status to active.
       operationId: enable_service_account
       security:
@@ -367,7 +369,7 @@ paths:
     post:
       tags:
         - Service Account Credentials
-      summary: Create Credential
+      summary: Create credential
       description: Create a new credential for a service account; returns the one-time plaintext secret.
       operationId: create_service_account_credential
       security:
@@ -415,7 +417,7 @@ paths:
     get:
       tags:
         - Service Account Credentials
-      summary: List Credentials
+      summary: List credentials
       description: List credentials for a service account with pagination.
       operationId: list_service_account_credentials
       security:
@@ -519,7 +521,7 @@ paths:
     get:
       tags:
         - Service Account Credentials
-      summary: Get Credential
+      summary: Get credential
       description: Get a credential by ID (secret is never included).
       operationId: get_service_account_credential
       security:
@@ -568,7 +570,7 @@ paths:
     delete:
       tags:
         - Service Account Credentials
-      summary: Delete Credential
+      summary: Delete credential
       description: Hard-delete a credential.
       operationId: delete_service_account_credential
       security:
@@ -614,7 +616,7 @@ paths:
     post:
       tags:
         - Service Account Credentials
-      summary: Rotate Credential
+      summary: Rotate credential
       description: Rotate a credential's secret; returns the new one-time plaintext secret.
       operationId: rotate_service_account_credential
       security:
@@ -670,7 +672,7 @@ paths:
     post:
       tags:
         - Service Account Credentials
-      summary: Disable Credential
+      summary: Disable credential
       description: Set a credential's status to disabled.
       operationId: disable_service_account_credential
       security:
@@ -720,7 +722,7 @@ paths:
     post:
       tags:
         - Service Account Credentials
-      summary: Enable Credential
+      summary: Enable credential
       description: Set a credential's status to active.
       operationId: enable_service_account_credential
       security:

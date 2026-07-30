@@ -129,6 +129,7 @@ def _get_role_assignment_service(
 
 @router.post(
     "",
+    summary="Create project",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(PermissionChecker("project", "create"))],
     operation_id="create_project",
@@ -152,7 +153,12 @@ async def create_project(
     return ProjectRead.model_validate(project)
 
 
-@router.get("", operation_id="list_projects", response_description="Paginated list of accessible projects")
+@router.get(
+    "",
+    summary="List projects",
+    operation_id="list_projects",
+    response_description="Paginated list of accessible projects",
+)
 async def list_projects(
     request: Request,
     service: Annotated[ProjectService, Depends(get_project_service)],
@@ -172,6 +178,7 @@ async def list_projects(
 
 @router.get(
     "/{project_id}",
+    summary="Get project",
     dependencies=[Depends(_perm_project_read)],
     operation_id="get_project",
     response_description="Project details",
@@ -202,6 +209,7 @@ async def _do_update_project(
 
 @router.patch(
     "/{project_id}",
+    summary="Update project",
     dependencies=[Depends(_perm_project_update)],
     operation_id="update_project",
     response_description="Updated project",
@@ -218,6 +226,7 @@ async def update_project(
 
 @router.put(
     "/{project_id}",
+    summary="Replace project",
     dependencies=[Depends(_perm_project_update)],
     operation_id="replace_project",
     response_description="Updated project",
@@ -234,6 +243,7 @@ async def replace_project(
 
 @router.delete(
     "/{project_id}",
+    summary="Delete project",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(_perm_project_delete)],
     operation_id="delete_project",
@@ -263,6 +273,7 @@ def get_workflow_service(
 
 @router.get(
     "/{project_id}/workflows",
+    summary="List project workflows",
     dependencies=[Depends(_perm_workflow_read)],
     operation_id="list_project_workflows",
     response_description="Paginated list of workflows in the project",
@@ -306,6 +317,7 @@ def get_approval_service(
 
 @router.get(
     "/{project_id}/approvals",
+    summary="List project approvals",
     dependencies=[Depends(_perm_approval_read)],
     operation_id="list_project_approvals",
     response_description="Paginated list of approvals in the project",
@@ -339,6 +351,7 @@ async def list_project_approvals(
 
 @router.post(
     "/{project_id}/role_assignments",
+    summary="Create project role assignment",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(_perm_role_assignment_assign)],
     operation_id="create_project_role_assignment",
@@ -364,6 +377,7 @@ async def create_project_role_assignment(
 
 @router.get(
     "/{project_id}/role_assignments",
+    summary="List project role assignments",
     dependencies=[NO_PERMISSION],
     operation_id="list_project_role_assignments",
     response_description="List of role assignments",
@@ -419,6 +433,7 @@ async def list_project_role_assignments(
 
 @router.delete(
     "/{project_id}/role_assignments/{assignment_id}",
+    summary="Delete project role assignment",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(_perm_role_assignment_revoke)],
     operation_id="delete_project_role_assignment",
@@ -441,6 +456,7 @@ async def delete_project_role_assignment(
 
 @router.post(
     "/{project_id}/roles",
+    summary="Create project role",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(_perm_role_create)],
     operation_id="create_project_role",
@@ -464,6 +480,7 @@ async def create_project_role(
 
 @router.get(
     "/{project_id}/roles",
+    summary="List project roles",
     dependencies=[Depends(_perm_role_read)],
     operation_id="list_project_roles",
 )
@@ -489,6 +506,7 @@ async def list_project_roles(
 
 @router.get(
     "/{project_id}/roles/{role_id}",
+    summary="Get project role",
     dependencies=[Depends(_perm_role_read)],
     operation_id="get_project_role",
 )
@@ -528,6 +546,7 @@ async def _do_update_project_role(
 
 @router.patch(
     "/{project_id}/roles/{role_id}",
+    summary="Update project role",
     dependencies=[Depends(_perm_role_update)],
     operation_id="update_project_role",
 )
@@ -544,6 +563,7 @@ async def update_project_role(
 
 @router.put(
     "/{project_id}/roles/{role_id}",
+    summary="Replace project role",
     dependencies=[Depends(_perm_role_update)],
     operation_id="replace_project_role",
 )
@@ -560,6 +580,7 @@ async def replace_project_role(
 
 @router.delete(
     "/{project_id}/roles/{role_id}",
+    summary="Delete project role",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(_perm_role_delete)],
     operation_id="delete_project_role",
@@ -592,6 +613,7 @@ def _is_global_project_scoped(policy_read: PolicyRead) -> bool:
 
 @router.post(
     "/{project_id}/policies",
+    summary="Create project policy",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(_perm_policy_create)],
     operation_id="create_project_policy",
@@ -615,6 +637,7 @@ async def create_project_policy(
 
 @router.get(
     "/{project_id}/policies",
+    summary="List project policies",
     dependencies=[Depends(_perm_policy_read)],
     operation_id="list_project_policies",
 )
@@ -640,6 +663,7 @@ async def list_project_policies(
 
 @router.get(
     "/{project_id}/policies/{policy_id}",
+    summary="Get project policy",
     dependencies=[Depends(_perm_policy_read)],
     operation_id="get_project_policy",
 )
@@ -683,6 +707,7 @@ async def _do_update_project_policy(
 
 @router.patch(
     "/{project_id}/policies/{policy_id}",
+    summary="Update project policy",
     dependencies=[Depends(_perm_policy_update)],
     operation_id="update_project_policy",
 )
@@ -699,6 +724,7 @@ async def update_project_policy(
 
 @router.put(
     "/{project_id}/policies/{policy_id}",
+    summary="Replace project policy",
     dependencies=[Depends(_perm_policy_update)],
     operation_id="replace_project_policy",
 )
@@ -715,6 +741,7 @@ async def replace_project_policy(
 
 @router.delete(
     "/{project_id}/policies/{policy_id}",
+    summary="Delete project policy",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(_perm_policy_delete)],
     operation_id="delete_project_policy",
@@ -740,6 +767,7 @@ async def delete_project_policy(
 
 @router.post(
     "/{project_id}/credentials",
+    summary="Create project credential",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(_perm_credential_create)],
     operation_id="create_project_credential",
@@ -764,6 +792,7 @@ async def create_project_credential(
 
 @router.get(
     "/{project_id}/credentials",
+    summary="List project credentials",
     dependencies=[Depends(_perm_credential_read)],
     operation_id="list_project_credentials",
     response_description="Paginated list of credentials in the project",
@@ -794,6 +823,7 @@ async def list_project_credentials(
 
 @router.get(
     "/{project_id}/credentials/{credential_id}",
+    summary="Get project credential",
     dependencies=[Depends(_perm_credential_read)],
     operation_id="get_project_credential",
 )
@@ -812,6 +842,7 @@ async def get_project_credential(
 
 @router.patch(
     "/{project_id}/credentials/{credential_id}",
+    summary="Update project credential",
     dependencies=[Depends(_perm_credential_update)],
     operation_id="update_project_credential",
 )
@@ -832,6 +863,7 @@ async def update_project_credential(
 
 @router.delete(
     "/{project_id}/credentials/{credential_id}",
+    summary="Delete project credential",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(_perm_credential_delete)],
     operation_id="delete_project_credential",
@@ -852,6 +884,7 @@ async def delete_project_credential(
 
 @router.get(
     "/{project_id}/credentials/{credential_id}/workflows",
+    summary="Get project credential workflows",
     dependencies=[Depends(_perm_credential_read)],
     operation_id="get_project_credential_workflows",
 )

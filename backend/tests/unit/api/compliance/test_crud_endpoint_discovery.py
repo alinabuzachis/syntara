@@ -283,7 +283,9 @@ class TestEndpointValidation:
     ) -> None:
         """AAP proxy endpoints are excluded from all CRUD discovery."""
         for ep in [*read_endpoints, *create_endpoints, *update_endpoints, *delete_endpoints]:
-            assert "aap" not in ep.tags, f"{ep.operation_id} is tagged 'aap' and should be excluded"
+            assert "Ansible Automation Platform" not in ep.tags, (
+                f"{ep.operation_id} is an AAP proxy endpoint and should be excluded"
+            )
 
     def test_no_overlap_between_read_and_list(self, read_endpoints) -> None:
         """Read endpoints should not include list operations."""

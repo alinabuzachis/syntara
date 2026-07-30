@@ -13,7 +13,7 @@ T = TypeVar("T", bound="AAPLabel")
 
 @_attrs_define
 class AAPLabel:
-    """AAP label resource.
+    """Ansible Automation Platform label resource.
 
     Attributes:
         id (int):

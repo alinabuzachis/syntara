@@ -100,7 +100,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: InvocationCreateRequest,
 ) -> Response[ErrorData | Invocation]:
-    """Create Invocation (Async)
+    """Create invocation (async)
 
      Accept async agent invocation request and return invocation ID immediately.
 
@@ -137,7 +137,7 @@ def sync(
     client: AuthenticatedClient,
     body: InvocationCreateRequest,
 ) -> ErrorData | Invocation | None:
-    """Create Invocation (Async)
+    """Create invocation (async)
 
      Accept async agent invocation request and return invocation ID immediately.
 
@@ -169,7 +169,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: InvocationCreateRequest,
 ) -> Response[ErrorData | Invocation]:
-    """Create Invocation (Async)
+    """Create invocation (async)
 
      Accept async agent invocation request and return invocation ID immediately.
 
@@ -204,7 +204,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: InvocationCreateRequest,
 ) -> ErrorData | Invocation | None:
-    """Create Invocation (Async)
+    """Create invocation (async)
 
      Accept async agent invocation request and return invocation ID immediately.
 

@@ -90,7 +90,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[CredentialTypeListResponse | ErrorData]:
-    """List Credential Types
+    """List credential types
 
      List all Credential Types including preseeded managed types.
 
@@ -117,7 +117,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> CredentialTypeListResponse | ErrorData | None:
-    """List Credential Types
+    """List credential types
 
      List all Credential Types including preseeded managed types.
 
@@ -140,7 +140,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[CredentialTypeListResponse | ErrorData]:
-    """List Credential Types
+    """List credential types
 
      List all Credential Types including preseeded managed types.
 
@@ -165,7 +165,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> CredentialTypeListResponse | ErrorData | None:
-    """List Credential Types
+    """List credential types
 
      List all Credential Types including preseeded managed types.
 

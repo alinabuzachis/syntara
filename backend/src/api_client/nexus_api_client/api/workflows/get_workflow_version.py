@@ -96,7 +96,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | WorkflowVersionRead]:
-    """Get Workflow Version
+    """Get workflow version
 
      Get a specific workflow version.
 
@@ -130,7 +130,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | WorkflowVersionRead | None:
-    """Get Workflow Version
+    """Get workflow version
 
      Get a specific workflow version.
 
@@ -159,7 +159,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | WorkflowVersionRead]:
-    """Get Workflow Version
+    """Get workflow version
 
      Get a specific workflow version.
 
@@ -191,7 +191,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | WorkflowVersionRead | None:
-    """Get Workflow Version
+    """Get workflow version
 
      Get a specific workflow version.
 

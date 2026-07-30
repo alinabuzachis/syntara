@@ -107,7 +107,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: CredentialUpdate,
 ) -> Response[CredentialRead | ErrorData]:
-    """Update Project Credential
+    """Update project credential
 
      Update a credential in this project. Requires: credential:update permission.
 
@@ -145,7 +145,7 @@ def sync(
     client: AuthenticatedClient,
     body: CredentialUpdate,
 ) -> CredentialRead | ErrorData | None:
-    """Update Project Credential
+    """Update project credential
 
      Update a credential in this project. Requires: credential:update permission.
 
@@ -178,7 +178,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: CredentialUpdate,
 ) -> Response[CredentialRead | ErrorData]:
-    """Update Project Credential
+    """Update project credential
 
      Update a credential in this project. Requires: credential:update permission.
 
@@ -214,7 +214,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: CredentialUpdate,
 ) -> CredentialRead | ErrorData | None:
-    """Update Project Credential
+    """Update project credential
 
      Update a credential in this project. Requires: credential:update permission.
 

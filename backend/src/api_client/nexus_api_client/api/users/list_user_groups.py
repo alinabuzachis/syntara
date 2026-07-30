@@ -130,7 +130,7 @@ def sync_detailed(
     include_total: bool | Unset = False,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | UserGroupListResponse]:
-    """List User Groups
+    """List user groups
 
      List groups that a user belongs to.
 
@@ -174,7 +174,7 @@ def sync(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> ErrorData | UserGroupListResponse | None:
-    """List User Groups
+    """List user groups
 
      List groups that a user belongs to.
 
@@ -212,7 +212,7 @@ async def asyncio_detailed(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> Response[ErrorData | UserGroupListResponse]:
-    """List User Groups
+    """List user groups
 
      List groups that a user belongs to.
 
@@ -253,7 +253,7 @@ async def asyncio(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> ErrorData | UserGroupListResponse | None:
-    """List User Groups
+    """List user groups
 
      List groups that a user belongs to.
 

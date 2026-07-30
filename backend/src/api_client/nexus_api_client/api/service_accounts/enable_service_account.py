@@ -94,7 +94,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | ServiceAccountRead]:
-    """Enable Service Account
+    """Enable service account
 
      Set a service account's status to active.
 
@@ -125,7 +125,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | ServiceAccountRead | None:
-    """Enable Service Account
+    """Enable service account
 
      Set a service account's status to active.
 
@@ -151,7 +151,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | ServiceAccountRead]:
-    """Enable Service Account
+    """Enable service account
 
      Set a service account's status to active.
 
@@ -180,7 +180,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | ServiceAccountRead | None:
-    """Enable Service Account
+    """Enable service account
 
      Set a service account's status to active.
 

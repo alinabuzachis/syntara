@@ -13,7 +13,7 @@ T = TypeVar("T", bound="AAPExecutionEnvironment")
 
 @_attrs_define
 class AAPExecutionEnvironment:
-    """AAP execution environment resource.
+    """Ansible Automation Platform execution environment resource.
 
     Attributes:
         id (int):

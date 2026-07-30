@@ -94,7 +94,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | RoleRead]:
-    """Get Project Role
+    """Get project role
 
      Get a single role, verifying it belongs to this project.
 
@@ -128,7 +128,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | RoleRead | None:
-    """Get Project Role
+    """Get project role
 
      Get a single role, verifying it belongs to this project.
 
@@ -157,7 +157,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | RoleRead]:
-    """Get Project Role
+    """Get project role
 
      Get a single role, verifying it belongs to this project.
 
@@ -189,7 +189,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | RoleRead | None:
-    """Get Project Role
+    """Get project role
 
      Get a single role, verifying it belongs to this project.
 

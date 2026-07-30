@@ -11,7 +11,7 @@ T = TypeVar("T", bound="AAPSummaryField")
 
 @_attrs_define
 class AAPSummaryField:
-    """Summary field with id and name from AAP summary_fields.
+    """Summary field with id and name from Ansible Automation Platform summary_fields.
 
     Attributes:
         id (int):

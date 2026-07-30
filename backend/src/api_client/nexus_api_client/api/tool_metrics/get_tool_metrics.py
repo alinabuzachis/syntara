@@ -133,7 +133,7 @@ def sync_detailed(
     end_time: datetime.datetime | None | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | ToolMetricsToolSummaryListResponse]:
-    """Get Tool Metrics Summary
+    """Get tool metrics summary
 
      Return aggregated per-tool metrics summary.
 
@@ -172,7 +172,7 @@ def sync(
     start_time: datetime.datetime | None | Unset = UNSET,
     end_time: datetime.datetime | None | Unset = UNSET,
 ) -> ErrorData | ToolMetricsToolSummaryListResponse | None:
-    """Get Tool Metrics Summary
+    """Get tool metrics summary
 
      Return aggregated per-tool metrics summary.
 
@@ -208,7 +208,7 @@ async def asyncio_detailed(
     start_time: datetime.datetime | None | Unset = UNSET,
     end_time: datetime.datetime | None | Unset = UNSET,
 ) -> Response[ErrorData | ToolMetricsToolSummaryListResponse]:
-    """Get Tool Metrics Summary
+    """Get tool metrics summary
 
      Return aggregated per-tool metrics summary.
 
@@ -247,7 +247,7 @@ async def asyncio(
     start_time: datetime.datetime | None | Unset = UNSET,
     end_time: datetime.datetime | None | Unset = UNSET,
 ) -> ErrorData | ToolMetricsToolSummaryListResponse | None:
-    """Get Tool Metrics Summary
+    """Get tool metrics summary
 
      Return aggregated per-tool metrics summary.
 

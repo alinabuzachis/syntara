@@ -127,7 +127,7 @@ def sync_detailed(
     include_total: bool | Unset = False,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | ToolListResponse]:
-    """Get Tools
+    """Get tools
 
      List tools with filtering, sorting, and pagination.
 
@@ -167,7 +167,7 @@ def sync(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> ErrorData | ToolListResponse | None:
-    """Get Tools
+    """Get tools
 
      List tools with filtering, sorting, and pagination.
 
@@ -205,7 +205,7 @@ async def asyncio_detailed(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> Response[ErrorData | ToolListResponse]:
-    """Get Tools
+    """Get tools
 
      List tools with filtering, sorting, and pagination.
 
@@ -246,7 +246,7 @@ async def asyncio(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> ErrorData | ToolListResponse | None:
-    """Get Tools
+    """Get tools
 
      List tools with filtering, sorting, and pagination.
 

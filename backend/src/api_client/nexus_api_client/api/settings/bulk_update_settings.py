@@ -102,7 +102,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: SettingBulkUpdateRequest,
 ) -> Response[ErrorData | SettingsListResponse]:
-    """Bulk Update Settings
+    """Bulk update settings
 
      Update multiple settings in a single request.
 
@@ -133,7 +133,7 @@ def sync(
     client: AuthenticatedClient,
     body: SettingBulkUpdateRequest,
 ) -> ErrorData | SettingsListResponse | None:
-    """Bulk Update Settings
+    """Bulk update settings
 
      Update multiple settings in a single request.
 
@@ -159,7 +159,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: SettingBulkUpdateRequest,
 ) -> Response[ErrorData | SettingsListResponse]:
-    """Bulk Update Settings
+    """Bulk update settings
 
      Update multiple settings in a single request.
 
@@ -188,7 +188,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: SettingBulkUpdateRequest,
 ) -> ErrorData | SettingsListResponse | None:
-    """Bulk Update Settings
+    """Bulk update settings
 
      Update multiple settings in a single request.
 

@@ -92,7 +92,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | RoleRead]:
-    """Get Role
+    """Get role
 
      Get a role by ID.
 
@@ -123,7 +123,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | RoleRead | None:
-    """Get Role
+    """Get role
 
      Get a role by ID.
 
@@ -149,7 +149,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | RoleRead]:
-    """Get Role
+    """Get role
 
      Get a role by ID.
 
@@ -178,7 +178,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | RoleRead | None:
-    """Get Role
+    """Get role
 
      Get a role by ID.
 

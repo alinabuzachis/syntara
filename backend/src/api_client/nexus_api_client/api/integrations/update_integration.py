@@ -105,7 +105,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: IntegrationPatch,
 ) -> Response[ErrorData | IntegrationRead]:
-    """Update Integration
+    """Update integration
 
      Update an integration.
 
@@ -139,7 +139,7 @@ def sync(
     client: AuthenticatedClient,
     body: IntegrationPatch,
 ) -> ErrorData | IntegrationRead | None:
-    """Update Integration
+    """Update integration
 
      Update an integration.
 
@@ -168,7 +168,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: IntegrationPatch,
 ) -> Response[ErrorData | IntegrationRead]:
-    """Update Integration
+    """Update integration
 
      Update an integration.
 
@@ -200,7 +200,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: IntegrationPatch,
 ) -> ErrorData | IntegrationRead | None:
-    """Update Integration
+    """Update integration
 
      Update an integration.
 

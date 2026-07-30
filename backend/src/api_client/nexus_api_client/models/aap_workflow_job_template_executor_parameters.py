@@ -19,17 +19,20 @@ T = TypeVar("T", bound="AAPWorkflowJobTemplateExecutorParameters")
 
 @_attrs_define
 class AAPWorkflowJobTemplateExecutorParameters:
-    """Parameters for AAP Workflow Job Template executor.
+    """Parameters for Ansible Automation Platform Workflow Job Template executor.
 
-    Inherits common AAP fields from AAPResourceReferenceMixin (credential_id, organization,
+    Inherits common Ansible Automation Platform fields from AAPResourceReferenceMixin (credential_id, organization,
     inventory, extra_vars, limit, tags, skip_tags, labels, timeout).
 
         Attributes:
-            credential_id (None | str | Unset): Nexus credential UUID for AAP API authentication. Separate from legacy
-                credentials list.
-            integration_id (None | str | Unset): UUID of the AAP Gateway integration for connection URL resolution.
-            organization_id (int | None | Unset): AAP organization ID (takes precedence over organization_name)
-            organization_name (None | str | Unset): AAP organization name (used with template_name or inventory_name)
+            credential_id (None | str | Unset): Nexus credential UUID for Ansible Automation Platform API authentication.
+                Separate from legacy credentials list.
+            integration_id (None | str | Unset): UUID of the Ansible Automation Platform Gateway integration for connection
+                URL resolution.
+            organization_id (int | None | Unset): Ansible Automation Platform organization ID (takes precedence over
+                organization_name)
+            organization_name (None | str | Unset): Ansible Automation Platform organization name (used with template_name
+                or inventory_name)
             inventory_id (int | None | Unset): Override default inventory by ID (mutually exclusive with inventory_name)
             inventory_name (None | str | Unset): Override default inventory by name (requires organization_name)
             extra_vars (AAPWorkflowJobTemplateExecutorParametersExtraVars | Unset): Extra variables to pass to job/workflow
@@ -37,11 +40,12 @@ class AAPWorkflowJobTemplateExecutorParameters:
             limit (None | str | Unset): Limit job execution to specific hosts
             tags (None | str | Unset): Ansible tags to run (comma-separated)
             skip_tags (None | str | Unset): Ansible tags to skip (comma-separated)
-            labels (list[str] | None | Unset): AAP label names to append to template's default labels. Names are resolved to
-                IDs at launch time. New labels that don't exist in AAP will be created automatically. Note: Labels are APPENDED
-                to template defaults, not replaced.
-            workflow_job_template_id (int | None | Unset): AAP workflow job template ID to launch
-            workflow_job_template_name (None | str | Unset): AAP workflow job template name (used with organization_name)
+            labels (list[str] | None | Unset): Ansible Automation Platform label names to append to template's default
+                labels. Names are resolved to IDs at launch time. New labels that don't exist in Ansible Automation Platform
+                will be created automatically. Note: Labels are APPENDED to template defaults, not replaced.
+            workflow_job_template_id (int | None | Unset): Ansible Automation Platform workflow job template ID to launch
+            workflow_job_template_name (None | str | Unset): Ansible Automation Platform workflow job template name (used
+                with organization_name)
             scm_branch (None | str | Unset): SCM branch override for projects in workflow
     """
 

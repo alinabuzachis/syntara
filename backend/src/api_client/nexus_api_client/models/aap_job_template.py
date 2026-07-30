@@ -13,7 +13,7 @@ T = TypeVar("T", bound="AAPJobTemplate")
 
 @_attrs_define
 class AAPJobTemplate:
-    """AAP job template resource.
+    """Ansible Automation Platform job template resource.
 
     Attributes:
         id (int):

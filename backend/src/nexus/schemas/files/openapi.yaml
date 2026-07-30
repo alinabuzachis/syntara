@@ -35,7 +35,7 @@ servers:
 paths:
   /files:
     post:
-      summary: Upload Files (Design Time)
+      summary: Upload files (design time)
       description: |-
         Upload files independently of invocations for later use in agent execution. Returns file_ids that can be stored in workflow configuration and passed to invocations. Files are validated, stored, and queued for document conversion.
 
@@ -92,7 +92,7 @@ paths:
 
   /files/metadata:
     get:
-      summary: Get Files Metadata (Batch)
+      summary: Get files metadata (batch)
       description: >-
         Retrieve metadata for one or more files by their IDs. Returns file
         information (filename, size, MIME type, status) without file content.
@@ -143,7 +143,7 @@ paths:
 
   /files/{file_id}/download:
     get:
-      summary: Download File
+      summary: Download file
       description: |-
         Download a file by its ID. Serves the file from whichever storage backend it was uploaded to.
       operationId: download_file

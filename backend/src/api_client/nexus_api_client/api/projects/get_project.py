@@ -94,7 +94,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | ProjectRead]:
-    """Get Project
+    """Get project
 
      Get a project by ID.
 
@@ -125,7 +125,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | ProjectRead | None:
-    """Get Project
+    """Get project
 
      Get a project by ID.
 
@@ -151,7 +151,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | ProjectRead]:
-    """Get Project
+    """Get project
 
      Get a project by ID.
 
@@ -180,7 +180,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | ProjectRead | None:
-    """Get Project
+    """Get project
 
      Get a project by ID.
 

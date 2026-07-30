@@ -103,7 +103,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: WorkflowValidateRequest,
 ) -> Response[DetailedValidationProblemDetail | ErrorData | ValidationResult]:
-    """Validate Workflow Definition
+    """Validate workflow definition
 
      Validate a workflow definition without saving it.
 
@@ -138,7 +138,7 @@ def sync(
     client: AuthenticatedClient,
     body: WorkflowValidateRequest,
 ) -> DetailedValidationProblemDetail | ErrorData | ValidationResult | None:
-    """Validate Workflow Definition
+    """Validate workflow definition
 
      Validate a workflow definition without saving it.
 
@@ -168,7 +168,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: WorkflowValidateRequest,
 ) -> Response[DetailedValidationProblemDetail | ErrorData | ValidationResult]:
-    """Validate Workflow Definition
+    """Validate workflow definition
 
      Validate a workflow definition without saving it.
 
@@ -201,7 +201,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: WorkflowValidateRequest,
 ) -> DetailedValidationProblemDetail | ErrorData | ValidationResult | None:
-    """Validate Workflow Definition
+    """Validate workflow definition
 
      Validate a workflow definition without saving it.
 

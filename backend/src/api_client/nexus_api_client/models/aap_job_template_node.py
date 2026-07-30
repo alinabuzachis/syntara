@@ -20,14 +20,14 @@ T = TypeVar("T", bound="AAPJobTemplateNode")
 
 @_attrs_define
 class AAPJobTemplateNode:
-    """AAP job template executor node.
+    """Ansible Automation Platform job template executor node.
 
     Attributes:
         id (str): Unique identifier for the node within the workflow
         type_ (Literal['aap_job_template']):
-        parameters (AAPJobTemplateExecutorParameters): Parameters for AAP Job Template executor.
+        parameters (AAPJobTemplateExecutorParameters): Parameters for Ansible Automation Platform Job Template executor.
 
-            Inherits common AAP fields from AAPResourceReferenceMixin (credential_id, organization,
+            Inherits common Ansible Automation Platform fields from AAPResourceReferenceMixin (credential_id, organization,
             inventory, extra_vars, limit, tags, skip_tags, labels, timeout).
         name (None | str | Unset): Human-readable name for the node
         description (None | str | Unset): Human-readable description of the node purpose

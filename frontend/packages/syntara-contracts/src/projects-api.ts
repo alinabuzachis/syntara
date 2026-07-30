@@ -12,13 +12,13 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Projects
+     * List projects
      * @description List projects the current user has read access to.
      */
     get: operations['list_projects']
     put?: never
     /**
-     * Create Project
+     * Create project
      * @description Create a new project.
      *
      *     The creator is automatically assigned the project-admin role.
@@ -40,25 +40,25 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Project
+     * Get project
      * @description Get a project by ID.
      */
     get: operations['get_project']
     /**
-     * Replace Project
+     * Replace project
      * @description Replace a project. Requires: project:update permission scoped to this project.
      */
     put: operations['replace_project']
     post?: never
     /**
-     * Delete Project
+     * Delete project
      * @description Delete a project (soft-delete). Requires: project:delete permission scoped to this project.
      */
     delete: operations['delete_project']
     options?: never
     head?: never
     /**
-     * Update Project
+     * Update project
      * @description Patch a project. Requires: project:update permission scoped to this project.
      */
     patch: operations['update_project']
@@ -72,7 +72,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Project Workflows
+     * List project workflows
      * @description List workflows belonging to a specific project.
      *
      *     Returns only workflows with project_id matching the given project.
@@ -95,7 +95,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Project Approvals
+     * List project approvals
      * @description List approval requests belonging to a specific project.
      *
      *     Returns only approvals with project_id matching the given project.
@@ -118,7 +118,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Project Role Assignments
+     * List project role assignments
      * @description List role assignments for a project with policy-driven visibility.
      *
      *     Users with ``role-assignment:read:any`` see all assignments in the project.
@@ -128,7 +128,7 @@ export interface paths {
     get: operations['list_project_role_assignments']
     put?: never
     /**
-     * Create Project Role Assignment
+     * Create project role assignment
      * @description Assign a role to a user or group within a project.
      */
     post: operations['create_project_role_assignment']
@@ -149,7 +149,7 @@ export interface paths {
     put?: never
     post?: never
     /**
-     * Delete Project Role Assignment
+     * Delete project role assignment
      * @description Remove a role assignment from a project.
      */
     delete: operations['delete_project_role_assignment']
@@ -166,7 +166,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Project Roles
+     * List project roles
      * @description List roles visible within this project.
      *
      *     Includes project-owned roles and global roles with scope "project".
@@ -174,7 +174,7 @@ export interface paths {
     get: operations['list_project_roles']
     put?: never
     /**
-     * Create Project Role
+     * Create project role
      * @description Create a role scoped to this project. Requires: role:create permission.
      */
     post: operations['create_project_role']
@@ -192,25 +192,25 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Project Role
+     * Get project role
      * @description Get a single role, verifying it belongs to this project.
      */
     get: operations['get_project_role']
     /**
-     * Replace Project Role
+     * Replace project role
      * @description Replace a project role. Builtin roles cannot be modified.
      */
     put: operations['replace_project_role']
     post?: never
     /**
-     * Delete Project Role
+     * Delete project role
      * @description Delete a project role. Builtin roles cannot be deleted.
      */
     delete: operations['delete_project_role']
     options?: never
     head?: never
     /**
-     * Update Project Role
+     * Update project role
      * @description Patch a project role. Builtin roles cannot be modified.
      */
     patch: operations['update_project_role']
@@ -224,7 +224,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Project Policies
+     * List project policies
      * @description List policies visible within this project.
      *
      *     Includes project-owned policies and global policies with scope "project".
@@ -232,7 +232,7 @@ export interface paths {
     get: operations['list_project_policies']
     put?: never
     /**
-     * Create Project Policy
+     * Create project policy
      * @description Create a policy scoped to this project. Requires: policy:create permission.
      */
     post: operations['create_project_policy']
@@ -250,25 +250,25 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Project Policy
+     * Get project policy
      * @description Get a single policy, if it belongs to this project or is a global project-scoped policy.
      */
     get: operations['get_project_policy']
     /**
-     * Replace Project Policy
+     * Replace project policy
      * @description Replace a project policy. Only project-owned policies can be modified.
      */
     put: operations['replace_project_policy']
     post?: never
     /**
-     * Delete Project Policy
+     * Delete project policy
      * @description Delete a project policy. Only project-owned policies can be deleted.
      */
     delete: operations['delete_project_policy']
     options?: never
     head?: never
     /**
-     * Update Project Policy
+     * Update project policy
      * @description Patch a project policy. Only project-owned policies can be modified.
      */
     patch: operations['update_project_policy']
@@ -282,7 +282,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Project Credentials
+     * List project credentials
      * @description List credentials belonging to this project. Requires: credential:read permission.
      *
      *     The ``for_action`` parameter is accepted for API consistency but not enforced
@@ -293,7 +293,7 @@ export interface paths {
     get: operations['list_project_credentials']
     put?: never
     /**
-     * Create Project Credential
+     * Create project credential
      * @description Create a new credential in this project. Requires: credential:create permission.
      */
     post: operations['create_project_credential']
@@ -311,21 +311,21 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Project Credential
+     * Get project credential
      * @description Get a credential in this project. Secret fields masked as $encrypted$.
      */
     get: operations['get_project_credential']
     put?: never
     post?: never
     /**
-     * Delete Project Credential
+     * Delete project credential
      * @description Delete a credential in this project. Requires: credential:delete permission.
      */
     delete: operations['delete_project_credential']
     options?: never
     head?: never
     /**
-     * Update Project Credential
+     * Update project credential
      * @description Update a credential in this project. Requires: credential:update permission.
      */
     patch: operations['update_project_credential']
@@ -339,7 +339,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Project Credential Workflows
+     * Get project credential workflows
      * @description Get workflows that reference this credential. Requires: credential:read permission.
      */
     get: operations['get_project_credential_workflows']

@@ -175,7 +175,7 @@ def sync_detailed(
     auth_source: None | str | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | UserListResponse]:
-    """List Users
+    """List users
 
      List users with visibility filtering and pagination.
 
@@ -234,7 +234,7 @@ def sync(
     auth_type: AuthType | None | Unset = UNSET,
     auth_source: None | str | Unset = UNSET,
 ) -> ErrorData | UserListResponse | None:
-    """List Users
+    """List users
 
      List users with visibility filtering and pagination.
 
@@ -287,7 +287,7 @@ async def asyncio_detailed(
     auth_type: AuthType | None | Unset = UNSET,
     auth_source: None | str | Unset = UNSET,
 ) -> Response[ErrorData | UserListResponse]:
-    """List Users
+    """List users
 
      List users with visibility filtering and pagination.
 
@@ -343,7 +343,7 @@ async def asyncio(
     auth_type: AuthType | None | Unset = UNSET,
     auth_source: None | str | Unset = UNSET,
 ) -> ErrorData | UserListResponse | None:
-    """List Users
+    """List users
 
      List users with visibility filtering and pagination.
 

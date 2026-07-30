@@ -102,7 +102,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: IntegrationCreate,
 ) -> Response[ErrorData | IntegrationRead]:
-    """Create Integration
+    """Create integration
 
      Create a new integration.
 
@@ -133,7 +133,7 @@ def sync(
     client: AuthenticatedClient,
     body: IntegrationCreate,
 ) -> ErrorData | IntegrationRead | None:
-    """Create Integration
+    """Create integration
 
      Create a new integration.
 
@@ -159,7 +159,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: IntegrationCreate,
 ) -> Response[ErrorData | IntegrationRead]:
-    """Create Integration
+    """Create integration
 
      Create a new integration.
 
@@ -188,7 +188,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: IntegrationCreate,
 ) -> ErrorData | IntegrationRead | None:
-    """Create Integration
+    """Create integration
 
      Create a new integration.
 

@@ -9,6 +9,10 @@ servers:
   - url: /api/v1
     description: API server (relative path)
 
+tags:
+  - name: Identity Providers
+    description: Identity provider registration and management
+
 x-shared-contracts:
   - path: ../base/shared-resources.openapi.yaml
     namespace: shared
@@ -16,7 +20,7 @@ x-shared-contracts:
 paths:
   /identity_providers:
     get:
-      summary: List Identity Providers
+      summary: List identity providers
       description: List identity providers with filtering, sorting, and pagination.
       operationId: list_identity_providers
       x-app-permission:
@@ -51,11 +55,11 @@ paths:
         '429':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
       tags:
-        - IdentityProviders
+        - Identity Providers
       security:
         - bearerAuth: []
     post:
-      summary: Create Identity Provider
+      summary: Create identity provider
       description: Create a new identity provider.
       operationId: create_identity_provider
       x-app-permission:
@@ -91,12 +95,12 @@ paths:
         '429':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
       tags:
-        - IdentityProviders
+        - Identity Providers
       security:
         - bearerAuth: []
   /identity_providers/{provider_id}:
     get:
-      summary: Get Identity Provider
+      summary: Get identity provider
       description: Get identity provider details by ID.
       operationId: get_identity_provider
       x-app-permission:
@@ -134,11 +138,11 @@ paths:
         '429':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
       tags:
-        - IdentityProviders
+        - Identity Providers
       security:
         - bearerAuth: []
     patch:
-      summary: Patch Identity Provider
+      summary: Patch identity provider
       description: Patch an identity provider.
       operationId: patch_identity_provider
       x-app-permission:
@@ -182,11 +186,11 @@ paths:
         '429':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
       tags:
-        - IdentityProviders
+        - Identity Providers
       security:
         - bearerAuth: []
     delete:
-      summary: Delete Identity Provider
+      summary: Delete identity provider
       description: Soft delete an identity provider.
       operationId: delete_identity_provider
       x-app-permission:
@@ -220,15 +224,15 @@ paths:
         '429':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
       tags:
-        - IdentityProviders
+        - Identity Providers
       security:
         - bearerAuth: []
   /identity_providers/setup_aap_oidc:
     post:
-      summary: Setup AAP OIDC Provider
+      summary: Setup Ansible Automation Platform OIDC provider
       description: >-
-        Push-button setup: connects to AAP, creates an OAuth2
-        application, and configures the identity provider with AAP defaults.
+        Push-button setup: connects to Ansible Automation Platform, creates an OAuth2
+        application, and configures the identity provider with Ansible Automation Platform defaults.
       operationId: setup_aap_oidc_provider
       x-app-permission:
         resource: identity-provider
@@ -241,7 +245,7 @@ paths:
               $ref: '#/components/schemas/AAPOIDCSetupRequest'
       responses:
         '201':
-          description: AAP OIDC provider created
+          description: Ansible Automation Platform OIDC provider created
           content:
             application/json:
               schema:
@@ -263,12 +267,12 @@ paths:
         '429':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
       tags:
-        - IdentityProviders
+        - Identity Providers
       security:
         - bearerAuth: []
   /identity_providers/test:
     post:
-      summary: Test Identity Provider
+      summary: Test identity provider
       description: Test identity provider connection without saving. Requires authentication.
       operationId: test_identity_provider
       x-app-permission:
@@ -304,7 +308,7 @@ paths:
         '429':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
       tags:
-        - IdentityProviders
+        - Identity Providers
       security:
         - bearerAuth: []
 components:
@@ -488,7 +492,7 @@ components:
           type: boolean
           default: false
           title: Aap Role Mapping Enabled
-          description: Map AAP aap_system_role claim to built-in groups
+          description: Map Ansible Automation Platform aap_system_role claim to built-in groups
         disable_tls_verify:
           type: boolean
           default: false
@@ -617,7 +621,7 @@ components:
           type: boolean
           default: false
           title: Aap Role Mapping Enabled
-          description: Map AAP aap_system_role claim to built-in groups
+          description: Map Ansible Automation Platform aap_system_role claim to built-in groups
         disable_tls_verify:
           type: boolean
           default: false
@@ -760,7 +764,7 @@ components:
             - type: boolean
             - type: 'null'
           title: Aap Role Mapping Enabled
-          description: Map AAP aap_system_role claim to built-in groups (omit to keep existing)
+          description: Map Ansible Automation Platform aap_system_role claim to built-in groups (omit to keep existing)
         disable_tls_verify:
           anyOf:
             - type: boolean
@@ -951,7 +955,7 @@ components:
     AAPOIDCSetupRequest:
       type: object
       title: AAPOIDCSetupRequest
-      description: Request body for push-button AAP OIDC identity provider setup.
+      description: Request body for push-button Ansible Automation Platform OIDC identity provider setup.
       required:
         - aap_url
       additionalProperties: false
@@ -959,21 +963,21 @@ components:
         aap_url:
           type: string
           minLength: 1
-          title: AAP URL
-          description: AAP base URL (e.g., https://aap.example.com)
+          title: Ansible Automation Platform URL
+          description: Ansible Automation Platform base URL (e.g., https://aap.example.com)
         organization:
           type: string
           default: Default
           minLength: 1
           title: Organization
-          description: AAP organization name to create the OAuth2 application in
+          description: Ansible Automation Platform organization name to create the OAuth2 application in
         admin_username:
           anyOf:
             - type: string
               minLength: 1
             - type: 'null'
           title: Platform Admin Username
-          description: AAP platform admin username (required when using basic auth)
+          description: Ansible Automation Platform platform admin username (required when using basic auth)
         admin_password:
           anyOf:
             - type: string
@@ -981,7 +985,7 @@ components:
             - type: 'null'
           format: password
           title: Platform Admin Password
-          description: AAP platform admin password (used only for setup, never stored)
+          description: Ansible Automation Platform platform admin password (used only for setup, never stored)
         personal_access_token:
           anyOf:
             - type: string
@@ -989,9 +993,9 @@ components:
             - type: 'null'
           format: password
           title: Personal Access Token
-          description: AAP personal access token (alternative to username/password, never stored)
+          description: Ansible Automation Platform personal access token (alternative to username/password, never stored)
         insecure_skip_tls_verify:
           type: boolean
           default: false
           title: Insecure Skip TLS Verify
-          description: Skip TLS certificate verification for the AAP connection
+          description: Skip TLS certificate verification for the Ansible Automation Platform connection

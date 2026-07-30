@@ -88,7 +88,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | str]:
-    """Download File
+    """Download file
 
      Download a file by its ID. Serves the file from whichever storage backend it was uploaded to.
 
@@ -119,7 +119,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | str | None:
-    """Download File
+    """Download file
 
      Download a file by its ID. Serves the file from whichever storage backend it was uploaded to.
 
@@ -145,7 +145,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | str]:
-    """Download File
+    """Download file
 
      Download a file by its ID. Serves the file from whichever storage backend it was uploaded to.
 
@@ -174,7 +174,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | str | None:
-    """Download File
+    """Download file
 
      Download a file by its ID. Serves the file from whichever storage backend it was uploaded to.
 

@@ -11,7 +11,7 @@ T = TypeVar("T", bound="AAPOrganization")
 
 @_attrs_define
 class AAPOrganization:
-    """AAP organization resource.
+    """Ansible Automation Platform organization resource.
 
     Attributes:
         id (int):

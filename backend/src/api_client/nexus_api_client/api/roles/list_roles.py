@@ -175,7 +175,7 @@ def sync_detailed(
     policy_name: None | str | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | RoleListResponse]:
-    """List Roles
+    """List roles
 
      List roles with filtering and pagination.
 
@@ -231,7 +231,7 @@ def sync(
     scope: None | str | Unset = UNSET,
     policy_name: None | str | Unset = UNSET,
 ) -> ErrorData | RoleListResponse | None:
-    """List Roles
+    """List roles
 
      List roles with filtering and pagination.
 
@@ -281,7 +281,7 @@ async def asyncio_detailed(
     scope: None | str | Unset = UNSET,
     policy_name: None | str | Unset = UNSET,
 ) -> Response[ErrorData | RoleListResponse]:
-    """List Roles
+    """List roles
 
      List roles with filtering and pagination.
 
@@ -334,7 +334,7 @@ async def asyncio(
     scope: None | str | Unset = UNSET,
     policy_name: None | str | Unset = UNSET,
 ) -> ErrorData | RoleListResponse | None:
-    """List Roles
+    """List roles
 
      List roles with filtering and pagination.
 

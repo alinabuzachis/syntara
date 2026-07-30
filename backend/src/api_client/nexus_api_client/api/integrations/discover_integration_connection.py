@@ -102,7 +102,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: IntegrationTestConnection,
 ) -> Response[DiscoverResult | ErrorData]:
-    """Discover Integration Connection
+    """Discover integration connection
 
      Test a connection and discover resources without saving an integration.
 
@@ -139,7 +139,7 @@ def sync(
     client: AuthenticatedClient,
     body: IntegrationTestConnection,
 ) -> DiscoverResult | ErrorData | None:
-    """Discover Integration Connection
+    """Discover integration connection
 
      Test a connection and discover resources without saving an integration.
 
@@ -171,7 +171,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: IntegrationTestConnection,
 ) -> Response[DiscoverResult | ErrorData]:
-    """Discover Integration Connection
+    """Discover integration connection
 
      Test a connection and discover resources without saving an integration.
 
@@ -206,7 +206,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: IntegrationTestConnection,
 ) -> DiscoverResult | ErrorData | None:
-    """Discover Integration Connection
+    """Discover integration connection
 
      Test a connection and discover resources without saving an integration.
 

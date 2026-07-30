@@ -12,13 +12,13 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Identity Providers
+     * List identity providers
      * @description List identity providers with filtering, sorting, and pagination.
      */
     get: operations['list_identity_providers']
     put?: never
     /**
-     * Create Identity Provider
+     * Create identity provider
      * @description Create a new identity provider.
      */
     post: operations['create_identity_provider']
@@ -36,21 +36,21 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Identity Provider
+     * Get identity provider
      * @description Get identity provider details by ID.
      */
     get: operations['get_identity_provider']
     put?: never
     post?: never
     /**
-     * Delete Identity Provider
+     * Delete identity provider
      * @description Soft delete an identity provider.
      */
     delete: operations['delete_identity_provider']
     options?: never
     head?: never
     /**
-     * Patch Identity Provider
+     * Patch identity provider
      * @description Patch an identity provider.
      */
     patch: operations['patch_identity_provider']
@@ -66,8 +66,8 @@ export interface paths {
     get?: never
     put?: never
     /**
-     * Setup AAP OIDC Provider
-     * @description Push-button setup: connects to AAP, creates an OAuth2 application, and configures the identity provider with AAP defaults.
+     * Setup Ansible Automation Platform OIDC provider
+     * @description Push-button setup: connects to Ansible Automation Platform, creates an OAuth2 application, and configures the identity provider with Ansible Automation Platform defaults.
      */
     post: operations['setup_aap_oidc_provider']
     delete?: never
@@ -86,7 +86,7 @@ export interface paths {
     get?: never
     put?: never
     /**
-     * Test Identity Provider
+     * Test identity provider
      * @description Test identity provider connection without saving. Requires authentication.
      */
     post: operations['test_identity_provider']
@@ -250,7 +250,7 @@ export interface components {
       allow_all_authenticated?: boolean
       /**
        * Aap Role Mapping Enabled
-       * @description Map AAP aap_system_role claim to built-in groups
+       * @description Map Ansible Automation Platform aap_system_role claim to built-in groups
        * @default false
        */
       aap_role_mapping_enabled?: boolean
@@ -356,7 +356,7 @@ export interface components {
       allow_all_authenticated?: boolean
       /**
        * Aap Role Mapping Enabled
-       * @description Map AAP aap_system_role claim to built-in groups
+       * @description Map Ansible Automation Platform aap_system_role claim to built-in groups
        * @default false
        */
       aap_role_mapping_enabled?: boolean
@@ -465,7 +465,7 @@ export interface components {
       allow_all_authenticated?: boolean | null
       /**
        * Aap Role Mapping Enabled
-       * @description Map AAP aap_system_role claim to built-in groups (omit to keep existing)
+       * @description Map Ansible Automation Platform aap_system_role claim to built-in groups (omit to keep existing)
        */
       aap_role_mapping_enabled?: boolean | null
       /**
@@ -593,40 +593,40 @@ export interface components {
     }
     /**
      * AAPOIDCSetupRequest
-     * @description Request body for push-button AAP OIDC identity provider setup.
+     * @description Request body for push-button Ansible Automation Platform OIDC identity provider setup.
      */
     AAPOIDCSetupRequest: {
       /**
-       * AAP URL
-       * @description AAP base URL (e.g., https://aap.example.com)
+       * Ansible Automation Platform URL
+       * @description Ansible Automation Platform base URL (e.g., https://aap.example.com)
        */
       aap_url: string
       /**
        * Organization
-       * @description AAP organization name to create the OAuth2 application in
+       * @description Ansible Automation Platform organization name to create the OAuth2 application in
        * @default Default
        */
       organization?: string
       /**
        * Platform Admin Username
-       * @description AAP platform admin username (required when using basic auth)
+       * @description Ansible Automation Platform platform admin username (required when using basic auth)
        */
       admin_username?: string | null
       /**
        * Platform Admin Password
        * Format: password
-       * @description AAP platform admin password (used only for setup, never stored)
+       * @description Ansible Automation Platform platform admin password (used only for setup, never stored)
        */
       admin_password?: string | null
       /**
        * Personal Access Token
        * Format: password
-       * @description AAP personal access token (alternative to username/password, never stored)
+       * @description Ansible Automation Platform personal access token (alternative to username/password, never stored)
        */
       personal_access_token?: string | null
       /**
        * Insecure Skip TLS Verify
-       * @description Skip TLS certificate verification for the AAP connection
+       * @description Skip TLS certificate verification for the Ansible Automation Platform connection
        * @default false
        */
       insecure_skip_tls_verify?: boolean
@@ -1139,7 +1139,7 @@ export interface operations {
       }
     }
     responses: {
-      /** @description AAP OIDC provider created */
+      /** @description Ansible Automation Platform OIDC provider created */
       201: {
         headers: {
           [name: string]: unknown

@@ -102,7 +102,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: ProjectCreate,
 ) -> Response[ErrorData | ProjectRead]:
-    """Create Project
+    """Create project
 
      Create a new project.
 
@@ -137,7 +137,7 @@ def sync(
     client: AuthenticatedClient,
     body: ProjectCreate,
 ) -> ErrorData | ProjectRead | None:
-    """Create Project
+    """Create project
 
      Create a new project.
 
@@ -167,7 +167,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: ProjectCreate,
 ) -> Response[ErrorData | ProjectRead]:
-    """Create Project
+    """Create project
 
      Create a new project.
 
@@ -200,7 +200,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: ProjectCreate,
 ) -> ErrorData | ProjectRead | None:
-    """Create Project
+    """Create project
 
      Create a new project.
 

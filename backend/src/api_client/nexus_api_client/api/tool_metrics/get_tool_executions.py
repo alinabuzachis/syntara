@@ -171,7 +171,7 @@ def sync_detailed(
     end_time: datetime.datetime | None | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | ToolExecutionListResponse]:
-    """List Tool Executions
+    """List tool executions
 
      Return paginated tool execution history.
 
@@ -227,7 +227,7 @@ def sync(
     start_time: datetime.datetime | None | Unset = UNSET,
     end_time: datetime.datetime | None | Unset = UNSET,
 ) -> ErrorData | ToolExecutionListResponse | None:
-    """List Tool Executions
+    """List tool executions
 
      Return paginated tool execution history.
 
@@ -277,7 +277,7 @@ async def asyncio_detailed(
     start_time: datetime.datetime | None | Unset = UNSET,
     end_time: datetime.datetime | None | Unset = UNSET,
 ) -> Response[ErrorData | ToolExecutionListResponse]:
-    """List Tool Executions
+    """List tool executions
 
      Return paginated tool execution history.
 
@@ -330,7 +330,7 @@ async def asyncio(
     start_time: datetime.datetime | None | Unset = UNSET,
     end_time: datetime.datetime | None | Unset = UNSET,
 ) -> ErrorData | ToolExecutionListResponse | None:
-    """List Tool Executions
+    """List tool executions
 
      Return paginated tool execution history.
 

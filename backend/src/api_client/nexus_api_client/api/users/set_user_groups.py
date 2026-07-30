@@ -105,7 +105,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: UserGroupsSet,
 ) -> Response[ErrorData | UserGroupListResponse]:
-    """Set User Groups
+    """Set user groups
 
      Set a user's group memberships declaratively.
 
@@ -146,7 +146,7 @@ def sync(
     client: AuthenticatedClient,
     body: UserGroupsSet,
 ) -> ErrorData | UserGroupListResponse | None:
-    """Set User Groups
+    """Set user groups
 
      Set a user's group memberships declaratively.
 
@@ -182,7 +182,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: UserGroupsSet,
 ) -> Response[ErrorData | UserGroupListResponse]:
-    """Set User Groups
+    """Set user groups
 
      Set a user's group memberships declaratively.
 
@@ -221,7 +221,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: UserGroupsSet,
 ) -> ErrorData | UserGroupListResponse | None:
-    """Set User Groups
+    """Set user groups
 
      Set a user's group memberships declaratively.
 

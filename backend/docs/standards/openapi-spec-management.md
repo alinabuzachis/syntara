@@ -78,6 +78,21 @@ When `openapi.yaml` changes, CI also runs a contract regeneration check (informa
 
 Every endpoint operation MUST have an `operationId`. The validator (`tools/ci/validate_api_specs.py`) rejects specs that omit it.
 
+### Operation summary
+
+Every endpoint operation SHOULD have a `summary`. Use **sentence case** (capitalize only the first word and proper nouns/acronyms). This follows the convention used by major API providers (Stripe, GitHub) and Redocly.
+
+```yaml
+# correct — sentence case
+summary: List approval requests
+summary: Get CSRF form token
+summary: Setup Ansible Automation Platform OIDC provider
+```
+
+Proper nouns and acronyms that stay uppercase: OIDC, OAuth, JWT, CSRF, EDA, WebSocket, Ansible Automation Platform.
+
+Every router decorator MUST include an explicit `summary=` that matches the corresponding YAML sub-spec summary exactly. Without it, FastAPI auto-generates a Title Case summary from the function name, causing spec drift.
+
 ### API Path Prefix
 
 All endpoint paths MUST follow the pattern `/api/v{version}/{domain}/...`. Example:

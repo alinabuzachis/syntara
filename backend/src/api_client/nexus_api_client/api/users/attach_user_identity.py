@@ -105,7 +105,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: UserIdentityAttach,
 ) -> Response[ErrorData | UserIdentityRead]:
-    """Attach User Identity
+    """Attach user identity
 
      Attach a federated identity from another user to this user.
 
@@ -139,7 +139,7 @@ def sync(
     client: AuthenticatedClient,
     body: UserIdentityAttach,
 ) -> ErrorData | UserIdentityRead | None:
-    """Attach User Identity
+    """Attach user identity
 
      Attach a federated identity from another user to this user.
 
@@ -168,7 +168,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: UserIdentityAttach,
 ) -> Response[ErrorData | UserIdentityRead]:
-    """Attach User Identity
+    """Attach user identity
 
      Attach a federated identity from another user to this user.
 
@@ -200,7 +200,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: UserIdentityAttach,
 ) -> ErrorData | UserIdentityRead | None:
-    """Attach User Identity
+    """Attach user identity
 
      Attach a federated identity from another user to this user.
 

@@ -139,7 +139,7 @@ def sync_detailed(
     offset: int | Unset = 0,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | MetricsRecordPage]:
-    """Metrics Store Records
+    """Metrics store records
 
      Return raw metric records with optional filtering and pagination.
 
@@ -183,7 +183,7 @@ def sync(
     limit: int | Unset = 1000,
     offset: int | Unset = 0,
 ) -> ErrorData | MetricsRecordPage | None:
-    """Metrics Store Records
+    """Metrics store records
 
      Return raw metric records with optional filtering and pagination.
 
@@ -221,7 +221,7 @@ async def asyncio_detailed(
     limit: int | Unset = 1000,
     offset: int | Unset = 0,
 ) -> Response[ErrorData | MetricsRecordPage]:
-    """Metrics Store Records
+    """Metrics store records
 
      Return raw metric records with optional filtering and pagination.
 
@@ -262,7 +262,7 @@ async def asyncio(
     limit: int | Unset = 1000,
     offset: int | Unset = 0,
 ) -> ErrorData | MetricsRecordPage | None:
-    """Metrics Store Records
+    """Metrics store records
 
      Return raw metric records with optional filtering and pagination.
 

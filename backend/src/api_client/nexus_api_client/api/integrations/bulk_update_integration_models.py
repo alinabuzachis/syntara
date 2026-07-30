@@ -105,7 +105,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: LLMModelBulkUpdate,
 ) -> Response[ErrorData | LLMModelBulkUpdateResponse]:
-    """Bulk Update Integration Models
+    """Bulk update integration models
 
      Bulk enable/disable LLM models.
 
@@ -139,7 +139,7 @@ def sync(
     client: AuthenticatedClient,
     body: LLMModelBulkUpdate,
 ) -> ErrorData | LLMModelBulkUpdateResponse | None:
-    """Bulk Update Integration Models
+    """Bulk update integration models
 
      Bulk enable/disable LLM models.
 
@@ -168,7 +168,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: LLMModelBulkUpdate,
 ) -> Response[ErrorData | LLMModelBulkUpdateResponse]:
-    """Bulk Update Integration Models
+    """Bulk update integration models
 
      Bulk enable/disable LLM models.
 
@@ -200,7 +200,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: LLMModelBulkUpdate,
 ) -> ErrorData | LLMModelBulkUpdateResponse | None:
-    """Bulk Update Integration Models
+    """Bulk update integration models
 
      Bulk enable/disable LLM models.
 

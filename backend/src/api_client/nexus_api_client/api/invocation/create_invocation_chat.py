@@ -98,7 +98,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: InvocationRequestWithFile,
 ) -> Response[ErrorData | Invocation]:
-    """Create Invocation with File Uploads (Async)
+    """Create invocation with file uploads (async)
 
      Accept async agent invocation request with optional file uploads via multipart/form-data.
 
@@ -130,7 +130,7 @@ def sync(
     client: AuthenticatedClient,
     body: InvocationRequestWithFile,
 ) -> ErrorData | Invocation | None:
-    """Create Invocation with File Uploads (Async)
+    """Create invocation with file uploads (async)
 
      Accept async agent invocation request with optional file uploads via multipart/form-data.
 
@@ -157,7 +157,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: InvocationRequestWithFile,
 ) -> Response[ErrorData | Invocation]:
-    """Create Invocation with File Uploads (Async)
+    """Create invocation with file uploads (async)
 
      Accept async agent invocation request with optional file uploads via multipart/form-data.
 
@@ -187,7 +187,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: InvocationRequestWithFile,
 ) -> ErrorData | Invocation | None:
-    """Create Invocation with File Uploads (Async)
+    """Create invocation with file uploads (async)
 
      Accept async agent invocation request with optional file uploads via multipart/form-data.
 

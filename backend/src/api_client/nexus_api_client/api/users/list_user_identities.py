@@ -94,7 +94,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | UserIdentityListResponse]:
-    """List User Identities
+    """List user identities
 
      List federated identities for a user.
 
@@ -125,7 +125,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | UserIdentityListResponse | None:
-    """List User Identities
+    """List user identities
 
      List federated identities for a user.
 
@@ -151,7 +151,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | UserIdentityListResponse]:
-    """List User Identities
+    """List user identities
 
      List federated identities for a user.
 
@@ -180,7 +180,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | UserIdentityListResponse | None:
-    """List User Identities
+    """List user identities
 
      List federated identities for a user.
 

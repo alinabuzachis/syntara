@@ -94,7 +94,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | PolicyRead]:
-    """Get Project Policy
+    """Get project policy
 
      Get a single policy, if it belongs to this project or is a global project-scoped policy.
 
@@ -128,7 +128,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | PolicyRead | None:
-    """Get Project Policy
+    """Get project policy
 
      Get a single policy, if it belongs to this project or is a global project-scoped policy.
 
@@ -157,7 +157,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | PolicyRead]:
-    """Get Project Policy
+    """Get project policy
 
      Get a single policy, if it belongs to this project or is a global project-scoped policy.
 
@@ -189,7 +189,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | PolicyRead | None:
-    """Get Project Policy
+    """Get project policy
 
      Get a single policy, if it belongs to this project or is a global project-scoped policy.
 

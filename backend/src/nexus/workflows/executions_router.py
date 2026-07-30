@@ -34,7 +34,7 @@ from nexus.workflows.workflow_engine.services.temporal_execution_service import 
 
 logger = structlog.stdlib.get_logger(__name__)
 
-router = NexusRouter(prefix="/executions", tags=["executions"])
+router = NexusRouter(prefix="/executions", tags=["Executions"])
 
 _exec_perm_read = PermissionChecker(
     "execution",

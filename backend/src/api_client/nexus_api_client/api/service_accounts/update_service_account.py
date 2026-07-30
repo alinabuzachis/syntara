@@ -105,7 +105,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: ServiceAccountUpdate,
 ) -> Response[ErrorData | ServiceAccountRead]:
-    """Update Service Account
+    """Update service account
 
      Update a service account's name and/or description.
 
@@ -139,7 +139,7 @@ def sync(
     client: AuthenticatedClient,
     body: ServiceAccountUpdate,
 ) -> ErrorData | ServiceAccountRead | None:
-    """Update Service Account
+    """Update service account
 
      Update a service account's name and/or description.
 
@@ -168,7 +168,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: ServiceAccountUpdate,
 ) -> Response[ErrorData | ServiceAccountRead]:
-    """Update Service Account
+    """Update service account
 
      Update a service account's name and/or description.
 
@@ -200,7 +200,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: ServiceAccountUpdate,
 ) -> ErrorData | ServiceAccountRead | None:
-    """Update Service Account
+    """Update service account
 
      Update a service account's name and/or description.
 

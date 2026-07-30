@@ -105,7 +105,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: CredentialUpdate,
 ) -> Response[CredentialRead | ErrorData]:
-    """Update Credential
+    """Update credential
 
      Update a Credential. Fields set to $encrypted$ retain existing values.
 
@@ -140,7 +140,7 @@ def sync(
     client: AuthenticatedClient,
     body: CredentialUpdate,
 ) -> CredentialRead | ErrorData | None:
-    """Update Credential
+    """Update credential
 
      Update a Credential. Fields set to $encrypted$ retain existing values.
 
@@ -170,7 +170,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: CredentialUpdate,
 ) -> Response[CredentialRead | ErrorData]:
-    """Update Credential
+    """Update credential
 
      Update a Credential. Fields set to $encrypted$ retain existing values.
 
@@ -203,7 +203,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: CredentialUpdate,
 ) -> CredentialRead | ErrorData | None:
-    """Update Credential
+    """Update credential
 
      Update a Credential. Fields set to $encrypted$ retain existing values.
 

@@ -54,14 +54,20 @@ servers:
   - url: /api/v1
     description: API server (relative path)
 
+tags:
+  - name: Workflows
+    description: Workflow CRUD, versioning, and publishing
+  - name: Webhooks
+    description: Inbound webhook event receivers
+
 paths:
   /workflows:
     get:
-      summary: List Workflows
+      summary: List workflows
       description: "List workflows the current user has read access to.\n\nSupports filtering using query parameters with standard operators:\n- created_by: Filter by creator user ID (created_by=uuid)\n- is_enabled: Filter by enabled status (is_enabled=true|false)\n- labels: Filter by labels using bracket notation (labels[environment]=production)\n\nUses cursor-based pagination for scalability and consistency."
       operationId: list_workflows
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -96,11 +102,11 @@ paths:
         '500':
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
     post:
-      summary: Create Workflow
+      summary: Create workflow
       description: Create a new workflow with initial version.
       operationId: create_workflow
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -138,11 +144,11 @@ paths:
 
   /workflows/validate:
     post:
-      summary: Validate Workflow Definition
+      summary: Validate workflow definition
       description: Validate a workflow definition without saving it.
       operationId: validate_workflow_definition
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -184,11 +190,11 @@ paths:
 
   /workflows/{workflow_id}:
     get:
-      summary: Get Workflow
+      summary: Get workflow
       description: Get a workflow by ID including its current active version.
       operationId: get_workflow
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -226,11 +232,11 @@ paths:
         '500':
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
     patch:
-      summary: Update Workflow
+      summary: Update workflow
       description: "Update workflow.\n\nSupports both metadata-only updates and workflow definition updates:\n- Metadata only (name, description, labels): Updates without creating new version\n- With workflow_definition: Validates definition, compares with current version, creates new WorkflowVersion\n  only if definition differs (change detection optimization)"
       operationId: update_workflow
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -274,11 +280,11 @@ paths:
         '500':
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
     delete:
-      summary: Delete Workflow
+      summary: Delete workflow
       description: Soft delete a workflow.
       operationId: delete_workflow
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -318,7 +324,7 @@ paths:
       description: Test a single node in a workflow with mocked predecessor outputs.
       operationId: test_workflow_node
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -364,11 +370,11 @@ paths:
 
   /workflows/{workflow_id}/versions:
     get:
-      summary: List Workflow Versions
+      summary: List workflow versions
       description: List versions for a workflow with cursor-based pagination.
       operationId: list_workflow_versions
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -441,11 +447,11 @@ paths:
 
   /workflows/{workflow_id}/versions/{version}:
     get:
-      summary: Get Workflow Version
+      summary: Get workflow version
       description: Get a specific workflow version.
       operationId: get_workflow_version
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -490,11 +496,11 @@ paths:
         '500':
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
     patch:
-      summary: Update Workflow Version Metadata
+      summary: Update workflow version metadata
       description: Update a workflow version's metadata (name, change_description).
       operationId: update_workflow_version_metadata
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       parameters:
@@ -543,11 +549,11 @@ paths:
 
   /workflows/{workflow_id}/versions/{version}/publish:
     post:
-      summary: Publish Workflow Version
+      summary: Publish workflow version
       description: Publish a specific workflow version.
       operationId: publish_workflow_version
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -600,11 +606,11 @@ paths:
 
   /workflows/{workflow_id}/unpublish:
     post:
-      summary: Unpublish Workflow
+      summary: Unpublish workflow
       description: Unpublish the currently published workflow version.
       operationId: unpublish_workflow
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -644,11 +650,11 @@ paths:
 
   /workflows/{workflow_id}/versions/{version}/restore:
     post:
-      summary: Restore Workflow Version
+      summary: Restore workflow version
       description: Restore a previous workflow version as a new draft.
       operationId: restore_workflow_version
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -695,11 +701,11 @@ paths:
 
   /workflows/{workflow_id}/versions/{version}/export:
     get:
-      summary: Export Workflow Version
+      summary: Export workflow version
       description: Export a workflow version definition as a downloadable JSON file.
       operationId: export_workflow_version
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -753,7 +759,7 @@ paths:
         workflow. Requires a service account Bearer token. Only POST method is
         supported; other methods receive 405 Method Not Allowed.
       operationId: receive_webhook
-      tags: [webhooks]
+      tags: [Webhooks]
       security:
         - bearerAuth: []
       x-app-permission:
@@ -821,7 +827,7 @@ paths:
         trigger node has its own unique webhook path. The payload can be any
         JSON structure.
       operationId: receive_eda_webhook
-      tags: [webhooks]
+      tags: [Webhooks]
       security:
         - bearerAuth: []
       x-app-permission:

@@ -150,7 +150,7 @@ def sync_detailed(
     project_id: None | Unset | UUID = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | RoleAssignmentListResponse]:
-    """List User Role Assignments
+    """List user role assignments
 
      List role assignments for a specific user.
 
@@ -200,7 +200,7 @@ def sync(
     role_name: None | str | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
 ) -> ErrorData | RoleAssignmentListResponse | None:
-    """List User Role Assignments
+    """List user role assignments
 
      List role assignments for a specific user.
 
@@ -244,7 +244,7 @@ async def asyncio_detailed(
     role_name: None | str | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
 ) -> Response[ErrorData | RoleAssignmentListResponse]:
-    """List User Role Assignments
+    """List user role assignments
 
      List role assignments for a specific user.
 
@@ -291,7 +291,7 @@ async def asyncio(
     role_name: None | str | Unset = UNSET,
     project_id: None | Unset | UUID = UNSET,
 ) -> ErrorData | RoleAssignmentListResponse | None:
-    """List User Role Assignments
+    """List user role assignments
 
      List role assignments for a specific user.
 

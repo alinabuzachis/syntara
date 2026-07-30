@@ -105,7 +105,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: ProjectCredentialCreate,
 ) -> Response[CredentialRead | ErrorData]:
-    """Create Project Credential
+    """Create project credential
 
      Create a new credential in this project. Requires: credential:create permission.
 
@@ -140,7 +140,7 @@ def sync(
     client: AuthenticatedClient,
     body: ProjectCredentialCreate,
 ) -> CredentialRead | ErrorData | None:
-    """Create Project Credential
+    """Create project credential
 
      Create a new credential in this project. Requires: credential:create permission.
 
@@ -170,7 +170,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: ProjectCredentialCreate,
 ) -> Response[CredentialRead | ErrorData]:
-    """Create Project Credential
+    """Create project credential
 
      Create a new credential in this project. Requires: credential:create permission.
 
@@ -203,7 +203,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: ProjectCredentialCreate,
 ) -> CredentialRead | ErrorData | None:
-    """Create Project Credential
+    """Create project credential
 
      Create a new credential in this project. Requires: credential:create permission.
 

@@ -92,7 +92,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[ErrorData | ResetInternalMetricsStoreResponseResetInternalMetricsStore]:
-    """Metrics Store Reset
+    """Metrics store reset
 
      Clear all in-memory metrics (useful between test runs).
 
@@ -121,7 +121,7 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
 ) -> ErrorData | ResetInternalMetricsStoreResponseResetInternalMetricsStore | None:
-    """Metrics Store Reset
+    """Metrics store reset
 
      Clear all in-memory metrics (useful between test runs).
 
@@ -146,7 +146,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[ErrorData | ResetInternalMetricsStoreResponseResetInternalMetricsStore]:
-    """Metrics Store Reset
+    """Metrics store reset
 
      Clear all in-memory metrics (useful between test runs).
 
@@ -173,7 +173,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
 ) -> ErrorData | ResetInternalMetricsStoreResponseResetInternalMetricsStore | None:
-    """Metrics Store Reset
+    """Metrics store reset
 
      Clear all in-memory metrics (useful between test runs).
 

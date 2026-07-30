@@ -103,7 +103,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: UserUpdate,
 ) -> Response[ErrorData | UserRead]:
-    """Update User
+    """Update user
 
      Update a user.
 
@@ -141,7 +141,7 @@ def sync(
     client: AuthenticatedClient,
     body: UserUpdate,
 ) -> ErrorData | UserRead | None:
-    """Update User
+    """Update user
 
      Update a user.
 
@@ -174,7 +174,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: UserUpdate,
 ) -> Response[ErrorData | UserRead]:
-    """Update User
+    """Update user
 
      Update a user.
 
@@ -210,7 +210,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: UserUpdate,
 ) -> ErrorData | UserRead | None:
-    """Update User
+    """Update user
 
      Update a user.
 

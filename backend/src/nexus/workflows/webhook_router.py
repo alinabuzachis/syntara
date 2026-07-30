@@ -44,7 +44,7 @@ from nexus.workflows.workflow_engine.services.temporal_execution_service import 
 
 logger = structlog.stdlib.get_logger(__name__)
 
-router = NexusRouter(prefix="/webhooks", tags=["webhooks"])
+router = NexusRouter(prefix="/webhooks", tags=["Webhooks"])
 
 
 # ============================================================================

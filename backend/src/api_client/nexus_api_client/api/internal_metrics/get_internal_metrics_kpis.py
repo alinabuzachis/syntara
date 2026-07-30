@@ -90,7 +90,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[ErrorData | KPIDashboard]:
-    """Metrics Store Kpis
+    """Metrics store KPIs
 
      Return a computed KPI dashboard covering all Nexus components.
 
@@ -119,7 +119,7 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
 ) -> ErrorData | KPIDashboard | None:
-    """Metrics Store Kpis
+    """Metrics store KPIs
 
      Return a computed KPI dashboard covering all Nexus components.
 
@@ -144,7 +144,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[ErrorData | KPIDashboard]:
-    """Metrics Store Kpis
+    """Metrics store KPIs
 
      Return a computed KPI dashboard covering all Nexus components.
 
@@ -171,7 +171,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
 ) -> ErrorData | KPIDashboard | None:
-    """Metrics Store Kpis
+    """Metrics store KPIs
 
      Return a computed KPI dashboard covering all Nexus components.
 

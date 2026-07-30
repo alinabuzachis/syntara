@@ -96,7 +96,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | IntegrationProjectAssignmentRead]:
-    """Assign Integration Project
+    """Assign integration project
 
      Assign a project to a project-scoped integration.
 
@@ -130,7 +130,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | IntegrationProjectAssignmentRead | None:
-    """Assign Integration Project
+    """Assign integration project
 
      Assign a project to a project-scoped integration.
 
@@ -159,7 +159,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | IntegrationProjectAssignmentRead]:
-    """Assign Integration Project
+    """Assign integration project
 
      Assign a project to a project-scoped integration.
 
@@ -191,7 +191,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | IntegrationProjectAssignmentRead | None:
-    """Assign Integration Project
+    """Assign integration project
 
      Assign a project to a project-scoped integration.
 

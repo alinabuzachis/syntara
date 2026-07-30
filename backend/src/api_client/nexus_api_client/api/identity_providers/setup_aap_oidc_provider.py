@@ -102,13 +102,14 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: AAPOIDCSetupRequest,
 ) -> Response[ErrorData | IdentityProviderResponse]:
-    """Setup AAP OIDC Provider
+    """Setup Ansible Automation Platform OIDC provider
 
-     Push-button setup: connects to AAP, creates an OAuth2 application, and configures the identity
-    provider with AAP defaults.
+     Push-button setup: connects to Ansible Automation Platform, creates an OAuth2 application, and
+    configures the identity provider with Ansible Automation Platform defaults.
 
     Args:
-        body (AAPOIDCSetupRequest): Request body for push-button AAP OIDC identity provider setup.
+        body (AAPOIDCSetupRequest): Request body for push-button Ansible Automation Platform OIDC
+            identity provider setup.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -134,13 +135,14 @@ def sync(
     client: AuthenticatedClient,
     body: AAPOIDCSetupRequest,
 ) -> ErrorData | IdentityProviderResponse | None:
-    """Setup AAP OIDC Provider
+    """Setup Ansible Automation Platform OIDC provider
 
-     Push-button setup: connects to AAP, creates an OAuth2 application, and configures the identity
-    provider with AAP defaults.
+     Push-button setup: connects to Ansible Automation Platform, creates an OAuth2 application, and
+    configures the identity provider with Ansible Automation Platform defaults.
 
     Args:
-        body (AAPOIDCSetupRequest): Request body for push-button AAP OIDC identity provider setup.
+        body (AAPOIDCSetupRequest): Request body for push-button Ansible Automation Platform OIDC
+            identity provider setup.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -161,13 +163,14 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: AAPOIDCSetupRequest,
 ) -> Response[ErrorData | IdentityProviderResponse]:
-    """Setup AAP OIDC Provider
+    """Setup Ansible Automation Platform OIDC provider
 
-     Push-button setup: connects to AAP, creates an OAuth2 application, and configures the identity
-    provider with AAP defaults.
+     Push-button setup: connects to Ansible Automation Platform, creates an OAuth2 application, and
+    configures the identity provider with Ansible Automation Platform defaults.
 
     Args:
-        body (AAPOIDCSetupRequest): Request body for push-button AAP OIDC identity provider setup.
+        body (AAPOIDCSetupRequest): Request body for push-button Ansible Automation Platform OIDC
+            identity provider setup.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -191,13 +194,14 @@ async def asyncio(
     client: AuthenticatedClient,
     body: AAPOIDCSetupRequest,
 ) -> ErrorData | IdentityProviderResponse | None:
-    """Setup AAP OIDC Provider
+    """Setup Ansible Automation Platform OIDC provider
 
-     Push-button setup: connects to AAP, creates an OAuth2 application, and configures the identity
-    provider with AAP defaults.
+     Push-button setup: connects to Ansible Automation Platform, creates an OAuth2 application, and
+    configures the identity provider with Ansible Automation Platform defaults.
 
     Args:
-        body (AAPOIDCSetupRequest): Request body for push-button AAP OIDC identity provider setup.
+        body (AAPOIDCSetupRequest): Request body for push-button Ansible Automation Platform OIDC
+            identity provider setup.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

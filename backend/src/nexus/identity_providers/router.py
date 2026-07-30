@@ -29,7 +29,7 @@ from nexus.identity_providers.services.aap_oidc_setup_service import AAPOIDCSetu
 from nexus.identity_providers.services.identity_provider_service import IdentityProviderService
 from nexus.identity_providers.services.oidc_discovery import OIDCTestResult, test_oidc_connection
 
-router = APIRouter(prefix="/identity_providers", tags=["IdentityProviders"])
+router = APIRouter(prefix="/identity_providers", tags=["Identity Providers"])
 
 _idp_create = PermissionChecker("identity-provider", "create")
 _idp_read = PermissionChecker("identity-provider", "read")
@@ -64,6 +64,7 @@ class OIDCTestRequest(IdentityProviderCreate):
 
 @router.post(
     "/test",
+    summary="Test identity provider",
     dependencies=[Depends(_idp_test)],
     operation_id="test_identity_provider",
     response_description="Test results",
@@ -89,12 +90,12 @@ async def test_identity_provider(
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(_idp_create)],
     operation_id="setup_aap_oidc_provider",
-    summary="Setup AAP OIDC Provider",
+    summary="Setup Ansible Automation Platform OIDC provider",
     description=(
-        "Push-button setup: connects to AAP, creates an OAuth2 application,"
-        " and configures the identity provider with AAP defaults."
+        "Push-button setup: connects to Ansible Automation Platform, creates an OAuth2 application,"
+        " and configures the identity provider with Ansible Automation Platform defaults."
     ),
-    response_description="AAP OIDC provider created",
+    response_description="Ansible Automation Platform OIDC provider created",
 )
 @audit(EventCategory.USER_ACTION, event_action="identity_provider_aap_oidc_setup")
 async def setup_aap_oidc_provider(
@@ -114,6 +115,7 @@ async def setup_aap_oidc_provider(
 
 @router.get(
     "",
+    summary="List identity providers",
     dependencies=[Depends(_idp_read)],
     operation_id="list_identity_providers",
     response_description="List of identity providers",
@@ -135,6 +137,7 @@ async def list_identity_providers(
 
 @router.post(
     "",
+    summary="Create identity provider",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(_idp_create)],
     operation_id="create_identity_provider",
@@ -151,6 +154,7 @@ async def create_identity_provider(
 
 @router.get(
     "/{provider_id}",
+    summary="Get identity provider",
     dependencies=[Depends(_idp_read)],
     operation_id="get_identity_provider",
     response_description="Identity provider details",
@@ -163,7 +167,12 @@ async def get_identity_provider(
     return await service.get_provider(provider_id)
 
 
-@router.patch("/{provider_id}", dependencies=[Depends(_idp_update)], operation_id="patch_identity_provider")
+@router.patch(
+    "/{provider_id}",
+    summary="Patch identity provider",
+    dependencies=[Depends(_idp_update)],
+    operation_id="patch_identity_provider",
+)
 @audit(EventCategory.USER_ACTION, event_action="identity_provider_update", capture_args={"provider_id"})
 async def patch_identity_provider(
     provider_id: UUID,
@@ -176,6 +185,7 @@ async def patch_identity_provider(
 
 @router.delete(
     "/{provider_id}",
+    summary="Delete identity provider",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(_idp_delete)],
     operation_id="delete_identity_provider",

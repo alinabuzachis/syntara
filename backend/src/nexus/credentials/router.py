@@ -87,6 +87,7 @@ def get_credential_service(
 
 @router.post(
     "/credentials",
+    summary="Create credential",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(_cred_perm_create)],
     operation_id="create_credential",
@@ -143,7 +144,7 @@ class _CredentialVisibility(VisibilityFilter):
         )
 
 
-@router.get("/credentials", operation_id="list_credentials")
+@router.get("/credentials", summary="List credentials", operation_id="list_credentials")
 async def list_credentials(
     request: Request,
     service: Annotated[CredentialService, Depends(get_credential_service)],
@@ -167,7 +168,12 @@ async def list_credentials(
     )
 
 
-@router.get("/credentials/{credential_id}", dependencies=[Depends(_cred_perm_read)], operation_id="get_credential")
+@router.get(
+    "/credentials/{credential_id}",
+    summary="Get credential",
+    dependencies=[Depends(_cred_perm_read)],
+    operation_id="get_credential",
+)
 async def get_credential(
     credential_id: UUID,
     service: Annotated[CredentialService, Depends(get_credential_service)],
@@ -177,7 +183,10 @@ async def get_credential(
 
 
 @router.patch(
-    "/credentials/{credential_id}", dependencies=[Depends(_cred_perm_update)], operation_id="update_credential"
+    "/credentials/{credential_id}",
+    summary="Update credential",
+    dependencies=[Depends(_cred_perm_update)],
+    operation_id="update_credential",
 )
 @audit(EventCategory.USER_ACTION, event_action="credential_update", capture_args={"credential_id"})
 async def update_credential(
@@ -191,6 +200,7 @@ async def update_credential(
 
 @router.delete(
     "/credentials/{credential_id}",
+    summary="Delete credential",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(_cred_perm_delete)],
     operation_id="delete_credential",
@@ -206,6 +216,7 @@ async def delete_credential(
 
 @router.get(
     "/credentials/{credential_id}/workflows",
+    summary="Get credential workflows",
     dependencies=[Depends(_cred_perm_read)],
     operation_id="get_credential_workflows",
 )
@@ -226,7 +237,7 @@ async def get_credential_workflows(
 # ============================================================================
 
 
-@router.get("/credential_types", operation_id="list_credential_types")
+@router.get("/credential_types", summary="List credential types", operation_id="list_credential_types")
 async def list_credential_types(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: Annotated[User, Depends(get_current_user)],
@@ -266,7 +277,7 @@ async def list_credential_types(
     return CredentialTypeListResponse(resources=resources)
 
 
-@router.get("/credential_types/{credential_type_id}", operation_id="get_credential_type")
+@router.get("/credential_types/{credential_type_id}", summary="Get credential type", operation_id="get_credential_type")
 async def get_credential_type(
     credential_type_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],

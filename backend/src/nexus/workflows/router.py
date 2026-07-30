@@ -90,7 +90,7 @@ class _ValidationRoute(APIRoute):
         return handler
 
 
-router = NexusRouter(prefix="/workflows", tags=["workflows"])
+router = NexusRouter(prefix="/workflows", tags=["Workflows"])
 
 _wf_perm_read = PermissionChecker(
     "workflow",
@@ -238,6 +238,7 @@ _validate_router = NexusRouter(route_class=_ValidationRoute)
 
 @_validate_router.post(
     "/validate",
+    summary="Validate workflow definition",
     response_model=ValidationResult,
     dependencies=[Depends(_wf_perm_create)],
     operation_id="validate_workflow_definition",
@@ -259,6 +260,7 @@ router.include_router(_validate_router)
 
 @router.post(
     "",
+    summary="Create workflow",
     response_model=WorkflowRead,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(_wf_perm_create)],
@@ -283,7 +285,12 @@ async def create_workflow(
     return read
 
 
-@router.get("", operation_id="list_workflows", response_description="List of workflows")
+@router.get(
+    "",
+    summary="List workflows",
+    operation_id="list_workflows",
+    response_description="List of workflows",
+)
 async def list_workflows(
     request: Request,
     service: Annotated[WorkflowService, Depends(get_workflow_service)],
@@ -313,6 +320,7 @@ async def list_workflows(
 
 @router.get(
     "/{workflow_id}",
+    summary="Get workflow",
     dependencies=[Depends(_wf_perm_read)],
     operation_id="get_workflow",
     response_description="Workflow details",
@@ -328,6 +336,7 @@ async def get_workflow(
 
 @router.patch(
     "/{workflow_id}",
+    summary="Update workflow",
     dependencies=[Depends(_wf_perm_update)],
     operation_id="update_workflow",
     response_description="Updated workflow",
@@ -363,6 +372,7 @@ async def update_workflow(
 
 @router.delete(
     "/{workflow_id}",
+    summary="Delete workflow",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(_wf_perm_delete)],
     operation_id="delete_workflow",
@@ -412,6 +422,7 @@ async def test_workflow_node(
 
 @router.get(
     "/{workflow_id}/versions",
+    summary="List workflow versions",
     dependencies=[Depends(_wf_perm_read)],
     operation_id="list_workflow_versions",
     response_description="Workflow version history",
@@ -435,6 +446,7 @@ async def list_workflow_versions(
 
 @router.get(
     "/{workflow_id}/versions/{version}",
+    summary="Get workflow version",
     dependencies=[Depends(_wf_perm_read)],
     operation_id="get_workflow_version",
     response_description="Workflow version details",
@@ -481,6 +493,7 @@ async def get_workflow_version(
 
 @router.post(
     "/{workflow_id}/versions/{version}/publish",
+    summary="Publish workflow version",
     response_model=PublishWorkflowVersionResponse,
     dependencies=[Depends(_wf_perm_update)],
     operation_id="publish_workflow_version",
@@ -508,6 +521,7 @@ async def publish_workflow_version(
 
 @router.post(
     "/{workflow_id}/unpublish",
+    summary="Unpublish workflow",
     dependencies=[Depends(_wf_perm_update)],
     operation_id="unpublish_workflow",
     response_description="Unpublished workflow",
@@ -523,6 +537,7 @@ async def unpublish_workflow(
 
 @router.post(
     "/{workflow_id}/versions/{version}/restore",
+    summary="Restore workflow version",
     dependencies=[Depends(_wf_perm_update)],
     operation_id="restore_workflow_version",
     response_description="Restored workflow version",
@@ -548,6 +563,7 @@ def _sanitize_filename(name: str) -> str:
 
 @router.get(
     "/{workflow_id}/versions/{version}/export",
+    summary="Export workflow version",
     dependencies=[Depends(_wf_perm_read)],
     operation_id="export_workflow_version",
     response_class=StreamingResponse,
@@ -580,6 +596,7 @@ async def export_workflow_version(
 
 @router.patch(
     "/{workflow_id}/versions/{version}",
+    summary="Update workflow version metadata",
     dependencies=[Depends(_wf_perm_update)],
     operation_id="update_workflow_version_metadata",
     response_description="Updated workflow version",

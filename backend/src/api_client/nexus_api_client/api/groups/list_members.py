@@ -130,7 +130,7 @@ def sync_detailed(
     include_total: bool | Unset = False,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | GroupMemberListResponse]:
-    """List Members
+    """List members
 
      List members of a group with pagination.
 
@@ -174,7 +174,7 @@ def sync(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> ErrorData | GroupMemberListResponse | None:
-    """List Members
+    """List members
 
      List members of a group with pagination.
 
@@ -212,7 +212,7 @@ async def asyncio_detailed(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> Response[ErrorData | GroupMemberListResponse]:
-    """List Members
+    """List members
 
      List members of a group with pagination.
 
@@ -253,7 +253,7 @@ async def asyncio(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> ErrorData | GroupMemberListResponse | None:
-    """List Members
+    """List members
 
      List members of a group with pagination.
 

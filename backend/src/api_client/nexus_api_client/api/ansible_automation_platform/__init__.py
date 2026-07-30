@@ -1,4 +1,4 @@
-"""aap API endpoints."""
+"""ansible_automation_platform API endpoints."""
 
 from __future__ import annotations
 
@@ -15,8 +15,8 @@ class _EndpointModule(Protocol):
     async def asyncio_detailed(self, *, client: AuthenticatedClient, **kwargs: Any) -> Response[Any]: ...
 
 
-class AapApi:
-    """Registry for aap API endpoints."""
+class AnsibleAutomationPlatformApi:
+    """Registry for ansible_automation_platform API endpoints."""
 
     def __init__(self, client: AuthenticatedClient) -> None:
         self._client = client
@@ -24,82 +24,82 @@ class AapApi:
     def _load_endpoint_module(self, module_name: str) -> _EndpointModule:
         return cast(_EndpointModule, importlib.import_module(f"{__name__}.{module_name}"))
 
-    def list_organizations(self, **kwargs: Any) -> Response[Any]:
+    def list_aap_organizations(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("list_aap_organizations")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
-    async def async_list_organizations(self, **kwargs: Any) -> Response[Any]:
+    async def async_list_aap_organizations(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("list_aap_organizations")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
-    def list_job_templates(self, **kwargs: Any) -> Response[Any]:
+    def list_aap_job_templates(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("list_aap_job_templates")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
-    async def async_list_job_templates(self, **kwargs: Any) -> Response[Any]:
+    async def async_list_aap_job_templates(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("list_aap_job_templates")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
-    def get_job_template(self, **kwargs: Any) -> Response[Any]:
+    def get_aap_job_template(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("get_aap_job_template")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
-    async def async_get_job_template(self, **kwargs: Any) -> Response[Any]:
+    async def async_get_aap_job_template(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("get_aap_job_template")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
-    def list_workflow_job_templates(self, **kwargs: Any) -> Response[Any]:
+    def list_aap_workflow_job_templates(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("list_aap_workflow_job_templates")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
-    async def async_list_workflow_job_templates(self, **kwargs: Any) -> Response[Any]:
+    async def async_list_aap_workflow_job_templates(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("list_aap_workflow_job_templates")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
-    def get_workflow_job_template(self, **kwargs: Any) -> Response[Any]:
+    def get_aap_workflow_job_template(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("get_aap_workflow_job_template")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
-    async def async_get_workflow_job_template(self, **kwargs: Any) -> Response[Any]:
+    async def async_get_aap_workflow_job_template(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("get_aap_workflow_job_template")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
-    def list_inventories(self, **kwargs: Any) -> Response[Any]:
+    def list_aap_inventories(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("list_aap_inventories")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
-    async def async_list_inventories(self, **kwargs: Any) -> Response[Any]:
+    async def async_list_aap_inventories(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("list_aap_inventories")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
-    def list_execution_environments(self, **kwargs: Any) -> Response[Any]:
+    def list_aap_execution_environments(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("list_aap_execution_environments")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
-    async def async_list_execution_environments(self, **kwargs: Any) -> Response[Any]:
+    async def async_list_aap_execution_environments(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("list_aap_execution_environments")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
-    def list_credentials(self, **kwargs: Any) -> Response[Any]:
+    def list_aap_credentials(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("list_aap_credentials")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
-    async def async_list_credentials(self, **kwargs: Any) -> Response[Any]:
+    async def async_list_aap_credentials(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("list_aap_credentials")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
-    def list_instance_groups(self, **kwargs: Any) -> Response[Any]:
+    def list_aap_instance_groups(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("list_aap_instance_groups")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
-    async def async_list_instance_groups(self, **kwargs: Any) -> Response[Any]:
+    async def async_list_aap_instance_groups(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("list_aap_instance_groups")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
-    def list_labels(self, **kwargs: Any) -> Response[Any]:
+    def list_aap_labels(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("list_aap_labels")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
-    async def async_list_labels(self, **kwargs: Any) -> Response[Any]:
+    async def async_list_aap_labels(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("list_aap_labels")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)

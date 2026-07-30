@@ -29,6 +29,7 @@ def get_role_service(
 
 @router.post(
     "",
+    summary="Create role",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(PermissionChecker("role", "create"))],
     operation_id="create_role",
@@ -49,7 +50,7 @@ async def create_role(
     return await service.to_role_read(role)
 
 
-@router.get("", dependencies=[NO_PERMISSION], operation_id="list_roles")
+@router.get("", summary="List roles", dependencies=[NO_PERMISSION], operation_id="list_roles")
 async def list_roles(
     request: Request,
     params: Annotated[RoleListParams, Depends()],
@@ -65,7 +66,7 @@ async def list_roles(
     )
 
 
-@router.get("/{role_id}", dependencies=[NO_PERMISSION], operation_id="get_role")
+@router.get("/{role_id}", summary="Get role", dependencies=[NO_PERMISSION], operation_id="get_role")
 async def get_role(
     role_id: UUID,
     service: Annotated[RoleService, Depends(get_role_service)],
@@ -92,6 +93,7 @@ async def _do_update_role(
 
 @router.patch(
     "/{role_id}",
+    summary="Update role",
     dependencies=[Depends(PermissionChecker("role", "update"))],
     operation_id="update_role",
 )
@@ -107,6 +109,7 @@ async def update_role(
 
 @router.put(
     "/{role_id}",
+    summary="Replace role",
     dependencies=[Depends(PermissionChecker("role", "update"))],
     operation_id="replace_role",
 )
@@ -122,6 +125,7 @@ async def replace_role(
 
 @router.delete(
     "/{role_id}",
+    summary="Delete role",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(PermissionChecker("role", "delete"))],
     operation_id="delete_role",

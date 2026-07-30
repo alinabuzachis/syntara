@@ -136,7 +136,7 @@ def sync_detailed(
     name: None | str | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | ResourcesResponseGroupDirectoryEntry]:
-    """List Groups Directory
+    """List groups directory
 
      Return a lightweight directory of groups (id + name only).
 
@@ -181,7 +181,7 @@ def sync(
     include_total: bool | Unset = False,
     name: None | str | Unset = UNSET,
 ) -> ErrorData | ResourcesResponseGroupDirectoryEntry | None:
-    """List Groups Directory
+    """List groups directory
 
      Return a lightweight directory of groups (id + name only).
 
@@ -220,7 +220,7 @@ async def asyncio_detailed(
     include_total: bool | Unset = False,
     name: None | str | Unset = UNSET,
 ) -> Response[ErrorData | ResourcesResponseGroupDirectoryEntry]:
-    """List Groups Directory
+    """List groups directory
 
      Return a lightweight directory of groups (id + name only).
 
@@ -262,7 +262,7 @@ async def asyncio(
     include_total: bool | Unset = False,
     name: None | str | Unset = UNSET,
 ) -> ErrorData | ResourcesResponseGroupDirectoryEntry | None:
-    """List Groups Directory
+    """List groups directory
 
      Return a lightweight directory of groups (id + name only).
 

@@ -17,11 +17,11 @@ servers:
   - url: /api/v1
     description: API v1
 tags:
-  - name: aap
+  - name: Ansible Automation Platform
     description: Ansible Automation Platform resource proxy
   - name: Admin
     description: Administrative revocation operations
-  - name: approvals
+  - name: Approvals
     description: Human-in-the-loop approval request management
   - name: Authentication
     description: JWT token management and user identity
@@ -35,25 +35,28 @@ tags:
     description: Unified role assignment management
   - name: Credentials
     description: Encrypted credential management
-  - name: Credential Types
-    description: Credential type schema definitions
   - name: Files
     description: File upload and management operations for agent context
+  - name: Identity Providers
+    description: Identity provider registration and management
   - name: Integrations
     description: Integration management
-  - name: InternalMetrics
+  - name: Internal Metrics
+    description: Internal metrics store for usage tracking and KPI reporting
   - name: Invocation
     description: Agent invocation operations
-  - name: Interaction
-    description: Interactive messaging with running agents
-  - name: Control
-    description: Process control (pause/cancel)
   - name: Projects
     description: Project CRUD and project-scoped resource operations
   - name: Service Accounts
     description: Service account CRUD operations
+  - name: Service Account Credentials
+    description: Service account credential lifecycle management
   - name: Settings
     description: Runtime settings management
+  - name: Tool Metrics
+    description: Tool usage metrics and execution history
+  - name: Tool Manager
+    description: Tool discovery and configuration
   - name: Users
     description: Local user account management
   - name: Groups
@@ -62,17 +65,23 @@ tags:
     description: Lightweight user directory lookups
   - name: Groups Directory
     description: Lightweight group directory lookups
+  - name: Executions
+    description: Workflow execution lifecycle management
+  - name: Workflows
+    description: Workflow CRUD, versioning, and publishing
+  - name: Webhooks
+    description: Inbound webhook event receivers
 paths:
   /aap/organizations:
     get:
-      summary: List Organizations
-      description: List AAP organizations.
+      summary: List organizations
+      description: List Ansible Automation Platform organizations.
       operationId: list_aap_organizations
       x-app-permission:
         resource: null
         action: null
       tags:
-        - aap
+        - Ansible Automation Platform
       parameters:
         - in: query
           name: search
@@ -102,7 +111,7 @@ paths:
               - type: 'null'
             title: Credential Id
           description: |
-            Optional Nexus credential ID for AAP Controller authentication.
+            Optional Nexus credential ID for Ansible Automation Platform Controller authentication.
             If provided, the credential is decrypted and used instead of environment variables.
             Credential must be of type "Ansible Automation Platform".
         - in: query
@@ -115,7 +124,7 @@ paths:
               - type: 'null'
             title: Integration Id
           description: |
-            Optional AAP Gateway integration ID for connection URL resolution.
+            Optional Ansible Automation Platform Gateway integration ID for connection URL resolution.
             When provided, the integration's configured URL is used instead of environment variables.
       responses:
         '200':
@@ -226,14 +235,14 @@ paths:
         - bearerAuth: []
   /aap/job_templates:
     get:
-      summary: List Job Templates
-      description: List AAP job templates, optionally filtered by organization.
+      summary: List job templates
+      description: List Ansible Automation Platform job templates, optionally filtered by organization.
       operationId: list_aap_job_templates
       x-app-permission:
         resource: null
         action: null
       tags:
-        - aap
+        - Ansible Automation Platform
       parameters:
         - in: query
           name: search
@@ -263,7 +272,7 @@ paths:
               - type: 'null'
             title: Credential Id
           description: |
-            Optional Nexus credential ID for AAP Controller authentication.
+            Optional Nexus credential ID for Ansible Automation Platform Controller authentication.
             If provided, the credential is decrypted and used instead of environment variables.
             Credential must be of type "Ansible Automation Platform".
         - in: query
@@ -276,7 +285,7 @@ paths:
               - type: 'null'
             title: Integration Id
           description: |
-            Optional AAP Gateway integration ID for connection URL resolution.
+            Optional Ansible Automation Platform Gateway integration ID for connection URL resolution.
             When provided, the integration's configured URL is used instead of environment variables.
         - in: query
           name: organization
@@ -396,14 +405,14 @@ paths:
         - bearerAuth: []
   /aap/job_templates/{job_template_id}:
     get:
-      summary: Get Job Template
-      description: Get AAP job template details including prompt-on-launch capabilities.
+      summary: Get job template
+      description: Get Ansible Automation Platform job template details including prompt-on-launch capabilities.
       operationId: get_aap_job_template
       x-app-permission:
         resource: null
         action: null
       tags:
-        - aap
+        - Ansible Automation Platform
       parameters:
         - in: path
           name: job_template_id
@@ -440,7 +449,7 @@ paths:
               - type: 'null'
             title: Credential Id
           description: |
-            Optional Nexus credential ID for AAP Controller authentication.
+            Optional Nexus credential ID for Ansible Automation Platform Controller authentication.
             If provided, the credential is decrypted and used instead of environment variables.
             Credential must be of type "Ansible Automation Platform".
         - in: query
@@ -453,7 +462,7 @@ paths:
               - type: 'null'
             title: Integration Id
           description: |
-            Optional AAP Gateway integration ID for connection URL resolution.
+            Optional Ansible Automation Platform Gateway integration ID for connection URL resolution.
             When provided, the integration's configured URL is used instead of environment variables.
       responses:
         '200':
@@ -564,14 +573,14 @@ paths:
         - bearerAuth: []
   /aap/workflow_job_templates:
     get:
-      summary: List Workflow Job Templates
-      description: List AAP workflow job templates, optionally filtered by organization.
+      summary: List workflow job templates
+      description: List Ansible Automation Platform workflow job templates, optionally filtered by organization.
       operationId: list_aap_workflow_job_templates
       x-app-permission:
         resource: null
         action: null
       tags:
-        - aap
+        - Ansible Automation Platform
       parameters:
         - in: query
           name: search
@@ -601,7 +610,7 @@ paths:
               - type: 'null'
             title: Credential Id
           description: |
-            Optional Nexus credential ID for AAP Controller authentication.
+            Optional Nexus credential ID for Ansible Automation Platform Controller authentication.
             If provided, the credential is decrypted and used instead of environment variables.
             Credential must be of type "Ansible Automation Platform".
         - in: query
@@ -614,7 +623,7 @@ paths:
               - type: 'null'
             title: Integration Id
           description: |
-            Optional AAP Gateway integration ID for connection URL resolution.
+            Optional Ansible Automation Platform Gateway integration ID for connection URL resolution.
             When provided, the integration's configured URL is used instead of environment variables.
         - in: query
           name: organization
@@ -734,14 +743,14 @@ paths:
         - bearerAuth: []
   /aap/workflow_job_templates/{workflow_job_template_id}:
     get:
-      summary: Get Workflow Job Template
-      description: Get AAP workflow job template details including prompt-on-launch capabilities.
+      summary: Get workflow job template
+      description: Get Ansible Automation Platform workflow job template details including prompt-on-launch capabilities.
       operationId: get_aap_workflow_job_template
       x-app-permission:
         resource: null
         action: null
       tags:
-        - aap
+        - Ansible Automation Platform
       parameters:
         - in: path
           name: workflow_job_template_id
@@ -778,7 +787,7 @@ paths:
               - type: 'null'
             title: Credential Id
           description: |
-            Optional Nexus credential ID for AAP Controller authentication.
+            Optional Nexus credential ID for Ansible Automation Platform Controller authentication.
             If provided, the credential is decrypted and used instead of environment variables.
             Credential must be of type "Ansible Automation Platform".
         - in: query
@@ -791,7 +800,7 @@ paths:
               - type: 'null'
             title: Integration Id
           description: |
-            Optional AAP Gateway integration ID for connection URL resolution.
+            Optional Ansible Automation Platform Gateway integration ID for connection URL resolution.
             When provided, the integration's configured URL is used instead of environment variables.
       responses:
         '200':
@@ -902,14 +911,14 @@ paths:
         - bearerAuth: []
   /aap/inventories:
     get:
-      summary: List Inventories
-      description: List AAP inventories, optionally filtered by organization.
+      summary: List inventories
+      description: List Ansible Automation Platform inventories, optionally filtered by organization.
       operationId: list_aap_inventories
       x-app-permission:
         resource: null
         action: null
       tags:
-        - aap
+        - Ansible Automation Platform
       parameters:
         - in: query
           name: search
@@ -939,7 +948,7 @@ paths:
               - type: 'null'
             title: Credential Id
           description: |
-            Optional Nexus credential ID for AAP Controller authentication.
+            Optional Nexus credential ID for Ansible Automation Platform Controller authentication.
             If provided, the credential is decrypted and used instead of environment variables.
             Credential must be of type "Ansible Automation Platform".
         - in: query
@@ -952,7 +961,7 @@ paths:
               - type: 'null'
             title: Integration Id
           description: |
-            Optional AAP Gateway integration ID for connection URL resolution.
+            Optional Ansible Automation Platform Gateway integration ID for connection URL resolution.
             When provided, the integration's configured URL is used instead of environment variables.
         - in: query
           name: organization
@@ -1072,14 +1081,14 @@ paths:
         - bearerAuth: []
   /aap/execution_environments:
     get:
-      summary: List Execution Environments
-      description: List AAP execution environments, optionally filtered by organization.
+      summary: List execution environments
+      description: List Ansible Automation Platform execution environments, optionally filtered by organization.
       operationId: list_aap_execution_environments
       x-app-permission:
         resource: null
         action: null
       tags:
-        - aap
+        - Ansible Automation Platform
       parameters:
         - in: query
           name: search
@@ -1109,7 +1118,7 @@ paths:
               - type: 'null'
             title: Credential Id
           description: |
-            Optional Nexus credential ID for AAP Controller authentication.
+            Optional Nexus credential ID for Ansible Automation Platform Controller authentication.
             If provided, the credential is decrypted and used instead of environment variables.
             Credential must be of type "Ansible Automation Platform".
         - in: query
@@ -1122,7 +1131,7 @@ paths:
               - type: 'null'
             title: Integration Id
           description: |
-            Optional AAP Gateway integration ID for connection URL resolution.
+            Optional Ansible Automation Platform Gateway integration ID for connection URL resolution.
             When provided, the integration's configured URL is used instead of environment variables.
         - in: query
           name: organization
@@ -1242,14 +1251,14 @@ paths:
         - bearerAuth: []
   /aap/credentials:
     get:
-      summary: List Credentials
-      description: List AAP credentials (not organization-scoped).
+      summary: List credentials
+      description: List Ansible Automation Platform credentials (not organization-scoped).
       operationId: list_aap_credentials
       x-app-permission:
         resource: null
         action: null
       tags:
-        - aap
+        - Ansible Automation Platform
       parameters:
         - in: query
           name: search
@@ -1279,7 +1288,7 @@ paths:
               - type: 'null'
             title: Credential Id
           description: |
-            Optional Nexus credential ID for AAP Controller authentication.
+            Optional Nexus credential ID for Ansible Automation Platform Controller authentication.
             If provided, the credential is decrypted and used instead of environment variables.
             Credential must be of type "Ansible Automation Platform".
         - in: query
@@ -1292,7 +1301,7 @@ paths:
               - type: 'null'
             title: Integration Id
           description: |
-            Optional AAP Gateway integration ID for connection URL resolution.
+            Optional Ansible Automation Platform Gateway integration ID for connection URL resolution.
             When provided, the integration's configured URL is used instead of environment variables.
       responses:
         '200':
@@ -1403,14 +1412,14 @@ paths:
         - bearerAuth: []
   /aap/instance_groups:
     get:
-      summary: List Instance Groups
-      description: List AAP instance groups (not organization-scoped).
+      summary: List instance groups
+      description: List Ansible Automation Platform instance groups (not organization-scoped).
       operationId: list_aap_instance_groups
       x-app-permission:
         resource: null
         action: null
       tags:
-        - aap
+        - Ansible Automation Platform
       parameters:
         - in: query
           name: search
@@ -1440,7 +1449,7 @@ paths:
               - type: 'null'
             title: Credential Id
           description: |
-            Optional Nexus credential ID for AAP Controller authentication.
+            Optional Nexus credential ID for Ansible Automation Platform Controller authentication.
             If provided, the credential is decrypted and used instead of environment variables.
             Credential must be of type "Ansible Automation Platform".
         - in: query
@@ -1453,7 +1462,7 @@ paths:
               - type: 'null'
             title: Integration Id
           description: |
-            Optional AAP Gateway integration ID for connection URL resolution.
+            Optional Ansible Automation Platform Gateway integration ID for connection URL resolution.
             When provided, the integration's configured URL is used instead of environment variables.
       responses:
         '200':
@@ -1565,9 +1574,9 @@ paths:
   /aap/labels:
     get:
       tags:
-        - aap
-      summary: List Labels
-      description: List AAP labels.
+        - Ansible Automation Platform
+      summary: List labels
+      description: List Ansible Automation Platform labels.
       operationId: list_aap_labels
       security:
         - bearerAuth: []
@@ -1600,7 +1609,7 @@ paths:
               - type: 'null'
             title: Credential Id
           description: |
-            Optional Nexus credential ID for AAP Controller authentication.
+            Optional Nexus credential ID for Ansible Automation Platform Controller authentication.
             If provided, the credential is decrypted and used instead of environment variables.
             Credential must be of type "Ansible Automation Platform".
         - in: query
@@ -1613,7 +1622,7 @@ paths:
               - type: 'null'
             title: Integration Id
           description: |
-            Optional AAP Gateway integration ID for connection URL resolution.
+            Optional Ansible Automation Platform Gateway integration ID for connection URL resolution.
             When provided, the integration's configured URL is used instead of environment variables.
       responses:
         '200':
@@ -2197,7 +2206,7 @@ paths:
         Uses cursor-based pagination for scalability and consistency.
       operationId: list_approvals
       tags:
-        - approvals
+        - Approvals
       x-app-permission:
         resource: approval
         action: read
@@ -2377,7 +2386,7 @@ paths:
         directly by end users.
       operationId: create_approval
       tags:
-        - approvals
+        - Approvals
       x-app-permission:
         resource: approval
         action: create
@@ -2506,7 +2515,7 @@ paths:
         - Decision history if already decided
       operationId: get_approval
       tags:
-        - approvals
+        - Approvals
       x-app-permission:
         resource: approval
         action: read
@@ -2639,7 +2648,7 @@ paths:
         3. A signal is sent to the workflow to resume execution on the appropriate path
       operationId: decide_approval
       tags:
-        - approvals
+        - Approvals
       x-app-permission:
         resource: approval
         action: decide
@@ -2773,7 +2782,7 @@ paths:
         already-decided approval returns 409 Conflict.
       operationId: delete_approval
       tags:
-        - approvals
+        - Approvals
       x-app-permission:
         resource: approval
         action: delete
@@ -2907,7 +2916,7 @@ paths:
         - Bulk rejection of stale or irrelevant requests
       operationId: batch_decide_approvals
       tags:
-        - approvals
+        - Approvals
       x-app-permission:
         resource: null
         action: null
@@ -4702,7 +4711,7 @@ paths:
                 retryable: true
   /authz/validate_name:
     get:
-      summary: Validate Name
+      summary: Validate name
       description: |
         Validate a resource name against naming rules.
         Returns whether the name is valid and, if not, why.
@@ -4842,7 +4851,7 @@ paths:
                 retryable: true
   /policies:
     post:
-      summary: Create Policy
+      summary: Create policy
       description: 'Create a custom policy. Requires: policy:create permission.'
       operationId: create_policy
       x-app-permission:
@@ -4964,7 +4973,7 @@ paths:
       security:
         - bearerAuth: []
     get:
-      summary: List Policies
+      summary: List policies
       description: List policies with filtering and pagination.
       operationId: list_policies
       x-app-permission:
@@ -5167,7 +5176,7 @@ paths:
         - bearerAuth: []
   /policies/{policy_id}:
     get:
-      summary: Get Policy
+      summary: Get policy
       description: Get a policy by ID.
       operationId: get_policy
       x-app-permission:
@@ -5291,7 +5300,7 @@ paths:
       security:
         - bearerAuth: []
     patch:
-      summary: Update Policy
+      summary: Update policy
       description: 'Patch a policy. Builtin policies cannot be modified. Requires: policy:update permission.'
       operationId: update_policy
       x-app-permission:
@@ -5421,7 +5430,7 @@ paths:
       security:
         - bearerAuth: []
     put:
-      summary: Replace Policy
+      summary: Replace policy
       description: 'Replace a policy. Builtin policies cannot be modified. Requires: policy:update permission.'
       operationId: replace_policy
       x-app-permission:
@@ -5551,7 +5560,7 @@ paths:
       security:
         - bearerAuth: []
     delete:
-      summary: Delete Policy
+      summary: Delete policy
       description: 'Delete a policy. Builtin policies cannot be deleted. Requires: policy:delete permission.'
       operationId: delete_policy
       x-app-permission:
@@ -5672,7 +5681,7 @@ paths:
         - bearerAuth: []
   /roles:
     post:
-      summary: Create Role
+      summary: Create role
       description: 'Create a custom role. Requires: role:create permission.'
       operationId: create_role
       x-app-permission:
@@ -5794,7 +5803,7 @@ paths:
       security:
         - bearerAuth: []
     get:
-      summary: List Roles
+      summary: List roles
       description: List roles with filtering and pagination.
       operationId: list_roles
       x-app-permission:
@@ -5998,7 +6007,7 @@ paths:
         - bearerAuth: []
   /roles/{role_id}:
     get:
-      summary: Get Role
+      summary: Get role
       description: Get a role by ID.
       operationId: get_role
       x-app-permission:
@@ -6122,7 +6131,7 @@ paths:
       security:
         - bearerAuth: []
     patch:
-      summary: Update Role
+      summary: Update role
       description: 'Patch a role. Builtin roles cannot be modified. Requires: role:update permission.'
       operationId: update_role
       x-app-permission:
@@ -6252,7 +6261,7 @@ paths:
       security:
         - bearerAuth: []
     put:
-      summary: Replace Role
+      summary: Replace role
       description: 'Replace a role. Builtin roles cannot be modified. Requires: role:update permission.'
       operationId: replace_role
       x-app-permission:
@@ -6382,7 +6391,7 @@ paths:
       security:
         - bearerAuth: []
     delete:
-      summary: Delete Role
+      summary: Delete role
       description: 'Delete a role. Builtin roles cannot be deleted. Requires: role:delete permission.'
       operationId: delete_role
       x-app-permission:
@@ -6503,7 +6512,7 @@ paths:
         - bearerAuth: []
   /role_assignments:
     post:
-      summary: Create Role Assignment
+      summary: Create role assignment
       description: |-
         Assign a role to a user or group.
 
@@ -6629,7 +6638,7 @@ paths:
       security:
         - bearerAuth: []
     get:
-      summary: List Role Assignments
+      summary: List role assignments
       description: |-
         List role assignments with policy-driven visibility.
 
@@ -6861,7 +6870,7 @@ paths:
         - bearerAuth: []
   /role_assignments/{assignment_id}:
     get:
-      summary: Get Role Assignment
+      summary: Get role assignment
       description: |-
         Get a single role assignment by ID.
 
@@ -6989,7 +6998,7 @@ paths:
       security:
         - bearerAuth: []
     delete:
-      summary: Delete Role Assignment
+      summary: Delete role assignment
       description: Remove a role assignment.
       operationId: delete_role_assignment
       x-app-permission:
@@ -7110,7 +7119,7 @@ paths:
         - bearerAuth: []
   /credentials:
     get:
-      summary: List Credentials
+      summary: List credentials
       description: |-
         List Credentials with filtering and pagination. Metadata only, no secrets.
 
@@ -7303,7 +7312,7 @@ paths:
       security:
         - bearerAuth: []
     post:
-      summary: Create Credential
+      summary: Create credential
       description: Create a new Credential with encrypted inputs.
       operationId: create_credential
       tags:
@@ -7426,7 +7435,7 @@ paths:
         - bearerAuth: []
   /credentials/{credential_id}:
     get:
-      summary: Get Credential
+      summary: Get credential
       description: Get a Credential. Secret fields masked as $encrypted$.
       operationId: get_credential
       tags:
@@ -7550,7 +7559,7 @@ paths:
       security:
         - bearerAuth: []
     patch:
-      summary: Update Credential
+      summary: Update credential
       description: Update a Credential. Fields set to $encrypted$ retain existing values.
       operationId: update_credential
       tags:
@@ -7680,7 +7689,7 @@ paths:
       security:
         - bearerAuth: []
     delete:
-      summary: Delete Credential
+      summary: Delete credential
       description: Delete a Credential.
       operationId: delete_credential
       tags:
@@ -7801,7 +7810,7 @@ paths:
         - bearerAuth: []
   /credentials/{credential_id}/workflows:
     get:
-      summary: Get Credential Workflows
+      summary: Get credential workflows
       description: |-
         Get workflows that reference this credential.
 
@@ -7929,7 +7938,7 @@ paths:
         - bearerAuth: []
   /credential_types:
     get:
-      summary: List Credential Types
+      summary: List credential types
       description: |-
         List all Credential Types including preseeded managed types.
 
@@ -8049,7 +8058,7 @@ paths:
         - bearerAuth: []
   /credential_types/{credential_type_id}:
     get:
-      summary: Get Credential Type
+      summary: Get credential type
       description: Get a single Credential Type with credential_count.
       operationId: get_credential_type
       tags:
@@ -8174,7 +8183,7 @@ paths:
         - bearerAuth: []
   /files:
     post:
-      summary: Upload Files (Design Time)
+      summary: Upload files (design time)
       description: Upload files independently of invocations for later use in agent execution. Returns file_ids that can be stored in workflow configuration and passed to invocations. Files are validated, stored, and queued for document conversion.
       operationId: upload_files
       tags:
@@ -8309,7 +8318,7 @@ paths:
         - bearerAuth: []
   /files/metadata:
     get:
-      summary: Get Files Metadata (Batch)
+      summary: Get files metadata (batch)
       description: Retrieve metadata for one or more files by their IDs. Returns file information (filename, size, MIME type, status) without file content.
       operationId: get_files_metadata
       tags:
@@ -8439,7 +8448,7 @@ paths:
         - bearerAuth: []
   /files/{file_id}/download:
     get:
-      summary: Download File
+      summary: Download file
       description: Download a file by its ID. Serves the file from whichever storage backend it was uploaded to.
       operationId: download_file
       tags:
@@ -8566,7 +8575,7 @@ paths:
         - bearerAuth: []
   /identity_providers:
     get:
-      summary: List Identity Providers
+      summary: List identity providers
       description: List identity providers with filtering, sorting, and pagination.
       operationId: list_identity_providers
       x-app-permission:
@@ -8720,11 +8729,11 @@ paths:
                 code: RATE_LIMITED
                 retryable: true
       tags:
-        - IdentityProviders
+        - Identity Providers
       security:
         - bearerAuth: []
     post:
-      summary: Create Identity Provider
+      summary: Create identity provider
       description: Create a new identity provider.
       operationId: create_identity_provider
       x-app-permission:
@@ -8842,12 +8851,12 @@ paths:
                 code: RATE_LIMITED
                 retryable: true
       tags:
-        - IdentityProviders
+        - Identity Providers
       security:
         - bearerAuth: []
   /identity_providers/{provider_id}:
     get:
-      summary: Get Identity Provider
+      summary: Get identity provider
       description: Get identity provider details by ID.
       operationId: get_identity_provider
       x-app-permission:
@@ -8967,11 +8976,11 @@ paths:
                 code: RATE_LIMITED
                 retryable: true
       tags:
-        - IdentityProviders
+        - Identity Providers
       security:
         - bearerAuth: []
     patch:
-      summary: Patch Identity Provider
+      summary: Patch identity provider
       description: Patch an identity provider.
       operationId: patch_identity_provider
       x-app-permission:
@@ -9097,11 +9106,11 @@ paths:
                 code: RATE_LIMITED
                 retryable: true
       tags:
-        - IdentityProviders
+        - Identity Providers
       security:
         - bearerAuth: []
     delete:
-      summary: Delete Identity Provider
+      summary: Delete identity provider
       description: Soft delete an identity provider.
       operationId: delete_identity_provider
       x-app-permission:
@@ -9217,13 +9226,13 @@ paths:
                 code: RATE_LIMITED
                 retryable: true
       tags:
-        - IdentityProviders
+        - Identity Providers
       security:
         - bearerAuth: []
   /identity_providers/setup_aap_oidc:
     post:
-      summary: Setup AAP OIDC Provider
-      description: 'Push-button setup: connects to AAP, creates an OAuth2 application, and configures the identity provider with AAP defaults.'
+      summary: Setup Ansible Automation Platform OIDC provider
+      description: 'Push-button setup: connects to Ansible Automation Platform, creates an OAuth2 application, and configures the identity provider with Ansible Automation Platform defaults.'
       operationId: setup_aap_oidc_provider
       x-app-permission:
         resource: identity-provider
@@ -9236,7 +9245,7 @@ paths:
               $ref: '#/components/schemas/AAPOIDCSetupRequest'
       responses:
         '201':
-          description: AAP OIDC provider created
+          description: Ansible Automation Platform OIDC provider created
           content:
             application/json:
               schema:
@@ -9340,12 +9349,12 @@ paths:
                 code: RATE_LIMITED
                 retryable: true
       tags:
-        - IdentityProviders
+        - Identity Providers
       security:
         - bearerAuth: []
   /identity_providers/test:
     post:
-      summary: Test Identity Provider
+      summary: Test identity provider
       description: Test identity provider connection without saving. Requires authentication.
       operationId: test_identity_provider
       x-app-permission:
@@ -9463,12 +9472,12 @@ paths:
                 code: RATE_LIMITED
                 retryable: true
       tags:
-        - IdentityProviders
+        - Identity Providers
       security:
         - bearerAuth: []
   /integrations:
     get:
-      summary: List Integrations
+      summary: List integrations
       description: List integrations with filtering and pagination.
       operationId: list_integrations
       tags:
@@ -9683,7 +9692,7 @@ paths:
       security:
         - bearerAuth: []
     post:
-      summary: Create Integration
+      summary: Create integration
       description: Create a new integration.
       operationId: create_integration
       tags:
@@ -9806,7 +9815,7 @@ paths:
         - bearerAuth: []
   /integrations/{integration_id}:
     get:
-      summary: Get Integration
+      summary: Get integration
       description: Get an integration by ID.
       operationId: get_integration
       tags:
@@ -9930,7 +9939,7 @@ paths:
       security:
         - bearerAuth: []
     patch:
-      summary: Update Integration
+      summary: Update integration
       description: Update an integration.
       operationId: update_integration
       tags:
@@ -10060,7 +10069,7 @@ paths:
       security:
         - bearerAuth: []
     delete:
-      summary: Delete Integration
+      summary: Delete integration
       description: Delete an integration.
       operationId: delete_integration
       tags:
@@ -10181,7 +10190,7 @@ paths:
         - bearerAuth: []
   /integrations/discover:
     post:
-      summary: Discover Integration Connection
+      summary: Discover integration connection
       description: |-
         Test a connection and discover resources without saving an integration.
 
@@ -10310,7 +10319,7 @@ paths:
         - bearerAuth: []
   /integrations/{integration_id}/validate:
     post:
-      summary: Validate Integration
+      summary: Validate integration
       description: |-
         Validate a saved integration with a lightweight connectivity ping.
 
@@ -10440,7 +10449,7 @@ paths:
         - bearerAuth: []
   /integrations/{integration_id}/refresh:
     post:
-      summary: Refresh Resources
+      summary: Refresh resources
       description: |-
         Sync resources (tools) for a saved integration from the external service.
 
@@ -10570,7 +10579,7 @@ paths:
         - bearerAuth: []
   /integrations/{integration_id}/projects:
     get:
-      summary: List Integration Projects
+      summary: List integration projects
       description: List project assignments for an integration.
       operationId: list_integration_projects
       tags:
@@ -10736,7 +10745,7 @@ paths:
         - bearerAuth: []
   /integrations/{integration_id}/projects/{project_id}:
     post:
-      summary: Assign Integration Project
+      summary: Assign integration project
       description: Assign a project to a project-scoped integration.
       operationId: assign_integration_project
       tags:
@@ -10867,7 +10876,7 @@ paths:
       security:
         - bearerAuth: []
     delete:
-      summary: Unassign Integration Project
+      summary: Unassign integration project
       description: Remove a project assignment from an integration.
       operationId: unassign_integration_project
       tags:
@@ -10995,7 +11004,7 @@ paths:
         - bearerAuth: []
   /integrations/{integration_id}/models:
     get:
-      summary: List Integration Models
+      summary: List integration models
       description: List LLM models for an integration with filtering, sorting, and pagination.
       operationId: list_integration_models
       x-app-permission:
@@ -11161,7 +11170,7 @@ paths:
         - Integrations
   /integrations/{integration_id}/models/{model_id}:
     get:
-      summary: Get Integration Model
+      summary: Get integration model
       description: Get an LLM model by ID.
       operationId: get_integration_model
       x-app-permission:
@@ -11292,7 +11301,7 @@ paths:
       tags:
         - Integrations
     patch:
-      summary: Update Integration Model
+      summary: Update integration model
       description: Update an LLM model (enable/disable).
       operationId: update_integration_model
       x-app-permission:
@@ -11430,7 +11439,7 @@ paths:
         - Integrations
   /integrations/{integration_id}/models/bulk_update:
     patch:
-      summary: Bulk Update Integration Models
+      summary: Bulk update integration models
       description: Bulk enable/disable LLM models.
       operationId: bulk_update_integration_models
       x-app-permission:
@@ -11562,8 +11571,8 @@ paths:
   /_internal/metrics/summary:
     get:
       tags:
-        - InternalMetrics
-      summary: Metrics Store Summary
+        - Internal Metrics
+      summary: Metrics store summary
       description: Return a lightweight summary of the in-memory metrics store.
       operationId: get_internal_metrics_summary
       responses:
@@ -11677,8 +11686,8 @@ paths:
   /_internal/metrics/records:
     get:
       tags:
-        - InternalMetrics
-      summary: Metrics Store Records
+        - Internal Metrics
+      summary: Metrics store records
       description: Return raw metric records with optional filtering and pagination.
       operationId: get_internal_metrics_records
       parameters:
@@ -11844,8 +11853,8 @@ paths:
   /_internal/metrics/kpis:
     get:
       tags:
-        - InternalMetrics
-      summary: Metrics Store Kpis
+        - Internal Metrics
+      summary: Metrics store KPIs
       description: |-
         Return a computed KPI dashboard covering all Nexus components.
 
@@ -11964,8 +11973,8 @@ paths:
   /_internal/metrics/kpis/{component}:
     get:
       tags:
-        - InternalMetrics
-      summary: Metrics Store Component Kpis
+        - Internal Metrics
+      summary: Metrics store component KPIs
       description: Return KPIs for a single component.
       operationId: get_internal_metrics_component_kpis
       parameters:
@@ -12086,8 +12095,8 @@ paths:
   /_internal/metrics/reset:
     post:
       tags:
-        - InternalMetrics
-      summary: Metrics Store Reset
+        - Internal Metrics
+      summary: Metrics store reset
       description: |-
         Clear all in-memory metrics (useful between test runs).
 
@@ -12207,7 +12216,7 @@ paths:
         action: null
   /invocations:
     post:
-      summary: Create Invocation (Async)
+      summary: Create invocation (async)
       description: Accept async agent invocation request and return invocation ID immediately.
       operationId: create_invocation
       tags:
@@ -12343,7 +12352,7 @@ paths:
       security:
         - bearerAuth: []
     get:
-      summary: List Invocations
+      summary: List invocations
       description: List invocations with cursor-based pagination and filtering
       operationId: list_invocations
       tags:
@@ -12548,7 +12557,7 @@ paths:
         - bearerAuth: []
   /invocations/chat:
     post:
-      summary: Create Invocation with File Uploads (Async)
+      summary: Create invocation with file uploads (async)
       description: Accept async agent invocation request with optional file uploads via multipart/form-data.
       operationId: create_invocation_chat
       tags:
@@ -12671,7 +12680,7 @@ paths:
         - bearerAuth: []
   /invocations/{invocation_id}:
     get:
-      summary: Get Invocation Details (Testing/Debug)
+      summary: Get invocation details (testing/debug)
       description: 'Retrieve full invocation details including the result. NOTE: This endpoint is for testing and debugging. Production systems should use WebSockets for real-time results.'
       operationId: get_invocation
       tags:
@@ -12804,7 +12813,7 @@ paths:
         - bearerAuth: []
   /invocations/{invocation_id}/trace:
     get:
-      summary: Get Invocation Trace
+      summary: Get invocation trace
       description: Retrieve the agent execution trace for a completed invocation, including reasoning steps, tool calls, and tool results.
       operationId: get_invocation_trace
       tags:
@@ -12929,7 +12938,7 @@ paths:
         - bearerAuth: []
   /invocations/{invocation_id}/cancel:
     post:
-      summary: Cancel Invocation
+      summary: Cancel invocation
       description: Cancel a running or pending invocation.
       operationId: cancel_invocation
       tags:
@@ -13071,7 +13080,7 @@ paths:
         - bearerAuth: []
   /projects:
     post:
-      summary: Create Project
+      summary: Create project
       description: |
         Create a new project.
 
@@ -13198,7 +13207,7 @@ paths:
       security:
         - bearerAuth: []
     get:
-      summary: List Projects
+      summary: List projects
       description: List projects the current user has read access to.
       operationId: list_projects
       x-app-permission:
@@ -13384,7 +13393,7 @@ paths:
         - bearerAuth: []
   /projects/{project_id}:
     get:
-      summary: Get Project
+      summary: Get project
       description: Get a project by ID.
       operationId: get_project
       x-app-permission:
@@ -13509,7 +13518,7 @@ paths:
       security:
         - bearerAuth: []
     patch:
-      summary: Update Project
+      summary: Update project
       description: 'Patch a project. Requires: project:update permission scoped to this project.'
       operationId: update_project
       x-app-permission:
@@ -13640,7 +13649,7 @@ paths:
       security:
         - bearerAuth: []
     put:
-      summary: Replace Project
+      summary: Replace project
       description: 'Replace a project. Requires: project:update permission scoped to this project.'
       operationId: replace_project
       x-app-permission:
@@ -13771,7 +13780,7 @@ paths:
       security:
         - bearerAuth: []
     delete:
-      summary: Delete Project
+      summary: Delete project
       description: 'Delete a project (soft-delete). Requires: project:delete permission scoped to this project.'
       operationId: delete_project
       x-app-permission:
@@ -13893,7 +13902,7 @@ paths:
         - bearerAuth: []
   /projects/{project_id}/workflows:
     get:
-      summary: List Project Workflows
+      summary: List project workflows
       description: |-
         List workflows belonging to a specific project.
 
@@ -14064,7 +14073,7 @@ paths:
         - bearerAuth: []
   /projects/{project_id}/approvals:
     get:
-      summary: List Project Approvals
+      summary: List project approvals
       description: |-
         List approval requests belonging to a specific project.
 
@@ -14254,7 +14263,7 @@ paths:
         - bearerAuth: []
   /projects/{project_id}/role_assignments:
     post:
-      summary: Create Project Role Assignment
+      summary: Create project role assignment
       description: Assign a role to a user or group within a project.
       operationId: create_project_role_assignment
       x-app-permission:
@@ -14385,7 +14394,7 @@ paths:
       security:
         - bearerAuth: []
     get:
-      summary: List Project Role Assignments
+      summary: List project role assignments
       description: |-
         List role assignments for a project with policy-driven visibility.
 
@@ -14593,7 +14602,7 @@ paths:
         - bearerAuth: []
   /projects/{project_id}/role_assignments/{assignment_id}:
     delete:
-      summary: Delete Project Role Assignment
+      summary: Delete project role assignment
       description: Remove a role assignment from a project.
       operationId: delete_project_role_assignment
       x-app-permission:
@@ -14723,7 +14732,7 @@ paths:
         - bearerAuth: []
   /projects/{project_id}/roles:
     post:
-      summary: Create Project Role
+      summary: Create project role
       description: 'Create a role scoped to this project. Requires: role:create permission.'
       operationId: create_project_role
       x-app-permission:
@@ -14854,7 +14863,7 @@ paths:
       security:
         - bearerAuth: []
     get:
-      summary: List Project Roles
+      summary: List project roles
       description: |-
         List roles visible within this project.
 
@@ -15062,7 +15071,7 @@ paths:
         - bearerAuth: []
   /projects/{project_id}/roles/{role_id}:
     get:
-      summary: Get Project Role
+      summary: Get project role
       description: Get a single role, verifying it belongs to this project.
       operationId: get_project_role
       x-app-permission:
@@ -15195,7 +15204,7 @@ paths:
       security:
         - bearerAuth: []
     patch:
-      summary: Update Project Role
+      summary: Update project role
       description: Patch a project role. Builtin roles cannot be modified.
       operationId: update_project_role
       x-app-permission:
@@ -15334,7 +15343,7 @@ paths:
       security:
         - bearerAuth: []
     put:
-      summary: Replace Project Role
+      summary: Replace project role
       description: Replace a project role. Builtin roles cannot be modified.
       operationId: replace_project_role
       x-app-permission:
@@ -15473,7 +15482,7 @@ paths:
       security:
         - bearerAuth: []
     delete:
-      summary: Delete Project Role
+      summary: Delete project role
       description: Delete a project role. Builtin roles cannot be deleted.
       operationId: delete_project_role
       x-app-permission:
@@ -15603,7 +15612,7 @@ paths:
         - bearerAuth: []
   /projects/{project_id}/policies:
     post:
-      summary: Create Project Policy
+      summary: Create project policy
       description: 'Create a policy scoped to this project. Requires: policy:create permission.'
       operationId: create_project_policy
       x-app-permission:
@@ -15734,7 +15743,7 @@ paths:
       security:
         - bearerAuth: []
     get:
-      summary: List Project Policies
+      summary: List project policies
       description: |-
         List policies visible within this project.
 
@@ -15942,7 +15951,7 @@ paths:
         - bearerAuth: []
   /projects/{project_id}/policies/{policy_id}:
     get:
-      summary: Get Project Policy
+      summary: Get project policy
       description: Get a single policy, if it belongs to this project or is a global project-scoped policy.
       operationId: get_project_policy
       x-app-permission:
@@ -16075,7 +16084,7 @@ paths:
       security:
         - bearerAuth: []
     patch:
-      summary: Update Project Policy
+      summary: Update project policy
       description: Patch a project policy. Only project-owned policies can be modified.
       operationId: update_project_policy
       x-app-permission:
@@ -16214,7 +16223,7 @@ paths:
       security:
         - bearerAuth: []
     put:
-      summary: Replace Project Policy
+      summary: Replace project policy
       description: Replace a project policy. Only project-owned policies can be modified.
       operationId: replace_project_policy
       x-app-permission:
@@ -16353,7 +16362,7 @@ paths:
       security:
         - bearerAuth: []
     delete:
-      summary: Delete Project Policy
+      summary: Delete project policy
       description: Delete a project policy. Only project-owned policies can be deleted.
       operationId: delete_project_policy
       x-app-permission:
@@ -16483,7 +16492,7 @@ paths:
         - bearerAuth: []
   /projects/{project_id}/credentials:
     post:
-      summary: Create Project Credential
+      summary: Create project credential
       description: 'Create a new credential in this project. Requires: credential:create permission.'
       operationId: create_project_credential
       x-app-permission:
@@ -16614,7 +16623,7 @@ paths:
       security:
         - bearerAuth: []
     get:
-      summary: List Project Credentials
+      summary: List project credentials
       description: |-
         List credentials belonging to this project. Requires: credential:read permission.
 
@@ -16814,7 +16823,7 @@ paths:
         - bearerAuth: []
   /projects/{project_id}/credentials/{credential_id}:
     get:
-      summary: Get Project Credential
+      summary: Get project credential
       description: Get a credential in this project. Secret fields masked as $encrypted$.
       operationId: get_project_credential
       x-app-permission:
@@ -16947,7 +16956,7 @@ paths:
       security:
         - bearerAuth: []
     patch:
-      summary: Update Project Credential
+      summary: Update project credential
       description: 'Update a credential in this project. Requires: credential:update permission.'
       operationId: update_project_credential
       x-app-permission:
@@ -17086,7 +17095,7 @@ paths:
       security:
         - bearerAuth: []
     delete:
-      summary: Delete Project Credential
+      summary: Delete project credential
       description: 'Delete a credential in this project. Requires: credential:delete permission.'
       operationId: delete_project_credential
       x-app-permission:
@@ -17216,7 +17225,7 @@ paths:
         - bearerAuth: []
   /projects/{project_id}/credentials/{credential_id}/workflows:
     get:
-      summary: Get Project Credential Workflows
+      summary: Get project credential workflows
       description: 'Get workflows that reference this credential. Requires: credential:read permission.'
       operationId: get_project_credential_workflows
       x-app-permission:
@@ -17355,7 +17364,7 @@ paths:
     post:
       tags:
         - Service Accounts
-      summary: Create Service Account
+      summary: Create service account
       description: Create a new service account.
       operationId: create_service_account
       security:
@@ -17477,7 +17486,7 @@ paths:
     get:
       tags:
         - Service Accounts
-      summary: List Service Accounts
+      summary: List service accounts
       description: List service accounts with project-scoped visibility and pagination.
       operationId: list_service_accounts
       security:
@@ -17656,7 +17665,7 @@ paths:
     get:
       tags:
         - Service Accounts
-      summary: Get Service Account
+      summary: Get service account
       description: Get a service account by ID (secret is never included).
       operationId: get_service_account
       security:
@@ -17780,7 +17789,7 @@ paths:
     patch:
       tags:
         - Service Accounts
-      summary: Update Service Account
+      summary: Update service account
       description: Update a service account's name and/or description.
       operationId: update_service_account
       security:
@@ -17910,7 +17919,7 @@ paths:
     delete:
       tags:
         - Service Accounts
-      summary: Delete Service Account
+      summary: Delete service account
       description: Soft-delete a service account.
       operationId: delete_service_account
       security:
@@ -18031,7 +18040,7 @@ paths:
     post:
       tags:
         - Service Accounts
-      summary: Disable Service Account
+      summary: Disable service account
       description: Set a service account's status to disabled.
       operationId: disable_service_account
       security:
@@ -18156,7 +18165,7 @@ paths:
     post:
       tags:
         - Service Accounts
-      summary: Enable Service Account
+      summary: Enable service account
       description: Set a service account's status to active.
       operationId: enable_service_account
       security:
@@ -18281,7 +18290,7 @@ paths:
     post:
       tags:
         - Service Account Credentials
-      summary: Create Credential
+      summary: Create credential
       description: Create a new credential for a service account; returns the one-time plaintext secret.
       operationId: create_service_account_credential
       security:
@@ -18411,7 +18420,7 @@ paths:
     get:
       tags:
         - Service Account Credentials
-      summary: List Credentials
+      summary: List credentials
       description: List credentials for a service account with pagination.
       operationId: list_service_account_credentials
       security:
@@ -18597,7 +18606,7 @@ paths:
     get:
       tags:
         - Service Account Credentials
-      summary: Get Credential
+      summary: Get credential
       description: Get a credential by ID (secret is never included).
       operationId: get_service_account_credential
       security:
@@ -18728,7 +18737,7 @@ paths:
     delete:
       tags:
         - Service Account Credentials
-      summary: Delete Credential
+      summary: Delete credential
       description: Hard-delete a credential.
       operationId: delete_service_account_credential
       security:
@@ -18856,7 +18865,7 @@ paths:
     post:
       tags:
         - Service Account Credentials
-      summary: Rotate Credential
+      summary: Rotate credential
       description: Rotate a credential's secret; returns the new one-time plaintext secret.
       operationId: rotate_service_account_credential
       security:
@@ -18994,7 +19003,7 @@ paths:
     post:
       tags:
         - Service Account Credentials
-      summary: Disable Credential
+      summary: Disable credential
       description: Set a credential's status to disabled.
       operationId: disable_service_account_credential
       security:
@@ -19126,7 +19135,7 @@ paths:
     post:
       tags:
         - Service Account Credentials
-      summary: Enable Credential
+      summary: Enable credential
       description: Set a credential's status to active.
       operationId: enable_service_account_credential
       security:
@@ -19256,7 +19265,7 @@ paths:
         action: enable
   /settings:
     get:
-      summary: List Settings
+      summary: List settings
       description: List all runtime settings with pagination, filtering, and sorting.
       operationId: list_settings
       x-app-permission:
@@ -19430,7 +19439,7 @@ paths:
       security:
         - bearerAuth: []
     patch:
-      summary: Bulk Update Settings
+      summary: Bulk update settings
       description: Update multiple settings in a single request.
       operationId: bulk_update_settings
       x-app-permission:
@@ -19553,7 +19562,7 @@ paths:
         - bearerAuth: []
   /settings/categories:
     get:
-      summary: List Categories
+      summary: List categories
       description: List all setting categories with their group names.
       operationId: list_categories
       x-app-permission:
@@ -19670,7 +19679,7 @@ paths:
         - bearerAuth: []
   /settings/{key}:
     get:
-      summary: Get Setting
+      summary: Get setting
       description: Get a single runtime setting by its dot-namespaced key.
       operationId: get_setting
       x-app-permission:
@@ -19794,7 +19803,7 @@ paths:
       security:
         - bearerAuth: []
     patch:
-      summary: Update Setting
+      summary: Update setting
       description: Update a runtime setting value with optimistic locking.
       operationId: update_setting
       x-app-permission:
@@ -19929,7 +19938,7 @@ paths:
       x-app-permission:
         resource: null
         action: null
-      summary: Get Tool Metrics Summary
+      summary: Get tool metrics summary
       description: |-
         Return aggregated per-tool metrics summary.
 
@@ -20077,14 +20086,14 @@ paths:
       security:
         - bearerAuth: []
       tags:
-        - ToolMetrics
+        - Tool Metrics
   /tool_manager/metrics/executions:
     get:
       operationId: get_tool_executions
       x-app-permission:
         resource: null
         action: null
-      summary: List Tool Executions
+      summary: List tool executions
       description: |-
         Return paginated tool execution history.
 
@@ -20282,10 +20291,10 @@ paths:
       security:
         - bearerAuth: []
       tags:
-        - ToolMetrics
+        - Tool Metrics
   /tool_manager/tools:
     get:
-      summary: Get Tools
+      summary: Get tools
       description: |-
         List tools with filtering, sorting, and pagination.
 
@@ -20445,10 +20454,10 @@ paths:
       security:
         - bearerAuth: []
       tags:
-        - ToolManager
+        - Tool Manager
   /tool_manager/tools/{tool_id}:
     get:
-      summary: Get Tool
+      summary: Get tool
       description: Get tool details by ID.
       operationId: get_tool
       x-app-permission:
@@ -20570,9 +20579,9 @@ paths:
       security:
         - bearerAuth: []
       tags:
-        - ToolManager
+        - Tool Manager
     patch:
-      summary: Patch Tool
+      summary: Patch tool
       description: Update tool status (enable/disable).
       operationId: patch_tool
       x-app-permission:
@@ -20700,10 +20709,10 @@ paths:
       security:
         - bearerAuth: []
       tags:
-        - ToolManager
+        - Tool Manager
   /tool_manager/tools/bulk_update:
     patch:
-      summary: Bulk Update Tools
+      summary: Bulk update tools
       description: Bulk update tool status (enable/disable multiple tools).
       operationId: bulk_update_tools
       x-app-permission:
@@ -20825,10 +20834,10 @@ paths:
       security:
         - bearerAuth: []
       tags:
-        - ToolManager
+        - Tool Manager
   /users:
     get:
-      summary: List Users
+      summary: List users
       description: |-
         List users with visibility filtering and pagination.
 
@@ -21031,7 +21040,7 @@ paths:
       security:
         - bearerAuth: []
     post:
-      summary: Create User
+      summary: Create user
       description: Create a new local user.
       operationId: create_user
       x-app-permission:
@@ -21154,7 +21163,7 @@ paths:
         - bearerAuth: []
   /users/me:
     get:
-      summary: Get Current User Profile
+      summary: Get current user profile
       description: Return information about the currently authenticated user.
       operationId: get_current_user_profile
       tags:
@@ -21271,7 +21280,7 @@ paths:
         - bearerAuth: []
   /users/{user_id}:
     get:
-      summary: Get User
+      summary: Get user
       description: Get a user by ID.
       operationId: get_user
       x-app-permission:
@@ -21395,7 +21404,7 @@ paths:
       security:
         - bearerAuth: []
     patch:
-      summary: Update User
+      summary: Update user
       description: |-
         Update a user.
 
@@ -21528,7 +21537,7 @@ paths:
       security:
         - bearerAuth: []
     delete:
-      summary: Delete User
+      summary: Delete user
       description: Soft delete a user.
       operationId: delete_user
       x-app-permission:
@@ -21649,7 +21658,7 @@ paths:
         - bearerAuth: []
   /users/{user_id}/groups:
     get:
-      summary: List User Groups
+      summary: List user groups
       description: List groups that a user belongs to.
       operationId: list_user_groups
       x-app-permission:
@@ -21814,7 +21823,7 @@ paths:
       security:
         - bearerAuth: []
     put:
-      summary: Set User Groups
+      summary: Set user groups
       description: |-
         Set a user's group memberships declaratively.
 
@@ -21949,7 +21958,7 @@ paths:
         - bearerAuth: []
   /users/{user_id}/identities:
     get:
-      summary: List User Identities
+      summary: List user identities
       description: List federated identities for a user.
       operationId: list_user_identities
       x-app-permission:
@@ -22073,7 +22082,7 @@ paths:
       security:
         - bearerAuth: []
     post:
-      summary: Attach User Identity
+      summary: Attach user identity
       description: Attach a federated identity from another user to this user.
       operationId: attach_user_identity
       x-app-permission:
@@ -22204,7 +22213,7 @@ paths:
         - bearerAuth: []
   /users/{user_id}/identities/{identity_id}:
     delete:
-      summary: Detach User Identity
+      summary: Detach user identity
       description: Detach (hard-delete) a federated identity from a user.
       operationId: detach_user_identity
       x-app-permission:
@@ -22332,7 +22341,7 @@ paths:
         - bearerAuth: []
   /users_directory:
     get:
-      summary: List Users Directory
+      summary: List users directory
       description: Return a lightweight directory of users (id + username only).
       operationId: list_users_directory
       x-app-permission:
@@ -22501,7 +22510,7 @@ paths:
         - bearerAuth: []
   /groups_directory:
     get:
-      summary: List Groups Directory
+      summary: List groups directory
       description: Return a lightweight directory of groups (id + name only).
       operationId: list_groups_directory
       x-app-permission:
@@ -22670,7 +22679,7 @@ paths:
         - bearerAuth: []
   /groups:
     get:
-      summary: List Groups
+      summary: List groups
       description: |-
         Retrieve list of groups with visibility filtering.
 
@@ -22832,7 +22841,7 @@ paths:
       security:
         - bearerAuth: []
     post:
-      summary: Create Group
+      summary: Create group
       description: Create a new group for organizing users.
       operationId: create_group
       x-app-permission:
@@ -22955,7 +22964,7 @@ paths:
         - bearerAuth: []
   /groups/{group_id}:
     get:
-      summary: Get Group
+      summary: Get group
       description: Retrieve a group by its UUID.
       operationId: get_group
       x-app-permission:
@@ -23080,7 +23089,7 @@ paths:
       security:
         - bearerAuth: []
     patch:
-      summary: Update Group
+      summary: Update group
       description: Update a group partially; only provided fields are changed.
       operationId: update_group
       x-app-permission:
@@ -23211,7 +23220,7 @@ paths:
       security:
         - bearerAuth: []
     delete:
-      summary: Delete Group
+      summary: Delete group
       description: Soft delete a group.
       operationId: delete_group
       x-app-permission:
@@ -23333,7 +23342,7 @@ paths:
         - bearerAuth: []
   /groups/{group_id}/members:
     get:
-      summary: List Members
+      summary: List members
       description: List members of a group with pagination.
       operationId: list_members
       x-app-permission:
@@ -23499,7 +23508,7 @@ paths:
       security:
         - bearerAuth: []
     post:
-      summary: Add Member
+      summary: Add member
       description: Add a user to a group.
       operationId: add_member
       x-app-permission:
@@ -23631,7 +23640,7 @@ paths:
         - bearerAuth: []
   /groups/{group_id}/members/{user_id}:
     delete:
-      summary: Remove Member
+      summary: Remove member
       description: Remove a user from a group.
       operationId: remove_member
       x-app-permission:
@@ -23760,7 +23769,7 @@ paths:
         - bearerAuth: []
   /users/{user_id}/role_assignments:
     post:
-      summary: Create User Role Assignment
+      summary: Create user role assignment
       description: Assign a role to this user.
       operationId: create_user_role_assignment
       x-app-permission:
@@ -23890,7 +23899,7 @@ paths:
       security:
         - bearerAuth: []
     get:
-      summary: List User Role Assignments
+      summary: List user role assignments
       description: List role assignments for a specific user.
       operationId: list_user_role_assignments
       x-app-permission:
@@ -24073,7 +24082,7 @@ paths:
         - bearerAuth: []
   /users/{user_id}/role_assignments/{assignment_id}:
     delete:
-      summary: Delete User Role Assignment
+      summary: Delete user role assignment
       description: Remove a role assignment from this user.
       operationId: delete_user_role_assignment
       x-app-permission:
@@ -24201,7 +24210,7 @@ paths:
         - bearerAuth: []
   /groups/{group_id}/role_assignments:
     post:
-      summary: Create Group Role Assignment
+      summary: Create group role assignment
       description: Assign a role to this group.
       operationId: create_group_role_assignment
       x-app-permission:
@@ -24331,7 +24340,7 @@ paths:
       security:
         - bearerAuth: []
     get:
-      summary: List Group Role Assignments
+      summary: List group role assignments
       description: List role assignments for a specific group.
       operationId: list_group_role_assignments
       x-app-permission:
@@ -24514,7 +24523,7 @@ paths:
         - bearerAuth: []
   /groups/{group_id}/role_assignments/{assignment_id}:
     delete:
-      summary: Delete Group Role Assignment
+      summary: Delete group role assignment
       description: Remove a role assignment from this group.
       operationId: delete_group_role_assignment
       x-app-permission:
@@ -24646,7 +24655,7 @@ paths:
       description: Retrieve executions with filtering, sorting, and cursor-based pagination.
       operationId: list_executions
       tags:
-        - executions
+        - Executions
       security:
         - bearerAuth: []
       x-app-permission:
@@ -24804,7 +24813,7 @@ paths:
       description: Start a new workflow execution.
       operationId: create_execution
       tags:
-        - executions
+        - Executions
       security:
         - bearerAuth: []
       x-app-permission:
@@ -24927,7 +24936,7 @@ paths:
       description: Retrieve details of a specific execution with optional includes.
       operationId: get_execution
       tags:
-        - executions
+        - Executions
       security:
         - bearerAuth: []
       x-app-permission:
@@ -25061,7 +25070,7 @@ paths:
       description: Request cancellation of a running workflow execution. The status update to CANCELLED happens asynchronously.
       operationId: cancel_execution
       tags:
-        - executions
+        - Executions
       security:
         - bearerAuth: []
       x-app-permission:
@@ -25182,7 +25191,7 @@ paths:
       description: Retry a completed workflow execution. Creates a new execution using the same workflow version, inputs, and trigger as the original.
       operationId: retry_execution
       tags:
-        - executions
+        - Executions
       security:
         - bearerAuth: []
       x-app-permission:
@@ -25307,7 +25316,7 @@ paths:
       description: Retrieve activity executions for a workflow execution.
       operationId: list_execution_activities
       tags:
-        - executions
+        - Executions
       security:
         - bearerAuth: []
       x-app-permission:
@@ -25473,7 +25482,7 @@ paths:
       description: Send a signal to a specific activity within a running workflow execution.
       operationId: signal_activity
       tags:
-        - executions
+        - Executions
       security:
         - bearerAuth: []
       x-app-permission:
@@ -25606,7 +25615,7 @@ paths:
                 retryable: true
   /workflows:
     get:
-      summary: List Workflows
+      summary: List workflows
       description: |-
         List workflows the current user has read access to.
 
@@ -25618,7 +25627,7 @@ paths:
         Uses cursor-based pagination for scalability and consistency.
       operationId: list_workflows
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -25772,11 +25781,11 @@ paths:
                 code: INTERNAL_ERROR
                 retryable: true
     post:
-      summary: Create Workflow
+      summary: Create workflow
       description: Create a new workflow with initial version.
       operationId: create_workflow
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -25895,11 +25904,11 @@ paths:
                 retryable: true
   /workflows/validate:
     post:
-      summary: Validate Workflow Definition
+      summary: Validate workflow definition
       description: Validate a workflow definition without saving it.
       operationId: validate_workflow_definition
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -26011,11 +26020,11 @@ paths:
                 retryable: true
   /workflows/{workflow_id}:
     get:
-      summary: Get Workflow
+      summary: Get workflow
       description: Get a workflow by ID including its current active version.
       operationId: get_workflow
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -26135,7 +26144,7 @@ paths:
                 code: INTERNAL_ERROR
                 retryable: true
     patch:
-      summary: Update Workflow
+      summary: Update workflow
       description: |-
         Update workflow.
 
@@ -26145,7 +26154,7 @@ paths:
           only if definition differs (change detection optimization)
       operationId: update_workflow
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -26271,11 +26280,11 @@ paths:
                 code: INTERNAL_ERROR
                 retryable: true
     delete:
-      summary: Delete Workflow
+      summary: Delete workflow
       description: Soft delete a workflow.
       operationId: delete_workflow
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -26396,7 +26405,7 @@ paths:
       description: Test a single node in a workflow with mocked predecessor outputs.
       operationId: test_workflow_node
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -26523,11 +26532,11 @@ paths:
                 retryable: true
   /workflows/{workflow_id}/versions:
     get:
-      summary: List Workflow Versions
+      summary: List workflow versions
       description: List versions for a workflow with cursor-based pagination.
       operationId: list_workflow_versions
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -26681,11 +26690,11 @@ paths:
                 retryable: true
   /workflows/{workflow_id}/versions/{version}:
     get:
-      summary: Get Workflow Version
+      summary: Get workflow version
       description: Get a specific workflow version.
       operationId: get_workflow_version
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -26812,11 +26821,11 @@ paths:
                 code: INTERNAL_ERROR
                 retryable: true
     patch:
-      summary: Update Workflow Version Metadata
+      summary: Update workflow version metadata
       description: Update a workflow version's metadata (name, change_description).
       operationId: update_workflow_version_metadata
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       parameters:
@@ -26935,11 +26944,11 @@ paths:
                 retryable: true
   /workflows/{workflow_id}/versions/{version}/publish:
     post:
-      summary: Publish Workflow Version
+      summary: Publish workflow version
       description: Publish a specific workflow version.
       operationId: publish_workflow_version
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -27073,11 +27082,11 @@ paths:
                 retryable: true
   /workflows/{workflow_id}/unpublish:
     post:
-      summary: Unpublish Workflow
+      summary: Unpublish workflow
       description: Unpublish the currently published workflow version.
       operationId: unpublish_workflow
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -27198,11 +27207,11 @@ paths:
                 retryable: true
   /workflows/{workflow_id}/versions/{version}/restore:
     post:
-      summary: Restore Workflow Version
+      summary: Restore workflow version
       description: Restore a previous workflow version as a new draft.
       operationId: restore_workflow_version
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -27330,11 +27339,11 @@ paths:
                 retryable: true
   /workflows/{workflow_id}/versions/{version}/export:
     get:
-      summary: Export Workflow Version
+      summary: Export workflow version
       description: Export a workflow version definition as a downloadable JSON file.
       operationId: export_workflow_version
       tags:
-        - workflows
+        - Workflows
       security:
         - bearerAuth: []
       x-app-permission:
@@ -27453,7 +27462,7 @@ paths:
       description: Receive a webhook event from an external system and trigger the matching workflow. Requires a service account Bearer token. Only POST method is supported; other methods receive 405 Method Not Allowed.
       operationId: receive_webhook
       tags:
-        - webhooks
+        - Webhooks
       security:
         - bearerAuth: []
       x-app-permission:
@@ -27579,7 +27588,7 @@ paths:
       description: Receive a webhook event from Event-Driven Ansible and trigger the matching workflow. Requires a service account Bearer token. Each EDA trigger node has its own unique webhook path. The payload can be any JSON structure.
       operationId: receive_eda_webhook
       tags:
-        - webhooks
+        - Webhooks
       security:
         - bearerAuth: []
       x-app-permission:
@@ -27802,7 +27811,7 @@ components:
     AAPOrganization:
       type: object
       title: AAPOrganization
-      description: AAP organization resource.
+      description: Ansible Automation Platform organization resource.
       required:
         - id
         - name
@@ -27816,7 +27825,7 @@ components:
     AAPJobTemplate:
       type: object
       title: AAPJobTemplate
-      description: AAP job template resource.
+      description: Ansible Automation Platform job template resource.
       required:
         - id
         - name
@@ -27835,7 +27844,7 @@ components:
     AAPWorkflowJobTemplate:
       type: object
       title: AAPWorkflowJobTemplate
-      description: AAP workflow job template resource.
+      description: Ansible Automation Platform workflow job template resource.
       required:
         - id
         - name
@@ -27854,7 +27863,7 @@ components:
     AAPSummaryField:
       type: object
       title: AAPSummaryField
-      description: Summary field with id and name from AAP summary_fields.
+      description: Summary field with id and name from Ansible Automation Platform summary_fields.
       required:
         - id
         - name
@@ -27868,14 +27877,14 @@ components:
     AAPJobType:
       type: string
       title: AAPJobType
-      description: AAP job type values.
+      description: Ansible Automation Platform job type values.
       enum:
         - run
         - check
     AAPJobTemplateDetail:
       type: object
       title: AAPJobTemplateDetail
-      description: AAP job template with prompt-on-launch capabilities and default values.
+      description: Ansible Automation Platform job template with prompt-on-launch capabilities and default values.
       required:
         - id
         - name
@@ -27896,7 +27905,7 @@ components:
             - type: string
             - type: 'null'
           title: Url
-          description: Link to the job template in AAP Controller UI
+          description: Link to the job template in Ansible Automation Platform Controller UI
         ask_job_type_on_launch:
           type: boolean
           default: false
@@ -28063,7 +28072,7 @@ components:
     AAPWorkflowJobTemplateDetail:
       type: object
       title: AAPWorkflowJobTemplateDetail
-      description: AAP workflow job template with prompt-on-launch capabilities and default values.
+      description: Ansible Automation Platform workflow job template with prompt-on-launch capabilities and default values.
       required:
         - id
         - name
@@ -28084,7 +28093,7 @@ components:
             - type: string
             - type: 'null'
           title: Url
-          description: Link to the workflow template in AAP Controller UI
+          description: Link to the workflow template in Ansible Automation Platform Controller UI
         ask_inventory_on_launch:
           type: boolean
           default: false
@@ -28171,7 +28180,7 @@ components:
     AAPInventory:
       type: object
       title: AAPInventory
-      description: AAP inventory resource.
+      description: Ansible Automation Platform inventory resource.
       required:
         - id
         - name
@@ -28190,7 +28199,7 @@ components:
     AAPExecutionEnvironment:
       type: object
       title: AAPExecutionEnvironment
-      description: AAP execution environment resource.
+      description: Ansible Automation Platform execution environment resource.
       required:
         - id
         - name
@@ -28210,7 +28219,7 @@ components:
       type: object
       title: AAPCredential
       description: |-
-        AAP credential resource.
+        Ansible Automation Platform credential resource.
 
         Only ``id`` and ``name`` are exposed — descriptions are omitted to avoid
         leaking infrastructure details (e.g. "prod-aws-root-key") to all users.
@@ -28227,7 +28236,7 @@ components:
     AAPInstanceGroup:
       type: object
       title: AAPInstanceGroup
-      description: AAP instance group resource.
+      description: Ansible Automation Platform instance group resource.
       required:
         - id
         - name
@@ -28241,7 +28250,7 @@ components:
     AAPLabel:
       type: object
       title: AAPLabel
-      description: AAP label resource.
+      description: Ansible Automation Platform label resource.
       required:
         - id
         - name
@@ -30670,7 +30679,7 @@ components:
           type: boolean
           default: false
           title: Aap Role Mapping Enabled
-          description: Map AAP aap_system_role claim to built-in groups
+          description: Map Ansible Automation Platform aap_system_role claim to built-in groups
         disable_tls_verify:
           type: boolean
           default: false
@@ -30798,7 +30807,7 @@ components:
           type: boolean
           default: false
           title: Aap Role Mapping Enabled
-          description: Map AAP aap_system_role claim to built-in groups
+          description: Map Ansible Automation Platform aap_system_role claim to built-in groups
         disable_tls_verify:
           type: boolean
           default: false
@@ -30940,7 +30949,7 @@ components:
             - type: boolean
             - type: 'null'
           title: Aap Role Mapping Enabled
-          description: Map AAP aap_system_role claim to built-in groups (omit to keep existing)
+          description: Map Ansible Automation Platform aap_system_role claim to built-in groups (omit to keep existing)
         disable_tls_verify:
           anyOf:
             - type: boolean
@@ -31208,7 +31217,7 @@ components:
     AAPOIDCSetupRequest:
       type: object
       title: AAPOIDCSetupRequest
-      description: Request body for push-button AAP OIDC identity provider setup.
+      description: Request body for push-button Ansible Automation Platform OIDC identity provider setup.
       required:
         - aap_url
       additionalProperties: false
@@ -31216,21 +31225,21 @@ components:
         aap_url:
           type: string
           minLength: 1
-          title: AAP URL
-          description: AAP base URL (e.g., https://aap.example.com)
+          title: Ansible Automation Platform URL
+          description: Ansible Automation Platform base URL (e.g., https://aap.example.com)
         organization:
           type: string
           default: Default
           minLength: 1
           title: Organization
-          description: AAP organization name to create the OAuth2 application in
+          description: Ansible Automation Platform organization name to create the OAuth2 application in
         admin_username:
           anyOf:
             - type: string
               minLength: 1
             - type: 'null'
           title: Platform Admin Username
-          description: AAP platform admin username (required when using basic auth)
+          description: Ansible Automation Platform platform admin username (required when using basic auth)
         admin_password:
           anyOf:
             - type: string
@@ -31238,7 +31247,7 @@ components:
             - type: 'null'
           format: password
           title: Platform Admin Password
-          description: AAP platform admin password (used only for setup, never stored)
+          description: Ansible Automation Platform platform admin password (used only for setup, never stored)
         personal_access_token:
           anyOf:
             - type: string
@@ -31246,12 +31255,12 @@ components:
             - type: 'null'
           format: password
           title: Personal Access Token
-          description: AAP personal access token (alternative to username/password, never stored)
+          description: Ansible Automation Platform personal access token (alternative to username/password, never stored)
         insecure_skip_tls_verify:
           type: boolean
           default: false
           title: Insecure Skip TLS Verify
-          description: Skip TLS certificate verification for the AAP connection
+          description: Skip TLS certificate verification for the Ansible Automation Platform connection
     IntegrationType:
       type: string
       enum:
@@ -36722,7 +36731,7 @@ components:
         - type
         - parameters
       title: AAPJobTemplateNode
-      description: AAP job template executor node.
+      description: Ansible Automation Platform job template executor node.
     AAPWorkflowJobTemplateNode:
       properties:
         id:
@@ -36774,7 +36783,7 @@ components:
         - type
         - parameters
       title: AAPWorkflowJobTemplateNode
-      description: AAP workflow job template executor node.
+      description: Ansible Automation Platform workflow job template executor node.
     HTTPRequestNode:
       properties:
         id:
@@ -37258,26 +37267,26 @@ components:
             - type: string
             - type: 'null'
           title: Credential Id
-          description: Nexus credential UUID for AAP API authentication. Separate from legacy credentials list.
+          description: Nexus credential UUID for Ansible Automation Platform API authentication. Separate from legacy credentials list.
         integration_id:
           anyOf:
             - type: string
             - type: 'null'
           title: Integration Id
-          description: UUID of the AAP Gateway integration for connection URL resolution.
+          description: UUID of the Ansible Automation Platform Gateway integration for connection URL resolution.
         organizationId:
           anyOf:
             - type: integer
               minimum: 1.0
             - type: 'null'
           title: Organizationid
-          description: AAP organization ID (takes precedence over organization_name)
+          description: Ansible Automation Platform organization ID (takes precedence over organization_name)
         organization_name:
           anyOf:
             - type: string
             - type: 'null'
           title: Organization Name
-          description: AAP organization name (used with template_name or inventory_name)
+          description: Ansible Automation Platform organization name (used with template_name or inventory_name)
         inventory_id:
           anyOf:
             - type: integer
@@ -37321,20 +37330,20 @@ components:
               type: array
             - type: 'null'
           title: Labels
-          description: 'AAP label names to append to template''s default labels. Names are resolved to IDs at launch time. New labels that don''t exist in AAP will be created automatically. Note: Labels are APPENDED to template defaults, not replaced.'
+          description: 'Ansible Automation Platform label names to append to template''s default labels. Names are resolved to IDs at launch time. New labels that don''t exist in Ansible Automation Platform will be created automatically. Note: Labels are APPENDED to template defaults, not replaced.'
         job_template_id:
           anyOf:
             - type: integer
               minimum: 1.0
             - type: 'null'
           title: Job Template Id
-          description: AAP job template ID to launch
+          description: Ansible Automation Platform job template ID to launch
         job_template_name:
           anyOf:
             - type: string
             - type: 'null'
           title: Job Template Name
-          description: AAP job template name (used with organization_name)
+          description: Ansible Automation Platform job template name (used with organization_name)
         job_credentials:
           anyOf:
             - items:
@@ -37342,7 +37351,7 @@ components:
               type: array
             - type: 'null'
           title: Job Credentials
-          description: List of AAP credential IDs to use (takes precedence over credential_names)
+          description: List of Ansible Automation Platform credential IDs to use (takes precedence over credential_names)
         credentialNames:
           anyOf:
             - items:
@@ -37350,7 +37359,7 @@ components:
               type: array
             - type: 'null'
           title: Credentialnames
-          description: List of AAP credential names to use (requires organization_name, resolved at launch time)
+          description: List of Ansible Automation Platform credential names to use (requires organization_name, resolved at launch time)
         verbosity:
           $ref: '#/components/schemas/AAPVerbosity'
           description: Job verbosity level (0-5)
@@ -37402,9 +37411,9 @@ components:
       type: object
       title: AAPJobTemplateExecutorParameters
       description: |-
-        Parameters for AAP Job Template executor.
+        Parameters for Ansible Automation Platform Job Template executor.
 
-        Inherits common AAP fields from AAPResourceReferenceMixin (credential_id, organization,
+        Inherits common Ansible Automation Platform fields from AAPResourceReferenceMixin (credential_id, organization,
         inventory, extra_vars, limit, tags, skip_tags, labels, timeout).
     AAPWorkflowJobTemplateExecutorParameters:
       properties:
@@ -37413,26 +37422,26 @@ components:
             - type: string
             - type: 'null'
           title: Credential Id
-          description: Nexus credential UUID for AAP API authentication. Separate from legacy credentials list.
+          description: Nexus credential UUID for Ansible Automation Platform API authentication. Separate from legacy credentials list.
         integration_id:
           anyOf:
             - type: string
             - type: 'null'
           title: Integration Id
-          description: UUID of the AAP Gateway integration for connection URL resolution.
+          description: UUID of the Ansible Automation Platform Gateway integration for connection URL resolution.
         organizationId:
           anyOf:
             - type: integer
               minimum: 1.0
             - type: 'null'
           title: Organizationid
-          description: AAP organization ID (takes precedence over organization_name)
+          description: Ansible Automation Platform organization ID (takes precedence over organization_name)
         organization_name:
           anyOf:
             - type: string
             - type: 'null'
           title: Organization Name
-          description: AAP organization name (used with template_name or inventory_name)
+          description: Ansible Automation Platform organization name (used with template_name or inventory_name)
         inventory_id:
           anyOf:
             - type: integer
@@ -37476,20 +37485,20 @@ components:
               type: array
             - type: 'null'
           title: Labels
-          description: 'AAP label names to append to template''s default labels. Names are resolved to IDs at launch time. New labels that don''t exist in AAP will be created automatically. Note: Labels are APPENDED to template defaults, not replaced.'
+          description: 'Ansible Automation Platform label names to append to template''s default labels. Names are resolved to IDs at launch time. New labels that don''t exist in Ansible Automation Platform will be created automatically. Note: Labels are APPENDED to template defaults, not replaced.'
         workflow_job_template_id:
           anyOf:
             - type: integer
               minimum: 1.0
             - type: 'null'
           title: Workflow Job Template Id
-          description: AAP workflow job template ID to launch
+          description: Ansible Automation Platform workflow job template ID to launch
         workflow_job_template_name:
           anyOf:
             - type: string
             - type: 'null'
           title: Workflow Job Template Name
-          description: AAP workflow job template name (used with organization_name)
+          description: Ansible Automation Platform workflow job template name (used with organization_name)
         scm_branch:
           anyOf:
             - type: string
@@ -37499,9 +37508,9 @@ components:
       type: object
       title: AAPWorkflowJobTemplateExecutorParameters
       description: |-
-        Parameters for AAP Workflow Job Template executor.
+        Parameters for Ansible Automation Platform Workflow Job Template executor.
 
-        Inherits common AAP fields from AAPResourceReferenceMixin (credential_id, organization,
+        Inherits common Ansible Automation Platform fields from AAPResourceReferenceMixin (credential_id, organization,
         inventory, extra_vars, limit, tags, skip_tags, labels, timeout).
     APIExecutorParameters:
       properties:
@@ -38052,7 +38061,7 @@ components:
         - 4
         - 5
       title: AAPVerbosity
-      description: AAP job verbosity levels (0-5).
+      description: Ansible Automation Platform job verbosity levels (0-5).
     WebhookResponse:
       type: object
       title: WebhookResponse

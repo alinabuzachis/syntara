@@ -161,7 +161,7 @@ class OIDCConfiguration(BaseConsumerConfiguration):
     )
     aap_role_mapping_enabled: bool = Field(
         default=False,
-        description="Map AAP aap_system_role claim to built-in groups",
+        description="Map Ansible Automation Platform aap_system_role claim to built-in groups",
     )
     disable_tls_verify: bool = Field(
         default=False,
@@ -266,7 +266,7 @@ class OIDCConfigurationResponse(SQLModel):
     )
     aap_role_mapping_enabled: bool = Field(
         default=False,
-        description="Map AAP aap_system_role claim to built-in groups",
+        description="Map Ansible Automation Platform aap_system_role claim to built-in groups",
     )
     disable_tls_verify: bool = Field(
         default=False,
@@ -341,7 +341,7 @@ class OIDCConfigurationPatch(BaseConsumerConfiguration):
     )
     aap_role_mapping_enabled: bool | None = Field(
         default=None,
-        description="Map AAP aap_system_role claim to built-in groups (omit to keep existing)",
+        description="Map Ansible Automation Platform aap_system_role claim to built-in groups (omit to keep existing)",
     )
     disable_tls_verify: bool | None = Field(
         default=None,

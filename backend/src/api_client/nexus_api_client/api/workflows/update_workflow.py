@@ -105,7 +105,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: WorkflowUpdate,
 ) -> Response[ErrorData | WorkflowReadWithVersion]:
-    """Update Workflow
+    """Update workflow
 
      Update workflow.
 
@@ -150,7 +150,7 @@ def sync(
     client: AuthenticatedClient,
     body: WorkflowUpdate,
 ) -> ErrorData | WorkflowReadWithVersion | None:
-    """Update Workflow
+    """Update workflow
 
      Update workflow.
 
@@ -190,7 +190,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: WorkflowUpdate,
 ) -> Response[ErrorData | WorkflowReadWithVersion]:
-    """Update Workflow
+    """Update workflow
 
      Update workflow.
 
@@ -233,7 +233,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: WorkflowUpdate,
 ) -> ErrorData | WorkflowReadWithVersion | None:
-    """Update Workflow
+    """Update workflow
 
      Update workflow.
 

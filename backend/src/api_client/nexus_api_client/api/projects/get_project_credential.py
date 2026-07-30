@@ -96,7 +96,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[CredentialRead | ErrorData]:
-    """Get Project Credential
+    """Get project credential
 
      Get a credential in this project. Secret fields masked as $encrypted$.
 
@@ -130,7 +130,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> CredentialRead | ErrorData | None:
-    """Get Project Credential
+    """Get project credential
 
      Get a credential in this project. Secret fields masked as $encrypted$.
 
@@ -159,7 +159,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[CredentialRead | ErrorData]:
-    """Get Project Credential
+    """Get project credential
 
      Get a credential in this project. Secret fields masked as $encrypted$.
 
@@ -191,7 +191,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> CredentialRead | ErrorData | None:
-    """Get Project Credential
+    """Get project credential
 
      Get a credential in this project. Secret fields masked as $encrypted$.
 

@@ -12,13 +12,13 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Roles
+     * List roles
      * @description List roles with filtering and pagination.
      */
     get: operations['list_roles']
     put?: never
     /**
-     * Create Role
+     * Create role
      * @description Create a custom role. Requires: role:create permission.
      */
     post: operations['create_role']
@@ -36,25 +36,25 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Role
+     * Get role
      * @description Get a role by ID.
      */
     get: operations['get_role']
     /**
-     * Replace Role
+     * Replace role
      * @description Replace a role. Builtin roles cannot be modified. Requires: role:update permission.
      */
     put: operations['replace_role']
     post?: never
     /**
-     * Delete Role
+     * Delete role
      * @description Delete a role. Builtin roles cannot be deleted. Requires: role:delete permission.
      */
     delete: operations['delete_role']
     options?: never
     head?: never
     /**
-     * Update Role
+     * Update role
      * @description Patch a role. Builtin roles cannot be modified. Requires: role:update permission.
      */
     patch: operations['update_role']

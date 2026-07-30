@@ -28,7 +28,7 @@ from nexus.tool_manager.models.tool import (
 from nexus.tool_manager.models.tool_bulk_update import ToolBulkUpdate
 from nexus.tool_manager.services.tool_service import ToolService
 
-router = NexusRouter(prefix="/tool_manager", tags=["ToolManager"])
+router = NexusRouter(prefix="/tool_manager", tags=["Tool Manager"])
 
 _perm_read = PermissionChecker("tool", "read")
 _perm_update = PermissionChecker("tool", "update")
@@ -70,7 +70,7 @@ async def tool_read_visibility(
     return await integration_read_visibility(request, current_user, db)
 
 
-@router.get("/tools", dependencies=[Depends(_tool_read_gate)], operation_id="get_tools")
+@router.get("/tools", summary="Get tools", dependencies=[Depends(_tool_read_gate)], operation_id="get_tools")
 async def get_tools(
     request: Request,
     service: Annotated[ToolService, Depends(get_tool_service)],
@@ -94,7 +94,7 @@ async def get_tools(
     )
 
 
-@router.get("/tools/{tool_id}", dependencies=[Depends(_tool_read_gate)], operation_id="get_tool")
+@router.get("/tools/{tool_id}", summary="Get tool", dependencies=[Depends(_tool_read_gate)], operation_id="get_tool")
 async def get_tool(
     tool_id: UUID,
     service: Annotated[ToolService, Depends(get_tool_service)],
@@ -109,7 +109,12 @@ async def get_tool(
     return tool
 
 
-@router.patch("/tools/bulk_update", dependencies=[Depends(_perm_update)], operation_id="bulk_update_tools")
+@router.patch(
+    "/tools/bulk_update",
+    summary="Bulk update tools",
+    dependencies=[Depends(_perm_update)],
+    operation_id="bulk_update_tools",
+)
 @audit(EventCategory.USER_ACTION, event_action="tool_bulk_update")
 async def bulk_update_tools(
     bulk_update: ToolBulkUpdate,
@@ -119,7 +124,7 @@ async def bulk_update_tools(
     return await service.bulk_update_tools(bulk_update.tool_ids, enabled=bulk_update.enabled)
 
 
-@router.patch("/tools/{tool_id}", dependencies=[Depends(_perm_update)], operation_id="patch_tool")
+@router.patch("/tools/{tool_id}", summary="Patch tool", dependencies=[Depends(_perm_update)], operation_id="patch_tool")
 @audit(EventCategory.USER_ACTION, event_action="tool_update", capture_args={"tool_id"})
 async def patch_tool(
     tool_id: UUID,

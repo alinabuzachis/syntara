@@ -265,6 +265,7 @@ def _get_service(
 
 @router.post(
     "",
+    summary="Create role assignment",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(PermissionChecker("role-assignment", "assign", body_project_field="project_id"))],
     operation_id="create_role_assignment",
@@ -291,6 +292,7 @@ async def create_role_assignment(
 
 @router.get(
     "",
+    summary="List role assignments",
     dependencies=[NO_PERMISSION],
     operation_id="list_role_assignments",
     response_description="List of role assignments",
@@ -342,6 +344,7 @@ async def list_role_assignments(
 
 @router.get(
     "/{assignment_id}",
+    summary="Get role assignment",
     dependencies=[NO_PERMISSION],
     operation_id="get_role_assignment",
     response_description="Role assignment detail",
@@ -381,6 +384,7 @@ async def get_role_assignment(
 
 @router.delete(
     "/{assignment_id}",
+    summary="Delete role assignment",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[
         Depends(

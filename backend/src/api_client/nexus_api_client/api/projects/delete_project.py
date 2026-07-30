@@ -88,7 +88,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Delete Project
+    """Delete project
 
      Delete a project (soft-delete). Requires: project:delete permission scoped to this project.
 
@@ -119,7 +119,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Delete Project
+    """Delete project
 
      Delete a project (soft-delete). Requires: project:delete permission scoped to this project.
 
@@ -145,7 +145,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Delete Project
+    """Delete project
 
      Delete a project (soft-delete). Requires: project:delete permission scoped to this project.
 
@@ -174,7 +174,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Delete Project
+    """Delete project
 
      Delete a project (soft-delete). Requires: project:delete permission scoped to this project.
 

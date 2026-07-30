@@ -29,7 +29,7 @@ paths:
   # ── Project CRUD ─────────────────────────────────────────────────────
   /projects:
     post:
-      summary: Create Project
+      summary: Create project
       description: |
         Create a new project.
 
@@ -75,7 +75,7 @@ paths:
       security:
         - bearerAuth: []
     get:
-      summary: List Projects
+      summary: List projects
       description: |-
         List projects the current user has read access to.
       operationId: list_projects
@@ -144,7 +144,7 @@ paths:
         - bearerAuth: []
   /projects/{project_id}:
     get:
-      summary: Get Project
+      summary: Get project
       description: Get a project by ID.
       operationId: get_project
       x-app-permission:
@@ -181,7 +181,7 @@ paths:
       security:
         - bearerAuth: []
     patch:
-      summary: Update Project
+      summary: Update project
       description: |-
         Patch a project. Requires: project:update permission scoped to this project.
       operationId: update_project
@@ -225,7 +225,7 @@ paths:
       security:
         - bearerAuth: []
     put:
-      summary: Replace Project
+      summary: Replace project
       description: |-
         Replace a project. Requires: project:update permission scoped to this project.
       operationId: replace_project
@@ -269,7 +269,7 @@ paths:
       security:
         - bearerAuth: []
     delete:
-      summary: Delete Project
+      summary: Delete project
       description: |-
         Delete a project (soft-delete). Requires: project:delete permission scoped to this project.
       operationId: delete_project
@@ -306,7 +306,7 @@ paths:
   # ── Project Workflows ────────────────────────────────────────────────
   /projects/{project_id}/workflows:
     get:
-      summary: List Project Workflows
+      summary: List project workflows
       description: |-
         List workflows belonging to a specific project.
 
@@ -354,7 +354,7 @@ paths:
   # ── Project Approvals ────────────────────────────────────────────────
   /projects/{project_id}/approvals:
     get:
-      summary: List Project Approvals
+      summary: List project approvals
       description: |-
         List approval requests belonging to a specific project.
 
@@ -421,7 +421,7 @@ paths:
   # ── Project Role Assignments ─────────────────────────────────────────
   /projects/{project_id}/role_assignments:
     post:
-      summary: Create Project Role Assignment
+      summary: Create project role assignment
       description: |-
         Assign a role to a user or group within a project.
       operationId: create_project_role_assignment
@@ -465,7 +465,7 @@ paths:
       security:
         - bearerAuth: []
     get:
-      summary: List Project Role Assignments
+      summary: List project role assignments
       description: |-
         List role assignments for a project with policy-driven visibility.
 
@@ -548,7 +548,7 @@ paths:
         - bearerAuth: []
   /projects/{project_id}/role_assignments/{assignment_id}:
     delete:
-      summary: Delete Project Role Assignment
+      summary: Delete project role assignment
       description: |-
         Remove a role assignment from a project.
       operationId: delete_project_role_assignment
@@ -593,7 +593,7 @@ paths:
   # ── Project Roles (CRUD) ────────────────────────────────────────────
   /projects/{project_id}/roles:
     post:
-      summary: Create Project Role
+      summary: Create project role
       description: |-
         Create a role scoped to this project. Requires: role:create permission.
       operationId: create_project_role
@@ -637,7 +637,7 @@ paths:
       security:
         - bearerAuth: []
     get:
-      summary: List Project Roles
+      summary: List project roles
       description: |-
         List roles visible within this project.
 
@@ -727,7 +727,7 @@ paths:
         - bearerAuth: []
   /projects/{project_id}/roles/{role_id}:
     get:
-      summary: Get Project Role
+      summary: Get project role
       description: Get a single role, verifying it belongs to this project.
       operationId: get_project_role
       x-app-permission:
@@ -765,7 +765,7 @@ paths:
       security:
         - bearerAuth: []
     patch:
-      summary: Update Project Role
+      summary: Update project role
       description: |-
         Patch a project role. Builtin roles cannot be modified.
       operationId: update_project_role
@@ -810,7 +810,7 @@ paths:
       security:
         - bearerAuth: []
     put:
-      summary: Replace Project Role
+      summary: Replace project role
       description: |-
         Replace a project role. Builtin roles cannot be modified.
       operationId: replace_project_role
@@ -855,7 +855,7 @@ paths:
       security:
         - bearerAuth: []
     delete:
-      summary: Delete Project Role
+      summary: Delete project role
       description: |-
         Delete a project role. Builtin roles cannot be deleted.
       operationId: delete_project_role
@@ -893,7 +893,7 @@ paths:
   # ── Project Policies (CRUD) ──────────────────────────────────────────
   /projects/{project_id}/policies:
     post:
-      summary: Create Project Policy
+      summary: Create project policy
       description: |-
         Create a policy scoped to this project. Requires: policy:create permission.
       operationId: create_project_policy
@@ -937,7 +937,7 @@ paths:
       security:
         - bearerAuth: []
     get:
-      summary: List Project Policies
+      summary: List project policies
       description: |-
         List policies visible within this project.
 
@@ -1027,7 +1027,7 @@ paths:
         - bearerAuth: []
   /projects/{project_id}/policies/{policy_id}:
     get:
-      summary: Get Project Policy
+      summary: Get project policy
       description: |-
         Get a single policy, if it belongs to this project or is a global project-scoped policy.
       operationId: get_project_policy
@@ -1066,7 +1066,7 @@ paths:
       security:
         - bearerAuth: []
     patch:
-      summary: Update Project Policy
+      summary: Update project policy
       description: |-
         Patch a project policy. Only project-owned policies can be modified.
       operationId: update_project_policy
@@ -1111,7 +1111,7 @@ paths:
       security:
         - bearerAuth: []
     put:
-      summary: Replace Project Policy
+      summary: Replace project policy
       description: |-
         Replace a project policy. Only project-owned policies can be modified.
       operationId: replace_project_policy
@@ -1156,7 +1156,7 @@ paths:
       security:
         - bearerAuth: []
     delete:
-      summary: Delete Project Policy
+      summary: Delete project policy
       description: |-
         Delete a project policy. Only project-owned policies can be deleted.
       operationId: delete_project_policy
@@ -1194,7 +1194,7 @@ paths:
   # ── Project Credentials (CRUD) ──────────────────────────────────────
   /projects/{project_id}/credentials:
     post:
-      summary: Create Project Credential
+      summary: Create project credential
       description: |-
         Create a new credential in this project. Requires: credential:create permission.
       operationId: create_project_credential
@@ -1238,7 +1238,7 @@ paths:
       security:
         - bearerAuth: []
     get:
-      summary: List Project Credentials
+      summary: List project credentials
       description: |-
         List credentials belonging to this project. Requires: credential:read permission.
 
@@ -1313,7 +1313,7 @@ paths:
         - bearerAuth: []
   /projects/{project_id}/credentials/{credential_id}:
     get:
-      summary: Get Project Credential
+      summary: Get project credential
       description: |-
         Get a credential in this project. Secret fields masked as $encrypted$.
       operationId: get_project_credential
@@ -1352,7 +1352,7 @@ paths:
       security:
         - bearerAuth: []
     patch:
-      summary: Update Project Credential
+      summary: Update project credential
       description: |-
         Update a credential in this project. Requires: credential:update permission.
       operationId: update_project_credential
@@ -1397,7 +1397,7 @@ paths:
       security:
         - bearerAuth: []
     delete:
-      summary: Delete Project Credential
+      summary: Delete project credential
       description: |-
         Delete a credential in this project. Requires: credential:delete permission.
       operationId: delete_project_credential
@@ -1433,7 +1433,7 @@ paths:
         - bearerAuth: []
   /projects/{project_id}/credentials/{credential_id}/workflows:
     get:
-      summary: Get Project Credential Workflows
+      summary: Get project credential workflows
       description: |-
         Get workflows that reference this credential. Requires: credential:read permission.
       operationId: get_project_credential_workflows

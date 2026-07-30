@@ -12,8 +12,8 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Organizations
-     * @description List AAP organizations.
+     * List organizations
+     * @description List Ansible Automation Platform organizations.
      */
     get: operations['list_aap_organizations']
     put?: never
@@ -32,8 +32,8 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Job Templates
-     * @description List AAP job templates, optionally filtered by organization.
+     * List job templates
+     * @description List Ansible Automation Platform job templates, optionally filtered by organization.
      */
     get: operations['list_aap_job_templates']
     put?: never
@@ -52,8 +52,8 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Job Template
-     * @description Get AAP job template details including prompt-on-launch capabilities.
+     * Get job template
+     * @description Get Ansible Automation Platform job template details including prompt-on-launch capabilities.
      */
     get: operations['get_aap_job_template']
     put?: never
@@ -72,8 +72,8 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Workflow Job Templates
-     * @description List AAP workflow job templates, optionally filtered by organization.
+     * List workflow job templates
+     * @description List Ansible Automation Platform workflow job templates, optionally filtered by organization.
      */
     get: operations['list_aap_workflow_job_templates']
     put?: never
@@ -92,8 +92,8 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Workflow Job Template
-     * @description Get AAP workflow job template details including prompt-on-launch capabilities.
+     * Get workflow job template
+     * @description Get Ansible Automation Platform workflow job template details including prompt-on-launch capabilities.
      */
     get: operations['get_aap_workflow_job_template']
     put?: never
@@ -112,8 +112,8 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Inventories
-     * @description List AAP inventories, optionally filtered by organization.
+     * List inventories
+     * @description List Ansible Automation Platform inventories, optionally filtered by organization.
      */
     get: operations['list_aap_inventories']
     put?: never
@@ -132,8 +132,8 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Execution Environments
-     * @description List AAP execution environments, optionally filtered by organization.
+     * List execution environments
+     * @description List Ansible Automation Platform execution environments, optionally filtered by organization.
      */
     get: operations['list_aap_execution_environments']
     put?: never
@@ -152,8 +152,8 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Credentials
-     * @description List AAP credentials (not organization-scoped).
+     * List credentials
+     * @description List Ansible Automation Platform credentials (not organization-scoped).
      */
     get: operations['list_aap_credentials']
     put?: never
@@ -172,8 +172,8 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Instance Groups
-     * @description List AAP instance groups (not organization-scoped).
+     * List instance groups
+     * @description List Ansible Automation Platform instance groups (not organization-scoped).
      */
     get: operations['list_aap_instance_groups']
     put?: never
@@ -192,8 +192,8 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Labels
-     * @description List AAP labels.
+     * List labels
+     * @description List Ansible Automation Platform labels.
      */
     get: operations['list_aap_labels']
     put?: never
@@ -210,7 +210,7 @@ export interface components {
   schemas: {
     /**
      * AAPOrganization
-     * @description AAP organization resource.
+     * @description Ansible Automation Platform organization resource.
      */
     AAPOrganization: {
       /** Id */
@@ -220,7 +220,7 @@ export interface components {
     }
     /**
      * AAPJobTemplate
-     * @description AAP job template resource.
+     * @description Ansible Automation Platform job template resource.
      */
     AAPJobTemplate: {
       /** Id */
@@ -232,7 +232,7 @@ export interface components {
     }
     /**
      * AAPWorkflowJobTemplate
-     * @description AAP workflow job template resource.
+     * @description Ansible Automation Platform workflow job template resource.
      */
     AAPWorkflowJobTemplate: {
       /** Id */
@@ -244,7 +244,7 @@ export interface components {
     }
     /**
      * AAPSummaryField
-     * @description Summary field with id and name from AAP summary_fields.
+     * @description Summary field with id and name from Ansible Automation Platform summary_fields.
      */
     AAPSummaryField: {
       /** Id */
@@ -254,13 +254,13 @@ export interface components {
     }
     /**
      * AAPJobType
-     * @description AAP job type values.
+     * @description Ansible Automation Platform job type values.
      * @enum {string}
      */
     AAPJobType: 'run' | 'check'
     /**
      * AAPJobTemplateDetail
-     * @description AAP job template with prompt-on-launch capabilities and default values.
+     * @description Ansible Automation Platform job template with prompt-on-launch capabilities and default values.
      */
     AAPJobTemplateDetail: {
       /** Id */
@@ -271,7 +271,7 @@ export interface components {
       description?: string | null
       /**
        * Url
-       * @description Link to the job template in AAP Controller UI
+       * @description Link to the job template in Ansible Automation Platform Controller UI
        */
       url?: string | null
       /**
@@ -429,7 +429,7 @@ export interface components {
     }
     /**
      * AAPWorkflowJobTemplateDetail
-     * @description AAP workflow job template with prompt-on-launch capabilities and default values.
+     * @description Ansible Automation Platform workflow job template with prompt-on-launch capabilities and default values.
      */
     AAPWorkflowJobTemplateDetail: {
       /** Id */
@@ -440,7 +440,7 @@ export interface components {
       description?: string | null
       /**
        * Url
-       * @description Link to the workflow template in AAP Controller UI
+       * @description Link to the workflow template in Ansible Automation Platform Controller UI
        */
       url?: string | null
       /**
@@ -526,7 +526,7 @@ export interface components {
     }
     /**
      * AAPInventory
-     * @description AAP inventory resource.
+     * @description Ansible Automation Platform inventory resource.
      */
     AAPInventory: {
       /** Id */
@@ -538,7 +538,7 @@ export interface components {
     }
     /**
      * AAPExecutionEnvironment
-     * @description AAP execution environment resource.
+     * @description Ansible Automation Platform execution environment resource.
      */
     AAPExecutionEnvironment: {
       /** Id */
@@ -550,7 +550,7 @@ export interface components {
     }
     /**
      * AAPCredential
-     * @description AAP credential resource.
+     * @description Ansible Automation Platform credential resource.
      *
      *     Only ``id`` and ``name`` are exposed — descriptions are omitted to avoid
      *     leaking infrastructure details (e.g. "prod-aws-root-key") to all users.
@@ -563,7 +563,7 @@ export interface components {
     }
     /**
      * AAPInstanceGroup
-     * @description AAP instance group resource.
+     * @description Ansible Automation Platform instance group resource.
      */
     AAPInstanceGroup: {
       /** Id */
@@ -573,7 +573,7 @@ export interface components {
     }
     /**
      * AAPLabel
-     * @description AAP label resource.
+     * @description Ansible Automation Platform label resource.
      */
     AAPLabel: {
       /** Id */
@@ -856,13 +856,13 @@ export interface components {
   }
   parameters: {
     /**
-     * @description Optional Nexus credential ID for AAP Controller authentication.
+     * @description Optional Nexus credential ID for Ansible Automation Platform Controller authentication.
      *     If provided, the credential is decrypted and used instead of environment variables.
      *     Credential must be of type "Ansible Automation Platform".
      */
     credentialId: string | null
     /**
-     * @description Optional AAP Gateway integration ID for connection URL resolution.
+     * @description Optional Ansible Automation Platform Gateway integration ID for connection URL resolution.
      *     When provided, the integration's configured URL is used instead of environment variables.
      */
     integrationId: string | null
@@ -879,13 +879,13 @@ export interface operations {
         search?: string | null
         page_size?: number
         /**
-         * @description Optional Nexus credential ID for AAP Controller authentication.
+         * @description Optional Nexus credential ID for Ansible Automation Platform Controller authentication.
          *     If provided, the credential is decrypted and used instead of environment variables.
          *     Credential must be of type "Ansible Automation Platform".
          */
         credential_id?: components['parameters']['credentialId']
         /**
-         * @description Optional AAP Gateway integration ID for connection URL resolution.
+         * @description Optional Ansible Automation Platform Gateway integration ID for connection URL resolution.
          *     When provided, the integration's configured URL is used instead of environment variables.
          */
         integration_id?: components['parameters']['integrationId']
@@ -921,13 +921,13 @@ export interface operations {
         search?: string | null
         page_size?: number
         /**
-         * @description Optional Nexus credential ID for AAP Controller authentication.
+         * @description Optional Nexus credential ID for Ansible Automation Platform Controller authentication.
          *     If provided, the credential is decrypted and used instead of environment variables.
          *     Credential must be of type "Ansible Automation Platform".
          */
         credential_id?: components['parameters']['credentialId']
         /**
-         * @description Optional AAP Gateway integration ID for connection URL resolution.
+         * @description Optional Ansible Automation Platform Gateway integration ID for connection URL resolution.
          *     When provided, the integration's configured URL is used instead of environment variables.
          */
         integration_id?: components['parameters']['integrationId']
@@ -964,13 +964,13 @@ export interface operations {
         search?: string | null
         page_size?: number
         /**
-         * @description Optional Nexus credential ID for AAP Controller authentication.
+         * @description Optional Nexus credential ID for Ansible Automation Platform Controller authentication.
          *     If provided, the credential is decrypted and used instead of environment variables.
          *     Credential must be of type "Ansible Automation Platform".
          */
         credential_id?: components['parameters']['credentialId']
         /**
-         * @description Optional AAP Gateway integration ID for connection URL resolution.
+         * @description Optional Ansible Automation Platform Gateway integration ID for connection URL resolution.
          *     When provided, the integration's configured URL is used instead of environment variables.
          */
         integration_id?: components['parameters']['integrationId']
@@ -1008,13 +1008,13 @@ export interface operations {
         search?: string | null
         page_size?: number
         /**
-         * @description Optional Nexus credential ID for AAP Controller authentication.
+         * @description Optional Nexus credential ID for Ansible Automation Platform Controller authentication.
          *     If provided, the credential is decrypted and used instead of environment variables.
          *     Credential must be of type "Ansible Automation Platform".
          */
         credential_id?: components['parameters']['credentialId']
         /**
-         * @description Optional AAP Gateway integration ID for connection URL resolution.
+         * @description Optional Ansible Automation Platform Gateway integration ID for connection URL resolution.
          *     When provided, the integration's configured URL is used instead of environment variables.
          */
         integration_id?: components['parameters']['integrationId']
@@ -1051,13 +1051,13 @@ export interface operations {
         search?: string | null
         page_size?: number
         /**
-         * @description Optional Nexus credential ID for AAP Controller authentication.
+         * @description Optional Nexus credential ID for Ansible Automation Platform Controller authentication.
          *     If provided, the credential is decrypted and used instead of environment variables.
          *     Credential must be of type "Ansible Automation Platform".
          */
         credential_id?: components['parameters']['credentialId']
         /**
-         * @description Optional AAP Gateway integration ID for connection URL resolution.
+         * @description Optional Ansible Automation Platform Gateway integration ID for connection URL resolution.
          *     When provided, the integration's configured URL is used instead of environment variables.
          */
         integration_id?: components['parameters']['integrationId']
@@ -1095,13 +1095,13 @@ export interface operations {
         search?: string | null
         page_size?: number
         /**
-         * @description Optional Nexus credential ID for AAP Controller authentication.
+         * @description Optional Nexus credential ID for Ansible Automation Platform Controller authentication.
          *     If provided, the credential is decrypted and used instead of environment variables.
          *     Credential must be of type "Ansible Automation Platform".
          */
         credential_id?: components['parameters']['credentialId']
         /**
-         * @description Optional AAP Gateway integration ID for connection URL resolution.
+         * @description Optional Ansible Automation Platform Gateway integration ID for connection URL resolution.
          *     When provided, the integration's configured URL is used instead of environment variables.
          */
         integration_id?: components['parameters']['integrationId']
@@ -1138,13 +1138,13 @@ export interface operations {
         search?: string | null
         page_size?: number
         /**
-         * @description Optional Nexus credential ID for AAP Controller authentication.
+         * @description Optional Nexus credential ID for Ansible Automation Platform Controller authentication.
          *     If provided, the credential is decrypted and used instead of environment variables.
          *     Credential must be of type "Ansible Automation Platform".
          */
         credential_id?: components['parameters']['credentialId']
         /**
-         * @description Optional AAP Gateway integration ID for connection URL resolution.
+         * @description Optional Ansible Automation Platform Gateway integration ID for connection URL resolution.
          *     When provided, the integration's configured URL is used instead of environment variables.
          */
         integration_id?: components['parameters']['integrationId']
@@ -1181,13 +1181,13 @@ export interface operations {
         search?: string | null
         page_size?: number
         /**
-         * @description Optional Nexus credential ID for AAP Controller authentication.
+         * @description Optional Nexus credential ID for Ansible Automation Platform Controller authentication.
          *     If provided, the credential is decrypted and used instead of environment variables.
          *     Credential must be of type "Ansible Automation Platform".
          */
         credential_id?: components['parameters']['credentialId']
         /**
-         * @description Optional AAP Gateway integration ID for connection URL resolution.
+         * @description Optional Ansible Automation Platform Gateway integration ID for connection URL resolution.
          *     When provided, the integration's configured URL is used instead of environment variables.
          */
         integration_id?: components['parameters']['integrationId']
@@ -1223,13 +1223,13 @@ export interface operations {
         search?: string | null
         page_size?: number
         /**
-         * @description Optional Nexus credential ID for AAP Controller authentication.
+         * @description Optional Nexus credential ID for Ansible Automation Platform Controller authentication.
          *     If provided, the credential is decrypted and used instead of environment variables.
          *     Credential must be of type "Ansible Automation Platform".
          */
         credential_id?: components['parameters']['credentialId']
         /**
-         * @description Optional AAP Gateway integration ID for connection URL resolution.
+         * @description Optional Ansible Automation Platform Gateway integration ID for connection URL resolution.
          *     When provided, the integration's configured URL is used instead of environment variables.
          */
         integration_id?: components['parameters']['integrationId']
@@ -1265,13 +1265,13 @@ export interface operations {
         search?: string | null
         page_size?: number
         /**
-         * @description Optional Nexus credential ID for AAP Controller authentication.
+         * @description Optional Nexus credential ID for Ansible Automation Platform Controller authentication.
          *     If provided, the credential is decrypted and used instead of environment variables.
          *     Credential must be of type "Ansible Automation Platform".
          */
         credential_id?: components['parameters']['credentialId']
         /**
-         * @description Optional AAP Gateway integration ID for connection URL resolution.
+         * @description Optional Ansible Automation Platform Gateway integration ID for connection URL resolution.
          *     When provided, the integration's configured URL is used instead of environment variables.
          */
         integration_id?: components['parameters']['integrationId']

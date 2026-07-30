@@ -12,7 +12,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Settings
+     * List settings
      * @description List all runtime settings with pagination, filtering, and sorting.
      */
     get: operations['list_settings']
@@ -22,7 +22,7 @@ export interface paths {
     options?: never
     head?: never
     /**
-     * Bulk Update Settings
+     * Bulk update settings
      * @description Update multiple settings in a single request.
      */
     patch: operations['bulk_update_settings']
@@ -36,7 +36,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Categories
+     * List categories
      * @description List all setting categories with their group names.
      */
     get: operations['list_categories']
@@ -56,7 +56,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Setting
+     * Get setting
      * @description Get a single runtime setting by its dot-namespaced key.
      */
     get: operations['get_setting']
@@ -66,7 +66,7 @@ export interface paths {
     options?: never
     head?: never
     /**
-     * Update Setting
+     * Update setting
      * @description Update a runtime setting value with optimistic locking.
      */
     patch: operations['update_setting']

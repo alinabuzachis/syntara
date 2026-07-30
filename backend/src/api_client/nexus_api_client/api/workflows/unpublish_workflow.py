@@ -94,7 +94,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | WorkflowRead]:
-    """Unpublish Workflow
+    """Unpublish workflow
 
      Unpublish the currently published workflow version.
 
@@ -125,7 +125,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | WorkflowRead | None:
-    """Unpublish Workflow
+    """Unpublish workflow
 
      Unpublish the currently published workflow version.
 
@@ -151,7 +151,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | WorkflowRead]:
-    """Unpublish Workflow
+    """Unpublish workflow
 
      Unpublish the currently published workflow version.
 
@@ -180,7 +180,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | WorkflowRead | None:
-    """Unpublish Workflow
+    """Unpublish workflow
 
      Unpublish the currently published workflow version.
 

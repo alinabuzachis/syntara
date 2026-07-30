@@ -79,7 +79,7 @@
     },
     {
       "type": "aap_job_template",
-      "name": "AAP Job Template",
+      "name": "Ansible Automation Platform Job Template",
       "description": "Launch Ansible Automation Platform job templates",
       "labels": {
         "category": "executor"
@@ -90,7 +90,7 @@
     },
     {
       "type": "aap_workflow_job_template",
-      "name": "AAP Workflow Job Template",
+      "name": "Ansible Automation Platform Workflow Job Template",
       "description": "Launch Ansible Automation Platform workflow job templates",
       "labels": {
         "category": "executor"

@@ -96,7 +96,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | LLMModelRead]:
-    """Get Integration Model
+    """Get integration model
 
      Get an LLM model by ID.
 
@@ -130,7 +130,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | LLMModelRead | None:
-    """Get Integration Model
+    """Get integration model
 
      Get an LLM model by ID.
 
@@ -159,7 +159,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | LLMModelRead]:
-    """Get Integration Model
+    """Get integration model
 
      Get an LLM model by ID.
 
@@ -191,7 +191,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | LLMModelRead | None:
-    """Get Integration Model
+    """Get integration model
 
      Get an LLM model by ID.
 

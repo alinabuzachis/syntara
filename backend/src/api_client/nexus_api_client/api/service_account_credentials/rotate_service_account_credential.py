@@ -107,7 +107,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: SACredentialRotateRequest,
 ) -> Response[ErrorData | SACredentialRotateResponse]:
-    """Rotate Credential
+    """Rotate credential
 
      Rotate a credential's secret; returns the new one-time plaintext secret.
 
@@ -144,7 +144,7 @@ def sync(
     client: AuthenticatedClient,
     body: SACredentialRotateRequest,
 ) -> ErrorData | SACredentialRotateResponse | None:
-    """Rotate Credential
+    """Rotate credential
 
      Rotate a credential's secret; returns the new one-time plaintext secret.
 
@@ -176,7 +176,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: SACredentialRotateRequest,
 ) -> Response[ErrorData | SACredentialRotateResponse]:
-    """Rotate Credential
+    """Rotate credential
 
      Rotate a credential's secret; returns the new one-time plaintext secret.
 
@@ -211,7 +211,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: SACredentialRotateRequest,
 ) -> ErrorData | SACredentialRotateResponse | None:
-    """Rotate Credential
+    """Rotate credential
 
      Rotate a credential's secret; returns the new one-time plaintext secret.
 

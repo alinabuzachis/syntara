@@ -130,7 +130,7 @@ def sync_detailed(
     include_total: bool | Unset = False,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | WorkflowVersionListResponse]:
-    """List Workflow Versions
+    """List workflow versions
 
      List versions for a workflow with cursor-based pagination.
 
@@ -174,7 +174,7 @@ def sync(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> ErrorData | WorkflowVersionListResponse | None:
-    """List Workflow Versions
+    """List workflow versions
 
      List versions for a workflow with cursor-based pagination.
 
@@ -212,7 +212,7 @@ async def asyncio_detailed(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> Response[ErrorData | WorkflowVersionListResponse]:
-    """List Workflow Versions
+    """List workflow versions
 
      List versions for a workflow with cursor-based pagination.
 
@@ -253,7 +253,7 @@ async def asyncio(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> ErrorData | WorkflowVersionListResponse | None:
-    """List Workflow Versions
+    """List workflow versions
 
      List versions for a workflow with cursor-based pagination.
 

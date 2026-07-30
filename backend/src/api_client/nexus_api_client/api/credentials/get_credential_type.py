@@ -94,7 +94,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[CredentialTypeRead | ErrorData]:
-    """Get Credential Type
+    """Get credential type
 
      Get a single Credential Type with credential_count.
 
@@ -125,7 +125,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> CredentialTypeRead | ErrorData | None:
-    """Get Credential Type
+    """Get credential type
 
      Get a single Credential Type with credential_count.
 
@@ -151,7 +151,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[CredentialTypeRead | ErrorData]:
-    """Get Credential Type
+    """Get credential type
 
      Get a single Credential Type with credential_count.
 
@@ -180,7 +180,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> CredentialTypeRead | ErrorData | None:
-    """Get Credential Type
+    """Get credential type
 
      Get a single Credential Type with credential_count.
 

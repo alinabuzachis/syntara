@@ -1191,7 +1191,7 @@ components:
         - type
         - parameters
       title: AAPJobTemplateNode
-      description: AAP job template executor node.
+      description: Ansible Automation Platform job template executor node.
     AAPWorkflowJobTemplateNode:
       properties:
         id:
@@ -1243,7 +1243,7 @@ components:
         - type
         - parameters
       title: AAPWorkflowJobTemplateNode
-      description: AAP workflow job template executor node.
+      description: Ansible Automation Platform workflow job template executor node.
     HTTPRequestNode:
       properties:
         id:
@@ -1727,26 +1727,26 @@ components:
             - type: string
             - type: 'null'
           title: Credential Id
-          description: Nexus credential UUID for AAP API authentication. Separate from legacy credentials list.
+          description: Nexus credential UUID for Ansible Automation Platform API authentication. Separate from legacy credentials list.
         integration_id:
           anyOf:
             - type: string
             - type: 'null'
           title: Integration Id
-          description: UUID of the AAP Gateway integration for connection URL resolution.
+          description: UUID of the Ansible Automation Platform Gateway integration for connection URL resolution.
         organizationId:
           anyOf:
             - type: integer
               minimum: 1.0
             - type: 'null'
           title: Organizationid
-          description: AAP organization ID (takes precedence over organization_name)
+          description: Ansible Automation Platform organization ID (takes precedence over organization_name)
         organization_name:
           anyOf:
             - type: string
             - type: 'null'
           title: Organization Name
-          description: AAP organization name (used with template_name or inventory_name)
+          description: Ansible Automation Platform organization name (used with template_name or inventory_name)
         inventory_id:
           anyOf:
             - type: integer
@@ -1790,20 +1790,20 @@ components:
               type: array
             - type: 'null'
           title: Labels
-          description: "AAP label names to append to template's default labels. Names are resolved to IDs at launch time. New labels that don't exist in AAP will be created automatically. Note: Labels are APPENDED to template defaults, not replaced."
+          description: "Ansible Automation Platform label names to append to template's default labels. Names are resolved to IDs at launch time. New labels that don't exist in Ansible Automation Platform will be created automatically. Note: Labels are APPENDED to template defaults, not replaced."
         job_template_id:
           anyOf:
             - type: integer
               minimum: 1.0
             - type: 'null'
           title: Job Template Id
-          description: AAP job template ID to launch
+          description: Ansible Automation Platform job template ID to launch
         job_template_name:
           anyOf:
             - type: string
             - type: 'null'
           title: Job Template Name
-          description: AAP job template name (used with organization_name)
+          description: Ansible Automation Platform job template name (used with organization_name)
         job_credentials:
           anyOf:
             - items:
@@ -1811,7 +1811,7 @@ components:
               type: array
             - type: 'null'
           title: Job Credentials
-          description: List of AAP credential IDs to use (takes precedence over credential_names)
+          description: List of Ansible Automation Platform credential IDs to use (takes precedence over credential_names)
         credentialNames:
           anyOf:
             - items:
@@ -1819,7 +1819,7 @@ components:
               type: array
             - type: 'null'
           title: Credentialnames
-          description: List of AAP credential names to use (requires organization_name, resolved at launch time)
+          description: List of Ansible Automation Platform credential names to use (requires organization_name, resolved at launch time)
         verbosity:
           $ref: '#/components/schemas/AAPVerbosity'
           description: Job verbosity level (0-5)
@@ -1870,7 +1870,7 @@ components:
           description: Override instance group by name (requires organization_name for lookup)
       type: object
       title: AAPJobTemplateExecutorParameters
-      description: "Parameters for AAP Job Template executor.\n\nInherits common AAP fields from AAPResourceReferenceMixin (credential_id, organization,\ninventory, extra_vars, limit, tags, skip_tags, labels, timeout)."
+      description: "Parameters for Ansible Automation Platform Job Template executor.\n\nInherits common Ansible Automation Platform fields from AAPResourceReferenceMixin (credential_id, organization,\ninventory, extra_vars, limit, tags, skip_tags, labels, timeout)."
     AAPWorkflowJobTemplateExecutorParameters:
       properties:
         credential_id:
@@ -1878,26 +1878,26 @@ components:
             - type: string
             - type: 'null'
           title: Credential Id
-          description: Nexus credential UUID for AAP API authentication. Separate from legacy credentials list.
+          description: Nexus credential UUID for Ansible Automation Platform API authentication. Separate from legacy credentials list.
         integration_id:
           anyOf:
             - type: string
             - type: 'null'
           title: Integration Id
-          description: UUID of the AAP Gateway integration for connection URL resolution.
+          description: UUID of the Ansible Automation Platform Gateway integration for connection URL resolution.
         organizationId:
           anyOf:
             - type: integer
               minimum: 1.0
             - type: 'null'
           title: Organizationid
-          description: AAP organization ID (takes precedence over organization_name)
+          description: Ansible Automation Platform organization ID (takes precedence over organization_name)
         organization_name:
           anyOf:
             - type: string
             - type: 'null'
           title: Organization Name
-          description: AAP organization name (used with template_name or inventory_name)
+          description: Ansible Automation Platform organization name (used with template_name or inventory_name)
         inventory_id:
           anyOf:
             - type: integer
@@ -1941,20 +1941,20 @@ components:
               type: array
             - type: 'null'
           title: Labels
-          description: "AAP label names to append to template's default labels. Names are resolved to IDs at launch time. New labels that don't exist in AAP will be created automatically. Note: Labels are APPENDED to template defaults, not replaced."
+          description: "Ansible Automation Platform label names to append to template's default labels. Names are resolved to IDs at launch time. New labels that don't exist in Ansible Automation Platform will be created automatically. Note: Labels are APPENDED to template defaults, not replaced."
         workflow_job_template_id:
           anyOf:
             - type: integer
               minimum: 1.0
             - type: 'null'
           title: Workflow Job Template Id
-          description: AAP workflow job template ID to launch
+          description: Ansible Automation Platform workflow job template ID to launch
         workflow_job_template_name:
           anyOf:
             - type: string
             - type: 'null'
           title: Workflow Job Template Name
-          description: AAP workflow job template name (used with organization_name)
+          description: Ansible Automation Platform workflow job template name (used with organization_name)
         scm_branch:
           anyOf:
             - type: string
@@ -1963,7 +1963,7 @@ components:
           description: SCM branch override for projects in workflow
       type: object
       title: AAPWorkflowJobTemplateExecutorParameters
-      description: "Parameters for AAP Workflow Job Template executor.\n\nInherits common AAP fields from AAPResourceReferenceMixin (credential_id, organization,\ninventory, extra_vars, limit, tags, skip_tags, labels, timeout)."
+      description: "Parameters for Ansible Automation Platform Workflow Job Template executor.\n\nInherits common Ansible Automation Platform fields from AAPResourceReferenceMixin (credential_id, organization,\ninventory, extra_vars, limit, tags, skip_tags, labels, timeout)."
     APIExecutorParameters:
       properties:
         method:
@@ -2483,14 +2483,14 @@ components:
         - 4
         - 5
       title: AAPVerbosity
-      description: AAP job verbosity levels (0-5).
+      description: Ansible Automation Platform job verbosity levels (0-5).
     AAPJobType:
       type: string
       enum:
         - run
         - check
       title: AAPJobType
-      description: AAP job type values.
+      description: Ansible Automation Platform job type values.
     HTTPMethod:
       type: string
       enum:

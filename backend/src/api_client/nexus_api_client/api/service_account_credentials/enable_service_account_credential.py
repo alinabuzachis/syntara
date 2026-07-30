@@ -96,7 +96,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | SACredentialRead]:
-    """Enable Credential
+    """Enable credential
 
      Set a credential's status to active.
 
@@ -130,7 +130,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | SACredentialRead | None:
-    """Enable Credential
+    """Enable credential
 
      Set a credential's status to active.
 
@@ -159,7 +159,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | SACredentialRead]:
-    """Enable Credential
+    """Enable credential
 
      Set a credential's status to active.
 
@@ -191,7 +191,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | SACredentialRead | None:
-    """Enable Credential
+    """Enable credential
 
      Set a credential's status to active.
 

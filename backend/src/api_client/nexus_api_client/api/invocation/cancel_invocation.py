@@ -104,7 +104,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: InvocationCancelRequest,
 ) -> Response[ErrorData | InvocationCancelResponse]:
-    """Cancel Invocation
+    """Cancel invocation
 
      Cancel a running or pending invocation.
 
@@ -142,7 +142,7 @@ def sync(
     client: AuthenticatedClient,
     body: InvocationCancelRequest,
 ) -> ErrorData | InvocationCancelResponse | None:
-    """Cancel Invocation
+    """Cancel invocation
 
      Cancel a running or pending invocation.
 
@@ -175,7 +175,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: InvocationCancelRequest,
 ) -> Response[ErrorData | InvocationCancelResponse]:
-    """Cancel Invocation
+    """Cancel invocation
 
      Cancel a running or pending invocation.
 
@@ -211,7 +211,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: InvocationCancelRequest,
 ) -> ErrorData | InvocationCancelResponse | None:
-    """Cancel Invocation
+    """Cancel invocation
 
      Cancel a running or pending invocation.
 

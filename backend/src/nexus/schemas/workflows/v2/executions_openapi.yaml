@@ -31,6 +31,10 @@ servers:
   - url: /api/v1
     description: API server (relative path)
 
+tags:
+  - name: Executions
+    description: Workflow execution lifecycle management
+
 paths:
   /executions:
     get:
@@ -38,7 +42,7 @@ paths:
       description: Retrieve executions with filtering, sorting, and cursor-based pagination.
       operationId: list_executions
       tags:
-        - executions
+        - Executions
       security:
         - bearerAuth: []
       x-app-permission:
@@ -77,7 +81,7 @@ paths:
       description: Start a new workflow execution.
       operationId: create_execution
       tags:
-        - executions
+        - Executions
       security:
         - bearerAuth: []
       x-app-permission:
@@ -119,7 +123,7 @@ paths:
       description: Retrieve details of a specific execution with optional includes.
       operationId: get_execution
       tags:
-        - executions
+        - Executions
       security:
         - bearerAuth: []
       x-app-permission:
@@ -172,7 +176,7 @@ paths:
       description: Request cancellation of a running workflow execution. The status update to CANCELLED happens asynchronously.
       operationId: cancel_execution
       tags:
-        - executions
+        - Executions
       security:
         - bearerAuth: []
       x-app-permission:
@@ -212,7 +216,7 @@ paths:
       description: Retry a completed workflow execution. Creates a new execution using the same workflow version, inputs, and trigger as the original.
       operationId: retry_execution
       tags:
-        - executions
+        - Executions
       security:
         - bearerAuth: []
       x-app-permission:
@@ -256,7 +260,7 @@ paths:
       description: Retrieve activity executions for a workflow execution.
       operationId: list_execution_activities
       tags:
-        - executions
+        - Executions
       security:
         - bearerAuth: []
       x-app-permission:
@@ -304,7 +308,7 @@ paths:
       description: Send a signal to a specific activity within a running workflow execution.
       operationId: signal_activity
       tags:
-        - executions
+        - Executions
       security:
         - bearerAuth: []
       x-app-permission:

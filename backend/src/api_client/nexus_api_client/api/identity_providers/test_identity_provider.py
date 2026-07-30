@@ -102,7 +102,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: OIDCTestRequest,
 ) -> Response[ErrorData | OIDCTestResult]:
-    """Test Identity Provider
+    """Test identity provider
 
      Test identity provider connection without saving. Requires authentication.
 
@@ -133,7 +133,7 @@ def sync(
     client: AuthenticatedClient,
     body: OIDCTestRequest,
 ) -> ErrorData | OIDCTestResult | None:
-    """Test Identity Provider
+    """Test identity provider
 
      Test identity provider connection without saving. Requires authentication.
 
@@ -159,7 +159,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: OIDCTestRequest,
 ) -> Response[ErrorData | OIDCTestResult]:
-    """Test Identity Provider
+    """Test identity provider
 
      Test identity provider connection without saving. Requires authentication.
 
@@ -188,7 +188,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: OIDCTestRequest,
 ) -> ErrorData | OIDCTestResult | None:
-    """Test Identity Provider
+    """Test identity provider
 
      Test identity provider connection without saving. Requires authentication.
 

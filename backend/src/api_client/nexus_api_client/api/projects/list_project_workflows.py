@@ -130,7 +130,7 @@ def sync_detailed(
     include_total: bool | Unset = False,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | WorkflowListResponse]:
-    """List Project Workflows
+    """List project workflows
 
      List workflows belonging to a specific project.
 
@@ -177,7 +177,7 @@ def sync(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> ErrorData | WorkflowListResponse | None:
-    """List Project Workflows
+    """List project workflows
 
      List workflows belonging to a specific project.
 
@@ -218,7 +218,7 @@ async def asyncio_detailed(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> Response[ErrorData | WorkflowListResponse]:
-    """List Project Workflows
+    """List project workflows
 
      List workflows belonging to a specific project.
 
@@ -262,7 +262,7 @@ async def asyncio(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> ErrorData | WorkflowListResponse | None:
-    """List Project Workflows
+    """List project workflows
 
      List workflows belonging to a specific project.
 

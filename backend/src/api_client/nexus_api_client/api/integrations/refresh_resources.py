@@ -94,7 +94,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | RefreshResult]:
-    """Refresh Resources
+    """Refresh resources
 
      Sync resources (tools) for a saved integration from the external service.
 
@@ -129,7 +129,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | RefreshResult | None:
-    """Refresh Resources
+    """Refresh resources
 
      Sync resources (tools) for a saved integration from the external service.
 
@@ -159,7 +159,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | RefreshResult]:
-    """Refresh Resources
+    """Refresh resources
 
      Sync resources (tools) for a saved integration from the external service.
 
@@ -192,7 +192,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | RefreshResult | None:
-    """Refresh Resources
+    """Refresh resources
 
      Sync resources (tools) for a saved integration from the external service.
 

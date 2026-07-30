@@ -145,7 +145,7 @@ def sync_detailed(
     group: None | str | Unset = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | SettingsListResponse]:
-    """List Settings
+    """List settings
 
      List all runtime settings with pagination, filtering, and sorting.
 
@@ -192,7 +192,7 @@ def sync(
     category: None | str | Unset = UNSET,
     group: None | str | Unset = UNSET,
 ) -> ErrorData | SettingsListResponse | None:
-    """List Settings
+    """List settings
 
      List all runtime settings with pagination, filtering, and sorting.
 
@@ -233,7 +233,7 @@ async def asyncio_detailed(
     category: None | str | Unset = UNSET,
     group: None | str | Unset = UNSET,
 ) -> Response[ErrorData | SettingsListResponse]:
-    """List Settings
+    """List settings
 
      List all runtime settings with pagination, filtering, and sorting.
 
@@ -277,7 +277,7 @@ async def asyncio(
     category: None | str | Unset = UNSET,
     group: None | str | Unset = UNSET,
 ) -> ErrorData | SettingsListResponse | None:
-    """List Settings
+    """List settings
 
      List all runtime settings with pagination, filtering, and sorting.
 

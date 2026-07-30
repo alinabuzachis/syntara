@@ -78,6 +78,7 @@ def get_credential_service(
 
 @router.post(
     "",
+    summary="Create credential",
     response_model=SACredentialCreateResponse,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(_sa_update)],
@@ -102,6 +103,7 @@ async def create_credential(
 
 @router.get(
     "",
+    summary="List credentials",
     dependencies=[Depends(_sa_read)],
     operation_id="list_service_account_credentials",
     response_description="List of credentials",
@@ -125,6 +127,7 @@ async def list_credentials(
 
 @router.get(
     "/{credential_id}",
+    summary="Get credential",
     dependencies=[Depends(_sa_read)],
     operation_id="get_service_account_credential",
     response_description="Credential details",
@@ -141,6 +144,7 @@ async def get_credential(
 
 @router.delete(
     "/{credential_id}",
+    summary="Delete credential",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(_sa_delete)],
     operation_id="delete_service_account_credential",
@@ -158,6 +162,7 @@ async def delete_credential(
 
 @router.post(
     "/{credential_id}/rotate",
+    summary="Rotate credential",
     dependencies=[Depends(_sa_rotate_secret)],
     operation_id="rotate_service_account_credential",
     response_description="Credential rotated",
@@ -180,6 +185,7 @@ async def rotate_credential(
 
 @router.post(
     "/{credential_id}/disable",
+    summary="Disable credential",
     dependencies=[Depends(_sa_disable)],
     operation_id="disable_service_account_credential",
     response_description="Credential disabled",
@@ -197,6 +203,7 @@ async def disable_credential(
 
 @router.post(
     "/{credential_id}/enable",
+    summary="Enable credential",
     dependencies=[Depends(_sa_enable)],
     operation_id="enable_service_account_credential",
     response_description="Credential enabled",

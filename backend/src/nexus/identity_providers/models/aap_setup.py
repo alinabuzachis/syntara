@@ -1,4 +1,4 @@
-"""Request model for push-button AAP OIDC identity provider setup."""
+"""Request model for push-button Ansible Automation Platform OIDC identity provider setup."""
 
 from __future__ import annotations
 
@@ -8,45 +8,47 @@ from nexus.core.lib.url_validation import validate_host_url
 
 
 class AAPOIDCSetupRequest(BaseModel):
-    """Request body for push-button AAP OIDC identity provider setup."""
+    """Request body for push-button Ansible Automation Platform OIDC identity provider setup."""
 
     model_config = ConfigDict(extra="forbid")
 
     aap_url: str = Field(
         min_length=1,
-        title="AAP URL",
-        description="AAP base URL (e.g., https://aap.example.com)",
+        title="Ansible Automation Platform URL",
+        description="Ansible Automation Platform base URL (e.g., https://aap.example.com)",
     )
     organization: str = Field(
         default="Default",
         min_length=1,
         title="Organization",
-        description="AAP organization name to create the OAuth2 application in",
+        description="Ansible Automation Platform organization name to create the OAuth2 application in",
     )
     admin_username: str | None = Field(
         default=None,
         min_length=1,
         title="Platform Admin Username",
-        description="AAP platform admin username (required when using basic auth)",
+        description="Ansible Automation Platform platform admin username (required when using basic auth)",
     )
     admin_password: str | None = Field(
         default=None,
         min_length=1,
         title="Platform Admin Password",
-        description="AAP platform admin password (used only for setup, never stored)",
+        description="Ansible Automation Platform platform admin password (used only for setup, never stored)",
         json_schema_extra={"format": "password"},
     )
     personal_access_token: str | None = Field(
         default=None,
         min_length=1,
         title="Personal Access Token",
-        description="AAP personal access token (alternative to username/password, never stored)",
+        description=(
+            "Ansible Automation Platform personal access token (alternative to username/password, never stored)"
+        ),
         json_schema_extra={"format": "password"},
     )
     insecure_skip_tls_verify: bool = Field(
         default=False,
         title="Insecure Skip TLS Verify",
-        description="Skip TLS certificate verification for the AAP connection",
+        description="Skip TLS certificate verification for the Ansible Automation Platform connection",
     )
 
     @field_validator("aap_url")

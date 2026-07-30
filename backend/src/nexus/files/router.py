@@ -104,7 +104,7 @@ class FileUploadResponse(BaseModel):
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
-    summary="Upload Files (Design Time)",
+    summary="Upload files (design time)",
     description="Upload files independently of invocations for later use in agent execution. "
     "Returns file_ids that can be stored in workflow configuration and passed to invocations. "
     "Files are validated, stored, and queued for document conversion.",
@@ -249,7 +249,7 @@ _files_visibility = VisibilityFilter("files", "download")
 
 @router.get(
     "/metadata",
-    summary="Get Files Metadata (Batch)",
+    summary="Get files metadata (batch)",
     description="Retrieve metadata for one or more files by their IDs. "
     "Returns file information (filename, size, MIME type, status) without file content.",
     operation_id="get_files_metadata",
@@ -285,7 +285,7 @@ async def get_files_metadata(
 
 @router.get(
     "/{file_id}/download",
-    summary="Download File",
+    summary="Download file",
     description="Download a file by its ID. Serves the file from whichever storage backend it was uploaded to.",
     dependencies=[Depends(_files_perm_download)],
     operation_id="download_file",

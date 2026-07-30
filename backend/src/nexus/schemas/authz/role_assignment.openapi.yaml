@@ -20,7 +20,7 @@ tags:
 paths:
   /role_assignments:
     post:
-      summary: Create Role Assignment
+      summary: Create role assignment
       description: |-
         Assign a role to a user or group.
 
@@ -65,7 +65,7 @@ paths:
       security:
         - bearerAuth: []
     get:
-      summary: List Role Assignments
+      summary: List role assignments
       description: |-
         List role assignments with policy-driven visibility.
 
@@ -180,7 +180,7 @@ paths:
 
   /role_assignments/{assignment_id}:
     get:
-      summary: Get Role Assignment
+      summary: Get role assignment
       description: |-
         Get a single role assignment by ID.
 
@@ -227,7 +227,7 @@ paths:
       security:
         - bearerAuth: []
     delete:
-      summary: Delete Role Assignment
+      summary: Delete role assignment
       description: |-
         Remove a role assignment.
       operationId: delete_role_assignment

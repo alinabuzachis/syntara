@@ -102,7 +102,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: WorkflowCreate,
 ) -> Response[ErrorData | WorkflowRead]:
-    """Create Workflow
+    """Create workflow
 
      Create a new workflow with initial version.
 
@@ -137,7 +137,7 @@ def sync(
     client: AuthenticatedClient,
     body: WorkflowCreate,
 ) -> ErrorData | WorkflowRead | None:
-    """Create Workflow
+    """Create workflow
 
      Create a new workflow with initial version.
 
@@ -167,7 +167,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: WorkflowCreate,
 ) -> Response[ErrorData | WorkflowRead]:
-    """Create Workflow
+    """Create workflow
 
      Create a new workflow with initial version.
 
@@ -200,7 +200,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: WorkflowCreate,
 ) -> ErrorData | WorkflowRead | None:
-    """Create Workflow
+    """Create workflow
 
      Create a new workflow with initial version.
 

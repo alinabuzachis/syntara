@@ -105,7 +105,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: SACredentialCreate,
 ) -> Response[ErrorData | SACredentialCreateResponse]:
-    """Create Credential
+    """Create credential
 
      Create a new credential for a service account; returns the one-time plaintext secret.
 
@@ -139,7 +139,7 @@ def sync(
     client: AuthenticatedClient,
     body: SACredentialCreate,
 ) -> ErrorData | SACredentialCreateResponse | None:
-    """Create Credential
+    """Create credential
 
      Create a new credential for a service account; returns the one-time plaintext secret.
 
@@ -168,7 +168,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: SACredentialCreate,
 ) -> Response[ErrorData | SACredentialCreateResponse]:
-    """Create Credential
+    """Create credential
 
      Create a new credential for a service account; returns the one-time plaintext secret.
 
@@ -200,7 +200,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: SACredentialCreate,
 ) -> ErrorData | SACredentialCreateResponse | None:
-    """Create Credential
+    """Create credential
 
      Create a new credential for a service account; returns the one-time plaintext secret.
 

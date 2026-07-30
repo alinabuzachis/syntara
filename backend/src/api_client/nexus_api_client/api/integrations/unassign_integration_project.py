@@ -90,7 +90,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Unassign Integration Project
+    """Unassign integration project
 
      Remove a project assignment from an integration.
 
@@ -124,7 +124,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Unassign Integration Project
+    """Unassign integration project
 
      Remove a project assignment from an integration.
 
@@ -153,7 +153,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Unassign Integration Project
+    """Unassign integration project
 
      Remove a project assignment from an integration.
 
@@ -185,7 +185,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Unassign Integration Project
+    """Unassign integration project
 
      Remove a project assignment from an integration.
 

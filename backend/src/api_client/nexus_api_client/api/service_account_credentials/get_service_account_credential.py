@@ -96,7 +96,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | SACredentialRead]:
-    """Get Credential
+    """Get credential
 
      Get a credential by ID (secret is never included).
 
@@ -130,7 +130,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | SACredentialRead | None:
-    """Get Credential
+    """Get credential
 
      Get a credential by ID (secret is never included).
 
@@ -159,7 +159,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | SACredentialRead]:
-    """Get Credential
+    """Get credential
 
      Get a credential by ID (secret is never included).
 
@@ -191,7 +191,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | SACredentialRead | None:
-    """Get Credential
+    """Get credential
 
      Get a credential by ID (secret is never included).
 

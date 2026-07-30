@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 from ..client import AuthenticatedClient
 
 if TYPE_CHECKING:
-    from .aap import AapApi
     from .admin import AdminApi
+    from .ansible_automation_platform import AnsibleAutomationPlatformApi
     from .approvals import ApprovalsApi
     from .authentication import AuthenticationApi
     from .authorization import AuthorizationApi
@@ -44,10 +44,10 @@ class NexusApiRegistry:
         self._client = client
 
     @cached_property
-    def aap(self) -> AapApi:
-        from .aap import AapApi
+    def ansible_automation_platform(self) -> AnsibleAutomationPlatformApi:
+        from .ansible_automation_platform import AnsibleAutomationPlatformApi
 
-        return AapApi(client=self._client)
+        return AnsibleAutomationPlatformApi(client=self._client)
 
     @cached_property
     def admin(self) -> AdminApi:

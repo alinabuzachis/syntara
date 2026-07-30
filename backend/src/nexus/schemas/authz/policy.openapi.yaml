@@ -21,7 +21,7 @@ tags:
 paths:
   /policies:
     post:
-      summary: Create Policy
+      summary: Create policy
       description: |-
         Create a custom policy. Requires: policy:create permission.
       operationId: create_policy
@@ -63,7 +63,7 @@ paths:
       security:
         - bearerAuth: []
     get:
-      summary: List Policies
+      summary: List policies
       description: List policies with filtering and pagination.
       operationId: list_policies
       x-app-permission:
@@ -148,7 +148,7 @@ paths:
         - bearerAuth: []
   /policies/{policy_id}:
     get:
-      summary: Get Policy
+      summary: Get policy
       description: Get a policy by ID.
       operationId: get_policy
       x-app-permission:
@@ -191,7 +191,7 @@ paths:
       security:
         - bearerAuth: []
     patch:
-      summary: Update Policy
+      summary: Update policy
       description: |-
         Patch a policy. Builtin policies cannot be modified. Requires: policy:update permission.
       operationId: update_policy
@@ -241,7 +241,7 @@ paths:
       security:
         - bearerAuth: []
     put:
-      summary: Replace Policy
+      summary: Replace policy
       description: |-
         Replace a policy. Builtin policies cannot be modified. Requires: policy:update permission.
       operationId: replace_policy
@@ -291,7 +291,7 @@ paths:
       security:
         - bearerAuth: []
     delete:
-      summary: Delete Policy
+      summary: Delete policy
       description: |-
         Delete a policy. Builtin policies cannot be deleted. Requires: policy:delete permission.
       operationId: delete_policy

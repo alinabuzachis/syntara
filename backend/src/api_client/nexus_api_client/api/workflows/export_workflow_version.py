@@ -89,7 +89,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Export Workflow Version
+    """Export workflow version
 
      Export a workflow version definition as a downloadable JSON file.
 
@@ -123,7 +123,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Export Workflow Version
+    """Export workflow version
 
      Export a workflow version definition as a downloadable JSON file.
 
@@ -152,7 +152,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Any | ErrorData]:
-    """Export Workflow Version
+    """Export workflow version
 
      Export a workflow version definition as a downloadable JSON file.
 
@@ -184,7 +184,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> Any | ErrorData | None:
-    """Export Workflow Version
+    """Export workflow version
 
      Export a workflow version definition as a downloadable JSON file.
 

@@ -93,7 +93,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[ComponentKPISummary | ErrorData]:
-    """Metrics Store Component Kpis
+    """Metrics store component KPIs
 
      Return KPIs for a single component.
 
@@ -124,7 +124,7 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
 ) -> ComponentKPISummary | ErrorData | None:
-    """Metrics Store Component Kpis
+    """Metrics store component KPIs
 
      Return KPIs for a single component.
 
@@ -150,7 +150,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[ComponentKPISummary | ErrorData]:
-    """Metrics Store Component Kpis
+    """Metrics store component KPIs
 
      Return KPIs for a single component.
 
@@ -179,7 +179,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
 ) -> ComponentKPISummary | ErrorData | None:
-    """Metrics Store Component Kpis
+    """Metrics store component KPIs
 
      Return KPIs for a single component.
 

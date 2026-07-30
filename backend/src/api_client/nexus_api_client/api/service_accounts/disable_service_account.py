@@ -94,7 +94,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | ServiceAccountRead]:
-    """Disable Service Account
+    """Disable service account
 
      Set a service account's status to disabled.
 
@@ -125,7 +125,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | ServiceAccountRead | None:
-    """Disable Service Account
+    """Disable service account
 
      Set a service account's status to disabled.
 
@@ -151,7 +151,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | ServiceAccountRead]:
-    """Disable Service Account
+    """Disable service account
 
      Set a service account's status to disabled.
 
@@ -180,7 +180,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | ServiceAccountRead | None:
-    """Disable Service Account
+    """Disable service account
 
      Set a service account's status to disabled.
 

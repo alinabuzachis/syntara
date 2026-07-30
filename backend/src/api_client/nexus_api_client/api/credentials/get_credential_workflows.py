@@ -94,7 +94,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[CredentialWorkflowListResponse | ErrorData]:
-    """Get Credential Workflows
+    """Get credential workflows
 
      Get workflows that reference this credential.
 
@@ -127,7 +127,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> CredentialWorkflowListResponse | ErrorData | None:
-    """Get Credential Workflows
+    """Get credential workflows
 
      Get workflows that reference this credential.
 
@@ -155,7 +155,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[CredentialWorkflowListResponse | ErrorData]:
-    """Get Credential Workflows
+    """Get credential workflows
 
      Get workflows that reference this credential.
 
@@ -186,7 +186,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> CredentialWorkflowListResponse | ErrorData | None:
-    """Get Credential Workflows
+    """Get credential workflows
 
      Get workflows that reference this credential.
 

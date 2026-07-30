@@ -71,6 +71,7 @@ def _get_service(
 
 @router.get(
     "",
+    summary="List groups directory",
     dependencies=[Depends(_group_directory_read)],
     operation_id="list_groups_directory",
     response_description="Lightweight list of groups",

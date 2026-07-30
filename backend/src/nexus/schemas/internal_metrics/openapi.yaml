@@ -16,8 +16,8 @@ paths:
   /_internal/metrics/summary:
     get:
       tags:
-        - InternalMetrics
-      summary: Metrics Store Summary
+        - Internal Metrics
+      summary: Metrics store summary
       description: Return a lightweight summary of the in-memory metrics store.
       operationId: get_internal_metrics_summary
       responses:
@@ -49,8 +49,8 @@ paths:
   /_internal/metrics/records:
     get:
       tags:
-        - InternalMetrics
-      summary: Metrics Store Records
+        - Internal Metrics
+      summary: Metrics store records
       description: Return raw metric records with optional filtering and pagination.
       operationId: get_internal_metrics_records
       parameters:
@@ -134,8 +134,8 @@ paths:
   /_internal/metrics/kpis:
     get:
       tags:
-        - InternalMetrics
-      summary: Metrics Store Kpis
+        - Internal Metrics
+      summary: Metrics store KPIs
       description: "Return a computed KPI dashboard covering all Nexus components.\n\nMaps metrics to the KPIs defined in the Nexus KPI documents:\n- Nexus Key Performance Indicators (KPIs)\n- Nexus LLM/Agent Performance KPIs"
       operationId: get_internal_metrics_kpis
       responses:
@@ -167,8 +167,8 @@ paths:
   /_internal/metrics/kpis/{component}:
     get:
       tags:
-        - InternalMetrics
-      summary: Metrics Store Component Kpis
+        - Internal Metrics
+      summary: Metrics store component KPIs
       description: Return KPIs for a single component.
       operationId: get_internal_metrics_component_kpis
       parameters:
@@ -207,8 +207,8 @@ paths:
   /_internal/metrics/reset:
     post:
       tags:
-        - InternalMetrics
-      summary: Metrics Store Reset
+        - Internal Metrics
+      summary: Metrics store reset
       description: |-
         Clear all in-memory metrics (useful between test runs).
 
@@ -245,7 +245,8 @@ paths:
         resource: null
         action: null
 tags:
-  - name: InternalMetrics
+  - name: Internal Metrics
+    description: Internal metrics store for usage tracking and KPI reporting
 components:
   schemas:
     ComponentKPISummary:

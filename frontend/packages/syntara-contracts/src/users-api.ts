@@ -12,7 +12,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Users
+     * List users
      * @description List users with visibility filtering and pagination.
      *
      *     Users with ``user:read:any`` see all users.
@@ -21,7 +21,7 @@ export interface paths {
     get: operations['list_users']
     put?: never
     /**
-     * Create User
+     * Create user
      * @description Create a new local user.
      */
     post: operations['create_user']
@@ -39,7 +39,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Current User Profile
+     * Get current user profile
      * @description Return information about the currently authenticated user.
      */
     get: operations['get_current_user_profile']
@@ -59,21 +59,21 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get User
+     * Get user
      * @description Get a user by ID.
      */
     get: operations['get_user']
     put?: never
     post?: never
     /**
-     * Delete User
+     * Delete user
      * @description Soft delete a user.
      */
     delete: operations['delete_user']
     options?: never
     head?: never
     /**
-     * Update User
+     * Update user
      * @description Update a user.
      *
      *     Supports partial updates - only provided fields are updated.
@@ -89,12 +89,12 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List User Groups
+     * List user groups
      * @description List groups that a user belongs to.
      */
     get: operations['list_user_groups']
     /**
-     * Set User Groups
+     * Set user groups
      * @description Set a user's group memberships declaratively.
      *
      *     Replace all current memberships with the provided list of group IDs.
@@ -116,13 +116,13 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List User Identities
+     * List user identities
      * @description List federated identities for a user.
      */
     get: operations['list_user_identities']
     put?: never
     /**
-     * Attach User Identity
+     * Attach user identity
      * @description Attach a federated identity from another user to this user.
      */
     post: operations['attach_user_identity']
@@ -143,7 +143,7 @@ export interface paths {
     put?: never
     post?: never
     /**
-     * Detach User Identity
+     * Detach user identity
      * @description Detach (hard-delete) a federated identity from a user.
      */
     delete: operations['detach_user_identity']
@@ -160,7 +160,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Users Directory
+     * List users directory
      * @description Return a lightweight directory of users (id + username only).
      */
     get: operations['list_users_directory']
@@ -180,7 +180,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Groups Directory
+     * List groups directory
      * @description Return a lightweight directory of groups (id + name only).
      */
     get: operations['list_groups_directory']
@@ -200,7 +200,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Groups
+     * List groups
      * @description Retrieve list of groups with visibility filtering.
      *
      *     Users with ``group:read:any`` see all groups.
@@ -209,7 +209,7 @@ export interface paths {
     get: operations['list_groups']
     put?: never
     /**
-     * Create Group
+     * Create group
      * @description Create a new group for organizing users.
      */
     post: operations['create_group']
@@ -227,21 +227,21 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Group
+     * Get group
      * @description Retrieve a group by its UUID.
      */
     get: operations['get_group']
     put?: never
     post?: never
     /**
-     * Delete Group
+     * Delete group
      * @description Soft delete a group.
      */
     delete: operations['delete_group']
     options?: never
     head?: never
     /**
-     * Update Group
+     * Update group
      * @description Update a group partially; only provided fields are changed.
      */
     patch: operations['update_group']
@@ -255,13 +255,13 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Members
+     * List members
      * @description List members of a group with pagination.
      */
     get: operations['list_members']
     put?: never
     /**
-     * Add Member
+     * Add member
      * @description Add a user to a group.
      */
     post: operations['add_member']
@@ -282,7 +282,7 @@ export interface paths {
     put?: never
     post?: never
     /**
-     * Remove Member
+     * Remove member
      * @description Remove a user from a group.
      */
     delete: operations['remove_member']
@@ -299,13 +299,13 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List User Role Assignments
+     * List user role assignments
      * @description List role assignments for a specific user.
      */
     get: operations['list_user_role_assignments']
     put?: never
     /**
-     * Create User Role Assignment
+     * Create user role assignment
      * @description Assign a role to this user.
      */
     post: operations['create_user_role_assignment']
@@ -326,7 +326,7 @@ export interface paths {
     put?: never
     post?: never
     /**
-     * Delete User Role Assignment
+     * Delete user role assignment
      * @description Remove a role assignment from this user.
      */
     delete: operations['delete_user_role_assignment']
@@ -343,13 +343,13 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Group Role Assignments
+     * List group role assignments
      * @description List role assignments for a specific group.
      */
     get: operations['list_group_role_assignments']
     put?: never
     /**
-     * Create Group Role Assignment
+     * Create group role assignment
      * @description Assign a role to this group.
      */
     post: operations['create_group_role_assignment']
@@ -370,7 +370,7 @@ export interface paths {
     put?: never
     post?: never
     /**
-     * Delete Group Role Assignment
+     * Delete group role assignment
      * @description Remove a role assignment from this group.
      */
     delete: operations['delete_group_role_assignment']

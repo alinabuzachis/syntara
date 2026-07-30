@@ -12,7 +12,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Credentials
+     * List credentials
      * @description List Credentials with filtering and pagination. Metadata only, no secrets.
      *
      *     When for_action=use, returns only credentials the user has credential:use
@@ -21,7 +21,7 @@ export interface paths {
     get: operations['list_credentials']
     put?: never
     /**
-     * Create Credential
+     * Create credential
      * @description Create a new Credential with encrypted inputs.
      */
     post: operations['create_credential']
@@ -39,21 +39,21 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Credential
+     * Get credential
      * @description Get a Credential. Secret fields masked as $encrypted$.
      */
     get: operations['get_credential']
     put?: never
     post?: never
     /**
-     * Delete Credential
+     * Delete credential
      * @description Delete a Credential.
      */
     delete: operations['delete_credential']
     options?: never
     head?: never
     /**
-     * Update Credential
+     * Update credential
      * @description Update a Credential. Fields set to $encrypted$ retain existing values.
      */
     patch: operations['update_credential']
@@ -67,7 +67,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Credential Workflows
+     * Get credential workflows
      * @description Get workflows that reference this credential.
      *
      *     Returns workflows with nodes that have credential_id in their executor configs.
@@ -89,7 +89,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List Credential Types
+     * List credential types
      * @description List all Credential Types including preseeded managed types.
      *
      *     Each type includes a credential_count of credentials using it.
@@ -111,7 +111,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get Credential Type
+     * Get credential type
      * @description Get a single Credential Type with credential_count.
      */
     get: operations['get_credential_type']

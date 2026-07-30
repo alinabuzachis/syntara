@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://automation.example.com/schemas/workflows/v2/executors/aap_workflow_job_template",
-  "title": "AAP Workflow Job Template Node",
+  "title": "Ansible Automation Platform Workflow Job Template Node",
   "description": "Launch Ansible Automation Platform workflow job templates",
   "parameterSchema": {
     "type": "object",
@@ -13,26 +13,26 @@
       "integration_id": {
         "type": "string",
         "format": "uuid",
-        "description": "UUID of the AAP Gateway integration for connection URL resolution"
+        "description": "UUID of the Ansible Automation Platform Gateway integration for connection URL resolution"
       },
       "workflow_job_template_id": {
         "type": "integer",
-        "description": "AAP workflow job template ID to launch (takes precedence over name)",
+        "description": "Ansible Automation Platform workflow job template ID to launch (takes precedence over name)",
         "minimum": 1
       },
       "workflow_job_template_name": {
         "type": "string",
-        "description": "AAP workflow job template name (requires organization_name)",
+        "description": "Ansible Automation Platform workflow job template name (requires organization_name)",
         "minLength": 1
       },
       "organization_name": {
         "type": "string",
-        "description": "AAP organization name (required with name-based lookup)",
+        "description": "Ansible Automation Platform organization name (required with name-based lookup)",
         "minLength": 1
       },
       "organization_id": {
         "type": "integer",
-        "description": "AAP organization ID (takes precedence over organization_name)",
+        "description": "Ansible Automation Platform organization ID (takes precedence over organization_name)",
         "minimum": 1
       },
       "inventory_id": {
@@ -68,7 +68,7 @@
       },
       "labels": {
         "type": "array",
-        "description": "AAP label names to append to workflow template's default labels (resolved to IDs at launch time)",
+        "description": "Ansible Automation Platform label names to append to workflow template's default labels (resolved to IDs at launch time)",
         "items": {
           "type": "string"
         }
@@ -132,11 +132,11 @@
           },
           "workflow_job_id": {
             "type": "integer",
-            "description": "AAP workflow job ID"
+            "description": "Ansible Automation Platform workflow job ID"
           },
           "workflow_job_url": {
             "type": "string",
-            "description": "URL to view workflow job in AAP UI"
+            "description": "URL to view workflow job in Ansible Automation Platform UI"
           },
           "workflow_job_status": {
             "type": "string",
@@ -190,7 +190,7 @@
               "string",
               "null"
             ],
-            "description": "URL to view workflow job in AAP UI"
+            "description": "URL to view workflow job in Ansible Automation Platform UI"
           },
           "workflow_job_status": {
             "type": [

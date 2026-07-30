@@ -12,7 +12,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Metrics Store Summary
+     * Metrics store summary
      * @description Return a lightweight summary of the in-memory metrics store.
      */
     get: operations['get_internal_metrics_summary']
@@ -32,7 +32,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Metrics Store Records
+     * Metrics store records
      * @description Return raw metric records with optional filtering and pagination.
      */
     get: operations['get_internal_metrics_records']
@@ -52,7 +52,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Metrics Store Kpis
+     * Metrics store KPIs
      * @description Return a computed KPI dashboard covering all Nexus components.
      *
      *     Maps metrics to the KPIs defined in the Nexus KPI documents:
@@ -76,7 +76,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Metrics Store Component Kpis
+     * Metrics store component KPIs
      * @description Return KPIs for a single component.
      */
     get: operations['get_internal_metrics_component_kpis']
@@ -98,7 +98,7 @@ export interface paths {
     get?: never
     put?: never
     /**
-     * Metrics Store Reset
+     * Metrics store reset
      * @description Clear all in-memory metrics (useful between test runs).
      *
      *     Also clears the emission deduplication tracker and running counters to

@@ -92,7 +92,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Validate Name
+     * Validate name
      * @description Validate a resource name against naming rules.
      *     Returns whether the name is valid and, if not, why.
      *     Intended for real-time UI validation.

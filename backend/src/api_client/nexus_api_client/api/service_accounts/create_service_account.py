@@ -102,7 +102,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: ServiceAccountCreate,
 ) -> Response[ErrorData | ServiceAccountRead]:
-    """Create Service Account
+    """Create service account
 
      Create a new service account.
 
@@ -133,7 +133,7 @@ def sync(
     client: AuthenticatedClient,
     body: ServiceAccountCreate,
 ) -> ErrorData | ServiceAccountRead | None:
-    """Create Service Account
+    """Create service account
 
      Create a new service account.
 
@@ -159,7 +159,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: ServiceAccountCreate,
 ) -> Response[ErrorData | ServiceAccountRead]:
-    """Create Service Account
+    """Create service account
 
      Create a new service account.
 
@@ -188,7 +188,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: ServiceAccountCreate,
 ) -> ErrorData | ServiceAccountRead | None:
-    """Create Service Account
+    """Create service account
 
      Create a new service account.
 

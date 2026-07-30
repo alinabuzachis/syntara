@@ -54,7 +54,7 @@ class WorkflowNodeBase(SQLModel):
 
 
 class AAPJobTemplateNode(WorkflowNodeBase):
-    """AAP job template executor node."""
+    """Ansible Automation Platform job template executor node."""
 
     type: Literal["aap_job_template"]
     parameters: AAPJobTemplateExecutorParameters
@@ -62,7 +62,7 @@ class AAPJobTemplateNode(WorkflowNodeBase):
 
 
 class AAPWorkflowJobTemplateNode(WorkflowNodeBase):
-    """AAP workflow job template executor node."""
+    """Ansible Automation Platform workflow job template executor node."""
 
     type: Literal["aap_workflow_job_template"]
     parameters: AAPWorkflowJobTemplateExecutorParameters

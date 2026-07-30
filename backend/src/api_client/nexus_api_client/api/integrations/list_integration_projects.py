@@ -130,7 +130,7 @@ def sync_detailed(
     include_total: bool | Unset = False,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | IntegrationProjectAssignmentListResponse]:
-    """List Integration Projects
+    """List integration projects
 
      List project assignments for an integration.
 
@@ -174,7 +174,7 @@ def sync(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> ErrorData | IntegrationProjectAssignmentListResponse | None:
-    """List Integration Projects
+    """List integration projects
 
      List project assignments for an integration.
 
@@ -212,7 +212,7 @@ async def asyncio_detailed(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> Response[ErrorData | IntegrationProjectAssignmentListResponse]:
-    """List Integration Projects
+    """List integration projects
 
      List project assignments for an integration.
 
@@ -253,7 +253,7 @@ async def asyncio(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> ErrorData | IntegrationProjectAssignmentListResponse | None:
-    """List Integration Projects
+    """List integration projects
 
      List project assignments for an integration.
 

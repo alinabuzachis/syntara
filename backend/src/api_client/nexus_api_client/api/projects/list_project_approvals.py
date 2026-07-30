@@ -153,7 +153,7 @@ def sync_detailed(
     execution_id: None | Unset | UUID = UNSET,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ApprovalListResponse | ErrorData]:
-    """List Project Approvals
+    """List project approvals
 
      List approval requests belonging to a specific project.
 
@@ -206,7 +206,7 @@ def sync(
     status: ApprovalRequestStatus | None | Unset = UNSET,
     execution_id: None | Unset | UUID = UNSET,
 ) -> ApprovalListResponse | ErrorData | None:
-    """List Project Approvals
+    """List project approvals
 
      List approval requests belonging to a specific project.
 
@@ -253,7 +253,7 @@ async def asyncio_detailed(
     status: ApprovalRequestStatus | None | Unset = UNSET,
     execution_id: None | Unset | UUID = UNSET,
 ) -> Response[ApprovalListResponse | ErrorData]:
-    """List Project Approvals
+    """List project approvals
 
      List approval requests belonging to a specific project.
 
@@ -303,7 +303,7 @@ async def asyncio(
     status: ApprovalRequestStatus | None | Unset = UNSET,
     execution_id: None | Unset | UUID = UNSET,
 ) -> ApprovalListResponse | ErrorData | None:
-    """List Project Approvals
+    """List project approvals
 
      List approval requests belonging to a specific project.
 
