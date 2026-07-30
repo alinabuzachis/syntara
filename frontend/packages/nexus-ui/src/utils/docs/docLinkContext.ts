@@ -2,7 +2,7 @@ import { createContext } from 'react'
 
 import type { AppMode } from '../appMode'
 
-import docsConfig from './docsConfig.json' with { type: 'json' }
+import { docsConfig } from './loadDocsConfig'
 
 export type DocLinkContextValue = {
   mode: AppMode
@@ -10,6 +10,6 @@ export type DocLinkContextValue = {
 }
 
 export const DocLinkContext = createContext<DocLinkContextValue>({
-  mode: 'upstream',
+  mode: 'community',
   version: docsConfig.version,
 })

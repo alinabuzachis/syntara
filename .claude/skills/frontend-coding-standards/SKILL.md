@@ -1651,16 +1651,17 @@ export type SwitchConfig = { cases: Array<{ label: string }> }
 
 ## 33. Documentation Links -- `useDocLink` Hook
 
-**Never hardcode documentation URLs.** Use the `useDocLink` hook to resolve documentation links that automatically switch between upstream (community) and product (downstream) docs depending on the deployment mode.
+**Never hardcode documentation URLs.** Use the `useDocLink` hook to resolve documentation links. Community builds open the shared repo README for every key; extended builds resolve per-key product URLs when configured.
 
 ### Architecture
 
-The doc link system has four parts:
+The doc link system has five parts:
 
-1. **`frontend/packages/nexus-ui/src/utils/docs/docsUrls.json`** -- maps logical doc keys to path fragments for each mode (upstream / product). Adding a new page means adding a new entry here.
-2. **`frontend/packages/nexus-ui/src/utils/docs/types.ts`** -- `DocKey` type is derived from `keyof typeof docsUrls`, so TypeScript rejects any key not in the JSON at compile time.
-3. **`frontend/packages/nexus-ui/src/utils/docs/DocLinkProvider.tsx`** -- React context provider (wired in `App.tsx`) that reads `VITE_DOC_MODE` env var to determine the current mode. Defaults to `upstream`.
-4. **`frontend/packages/nexus-ui/src/utils/docs/useDocLink.ts`** -- hook that combines the base URL + path for the current mode.
+1. **`frontend/packages/nexus-ui/src/utils/docs/docsUrls.json`** -- flat map of logical doc keys to **path fragments** (one string per key). Adding a new page means adding a new entry here.
+2. **`frontend/packages/nexus-ui/src/utils/docs/docsConfig.json`** -- community homepage URL + docs `version` used when substituting `{version}` in product bases.
+3. **`frontend/packages/nexus-ui/src/utils/docs/loadDocsConfig.ts`** -- build-time merge via `import.meta.glob` of optional `docsConfig.overlay.json` / `docsUrls.overlay.json` (gitignored; injected only on extended builds).
+4. **`frontend/packages/nexus-ui/src/utils/docs/types.ts`** -- `DocKey` type is derived from `keyof typeof docsUrls`, so TypeScript rejects any key not in the JSON at compile time.
+5. **`frontend/packages/nexus-ui/src/utils/docs/DocLinkProvider.tsx` + `useDocLink.ts`** -- React context (wired in `App.tsx`) reads `VITE_EXTENDED` for community vs extended mode, then `resolveDocUrl` builds the final URL.
 
 ### Usage
 
@@ -1677,18 +1678,15 @@ function WorkflowsPage() {
 
 For the workflow builder's node editor panel, pass `docLink` as a prop to `NodeEditorLayout`, which enables its "Documentation" button (previously disabled with "Coming soon").
 
-The sidebar help icon (`AppDockedNav`) uses the `home` key to open the documentation landing page in a new tab. The `home` key has empty paths so it resolves to the base URL (e.g. `https://docs.ansible.com/`).
+The sidebar help icon (`AppDockedNav`) uses the `home` key. In community mode that is the same README URL as every other key; in extended mode it resolves to the configured product landing page.
 
 ### Adding a New Doc Link
 
-1. Add a new entry to `frontend/packages/nexus-ui/src/utils/docs/docsUrls.json`:
+1. Add a flat path entry to `frontend/packages/nexus-ui/src/utils/docs/docsUrls.json`:
 
 ```json
 {
-  "myNewPage": {
-    "upstream": "TODO_UPSTREAM_PATH/my-new-page",
-    "product": "TODO_PRODUCT_PATH/my-new-page"
-  }
+  "myNewPage": "__PLACEHOLDER__/my-new-page"
 }
 ```
 
@@ -1704,23 +1702,21 @@ const docLink = useDocLink('myNewPage')
 <NxPageHeader title="My New Page" docLink={docLink} />
 ```
 
-### Switching Between Upstream and Product
+### Community vs extended
 
-The mode is controlled by the `VITE_DOC_MODE` environment variable:
+Controlled by **`VITE_EXTENDED`** (`true` / `1` = extended; unset = community). Do not use `VITE_DOC_MODE` or `VITE_APP_MODE` — they are ignored.
 
-- **`upstream`** (default) -- resolves to `https://docs.ansible.com/{path}`
-- **`product`** -- resolves to `https://docs.example.com/en/documentation/{product}/{version}/{path}`
-
-This follows the same pattern as the upstream `ansible-ui` repository, where the frontend contains both URL sets and the deployment context determines which to use. The same build artifact works for both upstream and product deployments.
-
-When the backend eventually exposes a config endpoint with license/deployment info, the `DocLinkProvider` internals can switch from reading an env var to reading the API response -- the `useDocLink` hook API remains unchanged.
+| Build | Help link |
+|-------|-----------|
+| Community | Always community README for every key |
+| Extended | Per-key product URL when configured, otherwise community README |
 
 ### Rules
 
-1. **Never hardcode doc URLs** -- always use `useDocLink(key)` so links switch automatically between upstream and product
+1. **Never hardcode doc URLs** -- always use `useDocLink(key)` so links follow community vs extended resolution
 2. **Every page with `NxPageHeader` should have a `docLink`** -- pass the hook result to the `docLink` prop
 3. **`DocKey` is enforced by TypeScript** -- passing a string not in `docsUrls.json` is a compile error
-4. **Keep paths as placeholders until real URLs exist** -- use `TODO_UPSTREAM_PATH/...` and `TODO_PRODUCT_PATH/...` patterns
+4. **Keep paths as obvious placeholders until real URLs exist** -- use `__PLACEHOLDER__/...` (not subtle strings that could look real)
 
 ---
 

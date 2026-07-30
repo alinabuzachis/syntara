@@ -1,47 +1,64 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { resolveAppMode } from './appMode'
+import { isCommunityMode, isExtendedMode, resolveAppMode } from './appMode'
 
 afterEach(() => {
   vi.unstubAllEnvs()
 })
 
 describe('resolveAppMode', () => {
-  it('returns upstream when neither variable is set', () => {
-    vi.stubEnv('VITE_APP_MODE', undefined as unknown as string)
-    vi.stubEnv('VITE_DOC_MODE', undefined as unknown as string)
-    expect(resolveAppMode()).toBe('upstream')
+  it('returns community when VITE_EXTENDED is unset', () => {
+    vi.stubEnv('VITE_EXTENDED', undefined as unknown as string)
+
+    expect(resolveAppMode()).toBe('community')
   })
 
-  it('returns upstream when VITE_APP_MODE=upstream', () => {
-    vi.stubEnv('VITE_APP_MODE', 'upstream')
+  it('returns extended when VITE_EXTENDED=true', () => {
+    vi.stubEnv('VITE_EXTENDED', 'true')
 
-    expect(resolveAppMode()).toBe('upstream')
+    expect(resolveAppMode()).toBe('extended')
   })
 
-  it('returns product when VITE_APP_MODE=product', () => {
-    vi.stubEnv('VITE_APP_MODE', 'product')
+  it('returns extended when VITE_EXTENDED=1', () => {
+    vi.stubEnv('VITE_EXTENDED', '1')
 
-    expect(resolveAppMode()).toBe('product')
+    expect(resolveAppMode()).toBe('extended')
   })
 
-  it('returns product via shim when VITE_DOC_MODE=product and VITE_APP_MODE is unset', () => {
-    vi.stubEnv('VITE_APP_MODE', undefined as unknown as string)
+  it('returns community for other string values (typo-safe)', () => {
+    vi.stubEnv('VITE_EXTENDED', 'yes')
+
+    expect(resolveAppMode()).toBe('community')
+  })
+
+  it('ignores legacy VITE_DOC_MODE / VITE_APP_MODE (use VITE_EXTENDED)', () => {
     vi.stubEnv('VITE_DOC_MODE', 'product')
-
-    expect(resolveAppMode()).toBe('product')
-  })
-
-  it('VITE_APP_MODE wins over VITE_DOC_MODE when both are set', () => {
     vi.stubEnv('VITE_APP_MODE', 'product')
-    vi.stubEnv('VITE_DOC_MODE', 'upstream')
 
-    expect(resolveAppMode()).toBe('product')
+    expect(resolveAppMode()).toBe('community')
+
+    vi.stubEnv('VITE_EXTENDED', 'true')
+    expect(resolveAppMode()).toBe('extended')
+  })
+})
+
+describe('isCommunityMode / isExtendedMode', () => {
+  it('classifies an explicit mode without reading env', () => {
+    expect(isCommunityMode('community')).toBe(true)
+    expect(isExtendedMode('community')).toBe(false)
+    expect(isCommunityMode('extended')).toBe(false)
+    expect(isExtendedMode('extended')).toBe(true)
   })
 
-  it('returns upstream for an invalid value', () => {
-    vi.stubEnv('VITE_APP_MODE', 'invalid-value')
+  it('defaults to resolveAppMode() when mode is omitted', () => {
+    vi.stubEnv('VITE_EXTENDED', undefined as unknown as string)
 
-    expect(resolveAppMode()).toBe('upstream')
+    expect(isCommunityMode()).toBe(true)
+    expect(isExtendedMode()).toBe(false)
+
+    vi.stubEnv('VITE_EXTENDED', 'true')
+
+    expect(isCommunityMode()).toBe(false)
+    expect(isExtendedMode()).toBe(true)
   })
 })

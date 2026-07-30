@@ -15,30 +15,30 @@ describe('DocLinkProvider', () => {
     return <DocLinkProvider>{children}</DocLinkProvider>
   }
 
-  it('provides upstream mode by default', () => {
+  it('provides community mode by default', () => {
     const { result } = renderHook(useDocLinkContext, { wrapper })
 
-    expect(result.current.mode).toBe('upstream')
-    expect(result.current.version).toBe('1.0')
+    expect(result.current.mode).toBe('community')
+    expect(result.current.version).toBe('2.5')
   })
 
-  it('provides product mode when VITE_APP_MODE is product', () => {
-    vi.stubEnv('VITE_APP_MODE', 'product')
+  it('provides extended mode when VITE_EXTENDED=true', () => {
+    vi.stubEnv('VITE_EXTENDED', 'true')
 
     const { result } = renderHook(useDocLinkContext, { wrapper })
 
-    expect(result.current.mode).toBe('product')
-    expect(result.current.version).toBe('1.0')
+    expect(result.current.mode).toBe('extended')
+    expect(result.current.version).toBe('2.5')
 
     vi.unstubAllEnvs()
   })
 
-  it('falls back to upstream for unknown VITE_APP_MODE values', () => {
-    vi.stubEnv('VITE_APP_MODE', 'invalid-mode')
+  it('stays community when VITE_EXTENDED is not true/1', () => {
+    vi.stubEnv('VITE_EXTENDED', 'yes')
 
     const { result } = renderHook(useDocLinkContext, { wrapper })
 
-    expect(result.current.mode).toBe('upstream')
+    expect(result.current.mode).toBe('community')
 
     vi.unstubAllEnvs()
   })

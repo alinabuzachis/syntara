@@ -199,7 +199,7 @@ describe('AppDockedNav', () => {
     await user.click(screen.getByRole('button', { name: 'Documentation (opens in a new tab)' }))
 
     expect(openSpy).toHaveBeenCalledWith(
-      expect.stringContaining('https://docs.ansible.com/'),
+      'https://github.com/syntara-orchestration/syntara/blob/devel/README.md',
       '_blank',
       'noopener,noreferrer'
     )

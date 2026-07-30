@@ -3,7 +3,7 @@ import { useMemo, type ReactNode } from 'react'
 import { resolveAppMode } from '../appMode'
 
 import { DocLinkContext, type DocLinkContextValue } from './docLinkContext'
-import docsConfig from './docsConfig.json' with { type: 'json' }
+import { docsConfig } from './loadDocsConfig'
 
 export function DocLinkProvider(props: Readonly<{ children: ReactNode }>) {
   const value = useMemo<DocLinkContextValue>(

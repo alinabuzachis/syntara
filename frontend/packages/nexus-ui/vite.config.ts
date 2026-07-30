@@ -1,11 +1,17 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv } from 'vite'
 import svgr from 'vite-plugin-svgr'
+
+import { isExtendedEnvValue, resolveAppTitleFromEnv } from './src/utils/buildFlags'
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
-  const appTitle = env.VITE_APP_TITLE ?? 'Syntara'
+  const appTitle = resolveAppTitleFromEnv({
+    extended: isExtendedEnvValue(env.VITE_EXTENDED),
+    title: env.VITE_APP_TITLE,
+  })
 
   const proxyConfig = {
     '/api': {

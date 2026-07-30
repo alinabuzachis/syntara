@@ -206,7 +206,7 @@ For how the UI is structured, see these comprehensive guides:
 | **Library docs / llms.txt links**   | [`.claude/skills/frontend-library-references/SKILL.md`](.claude/skills/frontend-library-references/SKILL.md) -- fetch before writing React, Zod, Zustand, Vitest, Vite, or TanStack Query code                                                                                                       |
 | **Permission gating / RBAC**        | [`docs/permissions-rbac.md`](docs/permissions-rbac.md) -- `useCanI`, `DisabledWithTooltip`, `ProtectedRoute`, nav filtering, mock API roles, ungated inventory                                                                                                                                       |
 | **Page content frame (`NxPanel`)**  | `packages/nexus-ui/src/components/layout/NxPanel.tsx` -- `Panel` -> `PanelMain` -> `PanelMainBody`; see JSDoc (glass vs `opaqueFloatingFill` vs `variant="raised"`) and [patternfly-react#12372](https://github.com/patternfly/patternfly-react/pull/12372)                                          |
-| **Documentation links**             | [`.claude/skills/frontend-coding-standards/SKILL.md`](.claude/skills/frontend-coding-standards/SKILL.md) -- `useDocLink` hook, `DocKey` type, upstream vs product URL resolution                                                                                                                     |
+| **Documentation links**             | [`.claude/skills/frontend-coding-standards/SKILL.md`](.claude/skills/frontend-coding-standards/SKILL.md) -- `useDocLink` hook, `DocKey` type, community vs extended URL resolution                                                                                                                   |
 
 ### Quick Reference: Common Tasks
 
@@ -361,7 +361,7 @@ function MyPage() {
 }
 ```
 
-The key passed to `useDocLink` must exist in `src/utils/docs/docsUrls.json`. TypeScript enforces this at compile time. To add a new doc link for a new page, add an entry to `docsUrls.json` with upstream and product paths. See [`.claude/skills/frontend-coding-standards/SKILL.md`](.claude/skills/frontend-coding-standards/SKILL.md) section 33 for full details.
+The key passed to `useDocLink` must exist in `src/utils/docs/docsUrls.json` (flat path string per key). TypeScript enforces this at compile time. Community builds resolve every key to the shared README; extended builds resolve per-key URLs when configured. See [`.claude/skills/frontend-coding-standards/SKILL.md`](.claude/skills/frontend-coding-standards/SKILL.md) section 33 for full details.
 
 ## Critical Development Workflows
 

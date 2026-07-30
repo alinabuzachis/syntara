@@ -5,7 +5,11 @@ import { describe, expect, it, vi } from 'vitest'
 import { DocLinkProvider } from './DocLinkProvider'
 import docsUrls from './docsUrls.json' with { type: 'json' }
 import type { DocKey } from './types'
-import { useDocLink } from './useDocLink'
+import { resolveDocUrl, useDocLink } from './useDocLink'
+
+const COMMUNITY_README = 'https://github.com/syntara-orchestration/syntara/blob/devel/README.md'
+
+const PRODUCT_BASE = 'https://example.invalid/docs/{version}/'
 
 function wrapper({ children }: Readonly<{ children: ReactNode }>) {
   return <DocLinkProvider>{children}</DocLinkProvider>
@@ -13,88 +17,100 @@ function wrapper({ children }: Readonly<{ children: ReactNode }>) {
 
 const allDocKeys = Object.keys(docsUrls) as DocKey[]
 
-describe('useDocLink', () => {
-  it('returns upstream URL by default', () => {
-    const { result } = renderHook(() => useDocLink('workflows'), { wrapper })
-
-    expect(result.current).toBe('https://docs.ansible.com/TODO_UPSTREAM_PATH/workflows')
+describe('resolveDocUrl', () => {
+  it('returns community homepage in community mode', () => {
+    expect(
+      resolveDocUrl('workflows', {
+        mode: 'community',
+        version: '2.5',
+        config: { communityBaseUrl: COMMUNITY_README, version: '2.5' },
+        urls: docsUrls as Record<DocKey, string>,
+      })
+    ).toBe(COMMUNITY_README)
   })
 
-  it('returns product URL when VITE_APP_MODE is product', () => {
-    vi.stubEnv('VITE_APP_MODE', 'product')
-
-    const { result } = renderHook(() => useDocLink('workflows'), { wrapper })
-
-    expect(result.current).toBe(
-      'https://docs.redhat.com/en/documentation/TODO_PRODUCT_NAME/1.0/TODO_PRODUCT_PATH/workflows'
-    )
-
-    vi.unstubAllEnvs()
+  it('falls back to community homepage in extended mode without productBaseUrl', () => {
+    expect(
+      resolveDocUrl('workflows', {
+        mode: 'extended',
+        version: '2.5',
+        config: { communityBaseUrl: COMMUNITY_README, version: '2.5' },
+        urls: docsUrls as Record<DocKey, string>,
+      })
+    ).toBe(COMMUNITY_README)
   })
 
-  it('substitutes version in product base URL', () => {
-    vi.stubEnv('VITE_APP_MODE', 'product')
-
-    const { result } = renderHook(() => useDocLink('credentials'), { wrapper })
-
-    expect(result.current).toContain('/1.0/')
-
-    vi.unstubAllEnvs()
+  it('uses productBaseUrl + path in extended mode when productBaseUrl is set', () => {
+    expect(
+      resolveDocUrl('workflows', {
+        mode: 'extended',
+        version: '2.5',
+        config: {
+          communityBaseUrl: COMMUNITY_README,
+          productBaseUrl: PRODUCT_BASE,
+          version: '2.5',
+        },
+        urls: {
+          home: '__PLACEHOLDER__/',
+          workflows: '__PLACEHOLDER__/workflows',
+        } as Record<DocKey, string>,
+      })
+    ).toBe('https://example.invalid/docs/2.5/__PLACEHOLDER__/workflows')
   })
 
-  it('resolves different keys to different paths', () => {
-    const { result: workflows } = renderHook(() => useDocLink('workflows'), { wrapper })
-    const { result: credentials } = renderHook(() => useDocLink('credentials'), { wrapper })
-
-    expect(workflows.current).not.toBe(credentials.current)
-    expect(workflows.current).toContain('workflows')
-    expect(credentials.current).toContain('credentials')
+  it('normalizes productBaseUrl missing trailing slash', () => {
+    expect(
+      resolveDocUrl('workflows', {
+        mode: 'extended',
+        version: '2.5',
+        config: {
+          communityBaseUrl: COMMUNITY_README,
+          productBaseUrl: 'https://example.invalid/docs/{version}',
+          version: '2.5',
+        },
+        urls: { home: '', workflows: 'workflows' } as Record<DocKey, string>,
+      })
+    ).toBe('https://example.invalid/docs/2.5/workflows')
   })
 
-  it('falls back to upstream for unknown VITE_APP_MODE values', () => {
-    vi.stubEnv('VITE_APP_MODE', 'something-invalid')
-
-    const { result } = renderHook(() => useDocLink('workflows'), { wrapper })
-
-    expect(result.current).toBe('https://docs.ansible.com/TODO_UPSTREAM_PATH/workflows')
-
-    vi.unstubAllEnvs()
-  })
-
-  it('uses context defaults when rendered without DocLinkProvider', () => {
-    const { result } = renderHook(() => useDocLink('workflows'))
-
-    expect(result.current).toBe('https://docs.ansible.com/TODO_UPSTREAM_PATH/workflows')
-  })
-
-  it.each(allDocKeys.filter((k) => k !== 'home'))('resolves key "%s" to a valid URL with subpath', (key) => {
-    const { result } = renderHook(() => useDocLink(key), { wrapper })
-
-    expect(result.current).toMatch(/^https:\/\/docs\.ansible\.com\//)
-    expect(result.current.length).toBeGreaterThan('https://docs.ansible.com/'.length)
-  })
-
-  it('resolves "home" key to the base documentation URL', () => {
-    const { result } = renderHook(() => useDocLink('home'), { wrapper })
-
-    expect(result.current).toBe('https://docs.ansible.com/')
+  it('normalizes path with leading slash', () => {
+    expect(
+      resolveDocUrl('workflows', {
+        mode: 'extended',
+        version: '2.5',
+        config: {
+          communityBaseUrl: COMMUNITY_README,
+          productBaseUrl: PRODUCT_BASE,
+          version: '2.5',
+        },
+        urls: { home: '', workflows: '/workflows' } as Record<DocKey, string>,
+      })
+    ).toBe('https://example.invalid/docs/2.5/workflows')
   })
 })
 
-describe('DocLinkProvider', () => {
-  it('defaults to upstream mode and version 1.0', () => {
-    vi.stubEnv('VITE_APP_MODE', 'product')
+describe('useDocLink', () => {
+  it('returns community README by default', () => {
+    const { result } = renderHook(() => useDocLink('workflows'), { wrapper })
 
-    const { result: productResult } = renderHook(() => useDocLink('workflows'), { wrapper })
+    expect(result.current).toBe(COMMUNITY_README)
+  })
 
-    expect(productResult.current).toContain('/1.0/')
-    expect(productResult.current).toContain('docs.redhat.com')
+  it('returns community README for every key', () => {
+    expect.assertions(allDocKeys.length)
+    for (const key of allDocKeys) {
+      const { result } = renderHook(() => useDocLink(key), { wrapper })
+      expect(result.current).toBe(COMMUNITY_README)
+    }
+  })
+
+  it('falls back to community README in extended mode when productBaseUrl is absent', () => {
+    vi.stubEnv('VITE_EXTENDED', 'true')
+
+    const { result } = renderHook(() => useDocLink('workflows'), { wrapper })
+
+    expect(result.current).toBe(COMMUNITY_README)
 
     vi.unstubAllEnvs()
-
-    const { result: upstreamResult } = renderHook(() => useDocLink('workflows'), { wrapper })
-
-    expect(upstreamResult.current).toContain('docs.ansible.com')
-    expect(upstreamResult.current).not.toContain('docs.redhat.com')
   })
 })

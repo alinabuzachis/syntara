@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Overlay configuration files (present only in extended builds, never committed upstream)
+src/utils/docs/*.overlay.json
