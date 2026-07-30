@@ -32,6 +32,7 @@ class TestCredentialLifecycleEvent:
         assert event.action == "created"
         assert event.project_id is None
         assert event.affected_workflow_count == 0
+        assert event.affected_integration_count == 0
         assert event.enabled_changed is False
         assert event.error_type is None
 
@@ -114,6 +115,38 @@ class TestCredentialLifecycleHandler:
         assert result.event_severity == EventSeverity.WARNING
         assert isinstance(result.structured_data, AuditContextData)
         assert result.structured_data.affected_workflow_count == 3
+
+    def test_credential_deleted_with_integrations_warning(self) -> None:
+        """Deleted with integration refs -> WARNING severity."""
+        event = CredentialLifecycleEvent(
+            credential_id=uuid4(),
+            credential_name="integration-cred",
+            credential_type_id=uuid4(),
+            action="deleted",
+            affected_integration_count=2,
+        )
+        result = CredentialLifecycleHandler().handle(event)
+
+        assert result.event_severity == EventSeverity.WARNING
+        assert isinstance(result.structured_data, AuditContextData)
+        assert result.structured_data.affected_integration_count == 2
+
+    def test_credential_deleted_with_workflows_and_integrations(self) -> None:
+        """Deleted with both workflow and integration refs -> WARNING, both counts in data."""
+        event = CredentialLifecycleEvent(
+            credential_id=uuid4(),
+            credential_name="shared-cred",
+            credential_type_id=uuid4(),
+            action="deleted",
+            affected_workflow_count=3,
+            affected_integration_count=2,
+        )
+        result = CredentialLifecycleHandler().handle(event)
+
+        assert result.event_severity == EventSeverity.WARNING
+        assert isinstance(result.structured_data, AuditContextData)
+        assert result.structured_data.affected_workflow_count == 3
+        assert result.structured_data.affected_integration_count == 2
 
     def test_credential_updated_enabled_changed_warning(self) -> None:
         """Updated with enabled_changed -> WARNING severity."""

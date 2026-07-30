@@ -696,6 +696,7 @@ class CredentialService(BaseService):
                 action="deleted",
                 project_id=cred_project_id,
                 affected_workflow_count=wf_ref_count,
+                affected_integration_count=int_ref_count,
             ),
         )
 

@@ -38,6 +38,7 @@ class CredentialLifecycleEvent:
     action: str  # "created", "updated", "deleted"
     project_id: UUID | None = field(default=None)
     affected_workflow_count: int = field(default=0)
+    affected_integration_count: int = field(default=0)
     enabled_changed: bool = field(default=False)
     error_type: str | None = field(default=None)
 
@@ -67,7 +68,9 @@ class CredentialLifecycleHandler(AuditEventHandler[CredentialLifecycleEvent]):
         severity = EventSeverity.INFO
         if is_error:
             severity = EventSeverity.ERROR
-        elif (event.action == "deleted" and event.affected_workflow_count > 0) or event.enabled_changed:
+        elif (
+            event.action == "deleted" and (event.affected_workflow_count > 0 or event.affected_integration_count > 0)
+        ) or event.enabled_changed:
             severity = EventSeverity.WARNING
 
         data = AuditContextData(
@@ -78,6 +81,8 @@ class CredentialLifecycleHandler(AuditEventHandler[CredentialLifecycleEvent]):
         )
         if event.affected_workflow_count > 0:
             data.affected_workflow_count = event.affected_workflow_count
+        if event.affected_integration_count > 0:
+            data.affected_integration_count = event.affected_integration_count
         if event.enabled_changed:
             data.enabled_changed = event.enabled_changed
         if is_error:
