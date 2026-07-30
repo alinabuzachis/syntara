@@ -1031,4 +1031,35 @@ describe('EditIntegrationForm', () => {
       })
     })
   })
+
+  describe('system-managed fields are not rendered as editable inputs', () => {
+    it('does not render editable controls for system-managed fields', async () => {
+      setupMocks({
+        integration: {
+          validation_status: 'available',
+          last_validated_at: '2026-06-15T12:00:00Z',
+          validation_error: null,
+          refresh_status: 'available',
+          last_refreshed_at: '2026-06-15T12:00:00Z',
+        },
+      })
+      setupMutationMocks()
+      const { container } = render(<EditIntegrationForm />, { wrapper })
+
+      const systemFields = [
+        'validation_status',
+        'last_validated_at',
+        'validation_error',
+        'refresh_status',
+        'last_refreshed_at',
+        'refresh_error',
+      ]
+      for (const field of systemFields) {
+        expect(screen.queryByRole('textbox', { name: new RegExp(field, 'i') })).not.toBeInTheDocument()
+        expect(screen.queryByRole('combobox', { name: new RegExp(field, 'i') })).not.toBeInTheDocument()
+      }
+
+      expect(await axe(container)).toHaveNoViolations()
+    })
+  })
 })

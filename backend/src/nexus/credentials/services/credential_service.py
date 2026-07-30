@@ -15,7 +15,7 @@ from uuid import UUID
 import structlog
 from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_ssh_private_key
-from sqlalchemy import Select, case, func, literal_column, or_
+from sqlalchemy import Select, case, func, literal_column, or_, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
@@ -684,6 +684,12 @@ class CredentialService(BaseService):
 
         if secret_id:
             await self._secret_service.delete_secret(secret_id)
+
+        await self.session.execute(
+            update(Integration)
+            .where(Integration.management_credential_id == credential_id)  # type: ignore[arg-type]
+            .values(management_credential_id=None)
+        )
 
         await self.session.delete(credential)
         await self.session.commit()
