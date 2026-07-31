@@ -1,7 +1,9 @@
-import { Alert, DescriptionList, StackItem, Title } from '@patternfly/react-core'
+import { DescriptionList, StackItem, Title } from '@patternfly/react-core'
+import { RhUiWarningIcon } from '@patternfly/react-icons'
 import type { IntegrationsAPI } from '@syntara/contracts'
 
 import { NxDetail } from '../../../components/details/NxDetail'
+import { NxLabel } from '../../../components/labels/NxLabel'
 
 import styles from './IntegrationDetail.module.css'
 
@@ -19,11 +21,19 @@ export function SecuritySection({ configuration }: Readonly<{ configuration: Int
       </Title>
       <DescriptionList isHorizontal className={styles.securityDetails}>
         <NxDetail label="HTTP connections">
-          {configuration.allow_http ? <Alert variant="warning" isInline isPlain title="HTTP allowed" /> : 'HTTPS only'}
+          {configuration.allow_http ? (
+            <NxLabel variant="outline" status="warning" icon={<RhUiWarningIcon />}>
+              HTTP allowed
+            </NxLabel>
+          ) : (
+            'HTTPS only'
+          )}
         </NxDetail>
         <NxDetail label="TLS certificate verification">
           {configuration.insecure_skip_tls_verify ? (
-            <Alert variant="warning" isInline isPlain title="TLS verification disabled" />
+            <NxLabel variant="outline" status="warning" icon={<RhUiWarningIcon />}>
+              TLS verification disabled
+            </NxLabel>
           ) : (
             'Enabled'
           )}

@@ -175,7 +175,7 @@ function EditIntegrationFormFields({
         </FormGroup>
       )}
 
-      <EditSecurityFields control={control} />
+      <EditSecurityFields control={control} errors={errors} />
 
       <ScopeFields
         control={control}

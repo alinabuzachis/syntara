@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useForm, type UseFormReturn } from 'react-hook-form'
+import { useForm, type FieldErrors, type UseFormReturn } from 'react-hook-form'
 import { describe, expect, it } from 'vitest'
 import { axe } from 'vitest-axe'
 
@@ -10,9 +10,11 @@ import { EditSecurityFields } from './EditSecurityFields'
 function TestWrapper({
   defaultValues,
   onFormReady,
+  errorOverride,
 }: Readonly<{
   defaultValues?: Partial<EditIntegrationFormValues>
   onFormReady?: (form: UseFormReturn<EditIntegrationFormValues>) => void
+  errorOverride?: FieldErrors<EditIntegrationFormValues>
 }>) {
   const form = useForm<EditIntegrationFormValues>({
     defaultValues: {
@@ -31,7 +33,11 @@ function TestWrapper({
 
   onFormReady?.(form)
 
-  return <EditSecurityFields control={form.control} />
+  return <EditSecurityFields control={form.control} errors={errorOverride ?? form.formState.errors} />
+}
+
+const CA_CERT_ERROR: FieldErrors<EditIntegrationFormValues> = {
+  ca_certificate: { type: 'server', message: 'Invalid PEM format' },
 }
 
 describe('EditSecurityFields', () => {
@@ -197,6 +203,39 @@ describe('EditSecurityFields', () => {
     await user.click(screen.getByText('Security'))
     expect(screen.queryByRole('textbox', { name: /ca certificate/i })).not.toBeInTheDocument()
     expect(screen.getByText(/will not be verified/)).toBeInTheDocument()
+  })
+
+  it('auto-expands when ca_certificate has a validation error', () => {
+    const { rerender } = render(<TestWrapper />)
+
+    expect(screen.queryByRole('textbox', { name: /ca certificate/i })).not.toBeInTheDocument()
+
+    rerender(<TestWrapper errorOverride={CA_CERT_ERROR} />)
+
+    expect(screen.getByRole('textbox', { name: /ca certificate/i })).toBeInTheDocument()
+    expect(screen.getByText('Invalid PEM format')).toBeInTheDocument()
+  })
+
+  it('stays expanded while ca_certificate error is present', async () => {
+    const user = userEvent.setup()
+    render(<TestWrapper errorOverride={CA_CERT_ERROR} />)
+
+    expect(screen.getByRole('textbox', { name: /ca certificate/i })).toBeInTheDocument()
+
+    await user.click(screen.getByText('Security'))
+
+    expect(screen.getByRole('textbox', { name: /ca certificate/i })).toBeInTheDocument()
+  })
+
+  it('collapses automatically when ca_certificate error is cleared', () => {
+    const { rerender } = render(<TestWrapper errorOverride={CA_CERT_ERROR} />)
+
+    expect(screen.getByRole('textbox', { name: /ca certificate/i })).toBeInTheDocument()
+
+    rerender(<TestWrapper />)
+
+    expect(screen.queryByRole('textbox', { name: /ca certificate/i })).not.toBeInTheDocument()
+    expect(screen.queryByText('Invalid PEM format')).not.toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {

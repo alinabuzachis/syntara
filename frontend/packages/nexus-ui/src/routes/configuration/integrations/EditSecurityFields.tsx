@@ -7,21 +7,28 @@ import {
   HelperTextItem,
   TextArea,
 } from '@patternfly/react-core'
+import { RhUiErrorIcon } from '@patternfly/react-icons'
 import { useState } from 'react'
-import { Controller, useWatch, type Control } from 'react-hook-form'
+import { Controller, useWatch, type Control, type FieldErrors } from 'react-hook-form'
 
 import styles from './EditIntegrationForm.module.css'
 import type { EditIntegrationFormValues } from './editIntegrationFormSchema'
 
-export function EditSecurityFields({ control }: Readonly<{ control: Control<EditIntegrationFormValues> }>) {
-  const [isExpanded, setIsExpanded] = useState(false)
+type EditSecurityFieldsProps = Readonly<{
+  control: Control<EditIntegrationFormValues>
+  errors: FieldErrors<EditIntegrationFormValues>
+}>
+
+export function EditSecurityFields({ control, errors }: EditSecurityFieldsProps) {
+  const [userExpanded, setUserExpanded] = useState(false)
   const skipTlsVerify = useWatch({ control, name: 'insecure_skip_tls_verify' })
+  const isExpanded = userExpanded || !!errors.ca_certificate
 
   return (
     <ExpandableSection
       toggleText="Security"
       isExpanded={isExpanded}
-      onToggle={(_e, expanded) => setIsExpanded(expanded)}
+      onToggle={(_e, expanded) => setUserExpanded(expanded)}
       isIndented
     >
       <div className={styles.securityFields}>
@@ -72,6 +79,7 @@ export function EditSecurityFields({ control }: Readonly<{ control: Control<Edit
                   aria-label="CA certificate"
                   resizeOrientation="vertical"
                   rows={4}
+                  validated={errors.ca_certificate ? 'error' : 'default'}
                   value={field.value ?? ''}
                   onChange={(_event, value) => field.onChange(value || null)}
                   onBlur={field.onBlur}
@@ -81,8 +89,12 @@ export function EditSecurityFields({ control }: Readonly<{ control: Control<Edit
             />
             <FormHelperText>
               <HelperText>
-                <HelperTextItem>
-                  PEM-encoded CA certificate to trust for this integration's TLS connections.
+                <HelperTextItem
+                  variant={errors.ca_certificate ? 'error' : 'default'}
+                  icon={errors.ca_certificate ? <RhUiErrorIcon /> : undefined}
+                >
+                  {errors.ca_certificate?.message ??
+                    "PEM-encoded CA certificate to trust for this integration's TLS connections."}
                 </HelperTextItem>
               </HelperText>
             </FormHelperText>
