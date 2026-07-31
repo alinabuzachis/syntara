@@ -291,3 +291,161 @@ class TestNarrowGlobalToProjectScoped:
                 nexus_api.projects.delete(project_id=project_b_id)
             except Exception:
                 pass
+
+
+class TestExecutionTimeIntegrationStateErrors:
+    """Execution-time errors for disabled and deleted integrations produce distinct messages."""
+
+    def test_disabled_integration_produces_disabled_error(
+        self,
+        nexus_api: NexusApiRegistry,
+        workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        integration_factory: Callable[..., dict[str, Any]],
+        first_project_id: UUID,
+    ) -> None:
+        """Disabling an integration after workflow creation causes execution to fail.
+
+        Steps:
+        1. Create project-scoped MCP integration assigned to first_project_id
+        2. Create credential + workflow referencing the integration
+        3. Disable the integration
+        4. Execute → poll → assert IntegrationDisabledError
+        """
+        integration = integration_factory(
+            IntegrationCreate(
+                name=unique_name("e2e-disabled-integ"),
+                integration_type=IntegrationType.MCP_SERVER,
+                configuration=MCPServerConfigurationInput(
+                    base_url="https://mcp-disabled-test.example.com",
+                ),
+                scope=IntegrationScope.PROJECT,
+            )
+        )
+        integration_id = UUID(integration["id"])
+
+        resp = nexus_api.integrations.assign_project(
+            integration_id=integration_id,
+            project_id=first_project_id,
+        )
+        assert resp.status_code in (HTTPStatus.CREATED, HTTPStatus.OK)
+
+        credential_id = _create_credential(nexus_api, first_project_id)
+        try:
+            workflow_name = unique_name("e2e-disabled-integ-wf")
+            workflow = workflow_factory(
+                WorkflowCreate(
+                    name=workflow_name,
+                    description="Workflow for disabled integration test",
+                    project_id=first_project_id,
+                    workflow_definition=_agentic_workflow_definition(
+                        workflow_name, str(integration_id), str(credential_id)
+                    ),
+                )
+            )
+
+            nexus_api.integrations.update(
+                integration_id=integration_id,
+                body=IntegrationPatch(enabled=False),
+            ).assert_and_get()
+
+            execution = nexus_api.executions.create(
+                body=ExecutionCreate(
+                    workflow_id=workflow.id,
+                    trigger_node_id="trigger_manual",
+                )
+            ).assert_and_get()
+
+            result = poll_execution_until_complete(
+                nexus_api,
+                UUID(str(execution.id)),
+                max_polls=30,
+                poll_interval=2,
+            )
+
+            assert result.status == ExecutionStatus.FAILED, (
+                f"Expected FAILED after disabling integration, got {result.status}"
+            )
+            error_text = str(result.error_details or "")
+            assert "IntegrationDisabledError" in error_text or "disabled" in error_text.lower(), (
+                f"Expected IntegrationDisabledError, got: {result.error_details}"
+            )
+        finally:
+            try:
+                nexus_api.credentials.delete(credential_id=credential_id)
+            except Exception:
+                pass
+
+    def test_deleted_integration_produces_not_found_error(
+        self,
+        nexus_api: NexusApiRegistry,
+        workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+        first_project_id: UUID,
+    ) -> None:
+        """Deleting an integration after workflow creation causes execution to fail.
+
+        Steps:
+        1. Create project-scoped MCP integration assigned to first_project_id
+        2. Create credential + workflow referencing the integration
+        3. Delete the integration
+        4. Execute → poll → assert IntegrationNotFoundError
+        """
+        integration = nexus_api.integrations.create(
+            body=IntegrationCreate(
+                name=unique_name("e2e-deleted-integ"),
+                integration_type=IntegrationType.MCP_SERVER,
+                configuration=MCPServerConfigurationInput(
+                    base_url="https://mcp-deleted-test.example.com",
+                ),
+                scope=IntegrationScope.PROJECT,
+            )
+        ).assert_and_get()
+        integration_id = integration.id
+
+        resp = nexus_api.integrations.assign_project(
+            integration_id=integration_id,
+            project_id=first_project_id,
+        )
+        assert resp.status_code in (HTTPStatus.CREATED, HTTPStatus.OK)
+
+        credential_id = _create_credential(nexus_api, first_project_id)
+        try:
+            workflow_name = unique_name("e2e-deleted-integ-wf")
+            workflow = workflow_factory(
+                WorkflowCreate(
+                    name=workflow_name,
+                    description="Workflow for deleted integration test",
+                    project_id=first_project_id,
+                    workflow_definition=_agentic_workflow_definition(
+                        workflow_name, str(integration_id), str(credential_id)
+                    ),
+                )
+            )
+
+            nexus_api.integrations.delete(integration_id=integration_id)
+
+            execution = nexus_api.executions.create(
+                body=ExecutionCreate(
+                    workflow_id=workflow.id,
+                    trigger_node_id="trigger_manual",
+                )
+            ).assert_and_get()
+
+            result = poll_execution_until_complete(
+                nexus_api,
+                UUID(str(execution.id)),
+                max_polls=30,
+                poll_interval=2,
+            )
+
+            assert result.status == ExecutionStatus.FAILED, (
+                f"Expected FAILED after deleting integration, got {result.status}"
+            )
+            error_text = str(result.error_details or "")
+            assert "IntegrationNotFoundError" in error_text or "no longer available" in error_text.lower(), (
+                f"Expected IntegrationNotFoundError, got: {result.error_details}"
+            )
+        finally:
+            try:
+                nexus_api.credentials.delete(credential_id=credential_id)
+            except Exception:
+                pass

@@ -12,6 +12,7 @@ Each test uses a 180s poll timeout for LLM responses.
 from __future__ import annotations
 
 import json
+import os
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -19,16 +20,24 @@ import pytest
 from nexus_api_client.models.credential_create import CredentialCreate
 from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
 from nexus_api_client.models.credential_update import CredentialUpdate
+from nexus_api_client.models.execution_create import ExecutionCreate
 from nexus_api_client.models.execution_status import ExecutionStatus
 from nexus_api_client.models.initial_model_selection import InitialModelSelection
 from nexus_api_client.models.integration_create import IntegrationCreate
 from nexus_api_client.models.integration_type import IntegrationType
+from nexus_api_client.models.llm_model_update import LLMModelUpdate
 from nexus_api_client.models.llm_provider_configuration import LLMProviderConfiguration
 from nexus_api_client.models.llm_provider_hint import LLMProviderHint
-from orchestrator_test_sdk.e2e.helpers import create_and_run_workflow
+from nexus_api_client.models.workflow_create import WorkflowCreate
+from nexus_api_client.models.workflow_definition import WorkflowDefinition
+from orchestrator_test_sdk.e2e import unique_name
+from orchestrator_test_sdk.e2e.helpers import create_and_run_workflow, poll_execution_until_complete
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from nexus_api_client.api import NexusApiRegistry
+    from nexus_api_client.models import ExecutionRead, WorkflowRead
 
 pytestmark = [
     pytest.mark.e2e,
@@ -37,6 +46,16 @@ pytestmark = [
 
 AGENTIC_POLL_TIMEOUT = 180
 MAX_TOOL_CALL_ATTEMPTS = 3
+
+
+def _assert_no_credentials_in_execution(result: ExecutionRead) -> None:
+    """Assert no plaintext credential values appear in the execution response."""
+    api_key = os.environ.get("APP_OPENROUTER_API_KEY", "")
+    if not api_key:
+        return
+    serialized = json.dumps(result.to_dict(), default=str)
+    if api_key in serialized:
+        pytest.fail("Plaintext API key found in execution response")
 
 
 def _agentic_node(
@@ -103,6 +122,7 @@ def test_basic_prompt_completion(
     assert activities["agent"].status == "completed"
     output = activities["agent"].output_data
     assert output is not None, "Agentic activity should produce output"
+    _assert_no_credentials_in_execution(result)
 
 
 # ---------------------------------------------------------------------------
@@ -191,6 +211,7 @@ def test_agentic_with_mcp_tool_call(
         )
 
         assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+        _assert_no_credentials_in_execution(result)
         activities = {a.activity_id: a for a in (result.activities or [])}
         output = activities["agent"].output_data
         if output is not None:
@@ -887,5 +908,250 @@ def test_agentic_disabled_mcp_credential_fails_eagerly(
         if disabled_cred_id is not None:
             try:
                 nexus_api.credentials.delete(credential_id=UUID(disabled_cred_id))
+            except Exception:
+                pass
+
+
+# ---------------------------------------------------------------------------
+# 14. Unreachable LLM endpoint produces identifiable error
+# ---------------------------------------------------------------------------
+
+
+def test_unreachable_llm_endpoint_produces_identifiable_error(
+    nexus_api: NexusApiRegistry,
+    first_project_id: UUID,
+    llm_model: str,
+    worker_id: str,
+) -> None:
+    """Workflow execution fails with an identifiable error when the LLM endpoint is unreachable."""
+    types_list = nexus_api.credentials.list_types().assert_and_get()
+    llm_type_id: UUID | None = None
+    for ct in types_list.resources:
+        if "llm" in ct.name.lower():
+            llm_type_id = UUID(str(ct.id))
+            break
+    assert llm_type_id is not None, "LLM Provider credential type not found"
+
+    cred_id: str | None = None
+    integration_id: UUID | None = None
+    try:
+        cred = nexus_api.credentials.create(
+            body=CredentialCreate(
+                name=f"e2e-unreachable-llm-cred-{worker_id}",
+                credential_type_id=llm_type_id,
+                project_id=first_project_id,
+                inputs=CredentialCreateInputs.from_dict({"api_key": "sk-fake-unreachable-test"}),
+            ),
+        ).assert_and_get()
+        cred_id = str(cred.id)
+
+        integration = nexus_api.integrations.create(
+            body=IntegrationCreate(
+                name=f"e2e-unreachable-llm-{worker_id}",
+                description="LLM provider with unreachable endpoint for E2E test",
+                integration_type=IntegrationType.LLM_PROVIDER,
+                configuration=LLMProviderConfiguration(
+                    provider_hint=LLMProviderHint.CUSTOM,
+                    base_url="https://unreachable-llm-endpoint.invalid:9999",
+                ),
+                management_credential_id=UUID(cred_id),
+                discovered_models=[
+                    InitialModelSelection(
+                        model_id=llm_model,
+                        name=llm_model,
+                        enabled=True,
+                        is_default=True,
+                    ),
+                ],
+            ),
+        ).assert_and_get()
+        integration_id = integration.id
+
+        models_resp = nexus_api.integrations.list_models(integration_id=integration_id)
+        models = models_resp.assert_and_get()
+        assert models.resources, "Unreachable LLM provider should still have models"
+        model_id = str(models.resources[0].id)
+
+        result = create_and_run_workflow(
+            nexus_api,
+            "e2e-agentic-unreachable-llm",
+            {
+                "name": "agentic-unreachable-llm",
+                "schema_version": "2.0.0",
+                "triggers": [{"id": "trigger", "type": "manual_trigger", "parameters": {}}],
+                "nodes": [
+                    _agentic_node(
+                        "agent",
+                        "Unreachable LLM Agent",
+                        "Say hello",
+                        cred_id,
+                        model_id,
+                        settings_timeout=30,
+                    ),
+                ],
+                "edges": [{"from": "trigger", "to": "agent"}],
+            },
+            timeout=60,
+            project_id=first_project_id,
+        )
+
+        assert result.status in {
+            ExecutionStatus.FAILED,
+            ExecutionStatus.COMPLETED_WITH_ERRORS,
+        }, f"Expected failure with unreachable endpoint, got: {result.status}"
+
+        error_text = str(result.error_details or "")
+        error_keywords = ("connect", "unreachable", "timeout", "refused", "resolve", "dns")
+        assert any(kw in error_text.lower() for kw in error_keywords), (
+            f"Expected identifiable connection error, got: {error_text}"
+        )
+
+    finally:
+        if integration_id is not None:
+            try:
+                nexus_api.integrations.delete(integration_id=integration_id)
+            except Exception:
+                pass
+        if cred_id is not None:
+            try:
+                nexus_api.credentials.delete(credential_id=UUID(cred_id))
+            except Exception:
+                pass
+
+
+# ---------------------------------------------------------------------------
+# 15. Model disabled after workflow saved fails execution
+# ---------------------------------------------------------------------------
+
+
+def test_model_disabled_after_workflow_saved_fails_execution(
+    nexus_api: NexusApiRegistry,
+    workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
+    first_project_id: UUID,
+    llm_model: str,
+    worker_id: str,
+) -> None:
+    """Execution fails when a referenced LLM model is disabled after the workflow was saved."""
+    types_list = nexus_api.credentials.list_types().assert_and_get()
+    llm_type_id: UUID | None = None
+    for ct in types_list.resources:
+        if "llm" in ct.name.lower():
+            llm_type_id = UUID(str(ct.id))
+            break
+    assert llm_type_id is not None, "LLM Provider credential type not found"
+
+    api_key = os.environ.get("APP_OPENROUTER_API_KEY")
+    if not api_key:
+        pytest.skip("APP_OPENROUTER_API_KEY not set — LLM credential required")
+
+    cred_id: str | None = None
+    integration_id: UUID | None = None
+    try:
+        cred = nexus_api.credentials.create(
+            body=CredentialCreate(
+                name=f"e2e-model-disable-cred-{worker_id}",
+                credential_type_id=llm_type_id,
+                project_id=first_project_id,
+                inputs=CredentialCreateInputs.from_dict({"api_key": api_key}),
+            ),
+        ).assert_and_get()
+        cred_id = str(cred.id)
+
+        model_b = f"{llm_model}-fallback-dummy"
+        integration = nexus_api.integrations.create(
+            body=IntegrationCreate(
+                name=f"e2e-model-disable-provider-{worker_id}",
+                description="LLM provider for model disable test",
+                integration_type=IntegrationType.LLM_PROVIDER,
+                configuration=LLMProviderConfiguration(
+                    provider_hint=LLMProviderHint.CUSTOM,
+                    base_url="https://openrouter.ai/api/v1",
+                ),
+                management_credential_id=UUID(cred_id),
+                discovered_models=[
+                    InitialModelSelection(
+                        model_id=llm_model,
+                        name=llm_model,
+                        enabled=True,
+                        is_default=True,
+                    ),
+                    InitialModelSelection(
+                        model_id=model_b,
+                        name=model_b,
+                        enabled=True,
+                        is_default=False,
+                    ),
+                ],
+            ),
+        ).assert_and_get()
+        integration_id = integration.id
+
+        models_resp = nexus_api.integrations.list_models(integration_id=integration_id)
+        models = models_resp.assert_and_get()
+        assert len(models.resources) >= 2, "Expected at least 2 models"
+
+        model_a_record = next(m for m in models.resources if m.model_id == llm_model)
+        model_a_uuid = model_a_record.id
+
+        workflow_name = unique_name("e2e-model-disable-wf")
+        workflow = workflow_factory(
+            WorkflowCreate(
+                name=workflow_name,
+                project_id=first_project_id,
+                workflow_definition=WorkflowDefinition.from_dict(
+                    {
+                        "schema_version": "2.0.0",
+                        "name": workflow_name,
+                        "triggers": [{"id": "trigger_manual", "type": "manual_trigger", "parameters": {}}],
+                        "nodes": [
+                            _agentic_node(
+                                "agent",
+                                "Model Disable Agent",
+                                "Say hello",
+                                cred_id,
+                                str(model_a_uuid),
+                            ),
+                        ],
+                        "edges": [{"from": "trigger_manual", "to": "agent"}],
+                    }
+                ),
+            )
+        )
+
+        nexus_api.integrations.update_model(
+            integration_id=integration_id,
+            model_id=model_a_uuid,
+            body=LLMModelUpdate(enabled=False),
+        )
+
+        execution = nexus_api.executions.create(
+            body=ExecutionCreate(
+                workflow_id=workflow.id,
+                trigger_node_id="trigger_manual",
+            )
+        ).assert_and_get()
+
+        result = poll_execution_until_complete(
+            nexus_api,
+            UUID(str(execution.id)),
+            max_polls=30,
+            poll_interval=2,
+        )
+
+        assert result.status == ExecutionStatus.FAILED, f"Expected FAILED after disabling model, got {result.status}"
+        error_text = str(result.error_details or "")
+        assert "LLMModelDisabledError" in error_text or "disabled" in error_text.lower(), (
+            f"Expected LLMModelDisabledError, got: {error_text}"
+        )
+
+    finally:
+        if integration_id is not None:
+            try:
+                nexus_api.integrations.delete(integration_id=integration_id)
+            except Exception:
+                pass
+        if cred_id is not None:
+            try:
+                nexus_api.credentials.delete(credential_id=UUID(cred_id))
             except Exception:
                 pass
