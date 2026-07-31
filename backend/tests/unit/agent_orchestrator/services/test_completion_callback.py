@@ -2,6 +2,8 @@
 
 Validates that callback_url is extracted from final_state metadata with
 fallback to typed InvocationContextData, preventing duplicate signals.
+Also verifies that sensitive URL components (query params, fragments)
+are redacted from log output while the full URL is sent to the signal.
 """
 
 from typing import Any, cast
@@ -183,3 +185,111 @@ class TestSendCompletionCallback:
         )
         assert "used_tools" not in shared_result
         assert final_state["result"] is shared_result
+
+
+class TestCallbackUrlRedaction:
+    """Tests for callback_url redaction in log output."""
+
+    @pytest.mark.asyncio
+    async def test_query_params_redacted_from_log(self, orchestration_service: OrchestrationService) -> None:
+        """Query parameters are stripped from the logged URL but the full URL is sent to the signal."""
+        callback_url = "http://nexus/signal/activity/123?token=secret&session=abc"
+        invocation_id = uuid4()
+        final_state = _make_final_state(
+            metadata={"callback_url": callback_url},
+            result={"content": "done"},
+        )
+
+        with (
+            patch(
+                "nexus.agent_orchestrator.services.orchestration_service.WorkflowSignalClient.send_success_signal",
+                new_callable=AsyncMock,
+            ) as mock_signal,
+            patch("nexus.agent_orchestrator.services.orchestration_service.logger") as mock_logger,
+        ):
+            await orchestration_service._send_completion_callback(final_state, invocation_id)
+
+            mock_signal.assert_awaited_once_with(callback_url, invocation_id, {"content": "done"})
+
+            info_calls = [c for c in mock_logger.info.call_args_list if "Sending callback" in str(c)]
+            assert len(info_calls) == 1
+            logged_url = info_calls[0].kwargs["callback_url"]
+            assert "token=secret" not in logged_url
+            assert "session=abc" not in logged_url
+            assert logged_url == "http://nexus/signal/activity/123"
+
+    @pytest.mark.asyncio
+    async def test_fragment_redacted_from_log(self, orchestration_service: OrchestrationService) -> None:
+        """Fragments are stripped from the logged URL."""
+        callback_url = "http://nexus/signal/activity/123#sensitive-anchor"
+        invocation_id = uuid4()
+        final_state = _make_final_state(
+            metadata={"callback_url": callback_url},
+            result={"content": "done"},
+        )
+
+        with (
+            patch(
+                "nexus.agent_orchestrator.services.orchestration_service.WorkflowSignalClient.send_success_signal",
+                new_callable=AsyncMock,
+            ) as mock_signal,
+            patch("nexus.agent_orchestrator.services.orchestration_service.logger") as mock_logger,
+        ):
+            await orchestration_service._send_completion_callback(final_state, invocation_id)
+
+            mock_signal.assert_awaited_once_with(callback_url, invocation_id, {"content": "done"})
+
+            info_calls = [c for c in mock_logger.info.call_args_list if "Sending callback" in str(c)]
+            logged_url = info_calls[0].kwargs["callback_url"]
+            assert "sensitive-anchor" not in logged_url
+            assert logged_url == "http://nexus/signal/activity/123"
+
+    @pytest.mark.asyncio
+    async def test_query_and_fragment_both_redacted(self, orchestration_service: OrchestrationService) -> None:
+        """Both query params and fragments are stripped from the logged URL."""
+        callback_url = "http://nexus/signal/activity/123?key=val#frag"
+        invocation_id = uuid4()
+        final_state = _make_final_state(
+            metadata={"callback_url": callback_url},
+            result={"content": "done"},
+        )
+
+        with (
+            patch(
+                "nexus.agent_orchestrator.services.orchestration_service.WorkflowSignalClient.send_success_signal",
+                new_callable=AsyncMock,
+            ) as mock_signal,
+            patch("nexus.agent_orchestrator.services.orchestration_service.logger") as mock_logger,
+        ):
+            await orchestration_service._send_completion_callback(final_state, invocation_id)
+
+            mock_signal.assert_awaited_once_with(callback_url, invocation_id, {"content": "done"})
+
+            info_calls = [c for c in mock_logger.info.call_args_list if "Sending callback" in str(c)]
+            logged_url = info_calls[0].kwargs["callback_url"]
+            assert logged_url == "http://nexus/signal/activity/123"
+
+    @pytest.mark.asyncio
+    async def test_url_without_sensitive_parts_logged_unchanged(
+        self, orchestration_service: OrchestrationService
+    ) -> None:
+        """A plain URL with no query or fragment is logged as-is."""
+        callback_url = "http://nexus/signal/activity/123"
+        invocation_id = uuid4()
+        final_state = _make_final_state(
+            metadata={"callback_url": callback_url},
+            result={"content": "done"},
+        )
+
+        with (
+            patch(
+                "nexus.agent_orchestrator.services.orchestration_service.WorkflowSignalClient.send_success_signal",
+                new_callable=AsyncMock,
+            ),
+            patch("nexus.agent_orchestrator.services.orchestration_service.logger") as mock_logger,
+        ):
+            await orchestration_service._send_completion_callback(final_state, invocation_id)
+
+            info_calls = [c for c in mock_logger.info.call_args_list if "Sending callback" in str(c)]
+            logged_url = info_calls[0].kwargs["callback_url"]
+            assert logged_url == callback_url

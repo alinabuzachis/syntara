@@ -11,6 +11,7 @@ from collections import defaultdict, deque
 from collections.abc import Awaitable, Callable, Coroutine
 from datetime import UTC, datetime
 from typing import Any, cast
+from urllib.parse import urlparse, urlunparse
 from uuid import UUID
 
 import httpx
@@ -979,8 +980,8 @@ class OrchestrationService:
             signal_result: Pre-built result dict to send in the callback signal
 
         """
-        logger.info(
-            "CALLBACK CHECK: Checking completion callback for invocation",
+        logger.debug(
+            "Checking completion callback for invocation",
             invocation_id=invocation_id,
             final_state_keys=list(final_state.keys()) if final_state else None,
         )
@@ -990,12 +991,6 @@ class OrchestrationService:
         callback_url = state_metadata.get("callback_url")
         if not callback_url and ctx and ctx.callback_url:
             callback_url = ctx.callback_url.get_secret_value()
-
-        logger.info(
-            "CALLBACK CHECK: callback details",
-            callback_url=callback_url,
-            invocation_id=invocation_id,
-        )
 
         if not callback_url:
             logger.warning(
@@ -1018,7 +1013,9 @@ class OrchestrationService:
             if used_tools:
                 payload = {**result, "used_tools": used_tools}
 
-        logger.info("CALLBACK: Sending activity signal", callback_url=callback_url, invocation_id=invocation_id)
+        parsed = urlparse(callback_url)
+        redacted_url = urlunparse(parsed._replace(query="", fragment=""))
+        logger.info("Sending callback activity signal", callback_url=redacted_url, invocation_id=invocation_id)
         await WorkflowSignalClient.send_success_signal(callback_url, invocation_id, payload)
 
     # ===============================
