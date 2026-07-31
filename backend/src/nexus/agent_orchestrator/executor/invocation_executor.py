@@ -1,5 +1,6 @@
 """Service for executing invocations decoupled from creation."""
 
+import asyncio
 import contextlib
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
@@ -58,7 +59,7 @@ from nexus.credentials.lib.injector_resolver import InjectorResolver
 from nexus.credentials.models.credential import Credential
 from nexus.credentials.models.credential_type import CredentialType
 from nexus.files.file_manager import FileManager, get_file_manager
-from nexus.files.models import FileStatus
+from nexus.files.models import FILE_TERMINAL_STATUSES, FileStatus
 from nexus.integrations.models.integration import Integration, IntegrationType
 from nexus.integrations.models.integration_configuration import LLMProviderConfiguration
 from nexus.integrations.models.llm_model import LLMModel
@@ -68,6 +69,12 @@ from nexus.metrics.recorder import MetricsRecorder
 from nexus.metrics.types import MetricType
 
 logger = structlog.stdlib.get_logger(__name__)
+
+# Polling constants for _wait_for_file_conversions
+_CONVERSION_WAIT_TIMEOUT_SECONDS = 310.0
+_CONVERSION_WAIT_INITIAL_INTERVAL = 0.5
+_CONVERSION_WAIT_MAX_INTERVAL = 5.0
+_CONVERSION_WAIT_BACKOFF_FACTOR = 2.0
 
 
 def _extract_model_name(result_dict: dict[str, Any]) -> str | None:
@@ -321,6 +328,9 @@ class InvocationExecutor:
 
         # Parse context_data into typed model once, reused throughout execution
         ctx = InvocationContextData.model_validate(invocation.context_data or {})
+
+        # Wait for file conversions to reach terminal state before proceeding
+        await self._wait_for_file_conversions(ctx)
 
         # Log conversion failures but allow execution to proceed (FR-020)
         await self._log_conversion_failures(invocation, ctx)
@@ -808,6 +818,57 @@ class InvocationExecutor:
         if not credential.secret_id:
             msg = f"Credential '{credential.name}' has no stored secret data."
             raise CredentialResolutionError(msg)
+
+    async def _wait_for_file_conversions(self, ctx: InvocationContextData) -> None:
+        """Wait for all file conversions to reach a terminal state.
+
+        Polls FileMetadata statuses with exponential backoff until all files
+        are CONVERTED or CONVERSION_FAILED. On timeout, proceeds gracefully
+        to let downstream code handle the partial state.
+
+        Args:
+            ctx: Parsed context_data model containing file_ids
+
+        """
+        if not ctx.file_ids:
+            return
+
+        file_ids = [UUID(fid) for fid in ctx.file_ids]
+        start = time.monotonic()
+        interval = _CONVERSION_WAIT_INITIAL_INTERVAL
+
+        while True:
+            async with self.get_async_session_context() as session:
+                records = await self.file_manager.get_files_metadata(file_ids, session)
+                pending = [r for r in records if r.status not in FILE_TERMINAL_STATUSES]
+
+            if not pending:
+                logger.info(
+                    "All file conversions reached terminal state",
+                    file_count=len(file_ids),
+                    elapsed=round(time.monotonic() - start, 1),
+                )
+                return
+
+            elapsed = time.monotonic() - start
+            if elapsed >= _CONVERSION_WAIT_TIMEOUT_SECONDS:
+                logger.warning(
+                    "Timed out waiting for file conversions, proceeding with partial context",
+                    file_count=len(file_ids),
+                    pending_count=len(pending),
+                    pending_files=[(str(r.id), r.status.value) for r in pending],
+                    timeout=_CONVERSION_WAIT_TIMEOUT_SECONDS,
+                )
+                return
+
+            logger.debug(
+                "Waiting for file conversions",
+                pending_count=len(pending),
+                file_count=len(file_ids),
+                next_poll_seconds=interval,
+            )
+            await asyncio.sleep(interval)
+            interval = min(interval * _CONVERSION_WAIT_BACKOFF_FACTOR, _CONVERSION_WAIT_MAX_INTERVAL)
 
     def _make_mcp_credential_resolver(
         self,

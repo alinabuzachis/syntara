@@ -34,6 +34,14 @@ class FileStatus(str, Enum):
     CONVERSION_FAILED = "conversion_failed"
 
 
+FILE_TERMINAL_STATUSES: frozenset[FileStatus] = frozenset(
+    {
+        FileStatus.CONVERTED,
+        FileStatus.CONVERSION_FAILED,
+    }
+)
+
+
 class FileMetadata(BaseResource, table=True):
     """SQLModel for uploaded file metadata.
 
