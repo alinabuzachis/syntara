@@ -289,7 +289,9 @@ class StaleTokenMiddleware(BaseHTTPMiddleware):
         except Exception:  # noqa: BLE001
             logger.debug("User status check failed, skipping", exc_info=True)
 
-        normalized_path = request.url.path.rstrip("/")
+        # CVE-2026-48710: use scope["path"] (raw ASGI path) instead of
+        # request.url.path which is reconstructed from the Host header.
+        normalized_path = request.scope["path"].rstrip("/")
         is_logout = normalized_path == "/api/v1/auth/logout"
         is_auth_lifecycle = is_logout or normalized_path == "/api/v1/auth/refresh"
         if status_resolved and not is_enabled and not is_logout:

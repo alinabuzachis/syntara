@@ -11,6 +11,7 @@ Tests cover:
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
@@ -376,6 +377,36 @@ class TestStaleTokenMiddleware:
             client = TestClient(app)
             response = client.get("/", headers={"Authorization": "Bearer fresh-jwt"})
             assert response.status_code == 200
+
+    @pytest.mark.parametrize(
+        ("host_header", "description"),
+        [
+            ("evil@/api/v1/auth/refresh:real", "@ userinfo separator"),
+            ("evil?/api/v1/auth/refresh", "? query-string shift"),
+            ("evil#/api/v1/auth/refresh", "# fragment shift"),
+        ],
+    )
+    def test_crafted_host_header_does_not_bypass_stale_rejection(self, host_header, description) -> None:
+        """CVE-2026-48710: injected characters in Host header must not bypass stale-token rejection."""
+        app = _build_app()
+        payload = _make_payload(sub="user-123", token_version=1)
+
+        mock_ts = _mock_token_service(payload=payload)
+        mock_ctx = _mock_async_session(token_version=5)
+
+        with (
+            patch("nexus.auth.middleware.AsyncSessionLocal", return_value=mock_ctx),
+            patch("nexus.auth.middleware.TokenService", return_value=mock_ts),
+        ):
+            client = TestClient(app)
+            response = client.get(
+                "/",
+                headers={"Authorization": "Bearer some-jwt", "Host": host_header},
+            )
+
+        assert response.status_code in {400, 401}, f"Expected 400 or 401 for {description}, got {response.status_code}"
+        if response.status_code == 401:
+            assert response.json()["code"] == "TOKEN_STALE"
 
     def test_impostor_logout_path_not_exempted(self) -> None:
         """A path that ends with /auth/logout but under a different prefix must NOT be exempted."""
