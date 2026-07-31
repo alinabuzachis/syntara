@@ -275,7 +275,7 @@ def _select_best_branch(
             branch_has_type_const[branch_idx] = True
 
     no_type_const = [k for k in branches if not branch_has_type_const[k]]
-    candidates = no_type_const if no_type_const else list(branches)
+    candidates = no_type_const or list(branches)
     best_idx = min(candidates, key=lambda k: len(branches[k]))
     return best_idx, branches
 

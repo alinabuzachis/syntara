@@ -92,6 +92,6 @@ class WebSocketConnectionHandler(AuditEventHandler[WebSocketConnectionEvent]):
             resource_urn=resource_urn,
             resource_name=event.workflow_name,
             actor_id=event.user_id,
-            actor_type=event.actor_type if event.actor_type else None,
+            actor_type=event.actor_type or None,
             actor_username=event.username,
         )

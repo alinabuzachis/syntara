@@ -3866,9 +3866,11 @@ class TestReconcileStaleExecutions:
         mock_event.workflow_execution_completed_event_attributes = None
 
         mock_client.get_workflow_handle = Mock(
-            side_effect=lambda wf_id: mock_handle_bad
-            if wf_id == exec_bad.temporal_workflow_id
-            else self._make_temporal_handle("COMPLETED", events=[mock_event]),
+            side_effect=lambda wf_id: (
+                mock_handle_bad
+                if wf_id == exec_bad.temporal_workflow_id
+                else self._make_temporal_handle("COMPLETED", events=[mock_event])
+            ),
         )
 
         with patch.object(service, "_publish_snapshot", new_callable=AsyncMock):
@@ -3921,9 +3923,11 @@ class TestReconcileStaleExecutions:
         mock_event.workflow_execution_completed_event_attributes = None
 
         mock_client.get_workflow_handle = Mock(
-            side_effect=lambda wf_id: mock_handle_bad
-            if wf_id == exec_bad.temporal_workflow_id
-            else self._make_temporal_handle("COMPLETED", events=[mock_event]),
+            side_effect=lambda wf_id: (
+                mock_handle_bad
+                if wf_id == exec_bad.temporal_workflow_id
+                else self._make_temporal_handle("COMPLETED", events=[mock_event])
+            ),
         )
 
         with patch.object(service, "_publish_snapshot", new_callable=AsyncMock):

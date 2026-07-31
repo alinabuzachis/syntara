@@ -396,7 +396,7 @@ class AuditMiddleware:
                 method=method,
                 path=path,
                 status_code=status_code,
-                actor_context=_actor_context if _actor_context else AuditActorContext(),
+                actor_context=_actor_context or AuditActorContext(),
                 source_component=self._resolve_source_component(scope),
                 query_params=query_params or None,
                 workflow_id=workflow_id,

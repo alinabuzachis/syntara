@@ -29,7 +29,8 @@ from nexus.agent_orchestrator.models import (
 from nexus.agent_orchestrator.models.request import CancellationResult
 from nexus.agent_orchestrator.services import InvocationService
 from nexus.auth import get_current_user
-from nexus.authz.dependencies import PermissionChecker
+from nexus.authz.dependencies import PermissionChecker, VisibilityFilter
+from nexus.authz.engine import VisibilityResult
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.nexus_router import NexusRouter
@@ -280,6 +281,7 @@ async def list_invocations(
     request: Request,
     service: Annotated[InvocationService, Depends(get_invocation_service)],
     params: Annotated[InvocationListParams, Query()],
+    visibility: Annotated[VisibilityResult, Depends(VisibilityFilter("invocation", "read"))],
 ) -> InvocationListResponse:
     """List invocations with filtering, sorting, and pagination.
 
@@ -298,6 +300,7 @@ async def list_invocations(
         request: FastAPI request object containing query parameters
         service: Invocation service
         params: Query parameters for pagination and filtering
+        visibility: Resolved visibility for the current user
 
     Returns:
         InvocationListResponse with invocations, pagination metadata, and optional total
@@ -309,6 +312,7 @@ async def list_invocations(
         sort=params.sort,
         query_params_items=request.query_params.items(),
         include_total=params.include_total,
+        allowed_projects=visibility.to_allowed_projects(),
     )
 
 

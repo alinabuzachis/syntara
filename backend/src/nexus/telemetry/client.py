@@ -402,7 +402,7 @@ def _resolve_telemetry_config(
         write_key = settings.segment_write_key.get_secret_value()
 
     endpoint = (override_endpoint or "").strip()
-    host: str | None = endpoint if endpoint else None
+    host: str | None = endpoint or None
 
     return write_key, host
 

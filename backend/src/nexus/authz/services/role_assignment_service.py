@@ -121,7 +121,7 @@ class RoleAssignmentService:
 
         await self._validate_role(role_name, project_id)
 
-        target_display = group_name if group_name else f"{principal_type_label} '{principal_name}'"
+        target_display = group_name or f"{principal_type_label} '{principal_name}'"
         await self._check_duplicate_assignment(
             principal_id=principal_id,
             group_id=group_id,

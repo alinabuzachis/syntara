@@ -36,6 +36,7 @@ from nexus.agent_orchestrator.models import (
 from nexus.agent_orchestrator.models.request import CancellationResult
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.emitter import request_id_context_var
+from nexus.authz.engine import AllowedProjectsResult
 from nexus.core.constants import CONTEXT_KEY_FILE_IDS
 from nexus.core.database.session import get_db
 from nexus.core.exceptions import SafeValueError
@@ -497,6 +498,7 @@ class InvocationService(BaseService):
         query_params_items: Iterable[tuple[str, str]] | None = None,
         *,
         include_total: bool = False,
+        allowed_projects: AllowedProjectsResult | None = None,
     ) -> InvocationListResponse:
         """List invocations with filtering, sorting, and pagination.
 
@@ -506,6 +508,7 @@ class InvocationService(BaseService):
             sort: Sort parameter (e.g., "created_at", "-started_at")
             query_params_items: Raw query parameter items from request (for filtering)
             include_total: Whether to include total count in response
+            allowed_projects: Optional project scope filter for authorization
 
         Returns:
             InvocationListResponse with invocations, pagination metadata, and optional total
@@ -520,4 +523,5 @@ class InvocationService(BaseService):
             sort=sort or "-created_at",  # Default DESC sort if none provided
             query_params_items=query_params_items,
             include_total=include_total,
+            allowed_projects=allowed_projects,
         )

@@ -1271,7 +1271,7 @@ async def _exchange_and_validate_tokens(
         code=code,
         redirect_uri=redirect_uri,
         client_id=config.client_id,
-        client_secret=config.client_secret if config.client_secret else "",
+        client_secret=config.client_secret or "",
         code_verifier=code_verifier,
         disable_tls_verify=config.disable_tls_verify,
     )
