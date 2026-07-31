@@ -1,5 +1,4 @@
 import { FlexItem } from '@patternfly/react-core'
-import type { ThProps } from '@patternfly/react-table'
 import type { ExecutionsAPI, WorkflowAPI } from '@syntara/contracts'
 import { memo } from 'react'
 
@@ -28,7 +27,6 @@ type BuilderSidePanelsProps = {
   executionFilters: FilterConfig[]
   onFilterChange: (filters: FilterConfig[]) => void
   executionPaginationFooterProps: PaginationFooterProps
-  getSortParams: (columnField: string) => ThProps['sort']
   detailsOpen: boolean
   workflow?: WorkflowWithVersion
   workflowName: string
@@ -51,7 +49,6 @@ export const BuilderSidePanels = memo(function BuilderSidePanels({
   executionFilters,
   onFilterChange,
   executionPaginationFooterProps,
-  getSortParams,
   detailsOpen,
   workflow,
   workflowName,
@@ -86,7 +83,6 @@ export const BuilderSidePanels = memo(function BuilderSidePanels({
             filters={executionFilters}
             onFilterChange={onFilterChange}
             paginationFooterProps={executionPaginationFooterProps}
-            getSortParams={getSortParams}
           />
         </FlexItem>
       )}

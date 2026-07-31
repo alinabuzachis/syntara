@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { executionsClient } from '../../../client'
 import { useCursorPagination } from '../../../hooks/useCursorPagination'
-import { runHistoryDefaultSort, runHistoryTableColumns } from '../../builder/runHistoryTableColumns'
 
 import { useExecutionRunHistory } from './useExecutionRunHistory'
+
+const runHistoryDefaultSort = { field: 'created_at', direction: 'desc' as const }
 
 vi.mock('../../../client', () => ({
   executionsClient: {
@@ -55,14 +56,13 @@ describe('useExecutionRunHistory', () => {
     useQueryMock.mockReturnValue({ data: { resources: [] } } as ReturnType<typeof executionsClient.useQuery>)
   })
 
-  it('wires default sort and columns into useCursorPagination', () => {
+  it('wires default sort into useCursorPagination', () => {
     renderHook(() => useExecutionRunHistory('wf-1'))
 
     expect(useCursorPaginationMock).toHaveBeenCalledWith({
       limit: 20,
       extraParams: { workflow_id: 'wf-1' },
       defaultSort: runHistoryDefaultSort,
-      columns: runHistoryTableColumns,
     })
   })
 

@@ -1,5 +1,4 @@
 import { Flex, FlexItem, TitleSizes } from '@patternfly/react-core'
-import type { ThProps } from '@patternfly/react-table'
 import type { ExecutionsAPI } from '@syntara/contracts'
 import { useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 import type React from 'react'
@@ -108,7 +107,6 @@ function ExecutionDetailContent({
   filters,
   onFilterChange,
   paginationFooterProps,
-  getSortParams,
   onNodeClick,
   selectedNodeId,
   selectedNodeName,
@@ -131,7 +129,6 @@ function ExecutionDetailContent({
   filters: FilterConfig[]
   onFilterChange: (filters: FilterConfig[]) => void
   paginationFooterProps: PaginationFooterProps
-  getSortParams: (columnField: string) => ThProps['sort']
   onNodeClick?: (event: React.MouseEvent, node: { id: string; type?: string; data: Record<string, unknown> }) => void
   selectedNodeId: string | null
   selectedNodeName: string | null
@@ -268,7 +265,6 @@ function ExecutionDetailContent({
             filters={filters}
             onFilterChange={onFilterChange}
             paginationFooterProps={paginationFooterProps}
-            getSortParams={getSortParams}
           />
         </FlexItem>
       )}
@@ -308,13 +304,8 @@ export default function ExecutionDetail() {
     return params.get('history') !== 'closed'
   }, [searchParams])
 
-  const {
-    executionFilters,
-    handleExecutionFilterChange,
-    getExecutionSortParams,
-    executionsQuery,
-    executionPaginationFooterProps,
-  } = useExecutionRunHistory(execution?.workflow_id)
+  const { executionFilters, handleExecutionFilterChange, executionsQuery, executionPaginationFooterProps } =
+    useExecutionRunHistory(execution?.workflow_id)
 
   const { workflow, activities } = useExecutionWorkflow(execution)
 
@@ -432,7 +423,6 @@ export default function ExecutionDetail() {
             filters={executionFilters}
             onFilterChange={handleExecutionFilterChange}
             paginationFooterProps={executionPaginationFooterProps}
-            getSortParams={getExecutionSortParams}
             onNodeClick={handleNodeClick}
             selectedNodeId={selectedNodeId}
             selectedNodeName={selectedNodeName}

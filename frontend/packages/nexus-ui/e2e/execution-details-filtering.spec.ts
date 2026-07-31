@@ -555,7 +555,7 @@ test.describe('Execution Details — Activity Filtering', { tag: '@pr-check' }, 
       }
     })
 
-    test('activity_sort and run history sort coexist in the URL', async ({ app }) => {
+    test('activity_sort is reflected in the URL when sorting the activity table', async ({ app }) => {
       test.skip(!executionId, 'Failed to create workflow/execution for sort URL tests')
       const hasData = await navigateToExecution(app, executionId!)
       test.skip(!hasData, 'Execution activities not available')
@@ -570,15 +570,7 @@ test.describe('Execution Details — Activity Filtering', { tag: '@pr-check' }, 
       const activityTable = app.getByRole('grid', { name: 'Activity states' })
       await activityTable.getByRole('columnheader', { name: 'Status' }).click()
       await expect(app).toHaveURL(/activity_sort=/)
-
-      const runHistorySort = app.getByRole('grid', { name: 'Run history sort' })
-      await expect(runHistorySort).toBeVisible()
-      await runHistorySort.getByRole('columnheader', { name: 'Status' }).click()
-
-      await expect(app).toHaveURL(/activity_sort=/)
-      await expect(app).toHaveURL(/[?&]sort=/)
       expect(new URL(app.url()).searchParams.get('activity_sort')).toBeTruthy()
-      expect(new URL(app.url()).searchParams.get('sort')).toBeTruthy()
     })
   })
 })

@@ -50,7 +50,6 @@ import { useRunStepDialog } from './hooks/useRunStepDialog'
 import { useUndoRedoKeyboard } from './hooks/useUndoRedoKeyboard'
 import { useWorkflowMetadata } from './hooks/useWorkflowMetadata'
 import { NodeActionsContext } from './NodeActionsContext'
-import { runHistoryDefaultSort, runHistoryTableColumns } from './runHistoryTableColumns'
 import type { BuilderContentProps } from './types/builderContent'
 import { useBuilderPermissions } from './useBuilderPermissions'
 import { createAddStepHandler } from './utils/panelActions'
@@ -108,12 +107,10 @@ export function BuilderContent(props: BuilderContentProps) {
     handleFilterChange: handleExecutionFilterChange,
     handleClearAllFilters: clearExecutionFilters,
     getFooterProps: getExecutionPaginationFooterProps,
-    getSortParams: getExecutionSortParams,
   } = useCursorPagination({
     limit: 20,
     extraParams: executionExtraParams,
-    defaultSort: runHistoryDefaultSort,
-    columns: runHistoryTableColumns,
+    defaultSort: { field: 'created_at', direction: 'desc' as const },
   })
   const [state, dispatch] = useReducer(builderReducer, getInitialBuilderState())
   const {
@@ -614,7 +611,6 @@ export function BuilderContent(props: BuilderContentProps) {
                       executionFilters={executionFilters}
                       onFilterChange={handleExecutionFilterChange}
                       executionPaginationFooterProps={executionPaginationFooterProps}
-                      getSortParams={getExecutionSortParams}
                       detailsOpen={detailsOpen}
                       workflow={workflow}
                       workflowName={workflowName}

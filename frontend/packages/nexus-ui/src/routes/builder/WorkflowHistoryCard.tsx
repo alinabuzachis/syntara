@@ -15,7 +15,6 @@ import {
   Truncate,
 } from '@patternfly/react-core'
 import { RhUiCloseIcon, RhUiHistoryIcon, RhUiRedoIcon } from '@patternfly/react-icons'
-import type { ThProps } from '@patternfly/react-table'
 import type { ExecutionsAPI } from '@syntara/contracts'
 import { useNavigate } from '@tanstack/react-router'
 import { useMemo, useState, type ReactNode } from 'react'
@@ -50,7 +49,6 @@ import type { ExecutionMetadata } from '../workflows/stores/useExecutionStore'
 import { StatusLabel } from './ExecutionStatus'
 import { formatHistoryDateTime, getDateGroupLabel } from './historyDateUtils'
 import { getClearFiltersHandler } from './hooks/historyRowModel'
-import { RunHistoryTableHead } from './RunHistoryTableHead'
 import styles from './WorkflowHistoryCard.module.css'
 
 type Execution = ExecutionsAPI.components['schemas']['ExecutionRead']
@@ -205,7 +203,6 @@ type WorkflowHistoryCardProps = {
   filters?: FilterConfig[]
   onFilterChange?: (filters: FilterConfig[]) => void
   paginationFooterProps?: PaginationFooterProps
-  getSortParams?: (columnField: string) => ThProps['sort']
 }
 
 export function WorkflowHistoryCard(props: WorkflowHistoryCardProps) {
@@ -217,7 +214,6 @@ export function WorkflowHistoryCard(props: WorkflowHistoryCardProps) {
     filters = [],
     onFilterChange,
     paginationFooterProps,
-    getSortParams,
   } = props
 
   const historyFilterFields = useMemo(
@@ -327,12 +323,6 @@ export function WorkflowHistoryCard(props: WorkflowHistoryCardProps) {
               onFilterChange={onFilterChange}
               isCompact
             />
-          </StackItem>
-        )}
-
-        {getSortParams && (
-          <StackItem className={styles.sortHeaderItem}>
-            <RunHistoryTableHead getSortParams={getSortParams} />
           </StackItem>
         )}
 
