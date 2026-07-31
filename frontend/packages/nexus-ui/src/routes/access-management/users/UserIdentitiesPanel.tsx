@@ -1,5 +1,5 @@
-import { Button, EmptyState, EmptyStateBody, Flex, FlexItem, Label, StackItem, Truncate } from '@patternfly/react-core'
-import { RhUiKeyIcon, RhUiLinkIcon } from '@patternfly/react-icons'
+import { Button, EmptyState, EmptyStateBody, Flex, FlexItem, StackItem, Truncate } from '@patternfly/react-core'
+import { RhUiConnectedIcon, RhUiDisconnectedIcon, RhUiKeyIcon, RhUiLinkIcon } from '@patternfly/react-icons'
 import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IdentityProvidersAPI } from '@syntara/contracts'
 import { useNavigate } from '@tanstack/react-router'
@@ -13,6 +13,7 @@ import { useAuthProviders } from '../../../app/useAuthProviders'
 import { OIDC_AUTHORIZE_PATH, identityProvidersClient, usersClient } from '../../../client'
 import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { FilterBar } from '../../../components/filters/FilterBar'
+import { NxLabel } from '../../../components/labels/NxLabel'
 import { NxPanelContentStack } from '../../../components/layout/NxPanelContentStack'
 import { NxLink } from '../../../components/NxLink'
 import { ProviderIcon } from '../../../components/ProviderIcon'
@@ -98,6 +99,33 @@ function ProviderLink({ name, providerId }: { name: string; providerId: string }
   )
 }
 
+type IdentityConnectionStatus = 'connected' | 'not_connected'
+
+const identityConnectionStatusMap: Record<IdentityConnectionStatus, 'success' | undefined> = {
+  connected: 'success',
+  not_connected: undefined,
+}
+
+const identityConnectionStatusIcons: Record<IdentityConnectionStatus, React.ComponentType<{ className?: string }>> = {
+  connected: RhUiConnectedIcon,
+  not_connected: RhUiDisconnectedIcon,
+}
+
+const identityConnectionStatusLabels: Record<IdentityConnectionStatus, string> = {
+  connected: 'Connected',
+  not_connected: 'Not connected',
+}
+
+function IdentityConnectionStatusLabel({ status }: Readonly<{ status: IdentityConnectionStatus }>) {
+  const Icon = identityConnectionStatusIcons[status]
+  const labelStatus = identityConnectionStatusMap[status]
+  return (
+    <NxLabel variant="outline" status={labelStatus} icon={<Icon />}>
+      {identityConnectionStatusLabels[status]}
+    </NxLabel>
+  )
+}
+
 function ConnectedIdentityRow({
   identity,
   isLastIdentity,
@@ -119,7 +147,7 @@ function ConnectedIdentityRow({
         <ProviderLink name={identity.provider_name ?? ''} providerId={identity.identity_provider_id} />
       </Td>
       <Td dataLabel="Status">
-        <Label color="green">Connected</Label>
+        <IdentityConnectionStatusLabel status="connected" />
       </Td>
       <Td dataLabel="Issuer URL">
         <Truncate content={identity.issuer} />
@@ -160,7 +188,7 @@ function DisconnectedIdentityRow({
         <ProviderLink name={provider.name} providerId={provider.id} />
       </Td>
       <Td dataLabel="Status">
-        <Label color="grey">Not connected</Label>
+        <IdentityConnectionStatusLabel status="not_connected" />
       </Td>
       <Td dataLabel="Issuer URL">
         <Truncate content={issuerUrl} />

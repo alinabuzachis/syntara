@@ -44,12 +44,12 @@ describe('ProjectMultiSelect', () => {
       expect(screen.getByPlaceholderText('Select projects...')).toBeInTheDocument()
     })
 
-    it('renders selected projects as label chips', () => {
+    it('renders selected projects as filled blue label chips', () => {
       mockProjectsLoaded()
       render(<ProjectMultiSelect selectedIds={['proj-1', 'proj-2']} onChange={vi.fn()} />)
 
-      expect(screen.getByText('Alpha Project')).toBeInTheDocument()
-      expect(screen.getByText('Beta Project')).toBeInTheDocument()
+      expect(screen.getByText('Alpha Project', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
+      expect(screen.getByText('Beta Project', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
     })
 
     it('shows clear all button when projects are selected', () => {

@@ -16,7 +16,7 @@ import { useAlerts } from '../../providers/alerts'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
-import { RolePrincipalType } from '../access-management/RoleAssignmentTypes'
+import { RolePrincipalType, principalTypeDisplay } from '../access-management/RoleAssignmentTypes'
 
 import { accessClient } from './accessClient'
 import { buildPermissionRow, transformAssignmentFilters } from './assignmentUtils'
@@ -105,12 +105,6 @@ function getAssignmentRowActions(
   ]
 }
 
-const principalTypeFieldMapping = {
-  [RolePrincipalType.USER]: { text: 'User', color: 'blue' },
-  [RolePrincipalType.GROUP]: { text: 'Group', color: 'teal' },
-  [RolePrincipalType.SERVICE_ACCOUNT]: { text: 'Service Account', color: 'green' },
-} as const
-
 function AssignmentsTableBody({
   rows,
   projectNameMap,
@@ -152,12 +146,12 @@ function AssignmentsTableBody({
               <Truncate content={row.principalName} />
             </Td>
             <Td dataLabel="Principal Type">
-              <NxLabel color={principalTypeFieldMapping[row.principalType].color}>
-                {principalTypeFieldMapping[row.principalType].text}
+              <NxLabel color={principalTypeDisplay[row.principalType].color}>
+                {principalTypeDisplay[row.principalType].text}
               </NxLabel>
             </Td>
             <Td dataLabel="Role Name">
-              <NxLabel color="purple">{row.assignmentName}</NxLabel>
+              <Truncate content={row.assignmentName} />
             </Td>
             <Td dataLabel="Scope">
               <ScopeLabel scope={row.scopeType} />

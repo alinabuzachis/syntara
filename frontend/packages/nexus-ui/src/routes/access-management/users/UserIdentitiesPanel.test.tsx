@@ -191,6 +191,20 @@ describe('UserIdentitiesPanel', () => {
       expect(screen.getByRole('columnheader', { name: /Last authenticated/i })).toBeInTheDocument()
     })
 
+    it('renders outline status labels for connected and disconnected identities', () => {
+      const mockProviders = [
+        { id: 'provider-1', name: 'Azure', provider_type: 'oidc' },
+        { id: 'provider-3', name: 'GitHub', provider_type: 'oidc' },
+      ]
+      mockUseAuthProviders.mockReturnValue({ providers: mockProviders, isLoading: false })
+      setupMocks(mockIdentities)
+
+      render(<UserIdentitiesPanel userId="user-1" hasPassword={false} />, { wrapper })
+
+      expect(screen.getByText('Connected', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
+      expect(screen.getByText('Not connected', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
+    })
+
     it('shows "Connected" label for linked identities', () => {
       setupMocks(mockIdentities)
 

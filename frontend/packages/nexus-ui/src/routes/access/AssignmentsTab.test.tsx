@@ -265,12 +265,23 @@ describe('AssignmentsTab', () => {
       expect(within(rows[4]).getByText('Service Account')).toBeInTheDocument()
     })
 
-    it('renders role names as labels', () => {
+    it('renders role names as truncated text instead of colored labels', () => {
       render(<AssignmentsTab />, { wrapper })
 
-      expect(screen.getByText('Admin')).toBeInTheDocument()
-      expect(screen.getByText('Editor')).toBeInTheDocument()
-      expect(screen.getByText('Viewer')).toBeInTheDocument()
+      const table = screen.getByRole('grid', { name: 'Role assignments' })
+      expect(within(table).getByText('Admin')).toBeInTheDocument()
+      expect(within(table).getByText('Editor')).toBeInTheDocument()
+      expect(within(table).getByText('Viewer')).toBeInTheDocument()
+    })
+
+    it('renders updated principal type label colors from principalTypeDisplay', () => {
+      render(<AssignmentsTab />, { wrapper })
+
+      const table = screen.getByRole('grid', { name: 'Role assignments' })
+      const rows = within(table).getAllByRole('row')
+      expect(within(rows[1]).getByText('User', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
+      expect(within(rows[2]).getByText('Group', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
+      expect(within(rows[4]).getByText('Service Account', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
     })
 
     it('renders project name for project-scoped rows', () => {

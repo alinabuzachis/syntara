@@ -262,7 +262,7 @@ describe('AgentTraceView', () => {
     }
     render(<AgentTraceView agentTrace={traceWithFailure} />)
 
-    expect(screen.getByText('Failed')).toBeInTheDocument()
+    expect(screen.getByText('Failed', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
     expect(screen.getByText('Broken Tool')).toBeInTheDocument()
   })
 

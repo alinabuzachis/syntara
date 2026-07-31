@@ -71,7 +71,6 @@ function ProjectSelectToggle({
                 <NxLabel
                   key={project.id}
                   color="blue"
-                  variant="outline"
                   onClose={(e) => {
                     e.stopPropagation()
                     onRemove(project.id)

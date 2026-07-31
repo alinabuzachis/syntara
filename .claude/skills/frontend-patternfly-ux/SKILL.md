@@ -399,10 +399,10 @@ Resource pickers (credential selectors, integration pickers, etc.) use a standar
 
 #### Multi-Select Typeahead with Label Chips
 
-For fields where users can select multiple items (e.g., group assignment on user creation), use `MenuToggle variant="typeahead"` + `TextInputGroup` + `LabelGroup` / `Label color="blue"` for selected items:
+For fields where users can select multiple items (e.g., group assignment on user creation), use `MenuToggle variant="typeahead"` + `TextInputGroup` + `LabelGroup` + **`NxLabel color="blue"`** (filled, default variant) for selected items:
 
 - **Filter-as-you-type** with checkbox options
-- **Selected items as chips** — `Label` components with close (×) button for individual removal; clear-all button with `aria-label` for removing all selections
+- **Selected items as chips** — `NxLabel color="blue"` with close (×) button for individual removal; clear-all button with `aria-label` for removing all selections. Do **not** use `variant="outline"` for picker chips — outline is for filter chips and user tags, not multi-select selections.
 - **Empty filter message** — `"No results match \"{filter}\""` when typeahead filter matches nothing
 - **Options with descriptions** — show supplementary text below option labels when available
 - **Create-only fields:** Some multi-select fields (e.g., group assignment) appear on the Create form only; editing is done through a dedicated panel on the detail page (e.g., `UserGroupsPanel`). This avoids overloading the edit form with group management.
@@ -1017,8 +1017,6 @@ The distinguishing axis is **"live status of a monitored entity" vs. "fixed cate
 
 This mirrors common status-indicator conventions in comparable products (CI/CD pipeline status, service health badges): a single, consistent treatment is used for "current condition of a monitored entity" everywhere it appears, rather than varying by how volatile the state happens to be. A lighter outline treatment for statuses that repeat down a table column (executions list, integrations list) also keeps dense lists scannable — reserve heavier filled/saturated labels for lower-frequency categorical or single-value badges to avoid visual fatigue.
 
-> **Known inconsistency (tracked separately):** `routes/configuration/integrations/StatusLabel.tsx` currently renders integration health as **filled** rather than **outline**, which conflicts with the rule above. This is legacy drift, not an intentional exception — do not replicate it in new code. An issue will track normalizing it to `variant="outline"` to match execution/activity/approval status labels.
-
 ### Building Domain Status Labels
 
 All domain status labels follow a consistent implementation pattern — a status-to-variant map, a status-to-icon map, and a thin component:
@@ -1097,12 +1095,24 @@ Keep display labels in a separate constants file (e.g., `executionStatusConstant
 
 **Access Management — Assignments**
 
-| Dimension | Value   | Style         |
-| --------- | ------- | ------------- |
-| Type      | User    | Filled teal   |
-| Type      | Group   | Filled orange |
-| Scope     | System  | Filled blue   |
-| Scope     | Project | Filled purple |
+| Dimension       | Value            | Style         |
+| --------------- | ---------------- | ------------- |
+| Type            | User             | Filled teal   |
+| Type            | Group            | Filled orange |
+| Type            | Service Account  | Filled purple |
+| Scope           | System           | Filled blue   |
+| Scope           | Project          | Filled green  |
+| Role name       | *(any)*          | Plain text (`Truncate`) — not a label |
+| Policy names    | *(any)*          | Filled grey   |
+
+**Assignment table columns**
+
+- **Principal Type** — `NxLabel` with color from `principalTypeDisplay` in `routes/access-management/RoleAssignmentTypes.ts` (single source of truth for Assignments and Project Role Assignments tabs).
+- **Role Name** — `<Truncate content={roleName} />`. Role names are identifiers, not categorical metadata; do not use colored labels (e.g., purple) for this column.
+- **Scope** — filled label per the Scope row above (`ScopeLabel` / `SCOPE_DISPLAY` in `routes/access/ScopeLabel.tsx`: System=blue, Project=green).
+- **Policies** — default grey filled `NxLabel` when shown as a chip group.
+
+Principal type and scope are **different dimensions** — use colors from their respective rows in this table.
 
 **Access Management — Roles**
 
@@ -1123,10 +1133,11 @@ Keep display labels in a separate constants file (e.g., `executionStatusConstant
 
 **Counts and grouping**
 
-| Context                     | Style         |
-| --------------------------- | ------------- |
-| Group item count            | Filled purple |
-| Single-value callout        | Filled grey   |
+| Context              | Style       |
+| -------------------- | ----------- |
+| Single-value callout | Filled grey |
+
+Do **not** show per-group item count badges on project group headers in All projects views — row counts are misleading when groups are paginated or filtered (see AAP-85112).
 
 ### Grace-Period / Time-Remaining Indicator
 

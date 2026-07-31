@@ -125,6 +125,12 @@ describe('ServiceAccountDetail', () => {
     expect(screen.getByRole('heading', { name: 'deploy-bot' })).toBeInTheDocument()
   })
 
+  it('renders outline enabled state label on details tab', () => {
+    render(<ServiceAccountDetail />, { wrapper })
+
+    expect(screen.getByText('Enabled', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
+  })
+
   it('renders details tab content by default', () => {
     render(<ServiceAccountDetail />, { wrapper })
 
@@ -273,6 +279,16 @@ describe('ServiceAccountDetail', () => {
     await user.click(retryButton)
 
     expect(mockRefetch).toHaveBeenCalled()
+  })
+
+  it('shows outline disabled state label on details tab', () => {
+    vi.mocked(accessClient.useQuery).mockReturnValue(
+      buildQueryResult({ ...mockServiceAccount, status: 'disabled' }) as never
+    )
+
+    render(<ServiceAccountDetail />, { wrapper })
+
+    expect(screen.getByText('Disabled', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
   })
 
   it('shows Disabled state for disabled service accounts', () => {

@@ -20,20 +20,14 @@ import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import { accessClient } from '../../access/accessClient'
+import { derivePrincipalType } from '../../access/assignmentUtils'
 import type { RoleAssignmentRead } from '../../access/types'
 import { useAssignmentPermissions } from '../../access/useAssignmentPermissions'
 import { useRolePermissions } from '../../access/useRolePermissions'
+import { principalTypeDisplay } from '../RoleAssignmentTypes'
 
 import { AddProjectRoleDialog } from './AddProjectRoleDialog'
 import { AssignProjectRoleModal } from './AssignProjectRoleModal'
-
-type PrincipalTypeDisplay = { text: string; color: 'blue' | 'teal' | 'green' }
-
-function principalTypeDisplay(a: RoleAssignmentRead): PrincipalTypeDisplay {
-  if (a.principal_type === 'service_account') return { text: 'Service Account', color: 'green' }
-  if (a.principal_type === 'group' || a.group_id != null) return { text: 'Group', color: 'teal' }
-  return { text: 'User', color: 'blue' }
-}
 
 const SORT_FIELDS = ['principal_name', 'role_name'] as const
 
@@ -95,7 +89,7 @@ function RoleAssignmentsTable({
       </Thead>
       <Tbody>
         {assignments.map((assignment) => {
-          const { color, text } = principalTypeDisplay(assignment)
+          const { color, text } = principalTypeDisplay[derivePrincipalType(assignment)]
           return (
             <Tr key={assignment.id}>
               <Td dataLabel="Principal Name">

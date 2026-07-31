@@ -7,7 +7,7 @@ import {
   SelectOption,
   Spinner,
 } from '@patternfly/react-core'
-import { RhUiCheckCircleIcon, RhUiCloseCircleIcon, RhUiSyncIcon } from '@patternfly/react-icons'
+import { RhUiCheckCircleIcon, RhUiCloseCircleIcon, RhUiMinusCircleIcon, RhUiSyncIcon } from '@patternfly/react-icons'
 import type { IntegrationsAPI } from '@syntara/contracts'
 import { IntegrationStatusEnum, IntegrationTypeEnum } from '@syntara/contracts'
 import React, { type ReactElement, useCallback, useMemo, useState } from 'react'
@@ -25,12 +25,12 @@ type IntegrationStatus = (typeof IntegrationStatusEnum)[keyof typeof Integration
 
 const STATUS_CONFIG: Record<
   IntegrationStatus,
-  { label: string; color: 'green' | 'red' | 'grey'; Icon: React.ComponentType<{ className?: string }> }
+  { label: string; labelStatus: 'success' | 'danger' | 'custom'; Icon: React.ComponentType<{ className?: string }> }
 > = {
-  [IntegrationStatusEnum.AVAILABLE]: { label: 'Available', color: 'green', Icon: RhUiCheckCircleIcon },
-  [IntegrationStatusEnum.ERROR]: { label: 'Error', color: 'red', Icon: RhUiCloseCircleIcon },
-  [IntegrationStatusEnum.VALIDATING]: { label: 'Validating', color: 'grey', Icon: RhUiSyncIcon },
-  [IntegrationStatusEnum.UNKNOWN]: { label: 'Unknown', color: 'grey', Icon: RhUiSyncIcon },
+  [IntegrationStatusEnum.AVAILABLE]: { label: 'Available', labelStatus: 'success', Icon: RhUiCheckCircleIcon },
+  [IntegrationStatusEnum.ERROR]: { label: 'Error', labelStatus: 'danger', Icon: RhUiCloseCircleIcon },
+  [IntegrationStatusEnum.VALIDATING]: { label: 'Validating', labelStatus: 'custom', Icon: RhUiSyncIcon },
+  [IntegrationStatusEnum.UNKNOWN]: { label: 'Unknown', labelStatus: 'custom', Icon: RhUiMinusCircleIcon },
 }
 
 const NO_INTEGRATION_VALUE = '__none__'
@@ -38,9 +38,9 @@ const NO_INTEGRATION_VALUE = '__none__'
 function StatusBadge({ status }: Readonly<{ status: IntegrationStatus }>) {
   const config = STATUS_CONFIG[status]
   if (!config) return null
-  const { label, color, Icon } = config
+  const { label, labelStatus, Icon } = config
   return (
-    <NxLabel color={color} icon={<Icon />}>
+    <NxLabel variant="outline" status={labelStatus} icon={<Icon />}>
       {label}
     </NxLabel>
   )

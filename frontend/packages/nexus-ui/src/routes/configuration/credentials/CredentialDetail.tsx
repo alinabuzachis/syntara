@@ -1,5 +1,11 @@
 import { Badge, Button, DescriptionList, Stack, StackItem, Switch, Tab } from '@patternfly/react-core'
-import { RhUiEditIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import {
+  RhUiCheckCircleIcon,
+  RhUiEditIcon,
+  RhUiLockIcon,
+  RhUiMinusCircleIcon,
+  RhUiTrashIcon,
+} from '@patternfly/react-icons'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 
@@ -55,11 +61,13 @@ function formatCount(count: number | null | undefined): string | number {
 
 function EnabledStateLabel({ enabled }: Readonly<{ enabled: boolean }>) {
   return enabled ? (
-    <NxLabel variant="outline" status="success">
+    <NxLabel variant="outline" status="success" icon={<RhUiCheckCircleIcon />}>
       Enabled
     </NxLabel>
   ) : (
-    <NxLabel variant="outline">Disabled</NxLabel>
+    <NxLabel variant="outline" icon={<RhUiMinusCircleIcon />}>
+      Disabled
+    </NxLabel>
   )
 }
 
@@ -72,7 +80,9 @@ function DynamicCredentialFields({ typeFields, credInputs }: Readonly<DynamicFie
     return (
       <NxDetail key={field.id} label={field.label}>
         {isEncrypted ? (
-          <NxLabel variant="outline">Encrypted</NxLabel>
+          <NxLabel variant="outline" icon={<RhUiLockIcon />}>
+            Encrypted
+          </NxLabel>
         ) : (
           String((value as string | number | boolean) ?? '—')
         )}

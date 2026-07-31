@@ -14,6 +14,20 @@ describe('BuiltInAdminCard', () => {
     onToggle: vi.fn(),
   }
 
+  it('renders outline status label when enabled', () => {
+    render(<BuiltInAdminCard {...defaultProps} isEnabled />)
+
+    expect(screen.getByText('Enabled', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
+    expect(screen.getAllByText('Enabled')).toHaveLength(2)
+  })
+
+  it('renders outline status label when disabled', () => {
+    render(<BuiltInAdminCard {...defaultProps} isEnabled={false} />)
+
+    expect(screen.getByText('Disabled', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
+    expect(screen.getAllByText('Disabled')).toHaveLength(2)
+  })
+
   it('renders "Enabled" label and status when isEnabled=true', () => {
     render(<BuiltInAdminCard {...defaultProps} isEnabled />)
 

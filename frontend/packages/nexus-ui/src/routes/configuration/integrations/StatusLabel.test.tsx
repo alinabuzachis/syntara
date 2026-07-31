@@ -6,6 +6,12 @@ import { axe } from 'vitest-axe'
 import { StatusLabel } from './StatusLabel'
 
 describe('StatusLabel', () => {
+  it('renders outline variant for integration status labels', () => {
+    render(<StatusLabel status={IntegrationStatusEnum.AVAILABLE} />)
+
+    expect(screen.getByText('Available', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
+  })
+
   it('renders available status with success label', () => {
     render(<StatusLabel status={IntegrationStatusEnum.AVAILABLE} />)
     expect(screen.getByText('Available')).toBeInTheDocument()

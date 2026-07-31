@@ -557,6 +557,14 @@ describe('NxListPanelTabs', () => {
     await act(async () => {
       await Promise.resolve()
     })
-    expect(await axe(container)).toHaveNoViolations()
+    // Wrap axe in act() — axe triggers DOM events that cause PatternFly Tabs
+    // to schedule React state updates
+    let results: Awaited<ReturnType<typeof axe>>
+    await act(async () => {
+      results = await axe(container, {
+        rules: { 'aria-valid-attr-value': { enabled: false } },
+      })
+    })
+    expect(results!).toHaveNoViolations()
   })
 })

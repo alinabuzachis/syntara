@@ -200,6 +200,18 @@ describe('CheckAccessView', () => {
     })
   })
 
+  it('shows grey matched policy label on allowed result', () => {
+    mockMutationState({
+      isSuccess: true,
+      data: { allowed: true, denied: false, matched_policy: 'admin-policy', denial_reason: '', denied_by: '' },
+      variables: sampleCheckAccessRequest,
+    })
+
+    render(<CheckAccessView {...sampleResourceActions} />, { wrapper })
+
+    expect(screen.getByText('admin-policy', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
+  })
+
   it('shows access allowed result with project name', () => {
     mockMutationState({
       isSuccess: true,
@@ -213,6 +225,24 @@ describe('CheckAccessView', () => {
     expect(screen.getByText('admin-policy')).toBeInTheDocument()
     expect(screen.getByText(/in project/)).toBeInTheDocument()
     expect(screen.getByText('default')).toBeInTheDocument()
+  })
+
+  it('shows grey denied-by and matched policy labels on denied result', () => {
+    mockMutationState({
+      isSuccess: true,
+      data: {
+        allowed: false,
+        denied: true,
+        matched_policy: 'deny-policy',
+        denial_reason: 'Explicitly denied',
+        denied_by: 'deny-policy',
+      },
+      variables: sampleCheckAccessRequest,
+    })
+
+    render(<CheckAccessView {...sampleResourceActions} />, { wrapper })
+
+    expect(screen.getAllByText('deny-policy', { selector: '.pf-v6-c-label__text' })).toHaveLength(2)
   })
 
   it('shows access denied result with project name', () => {

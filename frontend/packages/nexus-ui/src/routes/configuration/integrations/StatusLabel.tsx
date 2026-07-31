@@ -34,7 +34,7 @@ export function StatusLabel({ status, errorMessage }: StatusLabelProps) {
   const hasTooltip = integrationStatus === IntegrationStatusEnum.ERROR && errorMessage
 
   const label = (
-    <NxLabel status={labelStatus} icon={<Icon />} tabIndex={hasTooltip ? 0 : undefined}>
+    <NxLabel variant="outline" status={labelStatus} icon={<Icon />} tabIndex={hasTooltip ? 0 : undefined}>
       {capitalizedStatus}
     </NxLabel>
   )

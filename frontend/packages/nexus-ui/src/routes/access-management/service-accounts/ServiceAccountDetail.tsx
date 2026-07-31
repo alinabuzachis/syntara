@@ -1,5 +1,5 @@
 import { Button, DescriptionList, Switch, Tab, TabTitleText, Tooltip } from '@patternfly/react-core'
-import { RhUiEditIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { RhUiCheckCircleIcon, RhUiEditIcon, RhUiMinusCircleIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useCallback } from 'react'
 
@@ -65,9 +65,15 @@ function DetailsTab({ serviceAccount }: Readonly<{ serviceAccount: ServiceAccoun
       </NxDetail>
       <NxDetail label="Description">{serviceAccount.description}</NxDetail>
       <NxDetail label="State">
-        <NxLabel color={serviceAccount.status === 'active' ? 'green' : 'grey'}>
-          {serviceAccount.status === 'active' ? 'Enabled' : 'Disabled'}
-        </NxLabel>
+        {serviceAccount.status === 'active' ? (
+          <NxLabel variant="outline" status="success" icon={<RhUiCheckCircleIcon />}>
+            Enabled
+          </NxLabel>
+        ) : (
+          <NxLabel variant="outline" icon={<RhUiMinusCircleIcon />}>
+            Disabled
+          </NxLabel>
+        )}
       </NxDetail>
       <NxDetail label="Created">{formatDateTime(serviceAccount.created_at)}</NxDetail>
       <NxDetail label="Last authenticated">

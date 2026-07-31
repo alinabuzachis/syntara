@@ -15,6 +15,7 @@ import { useMemo } from 'react'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsProjectDetail, breadcrumbsProjectDetailEarlyShell } from '../../../app/breadcrumbBuilders'
+import { NxLabel } from '../../../components/labels/NxLabel'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPageTitle } from '../../../components/NxPageTitle'
@@ -44,11 +45,7 @@ function ProjectDetailsTab({ project }: Readonly<{ project: ProjectRead }>) {
         <DescriptionListDescription>
           <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
             <FlexItem>{project.name}</FlexItem>
-            {project.is_default && (
-              <Label color="blue" isCompact>
-                Default
-              </Label>
-            )}
+            {project.is_default && <NxLabel color="grey">Default</NxLabel>}
           </Flex>
         </DescriptionListDescription>
       </DescriptionListGroup>

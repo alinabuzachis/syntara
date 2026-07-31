@@ -8,6 +8,7 @@ import { axe } from 'vitest-axe'
 import { AlertProvider } from '../../../providers/alerts'
 import { searchParamsMock } from '../../../test/searchParamsMock'
 import { accessClient } from '../../access/accessClient'
+import type { RoleAssignmentRead } from '../../access/types'
 
 import { ProjectRoleAssignmentsTab } from './ProjectRoleAssignmentsTab'
 
@@ -242,7 +243,7 @@ const mockAllAssignments = [
 describe('ProjectRoleAssignmentsTab', () => {
   const mockRefetch = vi.fn().mockResolvedValue({})
 
-  function setupMocks(assignments = mockAllAssignments) {
+  function setupMocks(assignments: RoleAssignmentRead[] = mockAllAssignments as unknown as RoleAssignmentRead[]) {
     vi.mocked(accessClient.useQuery).mockReturnValue({
       data: { resources: assignments, total: assignments.length, next: null, prev: null },
       isPending: false,
@@ -290,6 +291,30 @@ describe('ProjectRoleAssignmentsTab', () => {
 
     expect(screen.getAllByText('User')).toHaveLength(2)
     expect(screen.getByText('Group')).toBeInTheDocument()
+  })
+
+  it('shows Service Account type label with updated display colors', () => {
+    setupMocks([
+      ...(mockAllAssignments as unknown as RoleAssignmentRead[]),
+      {
+        id: 'a4',
+        principal_id: 'sa-1',
+        group_id: null,
+        principal_type: 'service_account',
+        principal_name: 'ci-bot',
+        role_name: 'runner',
+        role_policies: [],
+        created_at: '2024-04-01T00:00:00Z',
+        project_id: 'proj-1',
+        project_name: 'Test Project',
+      } as RoleAssignmentRead,
+    ])
+    render(<ProjectRoleAssignmentsTab projectId="proj-1" />, { wrapper })
+
+    expect(screen.getByText('Service Account', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
+    expect(screen.getAllByText('User', { selector: '.pf-v6-c-label__text' }).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('Group', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
+    expect(screen.getByText('ci-bot')).toBeInTheDocument()
   })
 
   it('renders policy labels for assignments with policies', () => {

@@ -279,6 +279,13 @@ describe('CredentialDetail', () => {
     expect(screen.queryByText('Description')).not.toBeInTheDocument()
   })
 
+  it('shows Encrypted label with lock icon for secret fields', () => {
+    render(<CredentialDetail />, { wrapper })
+
+    expect(screen.getByRole('tab', { name: 'Details' })).toBeInTheDocument()
+    expect(screen.getByText('Encrypted', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
+  })
+
   it('shows Encrypted label for secret fields', () => {
     render(<CredentialDetail />, { wrapper })
 
@@ -419,12 +426,29 @@ describe('CredentialDetail', () => {
     expect(screen.getByText('Last modified')).toBeInTheDocument()
   })
 
+  it('renders outline enabled state label on details tab', () => {
+    render(<CredentialDetail />, { wrapper })
+
+    expect(screen.getByRole('tab', { name: 'Details' })).toBeInTheDocument()
+    expect(screen.getByText('Enabled', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
+  })
+
   it('renders enabled state label', () => {
     render(<CredentialDetail />, { wrapper })
 
     expect(screen.getByRole('tab', { name: 'Details' })).toBeInTheDocument()
     const stateLabels = screen.getAllByText('Enabled')
     expect(stateLabels.length).toBeGreaterThan(0)
+  })
+
+  it('renders outline disabled state label for disabled credential', () => {
+    const disabledCredential = { ...mockCredential, enabled: false }
+    vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery(disabledCredential))
+
+    render(<CredentialDetail />, { wrapper })
+
+    expect(screen.getByRole('tab', { name: 'Details' })).toBeInTheDocument()
+    expect(screen.getByText('Disabled', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
   })
 
   it('renders disabled state label for disabled credential', () => {

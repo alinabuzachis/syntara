@@ -1,6 +1,7 @@
-import { Card, CardBody, Flex, FlexItem, Label, Switch, Tooltip } from '@patternfly/react-core'
+import { Card, CardBody, Flex, FlexItem, Switch, Tooltip } from '@patternfly/react-core'
 import { RhUiCheckCircleIcon, RhUiLockIcon, RhUiUnlockIcon } from '@patternfly/react-icons'
 
+import { NxLabel } from '../../components/labels/NxLabel'
 import { NxLink } from '../../components/NxLink'
 
 import { getUserDetailPath } from './accessManagementPaths'
@@ -37,9 +38,9 @@ export function BuiltInAdminCard({ userId, isEnabled, canToggle, onToggle }: Rea
           </FlexItem>
           <FlexItem>
             {/* Intentionally inverted: "Disabled" is the desired/green state for the built-in admin account */}
-            <Label status={isEnabled ? 'danger' : 'success'} icon={<RhUiCheckCircleIcon />} isCompact>
+            <NxLabel variant="outline" status={isEnabled ? 'danger' : 'success'} icon={<RhUiCheckCircleIcon />}>
               {isEnabled ? 'Enabled' : 'Disabled'}
-            </Label>
+            </NxLabel>
           </FlexItem>
           <FlexItem>
             Username: <strong>admin</strong>

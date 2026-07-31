@@ -355,7 +355,7 @@ describe('ProjectDetail', () => {
     expect(dashes.length).toBeGreaterThan(0)
   })
 
-  it('renders Default label when project is_default', () => {
+  it('renders grey Default label when project is_default', () => {
     const defaultProject = { ...mockProject, is_default: true }
     vi.mocked(accessClient.useQuery).mockReturnValue({
       data: defaultProject,
@@ -367,7 +367,7 @@ describe('ProjectDetail', () => {
 
     render(<ProjectDetail />, { wrapper })
 
-    expect(screen.getByText('Default')).toBeInTheDocument()
+    expect(screen.getByText('Default', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
   })
 
   describe('Permission-based tab gating', () => {

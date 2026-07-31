@@ -8,7 +8,6 @@ import {
   FlexItem,
   Form,
   FormGroup,
-  Label,
   Spinner,
   Stack,
   StackItem,
@@ -18,6 +17,7 @@ import { useMemo } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
+import { NxLabel } from '../../components/labels/NxLabel'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { NxErrorState } from '../../components/states/NxErrorState'
 import { getErrorMessage } from '../../utils/apiErrors'
@@ -71,10 +71,7 @@ function AccessResult({
         {result.matched_policy && (
           <StackItem>
             <Content component={ContentVariants.small}>
-              Matched policy:{' '}
-              <Label color="blue" isCompact>
-                {result.matched_policy}
-              </Label>
+              Matched policy: <NxLabel color="grey">{result.matched_policy}</NxLabel>
             </Content>
           </StackItem>
         )}
@@ -103,20 +100,14 @@ function AccessResult({
       {result.denied_by && (
         <StackItem>
           <Content component={ContentVariants.small}>
-            Denied by:{' '}
-            <Label color="red" isCompact>
-              {result.denied_by}
-            </Label>
+            Denied by: <NxLabel color="grey">{result.denied_by}</NxLabel>
           </Content>
         </StackItem>
       )}
       {result.matched_policy && (
         <StackItem>
           <Content component={ContentVariants.small}>
-            Matched policy:{' '}
-            <Label color="grey" isCompact>
-              {result.matched_policy}
-            </Label>
+            Matched policy: <NxLabel color="grey">{result.matched_policy}</NxLabel>
           </Content>
         </StackItem>
       )}

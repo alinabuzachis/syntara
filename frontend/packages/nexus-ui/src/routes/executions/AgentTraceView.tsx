@@ -14,6 +14,7 @@ import {
   Stack,
   StackItem,
 } from '@patternfly/react-core'
+import { RhUiCloseCircleIcon } from '@patternfly/react-icons'
 import { useState } from 'react'
 
 import { NxCodeBlock } from '../../components/details/NxCodeBlock'
@@ -169,7 +170,9 @@ function ToolCallCard({ group }: Readonly<{ group: ToolCallGroup }>) {
                 <FlexItem>{group.toolName}</FlexItem>
                 {isFailed && (
                   <FlexItem>
-                    <NxLabel status="danger">Failed</NxLabel>
+                    <NxLabel variant="outline" status="danger" icon={<RhUiCloseCircleIcon />}>
+                      Failed
+                    </NxLabel>
                   </FlexItem>
                 )}
               </Flex>

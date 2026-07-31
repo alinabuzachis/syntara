@@ -6,6 +6,15 @@ export const RolePrincipalType = {
 
 export type RolePrincipalType = (typeof RolePrincipalType)[keyof typeof RolePrincipalType]
 
+type PrincipalTypeLabelColor = 'teal' | 'orange' | 'purple'
+
+/** Display config for principal type labels in assignment tables (UX skill §11). */
+export const principalTypeDisplay: Record<RolePrincipalType, { text: string; color: PrincipalTypeLabelColor }> = {
+  [RolePrincipalType.USER]: { text: 'User', color: 'teal' },
+  [RolePrincipalType.GROUP]: { text: 'Group', color: 'orange' },
+  [RolePrincipalType.SERVICE_ACCOUNT]: { text: 'Service Account', color: 'purple' },
+}
+
 export const principalTypeLabel: Record<RolePrincipalType, string> = {
   user: 'user',
   group: 'group',

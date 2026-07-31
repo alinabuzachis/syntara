@@ -1,3 +1,4 @@
+import type { IntegrationsAPI } from '@syntara/contracts'
 import { IntegrationStatusEnum } from '@syntara/contracts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
@@ -16,6 +17,8 @@ vi.mock('../../../client', () => ({
     useMutation: vi.fn(),
   },
 }))
+
+type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
 
 const mockIntegrations = [
   {
@@ -38,7 +41,7 @@ const mockIntegrations = [
     created_at: '2024-02-01T00:00:00Z',
     updated_at: '2024-02-01T00:00:00Z',
   },
-]
+] as unknown as IntegrationRead[]
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
@@ -130,6 +133,41 @@ describe('IntegrationSelector', () => {
 
     expect(screen.getByText('Available')).toBeInTheDocument()
     expect(screen.getByText('Error')).toBeInTheDocument()
+  })
+
+  it('shows outline status badges for all integration validation states', async () => {
+    mockQuerySuccess([
+      ...mockIntegrations,
+      {
+        id: 'int-3',
+        name: 'Pending MCP Server',
+        integration_type: 'mcp_server',
+        validation_status: IntegrationStatusEnum.VALIDATING,
+        enabled: true,
+        configuration: { integration_type: 'mcp_server', base_url: 'https://pending.example.com' },
+        created_at: '2024-03-01T00:00:00Z',
+        updated_at: '2024-03-01T00:00:00Z',
+      },
+      {
+        id: 'int-4',
+        name: 'Unknown MCP Server',
+        integration_type: 'mcp_server',
+        validation_status: IntegrationStatusEnum.UNKNOWN,
+        enabled: true,
+        configuration: { integration_type: 'mcp_server', base_url: 'https://unknown.example.com' },
+        created_at: '2024-04-01T00:00:00Z',
+        updated_at: '2024-04-01T00:00:00Z',
+      },
+    ] as unknown as IntegrationRead[])
+    const user = userEvent.setup()
+    renderSelector()
+
+    await user.click(screen.getByRole('button', { name: /MCP server integration/i }))
+
+    expect(screen.getByText('Available', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
+    expect(screen.getByText('Error', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
+    expect(screen.getByText('Validating', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
+    expect(screen.getByText('Unknown', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
   })
 
   it('calls onChange with integration id when selection is made', async () => {
