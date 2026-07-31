@@ -1476,6 +1476,10 @@ describe('Workflows Component', () => {
       expect(screen.getByText('Project Alpha')).toBeInTheDocument()
       expect(screen.getByText('Project Beta')).toBeInTheDocument()
 
+      // Count badge removed — page-local counts were misleading (AAP-85112)
+      const alphaHeader = screen.getByRole('row', { name: /Project Alpha/ })
+      expect(within(alphaHeader).queryByText('1')).not.toBeInTheDocument()
+
       // Workflows should still be rendered
       expect(screen.getByText('Workflow A')).toBeInTheDocument()
       expect(screen.getByText('Workflow B')).toBeInTheDocument()

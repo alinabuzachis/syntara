@@ -4,7 +4,6 @@ import { Tbody, Td, Tr } from '@patternfly/react-table'
 import type { WorkflowAPI } from '@syntara/contracts'
 
 import groupedTableStyles from '../../components/groupedTable.module.css'
-import { NxLabel } from '../../components/labels/NxLabel'
 import type { KebabAction } from '../../components/NxKebabMenu'
 import { NxKebabMenu } from '../../components/NxKebabMenu'
 import { DateCell } from '../../components/table/DateCell'
@@ -97,9 +96,6 @@ function ProjectGroupSection({
             <FlexItem>{isCollapsed ? <RhUiCaretRightIcon /> : <RhUiCaretDownIcon />}</FlexItem>
             <FlexItem>
               <strong>{project?.name ?? (projectId === 'unknown' ? 'No project' : projectId)}</strong>
-            </FlexItem>
-            <FlexItem>
-              <NxLabel color="purple">{workflows.length}</NxLabel>
             </FlexItem>
           </Flex>
         </Td>

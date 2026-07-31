@@ -1,6 +1,6 @@
 import { Table } from '@patternfly/react-table'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createElement } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -202,7 +202,7 @@ describe('GroupedApprovalsTableBody', () => {
     vi.clearAllMocks()
   })
 
-  it('renders project group header with name and count', () => {
+  it('renders project group header with name and without count badge', () => {
     const Wrapper = createWrapper()
     render(
       <Wrapper>
@@ -213,7 +213,8 @@ describe('GroupedApprovalsTableBody', () => {
     )
 
     expect(screen.getByText('Project Alpha')).toBeInTheDocument()
-    expect(screen.getByText('1')).toBeInTheDocument()
+    const groupHeader = screen.getByRole('row', { name: /Project Alpha/ })
+    expect(within(groupHeader).queryByText('1')).not.toBeInTheDocument()
   })
 
   it('shows "No project" for unknown project id', () => {

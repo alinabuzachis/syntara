@@ -3,12 +3,10 @@ import { RhUiCaretDownIcon, RhUiCaretRightIcon } from '@patternfly/react-icons'
 import { Td, Tr } from '@patternfly/react-table'
 
 import groupedTableStyles from './groupedTable.module.css'
-import { NxLabel } from './labels/NxLabel'
 
 type ProjectGroupHeaderRowProps = {
   projectId: string
   projectName: string | undefined
-  itemCount: number
   isCollapsed: boolean
   colSpan: number
   onToggle: () => void
@@ -17,7 +15,6 @@ type ProjectGroupHeaderRowProps = {
 export function ProjectGroupHeaderRow({
   projectId,
   projectName,
-  itemCount,
   isCollapsed,
   colSpan,
   onToggle,
@@ -29,9 +26,6 @@ export function ProjectGroupHeaderRow({
           <FlexItem>{isCollapsed ? <RhUiCaretRightIcon /> : <RhUiCaretDownIcon />}</FlexItem>
           <FlexItem>
             <strong>{projectName ?? (projectId === 'unknown' ? 'No project' : projectId)}</strong>
-          </FlexItem>
-          <FlexItem>
-            <NxLabel color="purple">{itemCount}</NxLabel>
           </FlexItem>
         </Flex>
       </Td>

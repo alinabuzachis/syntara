@@ -650,6 +650,10 @@ describe('Credentials', () => {
     expect(screen.getByText('Project Beta')).toBeInTheDocument()
     expect(screen.getByText('GitHub API Token')).toBeInTheDocument()
     expect(screen.getByText('Staging SSH')).toBeInTheDocument()
+
+    // Count badge removed — page-local counts were misleading (AAP-85112)
+    const alphaHeader = screen.getByRole('row', { name: /Project Alpha/ })
+    expect(within(alphaHeader).queryByText('1')).not.toBeInTheDocument()
   })
 
   it('collapses and expands project group when header is clicked', async () => {

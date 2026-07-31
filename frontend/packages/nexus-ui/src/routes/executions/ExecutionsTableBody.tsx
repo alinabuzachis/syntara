@@ -236,7 +236,6 @@ export function GroupedExecutionsTableBody({
           <ProjectGroupHeaderRow
             projectId={projectId}
             projectName={project?.name}
-            itemCount={executions.length}
             isCollapsed={collapsedProjects.has(projectId)}
             colSpan={7}
             onToggle={() => onToggleProject(projectId)}

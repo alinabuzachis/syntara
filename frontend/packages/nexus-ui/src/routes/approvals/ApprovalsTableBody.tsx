@@ -6,7 +6,6 @@ import {
   DescriptionListTerm,
   Flex,
   FlexItem,
-  Label,
   Tooltip,
 } from '@patternfly/react-core'
 import { RhUiCaretDownIcon, RhUiCaretRightIcon } from '@patternfly/react-icons'
@@ -251,11 +250,6 @@ export function GroupedApprovalsTableBody({
                 <FlexItem>{collapsedProjects.has(projectId) ? <RhUiCaretRightIcon /> : <RhUiCaretDownIcon />}</FlexItem>
                 <FlexItem>
                   <strong>{project?.name ?? (projectId === 'unknown' ? 'No project' : projectId)}</strong>
-                </FlexItem>
-                <FlexItem>
-                  <Label isCompact color="purple">
-                    {approvals.length}
-                  </Label>
                 </FlexItem>
               </Flex>
             </Td>

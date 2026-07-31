@@ -5,7 +5,6 @@ import {
   DescriptionListTerm,
   Flex,
   FlexItem,
-  Label,
   Switch,
   Tooltip,
   Truncate,
@@ -178,11 +177,6 @@ export function GroupedCredentialsTableBody({
                     <FlexItem>{isCollapsed ? <RhUiCaretRightIcon /> : <RhUiCaretDownIcon />}</FlexItem>
                     <FlexItem>
                       <strong>{project?.name ?? (projectId === 'unknown' ? 'No project' : projectId)}</strong>
-                    </FlexItem>
-                    <FlexItem>
-                      <Label isCompact color="purple">
-                        {credentials.length}
-                      </Label>
                     </FlexItem>
                   </Flex>
                 </Td>
