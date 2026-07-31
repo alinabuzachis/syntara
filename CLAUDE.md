@@ -63,7 +63,6 @@ make typecheck      # Type-check both codebases
 make gen-contracts  # Regenerate TypeScript types from backend OpenAPI specs
 make services-up    # Start infrastructure (DB, Redis, Temporal, etc.)
 make services-down  # Stop infrastructure
-make sync           # Pull latest changes from upstream repos (transition period)
 ```
 
 ### Backend-Specific Targets
