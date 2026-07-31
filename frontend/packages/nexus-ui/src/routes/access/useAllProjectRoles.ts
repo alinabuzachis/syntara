@@ -10,7 +10,7 @@ async function fetchAllProjectRoles(projectId: string): Promise<RoleRead[]> {
     accessFetchClient.GET('/projects/{project_id}/roles', {
       params: {
         path: { project_id: projectId },
-        query: { limit: MAX_PAGE_SIZE, cursor },
+        query: { sort: 'name', limit: MAX_PAGE_SIZE, cursor },
       },
     })
   )

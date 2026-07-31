@@ -8,7 +8,7 @@ import type { RoleRead } from './types'
 async function fetchAllRoles(): Promise<RoleRead[]> {
   return fetchAllPages<RoleRead>((cursor) =>
     accessFetchClient.GET('/roles', {
-      params: { query: { limit: MAX_PAGE_SIZE, cursor } },
+      params: { query: { sort: 'name', limit: MAX_PAGE_SIZE, cursor } },
     })
   )
 }

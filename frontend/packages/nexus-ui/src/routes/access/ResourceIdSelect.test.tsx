@@ -1,4 +1,4 @@
-import { render, screen, act } from '@testing-library/react'
+import { render, screen, act, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -303,6 +303,33 @@ describe('ResourceIdSelect', () => {
 
       expect(screen.getByRole('option', { name: /Item One/i })).toBeInTheDocument()
       expect(screen.getByRole('option', { name: /Item Two/i })).toBeInTheDocument()
+    })
+  })
+
+  describe('Alphabetical sorting', () => {
+    it('renders options in alphabetical order regardless of API response order', async () => {
+      vi.mocked(dynamicFetchClient.GET).mockResolvedValue(
+        mockFetchResponse({
+          resources: [
+            { id: 'wf-3', name: 'Zebra Pipeline' },
+            { id: 'wf-1', name: 'Alpha Pipeline' },
+            { id: 'wf-2', name: 'Middle Pipeline' },
+          ],
+        })
+      )
+
+      const user = userEvent.setup()
+      renderResourceIdSelect({ resourceType: 'workflow' })
+      await waitForFetch()
+
+      const input = screen.getByRole('textbox', { name: /type to filter/i })
+      await user.click(input)
+
+      const options = screen.getAllByRole('option')
+      expect(options).toHaveLength(3)
+      expect(within(options[0]).getByText('Alpha Pipeline')).toBeInTheDocument()
+      expect(within(options[1]).getByText('Middle Pipeline')).toBeInTheDocument()
+      expect(within(options[2]).getByText('Zebra Pipeline')).toBeInTheDocument()
     })
   })
 })

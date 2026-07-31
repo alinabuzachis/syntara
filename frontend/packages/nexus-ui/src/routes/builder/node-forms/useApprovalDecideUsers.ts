@@ -25,6 +25,7 @@ export function useApprovalDecideUsers(projectId?: string | null) {
         body: {
           action: 'decide',
           resource_type: 'approval',
+          sort: 'username',
           limit: MAX_PAGE_SIZE,
           cursor,
           ...(projectId && { resource_project: projectId }),

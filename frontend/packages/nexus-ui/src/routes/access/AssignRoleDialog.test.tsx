@@ -302,6 +302,82 @@ describe('AssignRoleDialog', () => {
     })
   })
 
+  describe('Search Filtering', () => {
+    it('passes search filter params when typing in typeahead fields', async () => {
+      const user = userEvent.setup()
+      render(<AssignRoleDialog {...defaultProps} />, { wrapper })
+
+      const userInput = screen.getByPlaceholderText('Select a user...')
+      await user.type(userInput, 'ali')
+
+      await waitFor(() => {
+        expect(accessClient.useQuery).toHaveBeenCalledWith('get', '/users_directory', {
+          params: { query: { sort: 'username', limit: 20, 'username[contains]': 'ali' } },
+        })
+      })
+    })
+
+    it('passes search filter for groups when typing', async () => {
+      const user = userEvent.setup()
+      render(<AssignRoleDialog {...defaultProps} />, { wrapper })
+
+      // Switch to group principal type
+      const principalToggle = screen.getByRole('button', { name: 'Principal type' })
+      await user.click(principalToggle)
+      await user.click(screen.getByRole('option', { name: 'Group' }))
+
+      const groupInput = screen.getByPlaceholderText('Select a group...')
+      await user.type(groupInput, 'test')
+
+      await waitFor(() => {
+        expect(accessClient.useQuery).toHaveBeenCalledWith('get', '/groups_directory', {
+          params: { query: { sort: 'name', limit: 20, 'name[contains]': 'test' } },
+        })
+      })
+    })
+
+    it('passes search filter for roles when typing', async () => {
+      const user = userEvent.setup()
+      render(<AssignRoleDialog {...defaultProps} />, { wrapper })
+
+      // Switch to system scope so role field is immediately available
+      const scopeToggle = screen.getByRole('button', { name: 'Scope' })
+      await user.click(scopeToggle)
+      await user.click(screen.getByRole('option', { name: 'System' }))
+
+      const roleInput = screen.getByPlaceholderText('Select a role...')
+      await user.type(roleInput, 'adm')
+
+      await waitFor(() => {
+        expect(accessClient.useQuery).toHaveBeenCalledWith('get', '/roles', {
+          params: { query: { sort: 'name', limit: 20, scope: 'system', 'name[contains]': 'adm' } },
+        })
+      })
+    })
+
+    it('passes search filter for service accounts when typing', async () => {
+      const user = userEvent.setup()
+      render(<AssignRoleDialog {...defaultProps} />, { wrapper })
+
+      // Switch to service account principal type
+      const principalToggle = screen.getByRole('button', { name: 'Principal type' })
+      await user.click(principalToggle)
+      await user.click(screen.getByRole('option', { name: 'Service Account' }))
+
+      const saInput = screen.getByPlaceholderText('Select a service account...')
+      await user.type(saInput, 'my-sa')
+
+      await waitFor(() => {
+        expect(accessClient.useQuery).toHaveBeenCalledWith(
+          'get',
+          '/service_accounts',
+          { params: { query: { sort: 'name', limit: 20, name: 'my-sa' } } },
+          { enabled: true }
+        )
+      })
+    })
+  })
+
   describe('Form Submission', () => {
     const findOptionTimeout = { timeout: 15_000 }
 

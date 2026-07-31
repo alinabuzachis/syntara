@@ -140,6 +140,7 @@ export function AssignRoleModal({
   const rolesQuery = accessClient.useQuery('get', '/roles', {
     params: {
       query: {
+        sort: 'name',
         limit: ROLE_PAGE_SIZE,
         ...(debouncedRoleSearch ? { 'name[contains]': debouncedRoleSearch } : {}),
         scope: scope === 'system' ? 'system' : 'project',

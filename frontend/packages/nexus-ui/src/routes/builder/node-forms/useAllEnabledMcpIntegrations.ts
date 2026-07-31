@@ -12,6 +12,7 @@ async function fetchAllEnabledMcpIntegrations(projectId?: string): Promise<Integ
     integrationsFetchClient.GET('/integrations', {
       params: {
         query: {
+          sort: 'name',
           integration_type: IntegrationTypeEnum.MCP_SERVER,
           enabled: true,
           limit: MAX_PAGE_SIZE,

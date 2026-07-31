@@ -8,7 +8,7 @@ import { accessFetchClient } from './accessClient'
 async function fetchAllUsers(): Promise<User[]> {
   return fetchAllPages<User>((cursor) =>
     accessFetchClient.GET('/users', {
-      params: { query: { limit: MAX_PAGE_SIZE, cursor } },
+      params: { query: { sort: 'username', limit: MAX_PAGE_SIZE, cursor } },
     })
   )
 }

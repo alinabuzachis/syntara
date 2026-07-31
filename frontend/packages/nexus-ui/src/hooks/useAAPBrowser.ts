@@ -61,9 +61,9 @@ function getFirstError(...errors: (Error | Record<string, unknown> | null)[]): E
   return null
 }
 
-/** Extract results array from a query, defaulting to empty array. */
-function resultsOf<T>(query: { data?: { results?: T[] } }): T[] {
-  return query.data?.results ?? []
+/** Extract results array from a query, sorted alphabetically by name. */
+function resultsOf<T extends { name: string }>(query: { data?: { results?: T[] } }): T[] {
+  return [...(query.data?.results ?? [])].sort((a, b) => a.name.localeCompare(b.name))
 }
 
 /** Build common query params for AAP resource searches */

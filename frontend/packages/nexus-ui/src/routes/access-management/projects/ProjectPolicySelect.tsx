@@ -36,7 +36,7 @@ export function ProjectPolicySelect({ projectId, selected, onChange, hasError }:
     {
       params: {
         path: { project_id: projectId },
-        query: { limit: PAGE_SIZE },
+        query: { sort: 'name', limit: PAGE_SIZE },
       },
     },
     { enabled: isOpen }

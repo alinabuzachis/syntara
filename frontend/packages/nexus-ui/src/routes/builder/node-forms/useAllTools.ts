@@ -9,7 +9,7 @@ type ToolWithParameters = ToolManagerAPI.components['schemas']['ToolWithParamete
 async function fetchAllTools(): Promise<ToolWithParameters[]> {
   return fetchAllPages<ToolWithParameters>((cursor) =>
     toolManagerFetchClient.GET('/tool_manager/tools', {
-      params: { query: { limit: MAX_PAGE_SIZE, cursor } },
+      params: { query: { sort: 'name', limit: MAX_PAGE_SIZE, cursor } },
     })
   )
 }

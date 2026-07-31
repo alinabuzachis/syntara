@@ -112,7 +112,7 @@ describe('useAllProjects', () => {
 
     await waitFor(() => {
       expect(accessFetchClient.GET).toHaveBeenCalledWith('/projects', {
-        params: { query: { limit: 100, cursor: undefined } },
+        params: { query: { sort: 'name', limit: 100, cursor: undefined } },
       })
     })
   })
@@ -142,7 +142,7 @@ describe('useSelectableProjects', () => {
 
     await waitFor(() => {
       expect(accessFetchClient.GET).toHaveBeenCalledWith('/projects', {
-        params: { query: { limit: 100, cursor: undefined, is_builtin: false } },
+        params: { query: { sort: 'name', limit: 100, cursor: undefined, is_builtin: false } },
       })
     })
   })

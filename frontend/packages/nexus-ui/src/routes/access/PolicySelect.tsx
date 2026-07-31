@@ -60,6 +60,7 @@ export function PolicySelect({
     {
       params: {
         query: {
+          sort: 'name',
           limit: PAGE_SIZE,
           'name[contains]': debouncedFilter || undefined,
           ...(scopeProjectId ? { project_id: scopeProjectId } : {}),

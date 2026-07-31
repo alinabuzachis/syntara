@@ -367,7 +367,11 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
   const debouncedUserSearch = useDebouncedValue(userSearchTerm)
   const usersQuery = accessClient.useQuery('get', '/users_directory', {
     params: {
-      query: { limit: PAGE_SIZE, ...(debouncedUserSearch ? { 'username[contains]': debouncedUserSearch } : {}) },
+      query: {
+        sort: 'username',
+        limit: PAGE_SIZE,
+        ...(debouncedUserSearch ? { 'username[contains]': debouncedUserSearch } : {}),
+      },
     },
   })
   const userOptions = useMemo(
@@ -379,7 +383,11 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
   const debouncedGroupSearch = useDebouncedValue(groupSearchTerm)
   const groupsQuery = accessClient.useQuery('get', '/groups_directory', {
     params: {
-      query: { limit: PAGE_SIZE, ...(debouncedGroupSearch ? { 'name[contains]': debouncedGroupSearch } : {}) },
+      query: {
+        sort: 'name',
+        limit: PAGE_SIZE,
+        ...(debouncedGroupSearch ? { 'name[contains]': debouncedGroupSearch } : {}),
+      },
     },
   })
   const groupOptions = useMemo(
@@ -394,7 +402,7 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
     '/service_accounts',
     {
       params: {
-        query: { limit: PAGE_SIZE, ...(debouncedSaSearch ? { name: debouncedSaSearch } : {}) },
+        query: { sort: 'name', limit: PAGE_SIZE, ...(debouncedSaSearch ? { name: debouncedSaSearch } : {}) },
       },
     },
     { enabled: principalType === RolePrincipalType.SERVICE_ACCOUNT }
@@ -409,6 +417,7 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
   const systemRolesQuery = accessClient.useQuery('get', '/roles', {
     params: {
       query: {
+        sort: 'name',
         limit: PAGE_SIZE,
         scope: 'system',
         ...(debouncedRoleSearch ? { 'name[contains]': debouncedRoleSearch } : {}),
@@ -421,7 +430,11 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
     {
       params: {
         path: { project_id: selectedProjectId || '' },
-        query: { limit: PAGE_SIZE, ...(debouncedRoleSearch ? { 'name[contains]': debouncedRoleSearch } : {}) },
+        query: {
+          sort: 'name',
+          limit: PAGE_SIZE,
+          ...(debouncedRoleSearch ? { 'name[contains]': debouncedRoleSearch } : {}),
+        },
       },
     },
     { enabled: isProjectScoped && !!selectedProjectId }

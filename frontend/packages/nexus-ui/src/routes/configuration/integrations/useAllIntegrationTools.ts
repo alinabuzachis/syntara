@@ -13,7 +13,7 @@ function isToolRow(row: ToolWithParameters): row is Tool {
 async function fetchAllIntegrationTools(integrationId: string): Promise<Tool[]> {
   const rows = await fetchAllPages<ToolWithParameters>((cursor) =>
     toolManagerFetchClient.GET('/tool_manager/tools', {
-      params: { query: { integration_id: integrationId, limit: MAX_PAGE_SIZE, cursor } },
+      params: { query: { sort: 'name', integration_id: integrationId, limit: MAX_PAGE_SIZE, cursor } },
     })
   )
   return rows.filter(isToolRow)

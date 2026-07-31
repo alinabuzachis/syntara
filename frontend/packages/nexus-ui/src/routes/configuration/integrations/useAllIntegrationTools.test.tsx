@@ -109,7 +109,7 @@ describe('useAllIntegrationTools', () => {
     await waitFor(() => {
       expect(toolManagerFetchClient.GET).toHaveBeenCalledWith('/tool_manager/tools', {
         params: {
-          query: expect.objectContaining({ integration_id: 'int-42' }) as Record<string, unknown>,
+          query: expect.objectContaining({ sort: 'name', integration_id: 'int-42' }) as Record<string, unknown>,
         },
       })
     })

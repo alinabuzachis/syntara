@@ -133,7 +133,7 @@ describe('useAllRoles', () => {
 
     await waitFor(() => {
       expect(accessFetchClient.GET).toHaveBeenCalledWith('/roles', {
-        params: { query: { limit: 100, cursor: undefined } },
+        params: { query: { sort: 'name', limit: 100, cursor: undefined } },
       })
     })
   })

@@ -53,6 +53,11 @@ describe('useAllTools', () => {
 
     expect(result.current.tools).toHaveLength(2)
     expect(result.current.tools[0].name).toBe('list_repos')
+    expect(toolManagerFetchClient.GET).toHaveBeenCalledWith('/tool_manager/tools', {
+      params: {
+        query: expect.objectContaining({ sort: 'name' }) as Record<string, unknown>,
+      },
+    })
   })
 
   it('follows pagination cursors', async () => {

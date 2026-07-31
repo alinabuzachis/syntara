@@ -222,7 +222,7 @@ export function CredentialSelector({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
   const credentialQueryParams: CredentialQueryParams = useMemo(
-    () => ({ ...(projectId ? { project_id: projectId } : {}), for_action: 'use' }),
+    () => ({ sort: 'name', ...(projectId ? { project_id: projectId } : {}), for_action: 'use' }),
     [projectId]
   )
   const { data, isPending, isError, refetch } = credentialsClient.useQuery('get', '/credentials', {

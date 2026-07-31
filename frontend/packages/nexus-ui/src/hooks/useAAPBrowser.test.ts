@@ -253,6 +253,48 @@ describe('useAAPBrowser', () => {
     expect(result.current.loadingTemplateDetail).toBe(false)
   })
 
+  describe('client-side alphabetical sorting', () => {
+    it('sorts organizations alphabetically by name', () => {
+      mockUseQuery.mockReturnValue({
+        data: {
+          results: [
+            { id: 3, name: 'Zebra' },
+            { id: 1, name: 'Alpha' },
+            { id: 2, name: 'Middle' },
+          ],
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      })
+
+      const { result } = renderHook(() => useAAPBrowser('test-credential-id'))
+
+      expect(result.current.organizations.map((o) => o.name)).toEqual(['Alpha', 'Middle', 'Zebra'])
+    })
+
+    it('sorts job templates alphabetically by name', () => {
+      mockUseQuery.mockReturnValue({
+        data: {
+          results: [
+            { id: 3, name: 'Zulu Deploy' },
+            { id: 1, name: 'Alpha Build' },
+            { id: 2, name: 'Beta Test' },
+          ],
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      })
+
+      const { result } = renderHook(() => useAAPBrowser('test-credential-id'))
+
+      expect(result.current.templates.map((t) => t.name)).toEqual(['Alpha Build', 'Beta Test', 'Zulu Deploy'])
+    })
+  })
+
   describe('integrationId parameter', () => {
     it('is active when integrationId is provided but credentialId is undefined', () => {
       mockUseQuery.mockReturnValue({

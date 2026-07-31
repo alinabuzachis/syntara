@@ -71,8 +71,11 @@ describe('useAllServiceAccounts', () => {
       expect(result.current.isLoading).toBe(false)
     })
 
-    const call = JSON.stringify(vi.mocked(accessFetchClient.GET).mock.calls[0])
-    expect(call).toContain('"project_id":"project-123"')
+    expect(accessFetchClient.GET).toHaveBeenCalledWith('/service_accounts', {
+      params: {
+        query: expect.objectContaining({ sort: 'name', project_id: 'project-123' }) as Record<string, unknown>,
+      },
+    })
   })
 
   it('does not pass project_id when null', async () => {
@@ -83,6 +86,11 @@ describe('useAllServiceAccounts', () => {
       expect(result.current.isLoading).toBe(false)
     })
 
+    expect(accessFetchClient.GET).toHaveBeenCalledWith('/service_accounts', {
+      params: {
+        query: expect.objectContaining({ sort: 'name' }) as Record<string, unknown>,
+      },
+    })
     const call = JSON.stringify(vi.mocked(accessFetchClient.GET).mock.calls[0])
     expect(call).not.toContain('project_id')
   })

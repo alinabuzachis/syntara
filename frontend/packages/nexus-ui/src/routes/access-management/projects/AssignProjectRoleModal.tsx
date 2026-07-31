@@ -138,6 +138,7 @@ export function AssignProjectRoleModal({
   const usersQuery = accessClient.useQuery('get', '/users_directory', {
     params: {
       query: {
+        sort: 'username',
         limit: PAGE_SIZE,
         ...(debouncedUserSearch ? { 'username[contains]': debouncedUserSearch } : {}),
       },
@@ -151,6 +152,7 @@ export function AssignProjectRoleModal({
   const groupsQuery = accessClient.useQuery('get', '/groups_directory', {
     params: {
       query: {
+        sort: 'name',
         limit: PAGE_SIZE,
         ...(debouncedGroupSearch ? { 'name[contains]': debouncedGroupSearch } : {}),
       },

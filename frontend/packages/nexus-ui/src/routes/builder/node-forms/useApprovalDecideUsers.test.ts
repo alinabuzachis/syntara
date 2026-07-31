@@ -117,6 +117,7 @@ describe('useApprovalDecideUsers', () => {
         action: 'decide',
         resource_type: 'approval',
         resource_project: 'project-123',
+        sort: 'username',
       }) as Record<string, unknown>,
     })
   })

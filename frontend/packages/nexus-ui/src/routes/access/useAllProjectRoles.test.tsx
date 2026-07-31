@@ -71,7 +71,7 @@ describe('useAllProjectRoles', () => {
 
     expect(result.current.roles).toEqual(mockRoles)
     expect(accessFetchClient.GET).toHaveBeenCalledWith('/projects/{project_id}/roles', {
-      params: { path: { project_id: 'proj-1' }, query: { limit: 100, cursor: undefined } },
+      params: { path: { project_id: 'proj-1' }, query: { sort: 'name', limit: 100, cursor: undefined } },
     })
   })
 

@@ -58,7 +58,11 @@ describe('useAllEnabledMcpIntegrations', () => {
     })
 
     expect(result.current.integrations).toHaveLength(2)
-    expect(integrationsFetchClient.GET).toHaveBeenCalled()
+    expect(integrationsFetchClient.GET).toHaveBeenCalledWith('/integrations', {
+      params: {
+        query: expect.objectContaining({ sort: 'name', project_id: 'project-123' }) as Record<string, unknown>,
+      },
+    })
   })
 
   it('returns integrations when projectId is omitted', async () => {
@@ -70,7 +74,14 @@ describe('useAllEnabledMcpIntegrations', () => {
     })
 
     expect(result.current.integrations).toHaveLength(2)
-    expect(integrationsFetchClient.GET).toHaveBeenCalled()
+    expect(integrationsFetchClient.GET).toHaveBeenCalledWith('/integrations', {
+      params: {
+        query: expect.objectContaining({ sort: 'name', integration_type: 'mcp_server', enabled: true }) as Record<
+          string,
+          unknown
+        >,
+      },
+    })
   })
 
   it('follows pagination cursors', async () => {

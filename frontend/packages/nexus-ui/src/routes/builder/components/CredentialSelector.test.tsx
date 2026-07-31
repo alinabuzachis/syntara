@@ -295,7 +295,7 @@ describe('CredentialSelector', () => {
     renderSelector({ compatibleTypeNames: ['HTTP Bearer Token'] })
 
     expect(credentialsClient.useQuery).toHaveBeenCalledWith('get', '/credentials', {
-      params: { query: { for_action: 'use' } },
+      params: { query: { sort: 'name', for_action: 'use' } },
     })
   })
 
@@ -370,7 +370,7 @@ describe('CredentialSelector', () => {
       renderSelector({ projectId: 'proj-123' })
 
       expect(credentialsClient.useQuery).toHaveBeenCalledWith('get', '/credentials', {
-        params: { query: { project_id: 'proj-123', for_action: 'use' } },
+        params: { query: { sort: 'name', project_id: 'proj-123', for_action: 'use' } },
       })
     })
 
@@ -379,7 +379,7 @@ describe('CredentialSelector', () => {
       renderSelector()
 
       expect(credentialsClient.useQuery).toHaveBeenCalledWith('get', '/credentials', {
-        params: { query: { for_action: 'use' } },
+        params: { query: { sort: 'name', for_action: 'use' } },
       })
     })
 
@@ -575,7 +575,7 @@ describe('CredentialSelector', () => {
       expect(screen.getByTestId('credential-form-modal')).toHaveAttribute('data-default-project-id', 'proj-456')
     })
 
-    it('does not lock credential type when multiple compatible types exist (AAP-78917)', async () => {
+    it('does not lock credential type when multiple compatible types exist', async () => {
       const user = userEvent.setup()
       mockUseQuery()
       renderSelector({

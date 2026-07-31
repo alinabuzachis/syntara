@@ -9,7 +9,7 @@ function makeProjectFetcher(extra?: { is_builtin?: boolean }) {
   return async (): Promise<ProjectRead[]> =>
     fetchAllPages<ProjectRead>((cursor) =>
       accessFetchClient.GET('/projects', {
-        params: { query: { limit: MAX_PAGE_SIZE, cursor, ...extra } },
+        params: { query: { sort: 'name', limit: MAX_PAGE_SIZE, cursor, ...extra } },
       })
     )
 }

@@ -9,7 +9,9 @@ type ServiceAccountRead = ServiceAccountsAPI.components['schemas']['ServiceAccou
 async function fetchAllServiceAccounts(projectId?: string | null): Promise<ServiceAccountRead[]> {
   return fetchAllPages<ServiceAccountRead>((cursor) =>
     accessFetchClient.GET('/service_accounts', {
-      params: { query: { limit: MAX_PAGE_SIZE, cursor, ...(projectId ? { project_id: projectId } : {}) } },
+      params: {
+        query: { sort: 'name', limit: MAX_PAGE_SIZE, cursor, ...(projectId ? { project_id: projectId } : {}) },
+      },
     })
   )
 }

@@ -14,7 +14,7 @@ function isGroupRow(row: GroupRead): row is Group {
 async function fetchAllGroups(): Promise<Group[]> {
   const rows = await fetchAllPages<GroupRead>((cursor) =>
     accessFetchClient.GET('/groups', {
-      params: { query: { limit: MAX_PAGE_SIZE, cursor } },
+      params: { query: { sort: 'name', limit: MAX_PAGE_SIZE, cursor } },
     })
   )
   return rows.filter(isGroupRow)

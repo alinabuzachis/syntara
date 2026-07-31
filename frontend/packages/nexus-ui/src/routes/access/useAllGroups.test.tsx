@@ -135,7 +135,7 @@ describe('useAllGroups', () => {
 
     await waitFor(() => {
       expect(accessFetchClient.GET).toHaveBeenCalledWith('/groups', {
-        params: { query: { limit: 100, cursor: undefined } },
+        params: { query: { sort: 'name', limit: 100, cursor: undefined } },
       })
     })
   })

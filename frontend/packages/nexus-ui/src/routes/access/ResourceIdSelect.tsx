@@ -47,10 +47,12 @@ function useResourceOptions(resourceType: string): ResourceOption[] {
         }
         const items = parseResourceItems(data)
         setOptions(
-          items.map((item) => ({
-            id: toStringField(item[endpoint.idField]),
-            label: toStringField(item[endpoint.labelField]) || toStringField(item[endpoint.idField]),
-          }))
+          items
+            .map((item) => ({
+              id: toStringField(item[endpoint.idField]),
+              label: toStringField(item[endpoint.labelField]) || toStringField(item[endpoint.idField]),
+            }))
+            .sort((a, b) => a.label.localeCompare(b.label))
         )
       })
       .catch(() => {

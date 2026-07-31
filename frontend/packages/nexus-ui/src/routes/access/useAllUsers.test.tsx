@@ -112,7 +112,7 @@ describe('useAllUsers', () => {
 
     await waitFor(() => {
       expect(accessFetchClient.GET).toHaveBeenCalledWith('/users', {
-        params: { query: { limit: 100, cursor: undefined } },
+        params: { query: { sort: 'username', limit: 100, cursor: undefined } },
       })
     })
   })
