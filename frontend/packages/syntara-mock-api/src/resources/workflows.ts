@@ -70,11 +70,36 @@ const yamlFiles = [
 // Project IDs to distribute workflows across
 const projectIds = ['p-001', 'p-002']
 
-// Convert all YAML files to WorkflowWithVersion objects
+/**
+ * Deterministic, non-cryptographic string hash (FNV-1a-ish) used to derive a stable
+ * pseudo-index from a file path. Good enough for evenly distributing a fixed set of
+ * paths across `projectIds` — we only need determinism and a roughly uniform spread,
+ * not collision resistance.
+ */
+function stableHash(value: string): number {
+  let hash = 0
+  for (let i = 0; i < value.length; i++) {
+    hash = (hash * 31 + value.charCodeAt(i)) >>> 0
+  }
+  return hash
+}
+
+// Convert all YAML files to WorkflowWithVersion objects.
+//
+// IDs and project assignment are derived from each file's own path — never from its
+// position in `yamlFiles` — so that adding, removing, or reordering an unrelated entry
+// (e.g. a fixture merged in from `devel` after this list was last touched) can never
+// change an *existing* workflow's id or project. Tests pin specific workflows by id
+// (see MOCK_HTTP_WORKFLOW_ID etc. in e2e/visual-regression/page-entries-interactive.ts);
+// a positional id silently reassigns those constants to a different workflow — and a
+// positional (`index % projectIds.length`) project assignment silently reshuffles which
+// project a workflow belongs to — whenever the list shifts.
 export const workflows: (WorkflowWithVersion & { project_id: string })[] = yamlFiles
-  .map((file, index) => {
+  .map((file) => {
     const filePath = join(examplesDir, file)
-    const workflow = convertYamlToWorkflow(filePath, (index + 1).toString(), 'system', examplesDir)
-    return { ...workflow, project_id: projectIds[index % projectIds.length] }
+    const id = file.replace(/\.yaml$/, '').replace(/\//g, '-')
+    const workflow = convertYamlToWorkflow(filePath, id, 'system', examplesDir)
+    const projectId = projectIds[stableHash(id) % projectIds.length]
+    return { ...workflow, project_id: projectId }
   })
   .sort((a, b) => a.name.localeCompare(b.name))

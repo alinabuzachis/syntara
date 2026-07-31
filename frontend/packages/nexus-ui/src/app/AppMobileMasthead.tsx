@@ -43,7 +43,12 @@ export function AppMobileMasthead() {
         </MastheadToggle>
         <MastheadBrand>
           <MastheadLogo component={(props) => <Link {...props} to="/" />} aria-label="Home">
-            <img src={brand.logoCollapsed} alt={brand.appTitle} className={styles.collapsedLogo} />
+            <img
+              src={brand.logoCollapsed}
+              alt={brand.appTitle}
+              className={styles.collapsedLogo}
+              data-testid="brand-logo"
+            />
           </MastheadLogo>
         </MastheadBrand>
       </MastheadMain>

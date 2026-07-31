@@ -293,6 +293,7 @@ export function AppDockedNav() {
                   src={colorScheme === 'dark' ? brand.logoExpandedDark : brand.logoExpandedLight}
                   alt={brand.appTitle}
                   className={styles.expandedLogo}
+                  data-testid="brand-logo"
                 />
               </MastheadLogo>
             ) : (
@@ -301,7 +302,12 @@ export function AppDockedNav() {
                 aria-label="Home"
                 className="pf-m-compact"
               >
-                <img src={brand.logoCollapsed} alt={brand.appTitle} className={styles.collapsedLogo} />
+                <img
+                  src={brand.logoCollapsed}
+                  alt={brand.appTitle}
+                  className={styles.collapsedLogo}
+                  data-testid="brand-logo"
+                />
               </MastheadLogo>
             )}
           </MastheadBrand>

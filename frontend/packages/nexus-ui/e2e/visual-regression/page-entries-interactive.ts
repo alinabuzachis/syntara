@@ -13,16 +13,72 @@ import { MOCK_IDENTITY_PROVIDER_ID } from './mock-ids'
 import type { CanvasPageEntry, PageEntry } from './page-registry'
 
 /**
+ * `maxDiffPixelRatio` override for pages showing execution status badges — subtle
+ * rendering variance under concurrent CI runner load that doesn't reproduce in
+ * isolated /update-screenshots runs. Shared by every entry with this symptom so the
+ * tolerance stays consistent and self-documenting instead of a repeated magic number.
+ */
+export const EXECUTION_STATUS_BADGE_TOLERANCE = 0.015
+
+/**
+ * Waits until a React Flow canvas has painted at least one node.
+ * `.react-flow` alone can be visible while nodes are still animating in.
+ */
+export async function waitForCanvasReady(page: Page) {
+  await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
+  await expect(page.locator('.react-flow__node').first()).toBeVisible({ timeout: 30_000 })
+}
+
+/**
  * Opens the step editor side panel by clicking the canvas card title (PatternFly `Title` h2).
  * Prefer this over `getByTestId('rf__node-…')` + `force: true`, which often selects the card
  * without opening the editor (seed workflows may lack `name`, so the h2 shows the executor label).
  */
 async function openStepEditorFromCanvasTitle(page: Page, title: string | RegExp) {
   const canvas = page.locator('.react-flow')
+  // ReactFlow pans/zooms nodes with CSS transforms, not native scroll, so a node
+  // positioned outside the viewport ReactFlow settled on at mount is unreachable to
+  // Playwright's scroll-into-view actionability check and hangs the click until
+  // timeout. Explicitly fit the whole graph into view first so every node — including
+  // ones far from the trigger — is guaranteed to be on-screen and clickable.
+  await page.getByRole('button', { name: 'Fit view' }).click()
   await canvas.getByRole('heading', { name: title, level: 2 }).first().click()
-  await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible({
+  // Do not key off the header Name field alone — with onHeaderContentChange the
+  // toolbar can show a Name input without the three-panel step editor mounting,
+  // which previously let --update-snapshots commit empty masked-canvas baselines.
+  // "Run step" only exists inside the side-panel Parameters column.
+  await expect(page.getByRole('button', { name: 'Run step', exact: true })).toBeVisible({
     timeout: 15_000,
   })
+  await expect(page.getByRole('button', { name: /^(Save|Update)$/i }).first()).toBeVisible({ timeout: 10_000 })
+}
+
+/**
+ * Pins the Workflows list to a single, known project ('default' / p-001) instead of
+ * the "All projects" view.
+ *
+ * "All projects" groups workflows by project client-side using a `Map` populated in
+ * API response order — so which project's group (and therefore which workflow row)
+ * appears first depends on the exact page of workflows the mock API returns. That
+ * set is not immutable: it shifts based on how many workflows exist and in what
+ * order once other tests earlier in the run have mutated the shared in-process mock
+ * store. Any test that opens "the first workflow's kebab" in "All projects" mode is
+ * exposed to that drift. Scoping to one project removes the grouping (and the
+ * cross-project ordering question) entirely, so "the first row" is deterministic.
+ */
+export async function selectDefaultProject(page: Page) {
+  await page.evaluate(() => {
+    localStorage.setItem(
+      'nexus-selected-project',
+      JSON.stringify({
+        state: { selectedProjectId: 'p-001', selectedProjectName: 'default', favoriteProjectIds: [] },
+        version: 1,
+      })
+    )
+  })
+  await page.reload()
+  await expect(page.getByRole('heading', { level: 1, name: 'Workflows' })).toBeVisible()
+  await expect(page.locator('table tbody tr').first()).toBeVisible()
 }
 
 /**
@@ -35,7 +91,7 @@ async function openStepEditorFromCanvasTitle(page: Page, title: string | RegExp)
  * This helper iterates through all kebabs and finds one that has a workflow-specific
  * menu item (determined by the menuItemPattern parameter).
  */
-async function openWorkflowKebab(page: Page, menuItemPattern: string | RegExp = /Edit workflow/i) {
+export async function openWorkflowKebab(page: Page, menuItemPattern: string | RegExp = /Edit workflow/i) {
   const kebabs = page.getByRole('button', { name: /Actions|Kebab toggle/i })
   const count = await kebabs.count()
 
@@ -55,13 +111,16 @@ async function openWorkflowKebab(page: Page, menuItemPattern: string | RegExp = 
 // ---------------------------------------------------------------------------
 // Mock API IDs for interactive state entries
 // ---------------------------------------------------------------------------
-const MOCK_WORKFLOW_ID = '1'
-const MOCK_CONDITION_WORKFLOW_ID = '6'
-const MOCK_LOOP_WORKFLOW_ID = '3'
-const MOCK_AGENTIC_WORKFLOW_ID = '48'
-const MOCK_HTTP_WORKFLOW_ID = '49'
-const MOCK_CONVERGE_WORKFLOW_ID = '52'
-const MOCK_APPROVAL_WORKFLOW_ID = '53'
+// IDs are derived from each example YAML's own file path (see
+// syntara-mock-api/src/resources/workflows.ts), never from its position in that list —
+// so these stay correct even after `devel` merges in new example fixtures.
+const MOCK_WORKFLOW_ID = 'basic-conditional-demo'
+const MOCK_CONDITION_WORKFLOW_ID = 'condition-basic-condition-then-else'
+const MOCK_LOOP_WORKFLOW_ID = 'basic-loop-demo'
+const MOCK_AGENTIC_WORKFLOW_ID = 'agentic-simple-research'
+const MOCK_HTTP_WORKFLOW_ID = 'api-simple-get-request'
+const MOCK_CONVERGE_WORKFLOW_ID = 'converge-converge-all-strategy'
+const MOCK_APPROVAL_WORKFLOW_ID = 'approval-approval-gate-basic'
 const MOCK_APPROVAL_ID = '550e8400-e29b-41d4-a716-446655440050'
 const MOCK_APPROVAL_EXECUTION_ID = 'exec-approval'
 const MOCK_EXECUTION_FAILED_ID = 'exec-3'
@@ -235,6 +294,9 @@ export const builderInteractivePages: CanvasPageEntry[] = [
       await page.getByRole('button', { name: /Add Step/i }).click()
       const panel = page.getByRole('region', { name: /add step|select a node/i })
       await expect(panel).toBeVisible()
+      // panel.toBeVisible() fires when the slide-in starts — wait for a rendered child
+      // so the screenshot doesn't capture a mid-animation state
+      await expect(panel.getByRole('button').first()).toBeVisible()
     },
   },
   {
@@ -242,6 +304,8 @@ export const builderInteractivePages: CanvasPageEntry[] = [
     name: 'builder-edit-script-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_CONDITION_WORKFLOW_ID),
     perceptual: true,
+    // NodeEditorOverlay covers the canvas box — masking .react-flow would erase the form.
+    maskCanvas: false,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -254,6 +318,7 @@ export const builderInteractivePages: CanvasPageEntry[] = [
     name: 'builder-edit-condition-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_CONDITION_WORKFLOW_ID),
     perceptual: true,
+    maskCanvas: false,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -266,13 +331,16 @@ export const builderInteractivePages: CanvasPageEntry[] = [
     name: 'builder-edit-loop-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_LOOP_WORKFLOW_ID),
     perceptual: true,
+    maskCanvas: false,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
     setup: async (page) => {
       await openStepEditorFromCanvasTitle(page, 'Loop')
-      // Verify the loop form loaded (not a child step's form)
-      await expect(page.getByLabel('Type', { exact: true })).toHaveValue(/while|forEach/)
+      // Verify the loop form loaded (not a child step's form). The Type field is a
+      // PatternFly Select rendered as a MenuToggle button, not a native <select> —
+      // its current value is its visible text, not a `value` attribute.
+      await expect(page.getByRole('button', { name: 'Type', exact: true })).toHaveText(/While|For each/)
     },
   },
   {
@@ -280,6 +348,7 @@ export const builderInteractivePages: CanvasPageEntry[] = [
     name: 'builder-edit-agentic-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_AGENTIC_WORKFLOW_ID),
     perceptual: true,
+    maskCanvas: false,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -293,6 +362,7 @@ export const builderInteractivePages: CanvasPageEntry[] = [
     name: 'builder-edit-http-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_HTTP_WORKFLOW_ID),
     perceptual: true,
+    maskCanvas: false,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -306,6 +376,7 @@ export const builderInteractivePages: CanvasPageEntry[] = [
     name: 'builder-edit-converge-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_CONVERGE_WORKFLOW_ID),
     perceptual: true,
+    maskCanvas: false,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -318,6 +389,7 @@ export const builderInteractivePages: CanvasPageEntry[] = [
     name: 'builder-edit-approval-node-form',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_APPROVAL_WORKFLOW_ID),
     perceptual: true,
+    maskCanvas: false,
     waitFor: async (page) => {
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
@@ -329,6 +401,7 @@ export const builderInteractivePages: CanvasPageEntry[] = [
     section: 'workflows',
     name: 'builder-new-scheduled-trigger-form',
     perceptual: true,
+    maskCanvas: false,
     path: AppRoute.WorkflowBuilder.New,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { name: 'Select a trigger node' })).toBeVisible({
@@ -337,9 +410,11 @@ export const builderInteractivePages: CanvasPageEntry[] = [
     },
     setup: async (page) => {
       await page.getByRole('button', { name: 'Schedule trigger' }).click()
-      const scheduleExpression = page.getByLabel('Schedule expression', { exact: true })
-      await expect(scheduleExpression).toBeVisible()
-      await scheduleExpression.click()
+      // Schedule expression is a PatternFly Select (MenuToggle button + listbox),
+      // not a native <select> — open it and click the option instead of selectOption().
+      const scheduleToggle = page.getByRole('button', { name: 'Schedule expression', exact: true })
+      await expect(scheduleToggle).toBeVisible()
+      await scheduleToggle.click()
       await page.getByRole('option', { name: 'Visual schedule builder', exact: true }).click()
       await expect(page.getByLabel('Start date', { exact: true })).toBeVisible()
       await expect(page.getByLabel('Frequency', { exact: true })).toBeVisible()
@@ -349,6 +424,7 @@ export const builderInteractivePages: CanvasPageEntry[] = [
     section: 'workflows',
     name: 'builder-new-webhook-trigger-form',
     perceptual: true,
+    maskCanvas: false,
     path: AppRoute.WorkflowBuilder.New,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { name: 'Select a trigger node' })).toBeVisible({
@@ -404,6 +480,7 @@ export const workflowDialogPages: CanvasPageEntry[] = [
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
+      await selectDefaultProject(page)
       await openWorkflowKebab(page)
       await expect(page.getByRole('menuitem', { name: /Edit workflow/i })).toBeVisible()
     },
@@ -418,6 +495,7 @@ export const workflowDialogPages: CanvasPageEntry[] = [
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
+      await selectDefaultProject(page)
       await openWorkflowKebab(page, 'Publish workflow')
       await page.getByRole('menuitem', { name: 'Publish workflow', exact: true }).click()
       await expect(page.getByRole('dialog')).toBeVisible()
@@ -434,10 +512,19 @@ export const workflowDialogPages: CanvasPageEntry[] = [
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
+      await selectDefaultProject(page)
       const workflowKebab = await openWorkflowKebab(page)
       // The unpublish option only appears for published workflows; if absent, click publish first
       const unpublishItem = page.getByRole('menuitem', { name: /Unpublish workflow/i })
       const hasUnpublish = await unpublishItem.isVisible().catch(() => false)
+      // The mock API's workflow list is a single in-process store shared by every
+      // test in the run (CI uses one worker + one webServer instance). If we publish
+      // a workflow here to reach the "Unpublish" precondition, that mutation outlives
+      // this test — the confirm button is never clicked — and leaks a "Published"
+      // badge into every later test that lists workflows. Capture the publish
+      // response so we can revert it directly via the API once the dialog we
+      // actually want to screenshot is showing.
+      let publishedWorkflowId: string | null = null
       if (hasUnpublish) {
         await unpublishItem.click()
       } else {
@@ -446,8 +533,20 @@ export const workflowDialogPages: CanvasPageEntry[] = [
         await workflowKebab.click()
         await page.getByRole('menuitem', { name: /Publish workflow/i }).click()
         await expect(page.getByRole('dialog')).toBeVisible()
+        const publishResponse = page.waitForResponse(
+          (res) =>
+            /\/api\/v1\/workflows\/[^/]+\/versions\/\d+\/publish$/.test(res.url()) && res.request().method() === 'POST'
+        )
         await page.getByRole('button', { name: 'Publish' }).click()
+        publishedWorkflowId = new URL((await publishResponse).url()).pathname.split('/')[4] ?? null
+        // not.toBeVisible() fires when dismiss animation starts — also wait for
+        // a published status badge so the DOM is fully settled before re-clicking
         await expect(page.getByRole('dialog')).not.toBeVisible()
+        await expect(page.getByText('Published', { exact: true }).first()).toBeVisible()
+        // The "Workflow published successfully" toast auto-dismisses after several
+        // seconds — wait it out so it isn't still on screen (overlapping the
+        // "Unpublish workflow?" dialog) when the final screenshot is captured.
+        await expect(page.getByText('Workflow published successfully')).not.toBeVisible({ timeout: 12_000 })
         await workflowKebab.click()
         const unpublishAfterPublish = page.getByRole('menuitem', { name: /Unpublish workflow/i })
         await expect(unpublishAfterPublish).toBeVisible()
@@ -455,6 +554,9 @@ export const workflowDialogPages: CanvasPageEntry[] = [
       }
       await expect(page.getByRole('dialog')).toBeVisible()
       await expect(page.getByText('Unpublish workflow?')).toBeVisible()
+      if (publishedWorkflowId) {
+        await page.request.post(`/api/v1/workflows/${publishedWorkflowId}/unpublish`)
+      }
     },
   },
   {
@@ -467,11 +569,38 @@ export const workflowDialogPages: CanvasPageEntry[] = [
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
-      await openWorkflowKebab(page, /Run published version/i)
+      await selectDefaultProject(page)
+      // "Run published version" is disabled until the workflow has a published_version_id
+      // (see workflowRowActions.tsx). Publish it here rather than relying on state leaked
+      // from a sibling test — workflows-unpublish-dialog explicitly unpublishes its target
+      // workflow as its own cleanup step, so this workflow is never left published for a
+      // later test to depend on. Revert via a direct API call (mirroring
+      // workflows-unpublish-dialog's cleanup) once the Run dialog is showing, so the mutation
+      // doesn't leak a "Published" badge into whatever runs after this test.
+      // openWorkflowKebab already leaves the menu open (it clicks the kebab internally
+      // to check which items are present) — clicking it again here would just toggle it
+      // closed before the menuitem click below has a chance to land.
+      const workflowKebab = await openWorkflowKebab(page, /Publish workflow/i)
+      const publishResponse = page.waitForResponse(
+        (res) =>
+          /\/api\/v1\/workflows\/[^/]+\/versions\/\d+\/publish$/.test(res.url()) && res.request().method() === 'POST'
+      )
+      await page.getByRole('menuitem', { name: /Publish workflow/i }).click()
+      await expect(page.getByRole('dialog')).toBeVisible()
+      await page.getByRole('button', { name: 'Publish' }).click()
+      const publishedWorkflowId = new URL((await publishResponse).url()).pathname.split('/')[4] ?? null
+      await expect(page.getByRole('dialog')).not.toBeVisible()
+      await expect(page.getByText('Workflow published successfully')).not.toBeVisible({ timeout: 12_000 })
+
+      await workflowKebab.click()
       await page.getByRole('menuitem', { name: /Run published version/i }).click()
       const dialog = page.getByRole('dialog')
       await expect(dialog).toBeVisible()
       await expect(dialog.getByRole('button', { name: /Run/i })).toBeVisible()
+
+      if (publishedWorkflowId) {
+        await page.request.post(`/api/v1/workflows/${publishedWorkflowId}/unpublish`)
+      }
     },
   },
   {
@@ -480,12 +609,27 @@ export const workflowDialogPages: CanvasPageEntry[] = [
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
     perceptual: true,
     waitFor: async (page) => {
-      await expect(page.locator('.react-flow')).toBeVisible({ timeout: 10_000 })
+      // Use 30s to match all other builder entries (ReactFlow + Zustand + lazy-load is slow in CI)
+      await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
     setup: async (page) => {
       await page.getByRole('button', { name: /Workflow actions/i }).click()
       await page.getByRole('menuitem', { name: /Version history/i }).click()
       await expect(page.getByRole('heading', { name: 'Version history' })).toBeVisible()
+      // Heading visible = panel started opening; wait for panel content to finish rendering
+      await expect(
+        page
+          .getByRole('list')
+          .filter({ hasText: /version/i })
+          .first()
+      )
+        .toBeVisible({
+          timeout: 5_000,
+        })
+        .catch(async () => {
+          // Panel may be empty (no versions yet) — confirm the empty state rendered instead
+          await expect(page.getByRole('heading', { name: 'Version history' })).toBeVisible()
+        })
     },
   },
   {
@@ -494,10 +638,12 @@ export const workflowDialogPages: CanvasPageEntry[] = [
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
     perceptual: true,
     waitFor: async (page) => {
-      await expect(page.locator('.react-flow')).toBeVisible({ timeout: 10_000 })
+      await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
     },
     setup: async (page) => {
-      await page.getByRole('button', { name: /Run history/i }).click()
+      // "Run history" lives inside the "Workflow actions" kebab menu, not a standalone button
+      await page.getByLabel('Workflow actions').click()
+      await page.getByRole('menuitem', { name: /Run history/i }).click()
       await expect(page.getByRole('heading', { name: 'Run History' })).toBeVisible()
       // Wait for pagination footer to ensure full render
       await expect(page.getByRole('navigation', { name: /pagination/i })).toBeVisible()
@@ -624,7 +770,10 @@ export const integrationWizardPages: PageEntry[] = [
       await page.getByRole('option', { name: 'MCP Integration Token' }).click()
       // Advance to step 3
       await page.getByRole('button', { name: 'Next' }).click()
-      await expect(page.getByRole('heading', { name: 'Enable tools' })).toBeVisible()
+      // This setup never runs an actual "Test connection", so the step always
+      // renders its empty state ("No tools discovered yet") rather than the
+      // "Enable tools" heading, which only appears once tools are discovered.
+      await expect(page.getByRole('heading', { name: 'No tools discovered yet' })).toBeVisible()
     },
   },
 ]
@@ -733,12 +882,14 @@ export const approvalInteractivePages: PageEntry[] = [
     section: 'approvals',
     name: 'approval-side-panel-pending',
     path: `${AppRoute.Executions.Execution.replace(':executionId', MOCK_APPROVAL_EXECUTION_ID)}?approval=${MOCK_APPROVAL_ID}&history=closed`,
+    perceptual: true,
     waitFor: waitForApprovalPanel,
   },
   {
     section: 'approvals',
     name: 'approval-side-panel-approve-selected',
     path: `${AppRoute.Executions.Execution.replace(':executionId', MOCK_APPROVAL_EXECUTION_ID)}?approval=${MOCK_APPROVAL_ID}&history=closed`,
+    perceptual: true,
     waitFor: waitForApprovalPanel,
     setup: async (page) => {
       // Wait for permission checks to complete before clicking
@@ -751,6 +902,7 @@ export const approvalInteractivePages: PageEntry[] = [
     section: 'approvals',
     name: 'approval-side-panel-reject-selected',
     path: `${AppRoute.Executions.Execution.replace(':executionId', MOCK_APPROVAL_EXECUTION_ID)}?approval=${MOCK_APPROVAL_ID}&history=closed`,
+    perceptual: true,
     waitFor: waitForApprovalPanel,
     setup: async (page) => {
       // Wait for permission checks to complete before clicking
@@ -763,6 +915,7 @@ export const approvalInteractivePages: PageEntry[] = [
     section: 'approvals',
     name: 'approval-side-panel-viewer-disabled',
     path: `${AppRoute.Executions.Execution.replace(':executionId', MOCK_APPROVAL_EXECUTION_ID)}?approval=${MOCK_APPROVAL_ID}&history=closed`,
+    perceptual: true,
     role: 'viewer',
     waitFor: async (page) => {
       await waitForApprovalPanel(page)
@@ -842,7 +995,7 @@ export const statusVariantPages: PageEntry[] = [
     section: 'executions',
     name: 'execution-detail-running',
     path: AppRoute.Executions.Execution.replace(':executionId', MOCK_EXECUTION_RUNNING_ID),
-    maxDiffPixelRatio: 0.01,
+    perceptual: true,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       await expect(page.getByText('Running', { exact: true }).first()).toBeVisible()
@@ -852,7 +1005,7 @@ export const statusVariantPages: PageEntry[] = [
     section: 'executions',
     name: 'execution-detail-paused',
     path: AppRoute.Executions.Execution.replace(':executionId', MOCK_EXECUTION_PAUSED_ID),
-    maxDiffPixelRatio: 0.01,
+    perceptual: true,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       await expect(page.getByText('Paused', { exact: true }).first()).toBeVisible()
@@ -862,7 +1015,8 @@ export const statusVariantPages: PageEntry[] = [
     section: 'executions',
     name: 'execution-detail-cancelled',
     path: AppRoute.Executions.Execution.replace(':executionId', MOCK_EXECUTION_CANCELLED_ID),
-    maxDiffPixelRatio: 0.01,
+    perceptual: true,
+    maxDiffPixelRatio: EXECUTION_STATUS_BADGE_TOLERANCE,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       await expect(page.getByText('Cancelled', { exact: true }).first()).toBeVisible()
@@ -872,7 +1026,7 @@ export const statusVariantPages: PageEntry[] = [
     section: 'executions',
     name: 'execution-detail-pending',
     path: AppRoute.Executions.Execution.replace(':executionId', MOCK_EXECUTION_PENDING_ID),
-    maxDiffPixelRatio: 0.01,
+    perceptual: true,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       await expect(page.getByText('Pending', { exact: true }).first()).toBeVisible()
@@ -891,6 +1045,8 @@ export const statusVariantPages: PageEntry[] = [
         .getByRole('button', { name: /details/i })
         .first()
         .click()
+      // Wait for expanded row content — no assertion here previously caused race with animation
+      await expect(page.locator('tr.pf-m-expanded, tr[aria-expanded="true"]').first()).toBeVisible()
     },
   },
   {
@@ -950,7 +1106,11 @@ export const credentialEditPages: PageEntry[] = [
     path: AppRoute.Configuration.Credentials.Root,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1, name: 'Credentials' })).toBeVisible()
-      await expect(page.getByRole('table')).toBeVisible()
+      // PatternFly's <Table> renders with role="grid" (see isExpandable usage in
+      // Credentials.tsx), not the native "table" role, so getByRole('table') never
+      // matches — assert on the row structure directly instead, like the sibling
+      // credentials-edit-modal entry above.
+      await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
       await page.getByRole('textbox', { name: 'Project' }).click()

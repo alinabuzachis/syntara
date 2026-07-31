@@ -55,6 +55,13 @@ Related to #(issue number)
 - [ ] Accessibility has been considered (semantic HTML, labels, keyboard navigation)
 - [ ] Screenshots or screen recordings are attached for UI changes
 
+## Visual Regression
+
+> Visual regression does **not** run automatically on this PR. If your change affects UI that's covered by `e2e/visual-regression/page-registry.ts`, update baselines yourself before requesting review — otherwise the weekly baseline-refresh PR will pick up the drift and route it to the UI/UX team instead of you.
+
+- [ ] If this PR intentionally changes covered UI: I have commented `/update-screenshots` on this PR and confirmed the regenerated baselines look correct in the Files changed tab
+- [ ] If this PR adds a new page/route: I have added an entry to `page-registry.ts` and run `/update-screenshots` to generate its baseline
+
 ## General Checklist
 
 - [ ] Code follows the project's coding conventions

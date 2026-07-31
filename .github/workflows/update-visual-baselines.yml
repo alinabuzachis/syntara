@@ -34,28 +34,99 @@ jobs:
       NEXUS_E2E_SKIP_WEB_SERVER: ''
     runs-on: ubuntu-24.04
     steps:
+      - name: Validate inputs
+        env:
+          PR_REF: ${{ inputs.pr_ref }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+        run: |
+          # + and = added to support branch names like worktree-fix+visual-regression-flakiness
+          if [[ ! "${PR_REF}" =~ ^[a-zA-Z0-9._/+=-]+$ ]]; then
+            echo "::error::Invalid branch ref: '${PR_REF}'"
+            exit 1
+          fi
+          if [[ ! "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid PR number: '${PR_NUMBER}'"
+            exit 1
+          fi
+
+      # Checks out GitHub's own precomputed test-merge-commit (this branch merged into its
+      # base) rather than the raw branch head. Baselines should match the UI as it will look
+      # after merge: if we generated them from the raw branch only, pages also touched on
+      # the base would drift the next time weekly cron or a follow-up /update-screenshots
+      # ran against the merged tree. If the PR has a real merge conflict, this ref won't
+      # exist and the checkout step below fails with a clear error instead of silently
+      # testing stale code.
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        id: checkout
+        continue-on-error: true
         with:
-          ref: ${{ inputs.pr_ref }}
+          ref: refs/pull/${{ inputs.pr_number }}/merge
           fetch-depth: 0
 
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        if: steps.checkout.outcome != 'failure'
         with:
           node-version: '22.13.0'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
       - run: npm ci
+        if: steps.checkout.outcome != 'failure'
         working-directory: frontend
 
+      # HEAD is refs/pull/<N>/merge — a synthetic 2-parent commit where parent 1
+      # is the base branch tip and parent 2 is this PR's actual head. Diffing
+      # them gives exactly this PR's changed files. scope-visual-regression.ts
+      # is an allowlist: it only narrows the run when every changed file falls
+      # under a known-safe, isolated route folder, and defaults to a full run
+      # for anything ambiguous (shared components, hooks, the mock API, the
+      # test infra itself). See that file for the full rationale and the
+      # weekly-cron backstop that limits the blast radius of a wrong rule.
+      - name: Determine visual regression scope
+        id: scope
+        if: steps.checkout.outcome != 'failure'
+        working-directory: frontend/packages/nexus-ui
+        run: |
+          set -uo pipefail
+          if ! CHANGED=$(git diff --name-only HEAD^1 HEAD^2); then
+            echo "::warning::Could not diff merge-commit parents; falling back to a full run"
+            echo "result=FULL" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Deliberately no `set -e`: a crash in the scope script itself should
+          # fail open to a full run (same policy as the git-diff failure above),
+          # not skip screenshot generation entirely. Handle that explicitly
+          # rather than relying on an empty $SCOPE_LINE producing an empty
+          # --grep pattern that happens to match everything.
+          if ! SCOPE_LINE=$(printf '%s\n' "$CHANGED" | npm exec tsx -- scripts/scope-visual-regression.ts); then
+            echo "::warning::scope-visual-regression.ts failed; falling back to a full run"
+            echo "result=FULL" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "result=${SCOPE_LINE#SCOPE=}" >> "$GITHUB_OUTPUT"
+
       - name: Install Playwright Chromium
+        if: steps.checkout.outcome != 'failure' && steps.scope.outcome != 'failure' && steps.scope.outputs.result != 'NONE'
         run: npx playwright install --with-deps chromium
         working-directory: frontend/packages/nexus-ui
 
       - name: Generate screenshots
         id: screenshots
+        if: steps.checkout.outcome != 'failure' && steps.scope.outcome != 'failure' && steps.scope.outputs.result != 'NONE'
         continue-on-error: true
-        run: npx playwright test e2e/visual-regression/page-screenshots.spec.ts --update-snapshots
+        env:
+          VR_SCOPE: ${{ steps.scope.outputs.result }}
+        run: |
+          # Match visual-regression-schedule.yml: --workers=1 avoids rAF throttling
+          # under Playwright's CI default (workers: 3, fullyParallel: true).
+          # Use update-snapshots=all (not the default "changed"): brand-logo masks
+          # are only ~784px and stay under maxDiffPixelRatio 0.005, so "changed"
+          # would leave most baselines with unmasked logos.
+          if [[ "$VR_SCOPE" == "FULL" ]]; then
+            npx playwright test e2e/visual-regression/page-screenshots.spec.ts --update-snapshots=all --workers=1
+          else
+            npx playwright test e2e/visual-regression/page-screenshots.spec.ts --update-snapshots=all --workers=1 --grep "$VR_SCOPE"
+          fi
         working-directory: frontend/packages/nexus-ui
 
       - name: Upload Playwright results on failure
@@ -68,22 +139,9 @@ jobs:
             frontend/packages/nexus-ui/playwright-report/
           retention-days: 7
 
-      - name: Validate inputs
-        env:
-          PR_REF: ${{ inputs.pr_ref }}
-          PR_NUMBER: ${{ inputs.pr_number }}
-        run: |
-          if [[ ! "${PR_REF}" =~ ^[a-zA-Z0-9._/-]+$ ]]; then
-            echo "::error::Invalid branch ref: '${PR_REF}'"
-            exit 1
-          fi
-          if [[ ! "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
-            echo "::error::Invalid PR number: '${PR_NUMBER}'"
-            exit 1
-          fi
-
       - name: Detect changed baselines
         id: detect
+        if: steps.checkout.outcome != 'failure'
         working-directory: frontend/packages/nexus-ui
         run: |
           git add e2e/visual-regression/page-screenshots.spec.ts-snapshots/
@@ -120,7 +178,8 @@ jobs:
             const path = require('path');
 
             const prRef = process.env.PR_REF;
-            if (!/^[a-zA-Z0-9.\/_-]+$/.test(prRef)) {
+            // + and = added to support branch names like worktree-fix+visual-regression-flakiness
+            if (!/^[a-zA-Z0-9.\/_+=-]+$/.test(prRef)) {
               core.setFailed(`Invalid branch ref: '${prRef}'`);
               return;
             }
@@ -206,9 +265,12 @@ jobs:
           COMMITTED: ${{ steps.commit.outputs.committed || 'false' }}
           ADDED: ${{ steps.detect.outputs.added }}
           MODIFIED: ${{ steps.detect.outputs.modified }}
+          CHECKOUT_FAILED: ${{ steps.checkout.outcome == 'failure' }}
           TESTS_FAILED: ${{ steps.screenshots.outcome == 'failure' || steps.screenshots.conclusion == 'failure' }}
           COMMIT_FAILED: ${{ steps.commit.outcome == 'failure' }}
           COMMIT_OUTCOME: ${{ steps.commit.outcome }}
+          HAS_CHANGES: ${{ steps.detect.outputs.has_changes }}
+          VR_SCOPE: ${{ steps.scope.outputs.result }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           PR_NUMBER: ${{ inputs.pr_number }}
         with:
@@ -216,13 +278,32 @@ jobs:
             const committed = process.env.COMMITTED === 'true';
             const added = process.env.ADDED || '0';
             const modified = process.env.MODIFIED || '0';
+            const checkoutFailed = process.env.CHECKOUT_FAILED === 'true';
             const testsFailed = process.env.TESTS_FAILED === 'true';
             const commitFailed = process.env.COMMIT_FAILED === 'true';
             const commitOutcome = process.env.COMMIT_OUTCOME || '';
+            const hasChanges = process.env.HAS_CHANGES === 'true';
             const runUrl = process.env.RUN_URL;
+            const vrScope = process.env.VR_SCOPE || '';
+            const scopeNote =
+              vrScope === 'NONE'
+                ? '_No files under `frontend/packages/nexus-ui/` changed — nothing to screenshot._'
+                : vrScope === 'FULL' || vrScope === ''
+                  ? '_Ran the full page suite (either a shared file changed, or scoping could not be determined)._'
+                  : `_Ran only the pages this PR could affect — filtered with \`--grep\`. The full suite still runs every Monday._`;
 
             let body;
-            if (commitFailed && testsFailed) {
+            if (checkoutFailed) {
+              body = [
+                '### :x: Visual baselines not updated — merge conflict with the base branch',
+                '',
+                "This PR's automatic test-merge could not be checked out, which means it has a real " +
+                  'merge conflict with its base branch (baselines are generated against that same ' +
+                  'merge, since that\'s what PR CI actually renders — see the workflow file for why).',
+                '',
+                'Merge or rebase onto the base branch locally, push, then re-run `/update-screenshots`.',
+              ].join('\n');
+            } else if (commitFailed && testsFailed) {
               body = [
                 '### :x: Visual baselines not updated — screenshot generation and commit both failed',
                 '',
@@ -258,6 +339,8 @@ jobs:
                 '',
                 'The updated `-linux.png` files have been committed to this branch.',
                 'Review the image diffs in the Files Changed tab.',
+                '',
+                scopeNote,
               ].join('\n');
             } else if (testsFailed) {
               body = [
@@ -267,7 +350,11 @@ jobs:
                 '',
                 `Check the [workflow run](${runUrl}) logs and the \`frontend-update-baselines-results\` artifact for details — the \`page-registry.ts\` entry likely has a locator or setup error.`,
               ].join('\n');
-            } else if (commitOutcome !== 'success') {
+            } else if (hasChanges && commitOutcome !== 'success') {
+              // The commit step only runs when detect found staged changes (has_changes
+              // === 'true'), so if it's not 'success' here it's something other than
+              // "nothing to commit" — e.g. cancelled mid-run — worth a distinct warning
+              // rather than silently falling into the "already up to date" message below.
               body = [
                 '### :warning: Visual baselines update did not complete',
                 '',
@@ -280,6 +367,8 @@ jobs:
                 '### :white_check_mark: Visual baselines already up to date',
                 '',
                 'No screenshot PNG changes were committed — generated images match the baselines already on this branch.',
+                '',
+                scopeNote,
               ].join('\n');
             }
 
@@ -290,8 +379,13 @@ jobs:
               body,
             });
 
-      - name: Fail job if screenshots had errors
-        if: steps.screenshots.outcome == 'failure' || steps.commit.outcome == 'failure'
+      - name: Fail job if checkout, scoping, screenshots, or commit had errors
+        if: >-
+          steps.checkout.outcome == 'failure' ||
+          steps.scope.outcome == 'failure' ||
+          steps.screenshots.outcome == 'failure' ||
+          steps.detect.outcome == 'failure' ||
+          steps.commit.outcome == 'failure'
         run: |
-          echo "::error::Screenshot generation or commit had failures — see comment on PR"
+          echo "::error::Merge-commit checkout, scope detection, screenshot generation, or commit had failures — see comment on PR"
           exit 1

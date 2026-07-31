@@ -4447,9 +4447,12 @@ export const handlers = [
     const includeTotal = url.searchParams.get('include_total') === 'true'
     const principalId = url.searchParams.get('principal_id')
     const groupId = url.searchParams.get('group_id')
-    const principalName = url.searchParams.get('principal_name')
-    const roleName = url.searchParams.get('role_name')
+    // UI sends operator-suffixed keys via buildFilterParams (e.g. principal_name[contains]).
+    // Also accept the bare keys for older clients / direct queries.
+    const principalName = url.searchParams.get('principal_name[contains]') ?? url.searchParams.get('principal_name')
+    const roleName = url.searchParams.get('role_name[contains]') ?? url.searchParams.get('role_name')
     const projectId = url.searchParams.get('project_id')
+    const principalType = url.searchParams.get('principal_type')
 
     // Build unified list from all sources
     const userEntries = mockUserRoleAssignments.map((a) => {
@@ -4544,9 +4547,16 @@ export const handlers = [
     if (groupId != null) {
       all = all.filter((a) => a.group_id === groupId)
     }
-    if (principalName) all = all.filter((a) => a.principal_name.includes(principalName))
-    if (roleName) all = all.filter((a) => a.role_name.includes(roleName))
+    if (principalName) {
+      const needle = principalName.toLowerCase()
+      all = all.filter((a) => a.principal_name.toLowerCase().includes(needle))
+    }
+    if (roleName) {
+      const needle = roleName.toLowerCase()
+      all = all.filter((a) => a.role_name.toLowerCase().includes(needle))
+    }
     if (projectId) all = all.filter((a) => a.project_id === projectId)
+    if (principalType) all = all.filter((a) => a.principal_type === principalType)
 
     return HttpResponse.json(paginate(all, cursor, limit, includeTotal))
   }),

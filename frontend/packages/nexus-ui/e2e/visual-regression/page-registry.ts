@@ -25,14 +25,18 @@ import {
   credentialDialogPages,
   credentialEditPages,
   detailTabPages,
+  EXECUTION_STATUS_BADGE_TOLERANCE,
   integrationDialogPages,
   integrationSecurityPages,
   integrationWizardPages,
   oidcProviderWizardPages,
+  openWorkflowKebab,
+  selectDefaultProject,
   settingsTabPages,
   statusVariantPages,
   transferIdentityWizardPages,
   userCreateFormPages,
+  waitForCanvasReady,
   workflowDialogPages,
 } from './page-entries-interactive'
 
@@ -47,8 +51,15 @@ export type PageEntry = {
   waitFor: (page: Page) => Promise<void>
   /** Optional interaction before screenshot (e.g., open modal, apply filter) */
   setup?: (page: Page) => Promise<void>
-  /** Use looks-same perceptual comparison (CIEDE2000) instead of pixelmatch for canvas pages with subpixel jitter */
+  /** Mask the `.react-flow` canvas with a solid rectangle before comparison — required for any page rendering a ReactFlow canvas, since node/edge layout and `fitView()` output aren't pixel-deterministic */
   perceptual?: boolean
+  /**
+   * When `perceptual` is true, mask `.react-flow` (default). Set to `false` when the
+   * screenshot subject is `NodeEditorOverlay` (step/trigger forms): that overlay is
+   * `position:absolute; inset:0` over the same box as `.react-flow`, so a canvas mask
+   * paints solid grey over the form and `--update-snapshots` commits empty baselines.
+   */
+  maskCanvas?: boolean
   /** Override the default maxDiffPixelRatio for pages with non-deterministic rendering (e.g. canvas) */
   maxDiffPixelRatio?: number
   /** Mock API role to log in as (default: admin). Used for permission gating screenshots. */
@@ -56,9 +67,11 @@ export type PageEntry = {
 }
 
 /**
- * Canvas entries require perceptual comparison (CIEDE2000) to avoid flaky
- * layout-shift diffs from ReactFlow canvas rendering and non-deterministic settling.
- * Use this type for any page that renders a ReactFlow canvas (builder, execution visualizer, etc.).
+ * Canvas entries require `perceptual: true` so the screenshot runner masks
+ * `.react-flow` with a solid rectangle — node/edge layout and `fitView()` are
+ * not pixel-deterministic. Use for any page that renders a ReactFlow canvas
+ * (builder, execution visualizer, etc.). Set `maskCanvas: false` when the
+ * subject is `NodeEditorOverlay` (see `PageEntry.maskCanvas`).
  */
 export type CanvasPageEntry = PageEntry & {
   perceptual: true
@@ -72,7 +85,10 @@ async function applyNameFilter(page: Page, value: string) {
 // ---------------------------------------------------------------------------
 // Mock API IDs for parameterized routes
 // ---------------------------------------------------------------------------
-const MOCK_WORKFLOW_ID = '1'
+// Derived from the example YAML's own file path (see
+// syntara-mock-api/src/resources/workflows.ts) — stable even after `devel` merges in
+// new example fixtures, unlike a positional index.
+const MOCK_WORKFLOW_ID = 'basic-conditional-demo'
 const MOCK_EXECUTION_ID = 'exec-1'
 const MOCK_USER_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 const MOCK_GROUP_ID = 'g1a2b3c4-d5e6-7890-abcd-ef1234567890'
@@ -121,12 +137,17 @@ export const pages: PageEntry[] = [
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
-      // Open kebab menu on a data row (skip group header rows which have no kebab)
-      const kebab = page.getByRole('button', { name: /Actions|Kebab toggle/i }).first()
-      await kebab.click()
-      await page.getByRole('menuitem', { name: 'Delete' }).click()
+      // Pin to a single project so "the first workflow row" is deterministic — see
+      // selectDefaultProject() for why "All projects" grouping is unsafe here.
+      await selectDefaultProject(page)
+      // Project header rows have their own kebab ("Delete project"), which also
+      // matches a non-exact { name: 'Delete' } query — use openWorkflowKebab to
+      // land on an actual workflow row instead of the wrong dialog.
+      await openWorkflowKebab(page, 'Delete workflow')
+      await page.getByRole('menuitem', { name: 'Delete workflow', exact: true }).click()
       const dialog = page.getByRole('dialog')
       await expect(dialog).toBeVisible()
+      await expect(dialog.getByText('Delete workflow?')).toBeVisible()
       await expect(dialog.getByRole('button', { name: /Delete/i })).toBeVisible()
     },
   },
@@ -141,10 +162,7 @@ export const pages: PageEntry[] = [
     name: 'builder-edit',
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
     perceptual: true,
-    waitFor: async (page) => {
-      // ReactFlow + Zustand + lazy-load initialization is slow in CI — extend timeout
-      await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
-    },
+    waitFor: waitForCanvasReady,
   },
   ...builderInteractivePages,
 
@@ -155,6 +173,7 @@ export const pages: PageEntry[] = [
     section: 'executions',
     name: 'executions-list',
     path: AppRoute.Executions.Root,
+    maxDiffPixelRatio: EXECUTION_STATUS_BADGE_TOLERANCE,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1, name: 'Workflow Runs' })).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
@@ -167,6 +186,9 @@ export const pages: PageEntry[] = [
     name: 'execution-detail',
     path: AppRoute.Executions.Execution.replace(':executionId', MOCK_EXECUTION_ID),
     perceptual: true,
+    // perceptual: true masks the .react-flow canvas in the screenshot — the
+    // animated edge rendering variance is contained in the canvas and is now
+    // irrelevant. No maxDiffPixelRatio override needed.
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     },
@@ -552,9 +574,14 @@ export const pages: PageEntry[] = [
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
-      await page.getByRole('textbox', { name: /filter/i }).fill('zzz-no-match-zzz')
-      await page.getByRole('textbox', { name: /filter/i }).press('Enter')
-      await expect(page.getByText(/No results found|Adjust your filters/i)).toBeVisible()
+      // Assignments uses API-based filtering (principal_name[contains]); target the
+      // Principal Name filter explicitly so we don't hit a different toolbar input.
+      const filterInput = page.getByRole('textbox', { name: /principal name filter/i })
+      await filterInput.fill('zzz-no-match-zzz')
+      await filterInput.press('Enter')
+      await expect(page.getByRole('heading', { name: /No results found/i })).toBeVisible({
+        timeout: 10_000,
+      })
     },
   },
 
@@ -930,9 +957,7 @@ export const pages: PageEntry[] = [
     path: AppRoute.WorkflowBuilder.Edit.replace(':workflowId', MOCK_WORKFLOW_ID),
     role: 'viewer',
     perceptual: true,
-    waitFor: async (page) => {
-      await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
-    },
+    waitFor: waitForCanvasReady,
   },
   {
     section: 'permission-gating',
@@ -974,6 +999,7 @@ export const pages: PageEntry[] = [
     name: 'viewer-executions-list',
     path: AppRoute.Executions.Root,
     role: 'viewer',
+    maxDiffPixelRatio: EXECUTION_STATUS_BADGE_TOLERANCE,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { level: 1, name: 'Workflow Runs' })).toBeVisible()
       await expect(page.getByRole('row').nth(1)).toBeVisible()

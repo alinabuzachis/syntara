@@ -16,6 +16,8 @@
     "e2e:ui": "npm run e2e:ui --prefix packages/nexus-ui",
     "e2e:visual-regression": "npm run e2e --prefix packages/nexus-ui -- e2e/visual-regression/page-screenshots",
     "e2e:visual-regression:update": "npm run e2e --prefix packages/nexus-ui -- e2e/visual-regression/page-screenshots --update-snapshots",
+    "e2e:visual-regression:container": "bash scripts/visual-regression-container.sh",
+    "e2e:visual-regression:container:update": "bash scripts/visual-regression-container.sh --update",
     "check:visual-baselines": "npm exec --prefix packages/nexus-ui tsx -- scripts/check-visual-baselines.ts",
     "knip": "npm run knip --workspaces --if-present",
     "clean": "npm run clean --workspaces --if-present",

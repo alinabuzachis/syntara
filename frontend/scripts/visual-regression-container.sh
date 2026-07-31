@@ -1,27 +1,44 @@
 #!/usr/bin/env bash
 # Run visual regression tests inside a Linux container that matches CI.
+# Supports both Docker and Podman — whichever is available on your machine.
 #
 # Usage:
 #   ./scripts/visual-regression-container.sh             # compare mode
 #   ./scripts/visual-regression-container.sh --update     # update baselines
 set -euo pipefail
 
-# --- Preflight: verify Podman ---
-if ! command -v podman &>/dev/null; then
-  echo "Error: Podman is not installed or not in PATH"
-  echo "Install Podman: https://podman.io/getting-started/installation"
-  echo ""
-  echo "On macOS:  brew install podman && podman machine init && podman machine start"
-  exit 1
+# --- Detect container runtime (Docker or Podman) ---
+# Prefer Podman when it has a running machine; fall back to Docker.
+RUNTIME=""
+if command -v podman &>/dev/null; then
+  # On macOS, Podman requires a running VM — check it actually works before selecting it.
+  if [[ "$(uname -s)" != "Darwin" ]] || podman machine list --format '{{.Running}}' 2>/dev/null | grep -q "true"; then
+    RUNTIME="podman"
+  fi
 fi
-
-if [[ "$(uname -s)" == "Darwin" ]]; then
-  if ! podman machine info &>/dev/null 2>&1; then
-    echo "Error: Podman machine is not running."
-    echo "Start it with: podman machine start"
+if [[ -z "${RUNTIME}" ]]; then
+  if command -v docker &>/dev/null && docker info &>/dev/null 2>&1; then
+    RUNTIME="docker"
+  elif command -v podman &>/dev/null; then
+    # Podman is installed but machine isn't running — give a helpful error.
+    echo "Error: Podman is installed but no machine is running."
+    echo "Start one with: podman machine init && podman machine start"
+    echo "Or install and start Docker Desktop: https://docs.docker.com/get-docker/"
+    exit 1
+  else
+    echo "Error: Neither Docker nor Podman is installed."
+    echo ""
+    echo "Install one of:"
+    echo "  Podman (recommended): brew install podman && podman machine init --memory 4096 && podman machine start"
+    echo "  Docker:               https://docs.docker.com/get-docker/"
     exit 1
   fi
+fi
 
+echo "Using container runtime: ${RUNTIME}"
+
+# --- Podman-specific preflight on macOS: verify machine has enough RAM ---
+if [[ "${RUNTIME}" == "podman" && "$(uname -s)" == "Darwin" ]]; then
   MIN_MEMORY_MB=4096
   MACHINE_MEMORY=$(podman machine inspect --format '{{.Resources.Memory}}' 2>/dev/null || echo "0")
   if [[ "${MACHINE_MEMORY}" -lt "${MIN_MEMORY_MB}" ]]; then
@@ -69,14 +86,37 @@ SNAPSHOT_DIR="packages/nexus-ui/e2e/visual-regression/page-screenshots.spec.ts-s
 API_PORT=3300
 UI_PORT=4173
 
+# --- Docker credential workaround ---
+# docker-credential-osxkeychain is referenced in ~/.docker/config.json on macOS
+# but may not be in PATH (common with Docker Desktop). Public registries like
+# mcr.microsoft.com don't need credentials — use a bare config to skip the helper.
+#
+# The config path is passed to Python as argv rather than interpolated into the
+# script source, so a HOME containing shell/Python metacharacters can't inject code.
+DOCKER_CONFIG_PATH="${HOME}/.docker/config.json"
+if [[ "${RUNTIME}" == "docker" ]] \
+  && [[ -f "${DOCKER_CONFIG_PATH}" ]] \
+  && grep -q '"credsStore"' "${DOCKER_CONFIG_PATH}" 2>/dev/null \
+  && ! command -v "docker-credential-$(python3 -c "import json, sys; print(json.load(open(sys.argv[1])).get('credsStore',''))" "${DOCKER_CONFIG_PATH}" 2>/dev/null)" &>/dev/null; then
+  _DOCKER_CREDS_DIR=$(mktemp -d)
+  echo '{}' > "${_DOCKER_CREDS_DIR}/config.json"
+  export DOCKER_CONFIG="${_DOCKER_CREDS_DIR}"
+  echo "Note: docker-credential-osxkeychain not in PATH — using anonymous config for public registry pull."
+fi
+
 # --- Run the container ---
 # Source is copied to /work (excluding node_modules/.git) so npm ci installs
 # Linux-native binaries without corrupting the host. The build + servers run
 # manually because the Vite build exceeds Playwright's default 180s webServer
 # timeout under emulation. Updated snapshots are copied back to the host.
+#
+# Chromium needs more than the default 64MB /dev/shm or it crashes/renders
+# inconsistently. --shm-size grows the container's own shared memory instead of
+# reaching for --ipc=host, which would share (and expose) the host's IPC namespace.
 set +e
-podman run --rm \
+"${RUNTIME}" run --rm \
   --platform linux/amd64 \
+  --shm-size=2gb \
   -v "${REPO_ROOT}:/repo:ro" \
   -v "${REPO_ROOT}/${SNAPSHOT_DIR}:/output" \
   "${IMAGE}" \
@@ -101,7 +141,23 @@ podman run --rm \
 
     echo ''
     echo '--- Building app (production) ---'
-    VITE_API_URL=http://localhost:${API_PORT} npm run build --prefix packages/nexus-ui
+    # NODE_OPTIONS limits heap to reduce memory pressure under amd64 emulation on
+    # Apple Silicon. The build may segfault on Node.js cleanup even when dist output
+    # is already written -- check for dist/index.html rather than trusting exit code.
+    set +e
+    NODE_OPTIONS='--max-old-space-size=4096' \
+    VITE_API_URL=http://localhost:${API_PORT} \
+    npm run build --prefix packages/nexus-ui
+    BUILD_EXIT=\$?
+    set -e
+    if [[ \$BUILD_EXIT -ne 0 ]]; then
+      if [[ -f packages/nexus-ui/dist/index.html ]]; then
+        echo \"Note: build exited \${BUILD_EXIT} but dist output exists, continuing.\"
+      else
+        echo \"Build failed (exit \${BUILD_EXIT}) and no dist/index.html found.\"
+        exit \${BUILD_EXIT}
+      fi
+    fi
 
     echo ''
     echo '--- Starting mock API and preview server ---'
@@ -154,8 +210,12 @@ else
     echo "Visual regression tests passed."
   else
     echo "Visual regression tests failed (exit code ${EXIT_CODE})."
-    echo "Run with --update to accept intentional changes:"
+    echo ""
+    echo "To accept intentional UI changes, update the baselines:"
     echo "  npm run e2e:visual-regression:container:update"
+    echo ""
+    echo "To see a diff report, open playwright-report/index.html after running:"
+    echo "  npm run e2e:visual-regression:container"
   fi
 fi
 

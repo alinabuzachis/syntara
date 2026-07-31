@@ -274,7 +274,10 @@ function AppLoginForm() {
       <LoginPage
         className="bg-deep-space-login"
         brandImgSrc={brand.logoLogin}
-        brandImgProps={{ alt: brand.appTitle, className: styles.loginLogo }}
+        brandImgProps={{
+          alt: brand.appTitle,
+          className: `${styles.loginLogo} vr-login-brand-logo`,
+        }}
         loginTitle={`Log in to ${brand.appTitle}`}
         loginSubtitle="Enter your credentials to continue"
       >
@@ -289,7 +292,10 @@ function AppLoginForm() {
     <LoginPage
       className="bg-deep-space-login"
       brandImgSrc={brand.logoLogin}
-      brandImgAlt={brand.appTitle}
+      brandImgProps={{
+        alt: brand.appTitle,
+        className: `${styles.loginLogo} vr-login-brand-logo`,
+      }}
       loginTitle={`Log in to ${brand.appTitle}`}
       loginSubtitle="Choose your identity provider"
       textContent={`Select your identity provider to access ${brand.appTitle}. Contact your administrator if you need assistance.`}

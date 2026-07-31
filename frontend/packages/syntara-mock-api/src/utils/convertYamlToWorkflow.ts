@@ -204,9 +204,19 @@ export function convertYamlToWorkflow(
     current_version: 1,
     published_version_id: null,
     version: {
+      // Deterministic, stable version id/workflow_id — derived from the workflow's own
+      // id (itself derived from the file path, see workflows.ts) rather than a random
+      // UUID. Publish handlers key off version.id (see handlers.ts publish endpoint);
+      // a missing id here silently no-ops "publish" for every YAML-seeded workflow.
+      id: `${id}-v1`,
+      workflow_id: id,
       workflow_definition: workflowDefinition,
       version: 1,
+      schema_version: '2.0.0',
       status: WorkflowVersionStatusEnum.DRAFT,
+      created_by: createdBy,
+      created_at: mockDate.daysAgo3,
+      updated_at: mockDate.daysAgo3,
     },
   }
 }

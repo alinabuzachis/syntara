@@ -11,7 +11,7 @@ on:
 
 permissions:
   contents: read # checkout code
-  pull-requests: read # gh api needs PR file list for doc-only detection
+  pull-requests: read # gh api needs PR file list
   statuses: read # read E2E commit status
 
 concurrency:
