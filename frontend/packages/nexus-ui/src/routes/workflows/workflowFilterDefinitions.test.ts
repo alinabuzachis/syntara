@@ -15,20 +15,22 @@ describe('workflowFilterDefinitions', () => {
     })
   })
 
-  it('defines state as MULTISELECT with IN for combined enabled/disabled filtering', () => {
+  it('defines state as SELECT in the attribute search with Draft and Published options', () => {
     const stateFilter = workflowFilterDefinitions.find((field) => field.key === 'is_enabled')
 
     expect(stateFilter).toMatchObject({
       key: 'is_enabled',
       label: 'State',
-      type: FilterTypeEnum.MULTISELECT,
-      operators: [FilterOperatorEnum.IN],
-      defaultOperator: FilterOperatorEnum.IN,
+      type: FilterTypeEnum.SELECT,
       placeholder: 'Filter by state',
     })
     expect(stateFilter?.options).toEqual([
-      { value: 'true', label: 'Enabled' },
-      { value: 'false', label: 'Disabled' },
+      { value: 'false', label: 'Draft' },
+      {
+        value: 'true',
+        label: 'Published',
+        description: 'Includes workflows showing as Published or Unpublished changes',
+      },
     ])
   })
 })
@@ -40,9 +42,10 @@ describe('transformIsEnabledFilter', () => {
     ])
   })
 
-  it('leaves is_enabled string arrays unchanged for IN filters', () => {
-    const filters = [{ key: 'is_enabled', operator: 'in' as const, value: ['true', 'false'] }]
-    expect(transformIsEnabledFilter(filters)).toEqual(filters)
+  it('converts is_enabled false string to boolean', () => {
+    expect(transformIsEnabledFilter([{ key: 'is_enabled', operator: 'eq', value: 'false' }])).toEqual([
+      { key: 'is_enabled', operator: 'eq', value: false },
+    ])
   })
 
   it('leaves other filters unchanged', () => {

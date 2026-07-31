@@ -204,7 +204,7 @@ export function SelectFilterInput({
   popperProps,
 }: Readonly<SelectFilterInputProps>) {
   const [searchValue, setSearchValue] = useState('')
-  const [asyncOptions, setAsyncOptions] = useState<{ label: string; value: string }[]>([])
+  const [asyncOptions, setAsyncOptions] = useState<{ label: string; value: string; description?: string }[]>([])
   const [isLoadingOptions, setIsLoadingOptions] = useState(false)
   // Store the selected option separately to preserve it when it's not in current async results
   const [selectedOption, setSelectedOption] = useState<{ label: string; value: string } | null>(null)
@@ -383,7 +383,7 @@ export function SelectFilterInput({
     selectListBody = <SelectOption isDisabled>Loading...</SelectOption>
   } else if (filteredOptions.length > 0) {
     selectListBody = filteredOptions.map((option) => (
-      <SelectOption key={option.value} value={option.value}>
+      <SelectOption key={option.value} value={option.value} description={option.description}>
         {option.label}
       </SelectOption>
     ))

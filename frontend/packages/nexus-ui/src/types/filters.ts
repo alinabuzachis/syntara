@@ -160,9 +160,9 @@ export type FilterFieldDefinition = {
   /** Default operator for this field - used for keyword search (defaults to FilterOperatorEnum.EQ) */
   defaultOperator?: FilterOperator
   /** Options for select type filters (static) */
-  options?: { label: string; value: string }[]
+  options?: { label: string; value: string; description?: string }[]
   /** Async function to fetch options based on search value (for server-side typeahead) */
-  asyncOptions?: (searchValue: string) => Promise<{ label: string; value: string }[]>
+  asyncOptions?: (searchValue: string) => Promise<{ label: string; value: string; description?: string }[]>
   /** Function to resolve a value to its display label (for async filters with stored values) */
   getOptionLabel?: (value: string) => string | undefined
   /** Callback when an option is selected (useful for caching async option labels) */

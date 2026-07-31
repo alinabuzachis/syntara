@@ -2,8 +2,8 @@ import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 
 /**
- * Transform single is_enabled string values to boolean for eq filters.
- * MULTISELECT IN values stay as string[] (`true`/`false`) for `is_enabled[in]=…`.
+ * Transform is_enabled string values to boolean for API query params.
+ * SELECT eq values arrive as `'true'`/`'false'` strings and must become booleans.
  */
 export const transformIsEnabledFilter = (filters: FilterConfig[]): FilterConfig[] =>
   filters.map((filter) => {
@@ -25,12 +25,14 @@ export const workflowFilterDefinitions: FilterFieldDefinition[] = [
   {
     key: 'is_enabled',
     label: 'State',
-    type: FilterTypeEnum.MULTISELECT,
-    operators: [FilterOperatorEnum.IN],
-    defaultOperator: FilterOperatorEnum.IN,
+    type: FilterTypeEnum.SELECT,
     options: [
-      { value: 'true', label: 'Enabled' },
-      { value: 'false', label: 'Disabled' },
+      { value: 'false', label: 'Draft' },
+      {
+        value: 'true',
+        label: 'Published',
+        description: 'Includes workflows showing as Published or Unpublished changes',
+      },
     ],
     placeholder: 'Filter by state',
   },
