@@ -439,7 +439,7 @@ class TestToolEventDataModels:
     """Test ToolCallEventData and ToolResultEventData models."""
 
     def test_tool_call_event_data_serialization(self) -> None:
-        """Test that ToolCallEventData serializes correctly with to_dict()."""
+        """Test that ToolCallEventData serializes correctly with model_dump()."""
         from nexus.agent_orchestrator.models.streaming_events import ToolCallEventData
 
         # Arrange
@@ -449,7 +449,7 @@ class TestToolEventDataModels:
         )
 
         # Act
-        result = tool_call.to_dict()
+        result = tool_call.model_dump()
 
         # Assert
         assert result == {"tool_name": "calculate_sum", "tool_input": {"a": 5, "b": 3}}
@@ -457,7 +457,7 @@ class TestToolEventDataModels:
         assert isinstance(result["tool_input"], dict)
 
     def test_tool_result_event_data_serialization(self) -> None:
-        """Test that ToolResultEventData serializes correctly with to_dict()."""
+        """Test that ToolResultEventData serializes correctly with model_dump()."""
         from nexus.agent_orchestrator.models.streaming_events import ToolResultEventData
 
         # Arrange
@@ -467,7 +467,7 @@ class TestToolEventDataModels:
         )
 
         # Act
-        result = tool_result.to_dict()
+        result = tool_result.model_dump()
 
         # Assert
         assert result == {"tool_name": "calculate_sum", "tool_output": '{"result": 8}'}

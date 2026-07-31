@@ -69,15 +69,6 @@ class DeltaEventData(SQLModel):
         },
     )  # type: ignore[assignment]
 
-    def to_dict(self) -> dict[str, Any]:
-        """Convert DeltaEventData to dictionary for API/WebSocket response body.
-
-        Returns:
-            Dict representation with all fields
-
-        """
-        return self.model_dump()
-
 
 class CancelledEventData(SQLModel):
     """Data payload for streaming cancellation events.
@@ -109,15 +100,6 @@ class CancelledEventData(SQLModel):
         },
     )  # type: ignore[assignment]
 
-    def to_dict(self) -> dict[str, Any]:
-        """Convert CancelledEventData to dictionary for API/WebSocket response body.
-
-        Returns:
-            Dict representation with all fields
-
-        """
-        return self.model_dump()
-
 
 class CompletionEventData(SQLModel):
     """Data payload for streaming completion events.
@@ -136,15 +118,6 @@ class CompletionEventData(SQLModel):
             ]
         },
     )  # type: ignore[assignment]
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert CompletionEventData to dictionary for API/WebSocket response body.
-
-        Returns:
-            Empty dict as per spec
-
-        """
-        return {}
 
 
 class ToolCallEventData(SQLModel):
@@ -180,15 +153,6 @@ class ToolCallEventData(SQLModel):
         },
     )  # type: ignore[assignment]
 
-    def to_dict(self) -> dict[str, Any]:
-        """Convert ToolCallEventData to dictionary for API/WebSocket response body.
-
-        Returns:
-            Dict representation with all fields
-
-        """
-        return self.model_dump()
-
 
 class ToolResultEventData(SQLModel):
     """Data payload for tool execution result events.
@@ -221,12 +185,3 @@ class ToolResultEventData(SQLModel):
             ]
         },
     )  # type: ignore[assignment]
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert ToolResultEventData to dictionary for API/WebSocket response body.
-
-        Returns:
-            Dict representation with all fields
-
-        """
-        return self.model_dump()
