@@ -2,8 +2,8 @@
 
 Tests cover:
 - create_otel_handler: Handler factory with authentication support
+- create_otlp_exporter: Exporter factory with authentication support
 - flush_otel_handler: Flushing and cleanup of OTLP handlers
-- _create_otlp_exporter: OTLP exporter creation with auth (API key, mTLS)
 - _create_logger_provider: Logger provider with resource identification
 - Edge cases: no authentication, error handling
 """
@@ -13,7 +13,10 @@ from unittest.mock import MagicMock, Mock, patch
 
 from pydantic import SecretStr
 
-from nexus.core.logging.otel_handlers import create_otel_handler, flush_otel_handler
+from nexus.core.logging.otel_handlers import (
+    create_otel_handler,
+    flush_otel_handler,
+)
 
 # ------------------------------------------------------------------ #
 # create_otel_handler Tests

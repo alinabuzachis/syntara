@@ -19,12 +19,16 @@ from functools import lru_cache
 from typing import TYPE_CHECKING
 
 import structlog
+from opentelemetry._logs import LogRecord as OtelLogRecord
+from opentelemetry._logs import SeverityNumber
+from opentelemetry.sdk._logs import ReadableLogRecord
+from opentelemetry.sdk._logs.export import LogRecordExportResult
 from pydantic import ValidationError
 from sqlalchemy import func
 from sqlalchemy.exc import DatabaseError, IntegrityError
 from sqlmodel import select
 
-from nexus.audit.logging import OTEL_AUDIT_LOGGER_NAME
+from nexus.audit.logging import AUDIT_LOGGER_NAME
 from nexus.audit.models.audit_event import AuditEvent
 from nexus.audit.outbox.adaptive import AdaptiveOutboxStateMachine
 from nexus.audit.outbox.models import AuditEventSource, AuditOutboxRecord
@@ -33,57 +37,71 @@ from nexus.audit.sanitization import sanitizer
 from nexus.audit.truncation import DEFAULT_MAX_PAYLOAD_BYTES, enforce_payload_limit
 from nexus.core.config.base import get_settings
 from nexus.core.database.session import AsyncSessionLocal
+from nexus.core.logging.otel_handlers import create_otel_resource, create_otlp_exporter
 from nexus.core.workers.periodic import PeriodicWorker
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
+    from collections.abc import Awaitable, Callable, Sequence
+    from datetime import datetime
 
+    from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
     from sqlalchemy.ext.asyncio import async_sessionmaker
     from sqlalchemy.orm import Session
     from sqlmodel.ext.asyncio.session import AsyncSession
 
+
+_OTEL_DISPATCH_RETRY_MESSAGE: str = "Records will be retried next cycle until max_dispatch_attempts exceeded."
+
+
 # Standard audit logger (exports to stdio)
 logger = structlog.stdlib.get_logger(__name__)
 
-# OTEL audit logger (exports to OTLP collector)
-# Note: configure_otel_logging() must be called at app startup for this to export
-audit_logger_otel = structlog.stdlib.get_logger(OTEL_AUDIT_LOGGER_NAME)
+# Audit logger (exports to stdio unconditional of LOG_LEVEL)
+audit_logger = structlog.stdlib.get_logger(AUDIT_LOGGER_NAME)
 
 
-def _handle_business_audit_records(records: list[AuditOutboxRecord]) -> None:
+def _handle_business_audit_records(records: list[AuditOutboxRecord]) -> list[ReadableLogRecord]:
     logger.info("Exporting business AuditOutboxRecord records to OTEL Collector.", record_count=len(records))
 
+    log_records: list[ReadableLogRecord] = []
     for obr in records:
         try:
             audit_event = AuditEvent(**obr.event_payload)
             logger.debug("Converted AuditOutboxRecord record.", event_action=audit_event.event_action)
-            _emit_otel_log_entry(audit_event, event_source=AuditEventSource.BUSINESS_EVENT)
+            log_records.append(
+                _build_otel_log_record(audit_event, obr.created_at, event_source=AuditEventSource.BUSINESS_EVENT)
+            )
         except ValidationError:
             logger.warning("Dropped malformed AuditOutboxRecord record.", id=obr.id)
+    return log_records
 
 
-def _handle_crud_audit_records(records: list[AuditOutboxRecord]) -> None:
+def _handle_crud_audit_records(records: list[AuditOutboxRecord]) -> list[ReadableLogRecord]:
     logger.info("Exporting AuditOutboxRecord records to OTEL Collector.", record_count=len(records))
 
+    log_records: list[ReadableLogRecord] = []
     for obr in records:
         try:
             # Reconstruct AuditEvent from JSON payload
             audit_event = AuditEvent(**obr.event_payload)
 
-            # CRUD events were not sanitized by the trigger.
-            # Therefore, sanitize them and enforce payload limits before emitting
+            # CRUD events were not sanitized by the DB trigger.
+            # Sanitize them and enforce payload limits before exporting.
             audit_event.structured_data = sanitizer.sanitize(audit_event.structured_data)
             audit_event.structured_data = enforce_payload_limit(audit_event.structured_data, DEFAULT_MAX_PAYLOAD_BYTES)
 
             logger.debug("Converted AuditOutboxRecord record.", event_action=audit_event.event_action)
-            _emit_otel_log_entry(audit_event, event_source=AuditEventSource.CRUD_EVENT)
+            log_records.append(
+                _build_otel_log_record(audit_event, obr.created_at, event_source=AuditEventSource.CRUD_EVENT)
+            )
         except ValidationError:
             logger.warning("Dropped malformed AuditOutboxRecord record.", id=obr.id)
+    return log_records
 
 
-def _emit_otel_log_entry(audit_event: AuditEvent, event_source: AuditEventSource) -> None:
-    # Emit as structured log entry to OTEL Collection.
-    #
+def _build_otel_log_record(
+    audit_event: AuditEvent, event_date: datetime, event_source: AuditEventSource
+) -> ReadableLogRecord:
     # json.loads(model_dump_json()) instead of model_dump(mode="json") because the OTLP
     # protobuf encoder only accepts basic Python types (str, int, float, bool, bytes,
     # list, dict). SQLModel/asyncpg returns UUID columns as asyncpg.pgproto.pgproto.UUID
@@ -94,14 +112,79 @@ def _emit_otel_log_entry(audit_event: AuditEvent, event_source: AuditEventSource
     # The JSON round-trip guarantees only native JSON types reach the encoder.
     # See: https://github.com/open-telemetry/opentelemetry-python/issues/3389
     event_dict = json.loads(audit_event.model_dump_json())
+
     # Inject event source attribute for event type discrimination
     event_dict["audit.event_source"] = event_source.value
-    audit_logger_otel.info("audit_event", **event_dict)
+
+    def datetime_to_unix_ns(dt: datetime) -> int:
+        return int(dt.timestamp() * 1_000_000_000)
+
+    api_record = OtelLogRecord(
+        timestamp=datetime_to_unix_ns(event_date),
+        severity_text="INFO",
+        severity_number=SeverityNumber.INFO,
+        body="audit_event",
+        attributes=event_dict,
+    )
+    return ReadableLogRecord(
+        log_record=api_record,
+        resource=create_otel_resource(),
+    )
+
+
+async def _export_to_otel(
+    exporter: OTLPLogExporter,
+    log_records: list[ReadableLogRecord],
+    max_dispatch_attempts: int,
+) -> bool:
+    """Export log records via OTEL, returning True on success."""
+    try:
+        export_result = await asyncio.to_thread(exporter.export, log_records)
+    except Exception:
+        logger.exception(
+            "OTEL export raised exception. %s",
+            _OTEL_DISPATCH_RETRY_MESSAGE,
+            batch_size=len(log_records),
+            max_dispatch_attempts=max_dispatch_attempts,
+        )
+        return False
+
+    if export_result != LogRecordExportResult.SUCCESS:
+        logger.warning(
+            "OTEL export failed. %s",
+            _OTEL_DISPATCH_RETRY_MESSAGE,
+            batch_size=len(log_records),
+            max_dispatch_attempts=max_dispatch_attempts,
+        )
+        return False
+
+    return True
+
+
+async def _export_to_otel_failure_handler(
+    session: AsyncSession,
+    outbox_records: Sequence[AuditOutboxRecord],
+    max_dispatch_attempts: int,
+) -> None:
+    """Increment dispatch attempts and permanently drop records that exceed the threshold."""
+    for obr in outbox_records:
+        obr.dispatch_attempts += 1
+        if obr.dispatch_attempts > max_dispatch_attempts:
+            logger.critical(
+                "Audit event permanently failed OTEL export, deleting from outbox",
+                event_id=obr.event_payload.get("event_id"),
+                dispatch_attempts=obr.dispatch_attempts,
+                max_dispatch_attempts=max_dispatch_attempts,
+            )
+            await session.delete(obr)
+    await session.commit()
 
 
 async def publish_outbox_events(
     session_factory: async_sessionmaker[AsyncSession] | None,
+    exporter: OTLPLogExporter | None = None,
     batch_size: int | None = None,
+    max_dispatch_attempts: int | None = None,
 ) -> None:
     """Query outbox for unpublished events and emit them to the OTEL collector.
 
@@ -113,7 +196,11 @@ async def publish_outbox_events(
 
     Args:
         session_factory: Session factory for database access
+        exporter: Optional pre-created OTLPLogExporter instance. If None, a new
+            exporter is created per call (fallback for direct callers).
         batch_size: Optional adaptive batch size. If None, uses settings default.
+        max_dispatch_attempts: Maximum OTEL export attempts before an outbox record
+            is permanently dropped. If None, uses settings default.
 
     """
     if session_factory is None:
@@ -121,11 +208,17 @@ async def publish_outbox_events(
         return
 
     # Use provided batch_size or fall back to settings
+    settings = get_settings()
     if batch_size is None:
-        settings = get_settings()
         batch_size = settings.audit_outbox_batch_size
 
-    logger.debug("Running AuditOutboxRecord export loop", batch_size=batch_size)
+    # Use provided max_dispatch_attempts or fall back to settings
+    if max_dispatch_attempts is None:
+        max_dispatch_attempts = settings.audit_outbox_max_dispatch_attempts
+
+    logger.debug(
+        "Running AuditOutboxRecord export loop", batch_size=batch_size, max_dispatch_attempts=max_dispatch_attempts
+    )
 
     async with session_factory() as main_session:
         result = await main_session.exec(
@@ -142,11 +235,27 @@ async def publish_outbox_events(
 
         try:
             business_records = [obr for obr in outbox_records if obr.event_source == AuditEventSource.BUSINESS_EVENT]
-            _handle_business_audit_records(business_records)
+            log_records = _handle_business_audit_records(business_records)
 
             crud_records = [obr for obr in outbox_records if obr.event_source == AuditEventSource.CRUD_EVENT]
-            _handle_crud_audit_records(crud_records)
+            log_records.extend(_handle_crud_audit_records(crud_records))
 
+            if log_records:
+                # Log Audit Events to stdio
+                for lr in log_records:
+                    attrs = dict(lr.log_record.attributes) if lr.log_record.attributes else {}
+                    audit_logger.info(str(lr.log_record.body), **attrs)
+
+                # Export directly via OTLPLogExporter.export() (synchronous with built-in
+                # retry+backoff) instead of the fire-and-forget logging pipeline.
+                # BatchLogRecordProcessor ignores export results and pops records before
+                # calling export(), so using audit_logger.info() would delete outbox records
+                # before confirmed delivery — causing silent event loss on crash.
+                if exporter and not await _export_to_otel(exporter, log_records, max_dispatch_attempts):
+                    await _export_to_otel_failure_handler(main_session, outbox_records, max_dispatch_attempts)
+                    return
+
+            # Only delete after confirmed export (or if OTEL disabled — no destination)
             logger.info("Deleting AuditOutboxRecords from outbox.", records=len(outbox_records))
             for outbox_record in outbox_records:
                 await main_session.delete(outbox_record)
@@ -216,6 +325,10 @@ class AuditOutboxWorker(PeriodicWorker):
             coordinate=coordinate,
         )
 
+        # Long-lived exporter reused across poll cycles to avoid per-cycle
+        # connection churn (new requests.Session + TCP pool each call).
+        self._exporter = create_otlp_exporter() if settings.otel_enabled else None
+
         # Separate session factory for async writes (uses main pool for capacity)
         # Worker SELECT/DELETE uses session_factory (isolated 5+2 pool)
         # Async INSERT writes use write_session_factory (main 10+20 pool)
@@ -258,7 +371,7 @@ class AuditOutboxWorker(PeriodicWorker):
         next_interval, batch_size = self._adaptive_sm.calculate_next_parameters(pending_count)
 
         # Process outbox events with adaptive batch size
-        await publish_outbox_events(session_factory, batch_size)
+        await publish_outbox_events(session_factory, self._exporter, batch_size)
 
         # Update interval for next cycle (batch size already tracked in state machine)
         self._interval_seconds = next_interval
@@ -455,8 +568,15 @@ class AuditOutboxWorker(PeriodicWorker):
         pending_count = await self._get_pending_outbox_count()
         while pending_count is not None and pending_count > 0:
             logger.info("Draining AuditOutboxRecord(s) to OTEL.", records=pending_count)
-            await publish_outbox_events(self._session_factory)
-            pending_count = await self._get_pending_outbox_count()
+            await publish_outbox_events(self._session_factory, self._exporter)
+            new_count = await self._get_pending_outbox_count()
+            if new_count is not None and new_count >= pending_count:
+                logger.warning(
+                    "Outbox drain unable to make progress, aborting.",
+                    remaining_records=new_count,
+                )
+                break
+            pending_count = new_count
 
         if pending_count is None:
             logger.warning("Unable to drain outbox records (database unavailable during shutdown)")

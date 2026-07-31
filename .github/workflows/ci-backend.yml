@@ -370,6 +370,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       matrix:
         python-version: ["3.12", "3.13"]
@@ -410,6 +411,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       matrix:
         python-version: ["3.12", "3.13"]
@@ -450,6 +452,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest-8-cores
+    timeout-minutes: 30
     strategy:
       matrix:
         python-version: ["3.12", "3.13"]
@@ -471,8 +474,21 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Run integration tests with coverage
-        run: make test-integration-coverage
+        run: |
+          set -o pipefail
+          make test-integration-coverage 2>&1 | tee integration-test-output.log
         working-directory: backend
+
+      - name: Upload test output logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: integration-test-output-${{ matrix.python-version }}
+          path: |
+            backend/integration-test-output.log
+            backend/integration-test-logs/
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: Upload coverage artifacts
         if: always()
@@ -497,6 +513,7 @@ jobs:
     # so compose hangs waiting for services to become healthy. ubuntu-26.04
     # has a working distro podman; move back to ubuntu-latest once fixed.
     runs-on: ubuntu-26.04
+    timeout-minutes: 120
     steps:
       - name: Free disk space
         run: |

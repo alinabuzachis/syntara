@@ -78,6 +78,13 @@ class AuditOutboxRecord(SQLModel, table=True):
         description="Source type for filtering (both routed to OTEL Collector)",
     )
 
+    # Number of OTEL export attempts (incremented on each failure)
+    dispatch_attempts: int = Field(
+        default=0,
+        sa_column_kwargs={"server_default": text("0")},
+        description="Number of failed OTEL export attempts for this record",
+    )
+
     # Serialized event payload (AuditEvent as JSON)
     event_payload: dict[str, Any] = Field(
         sa_type=JSONB,

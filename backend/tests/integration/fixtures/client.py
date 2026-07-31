@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import logging
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -72,8 +75,28 @@ async def session_app(
         await run_seeders(test_session_factory)
 
         async with app.router.lifespan_context(app):
+            # pytest-xdist runs each worker in a separate subprocess.
+            # pytest's log_cli/log_file options only capture logs from the
+            # controller process, not from workers, so application logs
+            # (structlog routed through stdlib logging) are silently lost.
+            # Additionally, this handler must be attached *after* the app
+            # lifespan starts because configure_app_logging() clears all
+            # root logger handlers during startup.
+            logs_dir = Path("integration-test-logs")
+            logs_dir.mkdir(exist_ok=True)
+            xdist_id = os.environ.get("PYTEST_XDIST_WORKER", "main")
+            fh = logging.FileHandler(logs_dir / f"{xdist_id}.log", mode="w")
+            fh.setLevel(logging.DEBUG)
+            fh.setFormatter(logging.Formatter("%(asctime)s [%(name)s] %(levelname)s %(message)s"))
+            root = logging.getLogger()
+            root.addHandler(fh)
+            root.setLevel(logging.DEBUG)
+
             logger.info("Session app initialized for worker '%s'", worker_id)
             yield app
+
+            root.removeHandler(fh)
+            fh.close()
 
 
 @pytest_asyncio.fixture

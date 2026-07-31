@@ -1,8 +1,10 @@
 """Centralized logging lifecycle orchestration.
 
-This module coordinates the setup and teardown of all logging subsystems:
-- Root logger (application logs) with OTLP export
-- Audit logger (audit events) with OTLP export
+This module coordinates the setup and teardown of the application logging
+subsystem (root logger with stdout + OTLP export).
+
+Audit event export to OTEL is handled directly by the outbox worker via
+``OTLPLogExporter.export()`` — not through the logging pipeline.
 
 It ensures thread-safe, idempotent initialization and clean shutdown with
 proper flushing of pending OTLP log records.
@@ -21,7 +23,7 @@ from enum import StrEnum
 
 import structlog
 
-from nexus.audit.logging import OTEL_AUDIT_LOGGER_NAME, configure_audit_logging
+from nexus.audit.logging import AUDIT_LOGGER_NAME, configure_audit_logging
 from nexus.core.logging.logging import configure_app_logging
 from nexus.core.logging.otel_handlers import flush_otel_handler
 
@@ -43,9 +45,7 @@ _logging_state = OtelLoggingState.UNCONFIGURED
 def start_loggers() -> None:
     """Initialize and start all logging subsystems.
 
-    Configures:
-    - Root logger with stdout and OTLP handlers (respects configured log level)
-    - Audit logger with stdout and OTLP handlers (NOTSET level, no propagation)
+    Configures the root logger with stdout and OTLP handlers.
 
     Thread-safe and idempotent - safe to call multiple times.
     Can be called after stop_loggers() to restart logging.
@@ -63,7 +63,7 @@ def start_loggers() -> None:
         # Configure root logger (stdout + OTLP)
         configure_app_logging()
 
-        # Configure audit logger (stdout + OTLP, NOTSET level, no propagation)
+        # Configure audit logger (stdout, NOTSET level, no propagation)
         configure_audit_logging()
 
         _logging_state = OtelLoggingState.CONFIGURED
@@ -71,9 +71,9 @@ def start_loggers() -> None:
 
 
 def stop_loggers() -> None:
-    """Flush and stop all logging subsystems.
+    """Flush and stop the application logging subsystem.
 
-    Flushes pending OTLP log records for both root and audit loggers,
+    Flushes pending OTLP log records for the root logger,
     then removes all handlers to allow clean restart.
 
     Thread-safe and idempotent - safe to call multiple times.
@@ -91,19 +91,15 @@ def stop_loggers() -> None:
         # Flush root logger OTLP handlers
         root_logger = logging.getLogger()
         flush_otel_handler(root_logger)
-
-        # Flush audit logger OTLP handlers
-        logger.info("logging.flushing_and_stopping")
-        audit_logger = logging.getLogger(OTEL_AUDIT_LOGGER_NAME)
-        flush_otel_handler(audit_logger)
         logger.info("logging.flushed_and_stopped")
 
-        # Remove handlers from both loggers (cleanup for restart)
+        # Remove handlers to allow clean restart
         logger.info("logging.removing_root_handlers")
         for handler in root_logger.handlers[:]:
             root_logger.removeHandler(handler)
 
         logger.info("logging.removing_audit_handlers")
+        audit_logger = logging.getLogger(AUDIT_LOGGER_NAME)
         for handler in audit_logger.handlers[:]:
             audit_logger.removeHandler(handler)
 

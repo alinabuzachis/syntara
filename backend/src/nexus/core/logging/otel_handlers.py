@@ -38,7 +38,7 @@ def create_otel_handler() -> logging.Handler | None:
         return None
 
     # Create OTLP exporter with authentication
-    otlp_exporter = _create_otlp_exporter()
+    otlp_exporter = create_otlp_exporter()
 
     # Create logger provider with resource/service identification
     logger_provider = _create_logger_provider(otlp_exporter)
@@ -82,8 +82,8 @@ def flush_otel_handler(target_logger: logging.Logger) -> None:
             )
 
 
-def _create_otlp_exporter() -> OTLPLogExporter:
-    """Create OTLPLogExporter with authentication (private helper).
+def create_otlp_exporter() -> OTLPLogExporter:
+    """Create OTLPLogExporter with authentication.
 
     Supports:
     - API key authentication via Authorization: Bearer <token> header
@@ -123,6 +123,22 @@ def _create_otlp_exporter() -> OTLPLogExporter:
     )
 
 
+def create_otel_resource() -> Resource:
+    """Create OTEL Resource with service identification.
+
+    Returns:
+        Resource with service.name and service.instance.id attributes
+
+    """
+    settings = get_settings()
+    return Resource.create(
+        {
+            "service.name": settings.otel_service_name,
+            "service.instance.id": os.uname().nodename,
+        }
+    )
+
+
 def _create_logger_provider(otlp_exporter: OTLPLogExporter) -> LoggerProvider:
     """Create LoggerProvider with resource identification (private helper).
 
@@ -136,14 +152,7 @@ def _create_logger_provider(otlp_exporter: OTLPLogExporter) -> LoggerProvider:
         LoggerProvider configured with resource and batch processor
 
     """
-    settings = get_settings()
-    # Create resource with service identification
-    resource = Resource.create(
-        {
-            "service.name": settings.otel_service_name,
-            "service.instance.id": os.uname().nodename,
-        }
-    )
+    resource = create_otel_resource()
 
     # Create logger provider
     logger_provider = LoggerProvider(resource=resource)

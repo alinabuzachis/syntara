@@ -120,9 +120,9 @@ async def test_tool_for_audit(
 
 
 @pytest.mark.asyncio
-@patch("nexus.audit.outbox.worker._emit_otel_log_entry")
+@patch("nexus.audit.outbox.worker._build_otel_log_record")
 async def test_create_generates_audit_event(
-    mock_otel_emit: MagicMock,
+    mock_build_otel_log_record: MagicMock,
     test_tool_for_audit: Tool,
     session_app: FastAPI,
     test_user: User,
@@ -138,7 +138,7 @@ async def test_create_generates_audit_event(
     await get_outbox_worker().drain()
 
     # Find the Tool create event among all emitted events
-    emitted_event = _find_audit_event(mock_otel_emit, event_action="tool_create", resource_name=TOOL_NAME)
+    emitted_event = _find_audit_event(mock_build_otel_log_record, event_action="tool_create", resource_name=TOOL_NAME)
 
     # Verify the audit event has correct fields
     assert emitted_event.actor_id == test_user.id
@@ -164,9 +164,9 @@ async def test_create_generates_audit_event(
 
 
 @pytest.mark.asyncio
-@patch("nexus.audit.outbox.worker._emit_otel_log_entry")
+@patch("nexus.audit.outbox.worker._build_otel_log_record")
 async def test_update_generates_audit_event(
-    mock_otel_emit: MagicMock,
+    mock_build_otel_log_record: MagicMock,
     test_tool_for_audit: Tool,
     session_app: FastAPI,
     test_db_session: AsyncSession,
@@ -184,7 +184,7 @@ async def test_update_generates_audit_event(
 
     # Find the Tool update event among all emitted events
     emitted_event = _find_audit_event(
-        mock_otel_emit, event_action="tool_update", resource_id=str(test_tool_for_audit.id)
+        mock_build_otel_log_record, event_action="tool_update", resource_id=str(test_tool_for_audit.id)
     )
 
     # Verify the audit event has correct fields
@@ -205,9 +205,9 @@ async def test_update_generates_audit_event(
 
 
 @pytest.mark.asyncio
-@patch("nexus.audit.outbox.worker._emit_otel_log_entry")
+@patch("nexus.audit.outbox.worker._build_otel_log_record")
 async def test_delete_generates_audit_event(
-    mock_otel_emit: MagicMock,
+    mock_build_otel_log_record: MagicMock,
     test_tool_for_audit: Tool,
     session_app: FastAPI,
     test_db_session: AsyncSession,
@@ -224,7 +224,7 @@ async def test_delete_generates_audit_event(
     await get_outbox_worker().drain()
 
     # Find the Tool delete event among all emitted events
-    emitted_event = _find_audit_event(mock_otel_emit, event_action="tool_delete", resource_id=str(tool_id))
+    emitted_event = _find_audit_event(mock_build_otel_log_record, event_action="tool_delete", resource_id=str(tool_id))
 
     # Verify the audit event has correct fields
     assert emitted_event.actor_id == test_user.id

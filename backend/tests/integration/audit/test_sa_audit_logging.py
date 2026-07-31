@@ -100,10 +100,10 @@ async def _create_credential(
 class TestAuditSACreated:
     """API-26: Audit log — service account created (event present, no secret leakage)."""
 
-    @patch("nexus.audit.outbox.worker._emit_otel_log_entry")
+    @patch("nexus.audit.outbox.worker._build_otel_log_record")
     async def test_create_emits_audit_event_without_secrets(
         self,
-        mock_otel_emit: MagicMock,
+        mock_build_otel_log_record: MagicMock,
         base_client: AsyncClient,
         admin_user: User,
         create_jwt_for_user: Callable[[User], str],
@@ -117,10 +117,10 @@ class TestAuditSACreated:
         try:
             await get_outbox_worker().drain()
 
-            events = _find_events(mock_otel_emit, "service_account_create")
+            events = _find_events(mock_build_otel_log_record, "service_account_create")
             assert len(events) >= 1, (
                 f"Expected service_account_create event, found none among "
-                f"{[c.args[0].event_action for c in mock_otel_emit.call_args_list]}"
+                f"{[c.args[0].event_action for c in mock_build_otel_log_record.call_args_list]}"
             )
 
             event = events[-1]
@@ -135,10 +135,10 @@ class TestAuditSACreated:
 class TestAuditSecretRotated:
     """API-27: Audit log — secret rotated (event present, no secret values in payload)."""
 
-    @patch("nexus.audit.outbox.worker._emit_otel_log_entry")
+    @patch("nexus.audit.outbox.worker._build_otel_log_record")
     async def test_rotate_emits_audit_event_without_secrets(
         self,
-        mock_otel_emit: MagicMock,
+        mock_build_otel_log_record: MagicMock,
         base_client: AsyncClient,
         admin_user: User,
         create_jwt_for_user: Callable[[User], str],
@@ -151,7 +151,7 @@ class TestAuditSecretRotated:
         cred = await _create_credential(base_client, headers, sa["id"])
 
         try:
-            mock_otel_emit.reset_mock()
+            mock_build_otel_log_record.reset_mock()
 
             rotate_resp = await base_client.post(
                 f"/api/v1/service_accounts/{sa['id']}/credentials/{cred['id']}/rotate",
@@ -163,10 +163,10 @@ class TestAuditSecretRotated:
 
             await get_outbox_worker().drain()
 
-            events = _find_events(mock_otel_emit, "sa_credential_rotate")
+            events = _find_events(mock_build_otel_log_record, "sa_credential_rotate")
             assert len(events) >= 1, (
                 f"Expected sa_credential_rotate event, found none among "
-                f"{[c.args[0].event_action for c in mock_otel_emit.call_args_list]}"
+                f"{[c.args[0].event_action for c in mock_build_otel_log_record.call_args_list]}"
             )
 
             for event in events:
@@ -178,10 +178,10 @@ class TestAuditSecretRotated:
 class TestAuditAuthSuccessAndFailure:
     """API-28: Audit log — auth success and failure (both event types, no token/secret in payload)."""
 
-    @patch("nexus.audit.outbox.worker._emit_otel_log_entry")
+    @patch("nexus.audit.outbox.worker._build_otel_log_record")
     async def test_auth_success_emits_login_event(
         self,
-        mock_otel_emit: MagicMock,
+        mock_build_otel_log_record: MagicMock,
         base_client: AsyncClient,
         admin_user: User,
         create_jwt_for_user: Callable[[User], str],
@@ -194,7 +194,7 @@ class TestAuditAuthSuccessAndFailure:
         cred = await _create_credential(base_client, headers, sa["id"])
 
         try:
-            mock_otel_emit.reset_mock()
+            mock_build_otel_log_record.reset_mock()
 
             auth_resp = await base_client.post(
                 "/api/v1/auth/token",
@@ -209,7 +209,7 @@ class TestAuditAuthSuccessAndFailure:
 
             await get_outbox_worker().drain()
 
-            login_events = _find_events(mock_otel_emit, "login")
+            login_events = _find_events(mock_build_otel_log_record, "login")
             success_events = [e for e in login_events if e.event_status == "success"]
             assert len(success_events) >= 1, "Expected at least one successful login audit event"
 
@@ -218,10 +218,10 @@ class TestAuditAuthSuccessAndFailure:
         finally:
             await base_client.delete(f"/api/v1/service_accounts/{sa['id']}", headers=headers)
 
-    @patch("nexus.audit.outbox.worker._emit_otel_log_entry")
+    @patch("nexus.audit.outbox.worker._build_otel_log_record")
     async def test_auth_failure_emits_login_event(
         self,
-        mock_otel_emit: MagicMock,
+        mock_build_otel_log_record: MagicMock,
         base_client: AsyncClient,
         admin_user: User,
         create_jwt_for_user: Callable[[User], str],
@@ -234,7 +234,7 @@ class TestAuditAuthSuccessAndFailure:
         cred = await _create_credential(base_client, headers, sa["id"])
 
         try:
-            mock_otel_emit.reset_mock()
+            mock_build_otel_log_record.reset_mock()
 
             auth_resp = await base_client.post(
                 "/api/v1/auth/token",
@@ -248,7 +248,7 @@ class TestAuditAuthSuccessAndFailure:
 
             await get_outbox_worker().drain()
 
-            login_events = _find_events(mock_otel_emit, "login")
+            login_events = _find_events(mock_build_otel_log_record, "login")
             failure_events = [e for e in login_events if e.event_status == "error"]
             assert len(failure_events) >= 1, "Expected at least one failed login audit event"
 
@@ -261,10 +261,10 @@ class TestAuditAuthSuccessAndFailure:
 class TestAuditDisableAndDelete:
     """API-29: Audit log — disable and delete (lifecycle event entries)."""
 
-    @patch("nexus.audit.outbox.worker._emit_otel_log_entry")
+    @patch("nexus.audit.outbox.worker._build_otel_log_record")
     async def test_disable_emits_audit_event(
         self,
-        mock_otel_emit: MagicMock,
+        mock_build_otel_log_record: MagicMock,
         base_client: AsyncClient,
         admin_user: User,
         create_jwt_for_user: Callable[[User], str],
@@ -276,7 +276,7 @@ class TestAuditDisableAndDelete:
         sa = await _create_sa(base_client, headers, test_project_id)
 
         try:
-            mock_otel_emit.reset_mock()
+            mock_build_otel_log_record.reset_mock()
 
             disable_resp = await base_client.post(
                 f"/api/v1/service_accounts/{sa['id']}/disable",
@@ -286,20 +286,20 @@ class TestAuditDisableAndDelete:
 
             await get_outbox_worker().drain()
 
-            events = _find_events(mock_otel_emit, "service_account_disable")
+            events = _find_events(mock_build_otel_log_record, "service_account_disable")
             assert len(events) >= 1, (
                 f"Expected service_account_disable event, found none among "
-                f"{[c.args[0].event_action for c in mock_otel_emit.call_args_list]}"
+                f"{[c.args[0].event_action for c in mock_build_otel_log_record.call_args_list]}"
             )
             assert events[-1].event_category == "user_action"
             assert events[-1].actor_id == admin_user.id
         finally:
             await base_client.delete(f"/api/v1/service_accounts/{sa['id']}", headers=headers)
 
-    @patch("nexus.audit.outbox.worker._emit_otel_log_entry")
+    @patch("nexus.audit.outbox.worker._build_otel_log_record")
     async def test_delete_emits_audit_event(
         self,
-        mock_otel_emit: MagicMock,
+        mock_build_otel_log_record: MagicMock,
         base_client: AsyncClient,
         admin_user: User,
         create_jwt_for_user: Callable[[User], str],
@@ -310,7 +310,7 @@ class TestAuditDisableAndDelete:
 
         sa = await _create_sa(base_client, headers, test_project_id)
 
-        mock_otel_emit.reset_mock()
+        mock_build_otel_log_record.reset_mock()
 
         delete_resp = await base_client.delete(
             f"/api/v1/service_accounts/{sa['id']}",
@@ -320,10 +320,10 @@ class TestAuditDisableAndDelete:
 
         await get_outbox_worker().drain()
 
-        events = _find_events(mock_otel_emit, "service_account_delete")
+        events = _find_events(mock_build_otel_log_record, "service_account_delete")
         assert len(events) >= 1, (
             f"Expected service_account_delete event, found none among "
-            f"{[c.args[0].event_action for c in mock_otel_emit.call_args_list]}"
+            f"{[c.args[0].event_action for c in mock_build_otel_log_record.call_args_list]}"
         )
         assert events[-1].event_category == "user_action"
         assert events[-1].actor_id == admin_user.id

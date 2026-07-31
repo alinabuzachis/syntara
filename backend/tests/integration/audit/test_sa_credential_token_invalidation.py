@@ -90,10 +90,10 @@ async def _obtain_sa_token(
 class TestCredentialDisableTokenInvalidation:
     """Disabling a credential invalidates tokens from that credential."""
 
-    @patch("nexus.audit.outbox.worker._emit_otel_log_entry")
+    @patch("nexus.audit.outbox.worker._build_otel_log_record")
     async def test_disabled_credential_token_rejected(
         self,
-        mock_otel_emit: MagicMock,
+        mock_build_otel_log_record: MagicMock,
         base_client: AsyncClient,
         admin_user: User,
         create_jwt_for_user: Callable[[User], str],
@@ -117,7 +117,7 @@ class TestCredentialDisableTokenInvalidation:
             )
             assert disable_resp.status_code == 200, f"Disable failed: {disable_resp.status_code} {disable_resp.text}"
 
-            mock_otel_emit.reset_mock()
+            mock_build_otel_log_record.reset_mock()
 
             with patch("nexus.auth.middleware._check_cred_status", return_value="disabled"):
                 me_resp2 = await base_client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {sa_token}"})
@@ -125,10 +125,10 @@ class TestCredentialDisableTokenInvalidation:
             assert me_resp2.json()["code"] == "SA_CREDENTIAL_DISABLED"
 
             await get_outbox_worker().drain()
-            events = _find_events(mock_otel_emit, "disabled_sa_credential_rejected")
+            events = _find_events(mock_build_otel_log_record, "disabled_sa_credential_rejected")
             assert len(events) >= 1, (
                 f"Expected disabled_sa_credential_rejected event, found: "
-                f"{[c.args[0].event_action for c in mock_otel_emit.call_args_list]}"
+                f"{[c.args[0].event_action for c in mock_build_otel_log_record.call_args_list]}"
             )
         finally:
             await base_client.delete(f"/api/v1/service_accounts/{sa['id']}", headers=headers)
@@ -137,10 +137,10 @@ class TestCredentialDisableTokenInvalidation:
 class TestCredentialDeleteTokenInvalidation:
     """Deleting a credential invalidates tokens from that credential."""
 
-    @patch("nexus.audit.outbox.worker._emit_otel_log_entry")
+    @patch("nexus.audit.outbox.worker._build_otel_log_record")
     async def test_deleted_credential_token_rejected(
         self,
-        mock_otel_emit: MagicMock,
+        mock_build_otel_log_record: MagicMock,
         base_client: AsyncClient,
         admin_user: User,
         create_jwt_for_user: Callable[[User], str],
@@ -164,7 +164,7 @@ class TestCredentialDeleteTokenInvalidation:
             )
             assert delete_resp.status_code == 204, f"Delete failed: {delete_resp.status_code} {delete_resp.text}"
 
-            mock_otel_emit.reset_mock()
+            mock_build_otel_log_record.reset_mock()
 
             with patch("nexus.auth.middleware._check_cred_status", return_value=None):
                 me_resp2 = await base_client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {sa_token}"})
@@ -172,10 +172,10 @@ class TestCredentialDeleteTokenInvalidation:
             assert me_resp2.json()["code"] == "SA_CREDENTIAL_DISABLED"
 
             await get_outbox_worker().drain()
-            events = _find_events(mock_otel_emit, "disabled_sa_credential_rejected")
+            events = _find_events(mock_build_otel_log_record, "disabled_sa_credential_rejected")
             assert len(events) >= 1, (
                 f"Expected disabled_sa_credential_rejected event, found: "
-                f"{[c.args[0].event_action for c in mock_otel_emit.call_args_list]}"
+                f"{[c.args[0].event_action for c in mock_build_otel_log_record.call_args_list]}"
             )
         finally:
             await base_client.delete(f"/api/v1/service_accounts/{sa['id']}", headers=headers)

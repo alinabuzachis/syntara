@@ -1,55 +1,43 @@
-"""OpenTelemetry logging configuration for audit events.
+"""Dedicated stdout logging for audit events.
 
-This module configures a dedicated Python logger ("nexus.audit.otel") that exports
-log records to an OTLP collector. The logger is intended for audit events that need
-to be sent to external observability platforms.
+Configures a Python logger ("nexus.audit") that writes audit events to stdout
+unconditionally — independent of the application log level. This ensures audit
+events are always visible in operational logs even when OTEL export is disabled
+or unavailable.
 
-This module provides stateless setup functions. Lifecycle coordination (state management,
-startup/shutdown orchestration) is handled by core.logging.lifecycle.
+The outbox worker (``nexus.audit.outbox.worker``) emits each audit event to this
+logger before attempting OTEL export, guaranteeing at least a stdout record
+exists for every processed event.
 
 Usage:
-    # Via lifecycle orchestration (preferred):
-    from nexus.core.logging.lifecycle import start_loggers, stop_loggers
-    start_loggers()  # Configures root + audit loggers
-    stop_loggers()   # Flushes and cleans up
-
-    # In audit emitter code:
-    audit_logger_otel = structlog.stdlib.get_logger("nexus.audit.otel")
-    audit_logger_otel.info("audit_event", **event_dict)
+    from nexus.audit.logging import AUDIT_LOGGER_NAME
+    audit_logger = structlog.stdlib.get_logger(AUDIT_LOGGER_NAME)
+    audit_logger.info("audit_event", **event_payload)
 """
 
 import logging
 
 import structlog
 
-from nexus.core.config.base import get_settings
 from nexus.core.logging.logging import build_nexus_formatter
-from nexus.core.logging.otel_handlers import create_otel_handler
 
-# Logger name for OTEL-exported audit logs
-OTEL_AUDIT_LOGGER_NAME = "nexus.audit.otel"
+# Logger name for audit event stdout output
+AUDIT_LOGGER_NAME = "nexus.audit"
 
-# Operational logger for diagnostics when OTEL setup fails
 logger = structlog.stdlib.get_logger(__name__)
 
 
 def configure_audit_logging() -> None:
-    """Configure OpenTelemetry logging for the audit logger.
+    """Configure the dedicated audit stdout logger.
 
-    Stateless setup function that configures the "nexus.audit.otel" logger with:
-    - Stdout handler (NOTSET level) for operational visibility
-    - OTLP handler (if enabled) for external observability platforms
+    Sets up the "nexus.audit" logger with a stdout handler at NOTSET level and
+    propagate=False, ensuring audit events are always written to stdout regardless
+    of the application's configured log level and without duplicating to the root
+    logger.
 
-    The audit logger is configured with NOTSET level and propagate=False to ensure
-    all audit events emit regardless of application log level and don't duplicate
-    to the root logger.
-
-    Called by core.logging.lifecycle during startup. State management and idempotency
-    are handled by the lifecycle module, not here.
-
+    Called by core.logging.lifecycle during startup.
     """
-    settings = get_settings()
-    audit_otel_logger = logging.getLogger(OTEL_AUDIT_LOGGER_NAME)
+    audit_otel_logger = logging.getLogger(AUDIT_LOGGER_NAME)
 
     # Create stdout handler for operational logs
     # This ensures audit events are ALWAYS visible in standard logs,
@@ -60,25 +48,6 @@ def configure_audit_logging() -> None:
 
     # Always attach stdout handler
     audit_otel_logger.addHandler(stdout_handler)
-
-    # Create and attach OTLP handler if enabled
-    otel_handler = create_otel_handler()
-    if otel_handler is not None:
-        audit_otel_logger.addHandler(otel_handler)
-        logger.info(
-            "otel.logging.configured",
-            logger_name=OTEL_AUDIT_LOGGER_NAME,
-            endpoint=settings.otel_endpoint,
-            service_name=settings.otel_service_name,
-            otel_export_enabled=True,
-        )
-    else:
-        logger.info(
-            "otel.logging.configured",
-            logger_name=OTEL_AUDIT_LOGGER_NAME,
-            otel_export_enabled=False,
-            reason="otel_enabled=False in settings",
-        )
 
     # Set NOTSET level to ensure all audit events emit
     audit_otel_logger.setLevel(logging.NOTSET)

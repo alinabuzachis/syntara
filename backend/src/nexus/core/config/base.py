@@ -501,6 +501,13 @@ class AuditSettings(BaseSettings):
         le=1000,
     )
 
+    audit_outbox_max_dispatch_attempts: int = Field(
+        default=5,
+        description="Maximum OTEL export attempts before an outbox record is permanently dropped",
+        gt=0,
+        le=10,
+    )
+
     # Audit worker connection pool settings (separate from main pool)
     # See: backend/docs/audit-performance-optimization.md (Option 1)
     audit_worker_pool_size: int = Field(

@@ -304,14 +304,18 @@ sequenceDiagram
         Worker->>Outbox: SELECT * FROM audit_outbox<br/>FOR UPDATE SKIP LOCKED
         Outbox-->>Worker: Unpublished events
 
-        Worker->>OTEL: Export ALL events<br/>to OTEL Collector<br/>(with audit.event_source discriminator)
-        OTEL-->>Worker: Success
+        Worker->>Worker: Build ReadableLogRecord batch<br/>(with audit.event_source discriminator)
+        Worker->>OTEL: OTLPLogExporter.export(batch)<br/>(synchronous, built-in retry)
 
-        Worker->>Outbox: DELETE FROM audit_outbox
-        Note over Worker: Events published<br/>Outbox cleaned up
+        alt Export SUCCESS
+            Worker->>Outbox: DELETE FROM audit_outbox
+            Note over Worker: Events confirmed delivered<br/>Outbox cleaned up
+        else Export FAILURE
+            Note over Worker: Records retained in outbox<br/>Will retry next cycle
+        end
     end
 
-    Note over Source1,OTEL: Guarantees:<br/>✓ At-least-once delivery (survives crashes)<br/>✓ Atomic commit (business + audit)<br/>✓ No blocking (async worker)<br/>✓ Complete coverage (CRUD + explicit events)<br/>✓ Dual routing (business → audit DB + OTEL, CRUD → OTEL only)<br/>✓ Event source discrimination (audit.event_source field)
+    Note over Source1,OTEL: Guarantees:<br/>✓ At-least-once delivery (survives crashes)<br/>✓ Confirmed delivery before WAL deletion<br/>✓ Atomic commit (business + audit)<br/>✓ No blocking (async worker)<br/>✓ Complete coverage (CRUD + explicit events)<br/>✓ Dual routing (business → audit DB + OTEL, CRUD → OTEL only)<br/>✓ Event source discrimination (audit.event_source field)
 ```
 
 **Key architectural properties:**
@@ -326,9 +330,9 @@ sequenceDiagram
 
 4. **Automatic CRUD Capture**: PostgreSQL triggers (`audit_crud_operation()`) observe all INSERT/UPDATE/DELETE operations on auditable tables without requiring developers to manually instrument code, guaranteeing audit trail completeness.
 
-5. **OTEL Export**: The background worker exports all events to the OTEL Collector with an `audit.event_source` discriminator (`business` or `crud`).
+5. **OTEL Export**: The background worker exports events directly via `OTLPLogExporter.export()` (synchronous with built-in retry+backoff) with an `audit.event_source` discriminator (`business` or `crud`). Outbox records are only deleted after confirmed delivery.
 
-6. **Guaranteed Delivery**: The background worker polls the outbox and publishes to the OTEL Collector. Events survive process crashes between business commit and audit publication.
+6. **Guaranteed Delivery**: The background worker polls the outbox and publishes to the OTEL Collector. Events survive process crashes between business commit and audit publication. On export failure, records are retained in the outbox for retry on the next polling cycle.
 
 7. **Non-Blocking**: Business transactions never wait for OTEL export. The worker processes events asynchronously in the background.
 
@@ -453,20 +457,27 @@ This discriminator allows downstream OTEL processors and observability platforms
 
 **Implementation details:**
 
-The `_emit_otel_log_entry()` function in `src/nexus/audit/outbox/worker.py` injects the discriminator:
+The `_build_otel_log_record()` function in `src/nexus/audit/outbox/worker.py` builds a `ReadableLogRecord` with the discriminator injected as an attribute. The worker then exports records directly via `OTLPLogExporter.export()` — bypassing the logging pipeline's `BatchLogRecordProcessor` which ignores export results and would cause silent event loss:
 
 ```python
-def _emit_otel_log_entry(audit_event: AuditEvent, event_source: AuditEventSource) -> None:
-    # Emit as structured log entry to OTEL Collection
-    event_dict = audit_event.model_dump(mode="json")
+def _build_otel_log_record(
+    audit_event: AuditEvent, event_date: datetime, event_source: AuditEventSource
+) -> ReadableLogRecord:
+    # json.loads(model_dump_json()) for asyncpg UUID type safety
+    event_dict = json.loads(audit_event.model_dump_json())
     # Inject event source attribute for event type discrimination
     event_dict["audit.event_source"] = event_source.value
-    audit_logger_otel.info("audit_event", **event_dict)
+    return ReadableLogRecord(
+        timestamp=int(event_date.timestamp() * 1e9),
+        body=json.dumps(event_dict),
+        severity_number=SeverityNumber.INFO,
+        resource=create_otel_resource(),
+    )
 ```
 
-The worker calls this function with the appropriate `event_source` value based on the record's origin:
-- Business event handler: `_emit_otel_log_entry(audit_event, event_source=AuditEventSource.BUSINESS_EVENT)`
-- CRUD event handler: `_emit_otel_log_entry(audit_event, event_source=AuditEventSource.CRUD_EVENT)`
+The worker builds log records with the appropriate `event_source` value based on the record's origin, using `obr.created_at` as the event timestamp. Outbox records are only deleted on export success:
+- Business events: `_build_otel_log_record(audit_event, obr.created_at, event_source=AuditEventSource.BUSINESS_EVENT)`
+- CRUD events: `_build_otel_log_record(audit_event, obr.created_at, event_source=AuditEventSource.CRUD_EVENT)`
 
 #### Actor Context Propagation
 

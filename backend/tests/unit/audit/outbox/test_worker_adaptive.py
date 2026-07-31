@@ -40,7 +40,7 @@ class TestAdaptiveCallback:
             # Verify publish was called with base batch size
             assert mock_publish.call_count == 1
             call_args = mock_publish.call_args
-            assert call_args[0][1] == 100  # batch_size argument
+            assert call_args[0][2] == 100  # batch_size argument
 
             # Interval should still be base (first cycle seeds)
             assert worker._interval_seconds == 5.0
@@ -55,7 +55,7 @@ class TestAdaptiveCallback:
 
             # Should publish with new batch size (130 = 100 * 1.3)
             call_args = mock_publish.call_args
-            assert call_args[0][1] == 130  # GROWING_MODERATE batch
+            assert call_args[0][2] == 130  # GROWING_MODERATE batch
 
             # Interval should speed up (3.5 = 5.0 * 0.7)
             assert worker._interval_seconds == 3.5
@@ -121,7 +121,7 @@ class TestAdaptiveCallback:
 
             # Should publish with base batch size
             call_args = mock_publish.call_args
-            assert call_args[0][1] == 100  # Batch reset to base
+            assert call_args[0][2] == 100  # Batch reset to base
 
             # Interval should cooldown (2.0 * 1.3 = 2.6)
             assert worker._interval_seconds == pytest.approx(2.6)
@@ -155,7 +155,7 @@ class TestAdaptiveCallback:
 
             # Should publish with decreased batch (385 = 500 * 0.77)
             call_args = mock_publish.call_args
-            assert call_args[0][1] == 385  # SHRINKING batch
+            assert call_args[0][2] == 385  # SHRINKING batch
 
             # Interval should slow down (1.3 = 1.0 * 1.3)
             assert worker._interval_seconds == pytest.approx(1.3)

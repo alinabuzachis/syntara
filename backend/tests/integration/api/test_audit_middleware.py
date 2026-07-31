@@ -51,9 +51,9 @@ async def test_middleware_extracts_path_params(
     activity_id = "test-activity-123"
     signal_url = f"/api/v1/executions/{execution_id}/activities/{activity_id}/signal"
 
-    # Patch _emit_otel_log_entry to capture emitted audit events
-    mock_emit = Mock()
-    with patch("nexus.audit.outbox.worker._emit_otel_log_entry", new=mock_emit):
+    # Patch _build_otel_log_record to capture emitted audit events
+    mock_build_otel_log_record = Mock()
+    with patch("nexus.audit.outbox.worker._build_otel_log_record", new=mock_build_otel_log_record):
         # POST to signal endpoint with Authorization header (will fail with 404, but that's expected)
         response = await base_client.post(
             signal_url,
@@ -67,12 +67,12 @@ async def test_middleware_extracts_path_params(
         # Flush all pending outbox writes
         await get_outbox_worker().drain()
 
-    # Verify _emit_otel_log_entry was called at least once
-    assert mock_emit.called, "Expected _emit_otel_log_entry to be called"
+    # Verify _build_otel_log_record was called at least once
+    assert mock_build_otel_log_record.called, "Expected _build_otel_log_record to be called"
 
     # Find the specific POST event for our signal endpoint
     post_event = None
-    for call in mock_emit.call_args_list:
+    for call in mock_build_otel_log_record.call_args_list:
         # Extract the AuditEvent from the call args
         audit_event: AuditEvent = call.args[0]
 
@@ -88,7 +88,7 @@ async def test_middleware_extracts_path_params(
     assert post_event is not None, (
         f"No request_completed event found for execution_id={execution_id}, "
         f"activity_id={activity_id}, actor_id={admin_user.id}. "
-        f"Found {mock_emit.call_count} calls total."
+        f"Found {mock_build_otel_log_record.call_count} calls total."
     )
 
     # Verify the audit event has the correct context IDs from the URL
@@ -121,9 +121,9 @@ async def test_middleware_captures_request_id_in_structured_data(
         "X-Request-Id": str(request_id),
     }
 
-    # Patch _emit_otel_log_entry to capture emitted audit events
-    mock_emit = Mock()
-    with patch("nexus.audit.outbox.worker._emit_otel_log_entry", new=mock_emit):
+    # Patch _build_otel_log_record to capture emitted audit events
+    mock_build_otel_log_record = Mock()
+    with patch("nexus.audit.outbox.worker._build_otel_log_record", new=mock_build_otel_log_record):
         # Make a simple GET request to any endpoint (using /api/v1/users as a valid endpoint)
         response = await base_client.get("/api/v1/users", headers=headers)
         assert response.status_code == 200
@@ -131,12 +131,12 @@ async def test_middleware_captures_request_id_in_structured_data(
         # Flush all pending outbox writes
         await get_outbox_worker().drain()
 
-    # Verify _emit_otel_log_entry was called
-    assert mock_emit.called, "Expected _emit_otel_log_entry to be called"
+    # Verify _build_otel_log_record was called
+    assert mock_build_otel_log_record.called, "Expected _build_otel_log_record to be called"
 
     # Find the audit event for the GET request with our request_id
     first_get_event = None
-    for call in mock_emit.call_args_list:
+    for call in mock_build_otel_log_record.call_args_list:
         # Extract the AuditEvent from the call args
         audit_event: AuditEvent = call.args[0]
 
