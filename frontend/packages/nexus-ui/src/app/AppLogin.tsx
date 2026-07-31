@@ -1,14 +1,19 @@
 import {
+  ActionGroup,
   Alert,
   Bullseye,
   Button,
   Content,
   Divider,
+  Form,
+  FormGroup,
+  FormHelperText,
   HelperText,
   HelperTextItem,
   Icon,
-  LoginForm,
   LoginPage,
+  TextInput,
+  ValidatedOptions,
 } from '@patternfly/react-core'
 import { ExclamationCircleIcon } from '@patternfly/react-icons'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
@@ -91,33 +96,64 @@ function LocalLoginForm({
   onClearError,
   onLogin,
 }: Readonly<LocalLoginFormProps>) {
+  const isValidUsername =
+    loginErrorField !== LoginErrorField.Username && loginErrorField !== LoginErrorField.Credentials
+  const isValidPassword =
+    loginErrorField !== LoginErrorField.Password && loginErrorField !== LoginErrorField.Credentials
+
   return (
-    <LoginForm
-      usernameLabel="Username"
-      usernameValue={username}
-      onChangeUsername={(_e, val) => {
-        onChangeUsername(val)
-        onClearError()
-      }}
-      isValidUsername={loginErrorField !== LoginErrorField.Username && loginErrorField !== LoginErrorField.Credentials}
-      passwordLabel="Password"
-      passwordValue={password}
-      onChangePassword={(_e, val) => {
-        onChangePassword(val)
-        onClearError()
-      }}
-      isValidPassword={loginErrorField !== LoginErrorField.Password && loginErrorField !== LoginErrorField.Credentials}
-      showHelperText={loginError !== null}
-      helperText={loginError}
-      helperTextIcon={
-        <Icon status="danger">
-          <ExclamationCircleIcon />
-        </Icon>
-      }
-      loginButtonLabel={loginButtonLabel}
-      isLoginButtonDisabled={isLoggingIn}
-      onLoginButtonClick={onLogin}
-    />
+    <Form onSubmit={(e) => e.preventDefault()}>
+      {loginError !== null && (
+        <FormHelperText>
+          <HelperText>
+            <HelperTextItem
+              variant={!isValidUsername || !isValidPassword ? 'error' : 'default'}
+              icon={
+                <Icon status="danger">
+                  <ExclamationCircleIcon />
+                </Icon>
+              }
+            >
+              {loginError}
+            </HelperTextItem>
+          </HelperText>
+        </FormHelperText>
+      )}
+      <FormGroup label="Username" isRequired fieldId="pf-login-username-id">
+        <TextInput
+          id="pf-login-username-id"
+          isRequired
+          validated={isValidUsername ? ValidatedOptions.default : ValidatedOptions.error}
+          type="text"
+          name="pf-login-username-id"
+          value={username}
+          onChange={(_e, val) => {
+            onChangeUsername(val)
+            onClearError()
+          }}
+        />
+      </FormGroup>
+      <FormGroup label="Password" isRequired fieldId="pf-login-password-id">
+        <TextInput
+          isRequired
+          type="password"
+          autoComplete="current-password"
+          id="pf-login-password-id"
+          name="pf-login-password-id"
+          validated={isValidPassword ? ValidatedOptions.default : ValidatedOptions.error}
+          value={password}
+          onChange={(_e, val) => {
+            onChangePassword(val)
+            onClearError()
+          }}
+        />
+      </FormGroup>
+      <ActionGroup>
+        <Button variant="primary" type="submit" onClick={onLogin} isBlock isDisabled={isLoggingIn}>
+          {loginButtonLabel}
+        </Button>
+      </ActionGroup>
+    </Form>
   )
 }
 

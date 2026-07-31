@@ -100,6 +100,7 @@ export function ConnectionFields({
               id="client-secret"
               placeholder={isEdit ? 'Enter new secret to update' : 'your-client-secret'}
               type="password"
+              autoComplete="off"
               validated={fieldState.error ? 'error' : 'default'}
               {...field}
             />

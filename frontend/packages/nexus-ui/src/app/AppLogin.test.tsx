@@ -120,6 +120,17 @@ describe('AppLogin', () => {
     expect(screen.queryByText('Protected Content')).not.toBeInTheDocument()
   })
 
+  it('sets autocomplete="current-password" on the password field', async () => {
+    renderWithAlerts(
+      <AppLogin>
+        <div>Content</div>
+      </AppLogin>
+    )
+
+    const passwordInput = await screen.findByLabelText(/^Password/, { selector: 'input' })
+    expect(passwordInput).toHaveAttribute('autocomplete', 'current-password')
+  })
+
   it('calls login when login button is clicked', async () => {
     const user = userEvent.setup()
     // Login rejects so isLoggingIn resets and button reappears

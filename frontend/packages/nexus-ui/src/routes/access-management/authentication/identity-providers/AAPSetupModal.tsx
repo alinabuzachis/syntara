@@ -44,6 +44,7 @@ type ControlledTextFieldProps = Readonly<{
   fieldId: string
   placeholder?: string
   type?: 'text' | 'password'
+  autoComplete?: string
   hint?: string
 }>
 
@@ -54,6 +55,7 @@ function ControlledTextField({
   fieldId,
   placeholder,
   type = 'text',
+  autoComplete,
   hint,
 }: ControlledTextFieldProps) {
   return (
@@ -67,6 +69,7 @@ function ControlledTextField({
             aria-label={label}
             placeholder={placeholder}
             type={type}
+            autoComplete={autoComplete}
             validated={fieldState.error ? 'error' : 'default'}
             value={field.value ?? ''}
             onChange={field.onChange}
@@ -268,6 +271,7 @@ export function AAPSetupModal({ isOpen, onClose, onSuccess }: Readonly<AAPSetupM
                 label="Platform admin password"
                 fieldId="aap-admin-password"
                 type="password"
+                autoComplete="off"
               />
             </>
           ) : (
@@ -277,6 +281,7 @@ export function AAPSetupModal({ isOpen, onClose, onSuccess }: Readonly<AAPSetupM
               label="Personal access token"
               fieldId="aap-personal-access-token"
               type="password"
+              autoComplete="off"
             />
           )}
           <Controller

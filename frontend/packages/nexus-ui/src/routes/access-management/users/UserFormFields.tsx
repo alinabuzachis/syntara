@@ -270,13 +270,13 @@ function PasswordFieldInput({ field, fieldState, isEdit, isDisabled }: Readonly<
             aria-label="Password"
             placeholder={placeholder}
             type={isPasswordVisible ? 'text' : 'password'}
+            autoComplete="new-password"
             validated={validated}
             isDisabled={isDisabled}
             value={field.value ?? ''}
             onChange={field.onChange}
             onBlur={field.onBlur}
             name={field.name}
-            autoComplete="new-password"
           />
         </InputGroupItem>
         <InputGroupItem>

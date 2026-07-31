@@ -215,6 +215,7 @@ function SecretField({ field, value, onChange, isRequired, isEditMode, error }: 
           <TextInput
             id={field.id}
             type={showSecret ? 'text' : 'password'}
+            autoComplete="off"
             value={displayValue}
             onChange={handleSecretChange}
             validated={validated}
