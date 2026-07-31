@@ -4,6 +4,8 @@ This module provides the RetrieverRegistry class for registering and managing
 different DocumentRetriever implementations in a pluggable architecture.
 """
 
+import functools
+
 import structlog
 
 from nexus.agent_orchestrator.context_manager.retriever_service.exceptions import RegistryError
@@ -135,9 +137,7 @@ def _setup_default_registry() -> "RetrieverRegistry":
     return registry
 
 
-_retriever_registry: RetrieverRegistry = _setup_default_registry()
-
-
+@functools.lru_cache(maxsize=1)
 def get_retriever_registry() -> RetrieverRegistry:
     """Get retriever registry for dependency injection.
 
@@ -154,7 +154,7 @@ def get_retriever_registry() -> RetrieverRegistry:
         documents = await retriever.retrieve_documents(context)
 
     """
-    return _retriever_registry
+    return _setup_default_registry()
 
 
 # ===================================================

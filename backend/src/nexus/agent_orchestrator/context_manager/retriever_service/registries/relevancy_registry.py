@@ -4,6 +4,7 @@ This module provides the RelevancyRegistry class for registering and managing
 different RelevancyChecker implementations with their associated configurations.
 """
 
+import functools
 from typing import Any
 
 import structlog
@@ -315,9 +316,7 @@ def _setup_default_registry() -> "RelevancyRegistry":
     return registry
 
 
-_relevancy_registry: RelevancyRegistry = _setup_default_registry()
-
-
+@functools.lru_cache(maxsize=1)
 def get_relevancy_registry() -> RelevancyRegistry:
     """Get relevancy registry for dependency injection.
 
@@ -334,7 +333,7 @@ def get_relevancy_registry() -> RelevancyRegistry:
         score = await primary_checker.check_relevancy(document, prompt, config)
 
     """
-    return _relevancy_registry
+    return _setup_default_registry()
 
 
 # ===================================================
