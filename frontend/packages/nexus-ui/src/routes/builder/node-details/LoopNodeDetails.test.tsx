@@ -43,6 +43,7 @@ vi.mock('../node-forms/LoopNodeForm', () => ({
       <div data-testid="loop-node-form">
         <span data-testid="initial-type">{initialData?.type as string}</span>
         <span data-testid="initial-name">{initialData?.name as string}</span>
+        <span data-testid="initial-settings">{JSON.stringify(initialData?.settings)}</span>
       </div>
     )
   },
@@ -250,5 +251,85 @@ describe('LoopNodeDetails Component', () => {
 
     // Verify the form is initialized with 'while' UI type (do_while maps to 'while' in UI)
     expect(screen.getByTestId('initial-type')).toHaveTextContent('while')
+  })
+
+  describe('Settings persistence', () => {
+    it('passes settings to form initialData', () => {
+      const loopData = {
+        type: 'loop' as const,
+        id: 'loop-1',
+        name: 'Loop with CoF',
+        parameters: {
+          type: 'for_each' as const,
+          items: 'input.items',
+        },
+        settings: { continue_on_failure: true },
+      }
+
+      render(<LoopNodeDetails loopData={loopData} nodeId="loop-1" onClose={mockOnClose} />)
+
+      expect(screen.getByTestId('initial-settings')).toHaveTextContent('{"continue_on_failure":true}')
+    })
+
+    it('includes settings in updateActivity call', () => {
+      const loopData = {
+        type: 'loop' as const,
+        id: 'loop-1',
+        name: 'Loop with CoF',
+        parameters: {
+          type: 'for_each' as const,
+          items: 'input.items',
+        },
+      }
+
+      render(<LoopNodeDetails loopData={loopData} nodeId="loop-1" onClose={mockOnClose} />)
+
+      mockOnSubmitHandler?.({
+        name: 'Loop with CoF',
+        type: 'forEach',
+        items: 'input.items',
+        settings: { continue_on_failure: true },
+      })
+
+      expect(mockUpdateActivity).toHaveBeenCalledWith(
+        'loop-1',
+        expect.objectContaining({
+          name: 'Loop with CoF',
+          settings: { continue_on_failure: true },
+          parameters: expect.objectContaining({
+            type: 'for_each',
+            items: 'input.items',
+          }) as Record<string, unknown>,
+        })
+      )
+    })
+
+    it('passes undefined settings when not provided', () => {
+      const loopData = {
+        type: 'loop' as const,
+        id: 'loop-1',
+        name: 'Loop without settings',
+        parameters: {
+          type: 'for_each' as const,
+          items: 'input.items',
+        },
+      }
+
+      render(<LoopNodeDetails loopData={loopData} nodeId="loop-1" onClose={mockOnClose} />)
+
+      mockOnSubmitHandler?.({
+        name: 'Loop without settings',
+        type: 'forEach',
+        items: 'input.items',
+      })
+
+      expect(mockUpdateActivity).toHaveBeenCalledWith(
+        'loop-1',
+        expect.objectContaining({
+          name: 'Loop without settings',
+          settings: undefined,
+        })
+      )
+    })
   })
 })

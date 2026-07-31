@@ -1,4 +1,4 @@
-import { Flex } from '@patternfly/react-core'
+import { Badge, Flex } from '@patternfly/react-core'
 import type { LoopActivity } from '@syntara/contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
 
@@ -9,7 +9,9 @@ import { semanticZoomActivityTitle } from '../semanticZoom'
 import { BranchHandle, BranchHandles } from './common/BranchHandle'
 import { NodeComponent } from './common/NodeComponent'
 import { StandardNodeHeader } from './common/StandardNodeHeader'
+import { useLoopIterationCount } from './hooks/useLoopIterationCount'
 import { MenuNodeType, useNodeMenuActions } from './hooks/useNodeMenuActions'
+import styles from './LoopNode.module.css'
 import { nodeMetadata } from './nodeMetadata'
 import { renderNodeIcon } from './renderNodeIcon'
 
@@ -22,6 +24,7 @@ export function LoopNodeComponent(props: NodeProps<LoopNode>) {
     nodeId: props.data.id,
     nodeType: MenuNodeType.CONTROL_FLOW,
   })
+  const iterationCount = useLoopIterationCount(props.data.id)
 
   // Extract execution state if present
   const executionState = (props.data as Record<string, unknown>).__executionState as
@@ -58,15 +61,26 @@ export function LoopNodeComponent(props: NodeProps<LoopNode>) {
         subtitle={metadata.label}
         menuActions={menuActions}
       />
-      <Flex
-        justifyContent={{ default: 'justifyContentFlexEnd' }}
-        style={{ paddingBottom: 'var(--pf-t--global--spacer--md)' }}
-      >
+      <Flex justifyContent={{ default: 'justifyContentFlexEnd' }} className={styles.branchHandlesWrapper}>
         <BranchHandles>
           <BranchHandle id="done" nodeId={props.data.id} ariaLabel="Done branch output">
             Done
           </BranchHandle>
-          <BranchHandle id="loop" nodeId={props.data.id} ariaLabel="Loop branch output">
+          <BranchHandle
+            id="loop"
+            nodeId={props.data.id}
+            ariaLabel="Loop branch output"
+            badge={
+              iterationCount != null ? (
+                <Badge
+                  isRead
+                  screenReaderText={`${iterationCount} ${iterationCount === 1 ? 'loop iteration' : 'loop iterations'}`}
+                >
+                  {iterationCount}
+                </Badge>
+              ) : undefined
+            }
+          >
             Loop
           </BranchHandle>
         </BranchHandles>

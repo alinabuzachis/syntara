@@ -392,6 +392,53 @@ class TestActivityEventProcessing:
 
         assert 1 not in self.metadata.pending_activity_updates
 
+    def test_process_activity_scheduled_sets_loop_flags_for_iter_suffix(self) -> None:
+        """An activity with _iter_N suffix is recognized as a loop iteration control node."""
+        event = self._create_mock_event(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+            event_id=2,
+            activity_id="loop-node_iter_0",
+        )
+
+        self.service._process_activity_scheduled(event, self.metadata)
+
+        update = self.metadata.pending_activity_updates[2]
+        assert update["activity_id"] == "loop-node"
+        assert update["_is_loop_iteration"] is True
+        assert update["_is_loop_control"] is True
+
+    def test_process_activity_scheduled_no_loop_flags_for_plain_activity(self) -> None:
+        """A plain activity without iter suffix and not in terminal_activity_ids gets no loop flags."""
+        event = self._create_mock_event(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+            event_id=3,
+            activity_id="action-1",
+        )
+
+        self.service._process_activity_scheduled(event, self.metadata)
+
+        update = self.metadata.pending_activity_updates[3]
+        assert update["activity_id"] == "action-1"
+        assert update["_is_loop_iteration"] is False
+        assert update["_is_loop_control"] is False
+
+    def test_process_activity_scheduled_loop_iteration_for_re_executed_body_node(self) -> None:
+        """A body node re-scheduled after terminal is a loop iteration but not a control node."""
+        self.metadata.terminal_activity_ids.add("body-node")
+
+        event = self._create_mock_event(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+            event_id=4,
+            activity_id="body-node",
+        )
+
+        self.service._process_activity_scheduled(event, self.metadata)
+
+        update = self.metadata.pending_activity_updates[4]
+        assert update["activity_id"] == "body-node"
+        assert update["_is_loop_iteration"] is True
+        assert update["_is_loop_control"] is False
+
     @pytest.mark.parametrize(
         ("attempt", "expected_retry_count", "expected_status"),
         [
@@ -1544,6 +1591,300 @@ class TestActivitySyncTerminalCleanup:
 
         assert activity.status == ActivityStatus.RUNNING
         assert activity.completed_at is None
+
+
+class TestLoopIterationSync:
+    """Test loop iteration handling in _sync_activities_to_db."""
+
+    def setup_method(self) -> None:
+        """Set up test fixtures."""
+        self.execution_id = uuid4()
+        self.mock_session_factory = Mock()
+        self.mock_activity_publisher = AsyncMock()
+        self.service = ActivitySyncService(Mock(), self.mock_session_factory, self.mock_activity_publisher)
+
+    def _create_mock_activity_execution(
+        self,
+        activity_name: str = "loop-node",
+        status: ActivityStatus = ActivityStatus.PENDING,
+    ) -> Mock:
+        """Create a mock ActivityExecution database record."""
+        activity = Mock()
+        activity.activity_name = activity_name
+        activity.status = status
+        activity.started_at = None
+        activity.completed_at = None
+        activity.error_details = None
+        activity.retry_count = 0
+        activity.input_data = {}
+        activity.output_data = None
+        activity.updated_at = None
+        return activity
+
+    def _mock_session_with_activities(self, activities: list[Mock]) -> Mock:
+        """Create a mock session that returns the given activities and a mock execution."""
+        mock_activity_result = Mock()
+        mock_activity_result.all.return_value = activities
+
+        mock_execution = Mock(spec=Execution)
+        mock_execution.id = self.execution_id
+        mock_execution.last_processed_event_id = 0
+        mock_execution_result = Mock()
+        mock_execution_result.one_or_none.return_value = mock_execution
+
+        mock_session = Mock()
+        mock_session.exec = AsyncMock(side_effect=[mock_activity_result, mock_execution_result])
+        mock_session.commit = AsyncMock()
+        mock_session.rollback = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        self.mock_session_factory.return_value = mock_session
+        return mock_session
+
+    def _create_mock_handle(
+        self,
+        input_data: dict[str, Any] | None = None,
+        output_data: dict[str, Any] | None = None,
+    ) -> AsyncMock:
+        """Create a mock workflow handle that returns given data for queries."""
+        handle = AsyncMock()
+
+        async def mock_query(query_name: str, activity_id: str) -> dict[str, object] | None:
+            if query_name == "get_activity_input":
+                return input_data or {}
+            if query_name == "get_activity_output":
+                return output_data
+            return None
+
+        handle.query = AsyncMock(side_effect=mock_query)
+        return handle
+
+    @pytest.mark.asyncio
+    async def test_terminal_status_blocks_non_loop_update(self) -> None:
+        """A completed non-loop activity should not be updated by a later event."""
+        activity = self._create_mock_activity_execution(activity_name="action-node", status=ActivityStatus.COMPLETED)
+        self._mock_session_with_activities([activity])
+        handle = self._create_mock_handle(output_data={"result": "done"})
+
+        metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            activity_index_map={"action-node": 0},
+            pending_activity_updates={
+                10: {
+                    "activity_id": "action-node",
+                    "activity_name": "action-node",
+                    "status": ActivityStatus.CANCELLED,
+                    "started_at": datetime.now(UTC),
+                    "completed_at": datetime.now(UTC),
+                    "error_details": None,
+                    "retry_count": 0,
+                },
+            },
+        )
+
+        await self.service._sync_activities_to_db(metadata, handle)
+
+        assert activity.status == ActivityStatus.COMPLETED
+
+    @pytest.mark.asyncio
+    async def test_terminal_status_allows_loop_iteration_update(self) -> None:
+        """A completed activity with _is_loop_iteration should be updated on re-execution."""
+        activity = self._create_mock_activity_execution(activity_name="body-node", status=ActivityStatus.COMPLETED)
+        self._mock_session_with_activities([activity])
+        handle = self._create_mock_handle(output_data={"result": "iteration-2"})
+
+        metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            activity_index_map={"body-node": 0},
+            pending_activity_updates={
+                10: {
+                    "activity_id": "body-node",
+                    "activity_name": "body-node",
+                    "_is_loop_iteration": True,
+                    "_is_loop_control": False,
+                    "status": ActivityStatus.RUNNING,
+                    "started_at": datetime.now(UTC),
+                    "completed_at": None,
+                    "error_details": None,
+                    "retry_count": 0,
+                },
+            },
+        )
+
+        await self.service._sync_activities_to_db(metadata, handle)
+
+        assert activity.status == ActivityStatus.RUNNING
+
+    @pytest.mark.asyncio
+    async def test_loop_control_node_stays_running_between_iterations(self) -> None:
+        """A loop control node in terminal status stays RUNNING when iteration_results is absent."""
+        activity = self._create_mock_activity_execution(activity_name="loop-node", status=ActivityStatus.PENDING)
+        self._mock_session_with_activities([activity])
+        handle = self._create_mock_handle(output_data={"iteration_count": 1})
+
+        metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            activity_index_map={"loop-node": 0},
+            pending_activity_updates={
+                10: {
+                    "activity_id": "loop-node",
+                    "activity_name": "loop-node",
+                    "_is_loop_iteration": True,
+                    "_is_loop_control": True,
+                    "status": ActivityStatus.COMPLETED,
+                    "started_at": datetime.now(UTC),
+                    "completed_at": datetime.now(UTC),
+                    "error_details": None,
+                    "retry_count": 0,
+                },
+            },
+        )
+
+        await self.service._sync_activities_to_db(metadata, handle)
+
+        assert activity.status == ActivityStatus.RUNNING
+
+    @pytest.mark.asyncio
+    async def test_loop_control_node_stays_completed_on_final_iteration(self) -> None:
+        """A loop control node keeps COMPLETED when iteration_results is present (final iteration)."""
+        activity = self._create_mock_activity_execution(activity_name="loop-node", status=ActivityStatus.PENDING)
+        self._mock_session_with_activities([activity])
+        handle = self._create_mock_handle(
+            output_data={"iteration_count": 3, "iteration_results": {"0": {}, "1": {}, "2": {}}}
+        )
+
+        metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            activity_index_map={"loop-node": 0},
+            pending_activity_updates={
+                10: {
+                    "activity_id": "loop-node",
+                    "activity_name": "loop-node",
+                    "_is_loop_iteration": True,
+                    "_is_loop_control": True,
+                    "status": ActivityStatus.COMPLETED,
+                    "started_at": datetime.now(UTC),
+                    "completed_at": datetime.now(UTC),
+                    "error_details": None,
+                    "retry_count": 0,
+                },
+            },
+        )
+
+        await self.service._sync_activities_to_db(metadata, handle)
+
+        assert activity.status == ActivityStatus.COMPLETED
+
+    @pytest.mark.asyncio
+    async def test_body_node_keeps_real_terminal_status(self) -> None:
+        """A loop body node (not control) keeps its real status, not overridden to RUNNING."""
+        activity = self._create_mock_activity_execution(activity_name="body-node", status=ActivityStatus.PENDING)
+        self._mock_session_with_activities([activity])
+        handle = self._create_mock_handle(output_data={"result": "done"})
+
+        metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            activity_index_map={"body-node": 0},
+            pending_activity_updates={
+                10: {
+                    "activity_id": "body-node",
+                    "activity_name": "body-node",
+                    "_is_loop_iteration": True,
+                    "_is_loop_control": False,
+                    "status": ActivityStatus.COMPLETED,
+                    "started_at": datetime.now(UTC),
+                    "completed_at": datetime.now(UTC),
+                    "error_details": None,
+                    "retry_count": 0,
+                },
+            },
+        )
+
+        await self.service._sync_activities_to_db(metadata, handle)
+
+        assert activity.status == ActivityStatus.COMPLETED
+
+
+class TestCollectTerminalActivitiesTracking:
+    """Test that _collect_terminal_activities populates terminal_activity_ids."""
+
+    def test_terminal_activity_ids_populated(self) -> None:
+        """Completed activities should be tracked in terminal_activity_ids."""
+        metadata = create_test_metadata(
+            pending_activity_updates={
+                10: {
+                    "activity_id": "node-a",
+                    "activity_name": "node-a",
+                    "status": ActivityStatus.COMPLETED,
+                },
+                20: {
+                    "activity_id": "node-b",
+                    "activity_name": "node-b",
+                    "status": ActivityStatus.RUNNING,
+                },
+            },
+        )
+
+        ActivitySyncService._collect_terminal_activities(metadata)
+
+        assert "node-a" in metadata.terminal_activity_ids
+        assert "node-b" not in metadata.terminal_activity_ids
+        assert 10 not in metadata.pending_activity_updates
+        assert 20 in metadata.pending_activity_updates
+
+    def test_terminal_activity_ids_accumulates_across_calls(self) -> None:
+        """Multiple calls accumulate IDs rather than replacing them."""
+        metadata = create_test_metadata(
+            pending_activity_updates={
+                10: {
+                    "activity_id": "node-a",
+                    "activity_name": "node-a",
+                    "status": ActivityStatus.COMPLETED,
+                },
+            },
+        )
+        metadata.terminal_activity_ids.add("previously-completed")
+
+        ActivitySyncService._collect_terminal_activities(metadata)
+
+        assert "previously-completed" in metadata.terminal_activity_ids
+        assert "node-a" in metadata.terminal_activity_ids
+
+    def test_stale_cleanup_removes_overridden_loop_control_entries(self) -> None:
+        """Loop control entries with _status_overridden should be cleaned up."""
+        metadata = create_test_metadata(
+            pending_activity_updates={
+                10: {
+                    "activity_id": "loop-node",
+                    "activity_name": "loop-node",
+                    "_is_loop_control": True,
+                    "_status_overridden": True,
+                    "status": ActivityStatus.RUNNING,
+                },
+            },
+        )
+
+        ActivitySyncService._collect_terminal_activities(metadata)
+
+        assert 10 not in metadata.pending_activity_updates
+
+    def test_stale_cleanup_preserves_naturally_running_loop_control(self) -> None:
+        """Loop control entries that are naturally RUNNING (not overridden) must be kept."""
+        metadata = create_test_metadata(
+            pending_activity_updates={
+                10: {
+                    "activity_id": "loop-node",
+                    "activity_name": "loop-node",
+                    "_is_loop_control": True,
+                    "status": ActivityStatus.RUNNING,
+                },
+            },
+        )
+
+        ActivitySyncService._collect_terminal_activities(metadata)
+
+        assert 10 in metadata.pending_activity_updates
 
 
 class TestExtractFailedActivityErrors:

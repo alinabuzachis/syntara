@@ -244,11 +244,40 @@ describe('BranchHandle', () => {
     })
   })
 
+  describe('badge', () => {
+    it('renders badge when provided', () => {
+      render(
+        <BranchHandle id="loop" badge={<span data-testid="iteration-badge">3</span>}>
+          Loop
+        </BranchHandle>
+      )
+
+      expect(screen.getByTestId('iteration-badge')).toBeInTheDocument()
+      expect(screen.getByText('3')).toBeInTheDocument()
+    })
+
+    it('does not render badge when undefined', () => {
+      render(<BranchHandle id="loop">Loop</BranchHandle>)
+
+      expect(screen.queryByTestId('iteration-badge')).not.toBeInTheDocument()
+    })
+  })
+
   describe('accessibility', () => {
     it('has no accessibility violations', async () => {
       const { container } = render(
         <BranchHandle id="test" ariaLabel="Test branch output">
           Test Label
+        </BranchHandle>
+      )
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    })
+
+    it('has no accessibility violations with badge', async () => {
+      const { container } = render(
+        <BranchHandle id="loop" ariaLabel="Loop branch output" badge={<span>3</span>}>
+          Loop
         </BranchHandle>
       )
       const results = await axe(container)

@@ -302,6 +302,7 @@ class NexusWorkflow(WorkflowConvergeMixin, WorkflowApprovalMixin):
                     )
                     await self._maybe_expire_approval(completed_node_id, node, node_error)
                     if cof:
+                        self._route_failed_node(completed_node_id, node)
                         await self._handle_continued_failure(completed_node_id, node, graph, pending_tasks)
                     continue
 
@@ -325,6 +326,11 @@ class NexusWorkflow(WorkflowConvergeMixin, WorkflowApprovalMixin):
             if t == task:
                 return nid
         return None
+
+    def _route_failed_node(self, node_id: str, node: ActivityNode) -> None:
+        """Set routing for failed nodes so successors follow the correct branch."""
+        if node.type == NodeType.LOOP:
+            self.node_control_data[node_id] = {"next_port": "complete"}
 
     def _handle_node_failure(
         self,

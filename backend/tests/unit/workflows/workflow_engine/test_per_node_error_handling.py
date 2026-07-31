@@ -371,6 +371,37 @@ def _make_approval_graph(node_id: str = "approval_1") -> WorkflowGraph:
     return WorkflowGraph(backend)
 
 
+class TestRouteFailedNode:
+    """_route_failed_node sets routing data so successors follow the correct branch."""
+
+    def test_loop_node_routes_to_complete_port(self) -> None:
+        """A failed loop node should route to the 'complete' (Done) port."""
+        wf = _make_workflow()
+        node = ActivityNode("loop_1", "loop", {"type": "for_each", "items": "input.data"})
+
+        wf._route_failed_node("loop_1", node)
+
+        assert wf.node_control_data["loop_1"] == {"next_port": "complete"}
+
+    def test_non_loop_node_does_not_set_control_data(self) -> None:
+        """A failed non-loop node should not have routing data set."""
+        wf = _make_workflow()
+        node = ActivityNode("action_1", "action", {"executor": "http"})
+
+        wf._route_failed_node("action_1", node)
+
+        assert "action_1" not in wf.node_control_data
+
+    def test_does_not_overwrite_existing_control_data_for_non_loop(self) -> None:
+        """Existing control data for a non-loop node remains untouched."""
+        wf = _make_workflow(node_control_data={"action_1": {"next_port": "custom"}})
+        node = ActivityNode("action_1", "action", {"executor": "http"})
+
+        wf._route_failed_node("action_1", node)
+
+        assert wf.node_control_data["action_1"] == {"next_port": "custom"}
+
+
 class TestContinueOnFailureApproval:
     """_handle_continued_failure routes approval nodes via fallback_decision."""
 

@@ -1,6 +1,9 @@
 import type { LoopActivity } from '@syntara/contracts'
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { act, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
+
+import { useExecutionStore } from '../../stores/useExecutionStore'
 
 import { LoopNodeComponent } from './LoopNode'
 
@@ -139,6 +142,141 @@ describe('LoopNodeComponent', () => {
       render(<LoopNodeComponent {...createNodeProps(baseLoopNode)} />)
 
       expect(screen.getByText('Process Items')).toBeInTheDocument()
+    })
+  })
+
+  describe('Iteration Badge', () => {
+    afterEach(() => {
+      act(() => {
+        useExecutionStore.setState({ activityStates: new Map() })
+      })
+    })
+
+    it('does not render badge when no execution state', () => {
+      render(<LoopNodeComponent {...createNodeProps(baseLoopNode)} />)
+
+      expect(screen.queryByText(/^\d+$/)).not.toBeInTheDocument()
+    })
+
+    it('renders badge with iteration count during running loop', () => {
+      act(() => {
+        useExecutionStore.setState({
+          activityStates: new Map([
+            [
+              'loop-1',
+              {
+                activityId: 'loop-1',
+                status: 'running' as const,
+                outputData: { iteration_count: 2 },
+              },
+            ],
+          ]),
+        })
+      })
+
+      render(<LoopNodeComponent {...createNodeProps(baseLoopNode)} />)
+
+      expect(screen.getByText('3')).toBeInTheDocument()
+    })
+
+    it('uses singular "loop iteration" in screen reader text for count of 1', () => {
+      act(() => {
+        useExecutionStore.setState({
+          activityStates: new Map([
+            [
+              'loop-1',
+              {
+                activityId: 'loop-1',
+                status: 'running' as const,
+                outputData: { iteration_count: 0 },
+              },
+            ],
+          ]),
+        })
+      })
+
+      render(<LoopNodeComponent {...createNodeProps(baseLoopNode)} />)
+
+      expect(screen.getByText('1')).toBeInTheDocument()
+      expect(screen.getByText('1 loop iteration')).toBeInTheDocument()
+    })
+
+    it('uses plural "loop iterations" in screen reader text for count > 1', () => {
+      act(() => {
+        useExecutionStore.setState({
+          activityStates: new Map([
+            [
+              'loop-1',
+              {
+                activityId: 'loop-1',
+                status: 'completed' as const,
+                outputData: { iteration_count: 5, iteration_results: {} },
+              },
+            ],
+          ]),
+        })
+      })
+
+      render(<LoopNodeComponent {...createNodeProps(baseLoopNode)} />)
+
+      expect(screen.getByText('5')).toBeInTheDocument()
+      expect(screen.getByText('5 loop iterations')).toBeInTheDocument()
+    })
+
+    it('renders badge with 1-indexed count for failed loop', () => {
+      act(() => {
+        useExecutionStore.setState({
+          activityStates: new Map([
+            [
+              'loop-1',
+              {
+                activityId: 'loop-1',
+                status: 'failed' as const,
+                outputData: { iteration_count: 3 },
+              },
+            ],
+          ]),
+        })
+      })
+
+      render(<LoopNodeComponent {...createNodeProps(baseLoopNode)} />)
+
+      expect(screen.getByText('4')).toBeInTheDocument()
+    })
+
+    it('has no accessibility violations when badge is visible', async () => {
+      act(() => {
+        useExecutionStore.setState({
+          activityStates: new Map([
+            ['loop-1', { activityId: 'loop-1', status: 'running' as const, outputData: { iteration_count: 2 } }],
+          ]),
+        })
+      })
+
+      const { container } = render(<LoopNodeComponent {...createNodeProps(baseLoopNode)} />)
+
+      expect(await axe(container)).toHaveNoViolations()
+    })
+
+    it('renders badge with total count for completed loop', () => {
+      act(() => {
+        useExecutionStore.setState({
+          activityStates: new Map([
+            [
+              'loop-1',
+              {
+                activityId: 'loop-1',
+                status: 'completed' as const,
+                outputData: { iteration_count: 5, iteration_results: {} },
+              },
+            ],
+          ]),
+        })
+      })
+
+      render(<LoopNodeComponent {...createNodeProps(baseLoopNode)} />)
+
+      expect(screen.getByText('5')).toBeInTheDocument()
     })
   })
 })

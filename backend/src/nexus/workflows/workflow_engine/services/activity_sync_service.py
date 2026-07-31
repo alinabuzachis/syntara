@@ -128,6 +128,7 @@ class ExecutionMonitorMetadata:
     activity_index_map: dict[str, int]
     pending_activity_updates: dict[int, dict[str, Any]]
     pending_sync_event_ids: set[int] = field(default_factory=set)
+    terminal_activity_ids: set[str] = field(default_factory=set)
     workflow_id: UUID | None = None
     request_id: UUID | None = None
     workflow_run_timeout_seconds: float | None = None
@@ -1051,6 +1052,8 @@ class ActivitySyncService:
         if attrs.activity_id.startswith("__internal__"):
             return
         base_activity_id = re.sub(r"_iter_\d+$", "", attrs.activity_id)
+        has_iter_suffix = base_activity_id != attrs.activity_id
+        is_loop_iteration = has_iter_suffix or base_activity_id in metadata.terminal_activity_ids
         configured_timeout_seconds: float | None = None
         if attrs.start_to_close_timeout and attrs.start_to_close_timeout.seconds > 0:
             configured_timeout_seconds = attrs.start_to_close_timeout.seconds + (
@@ -1060,6 +1063,8 @@ class ActivitySyncService:
         metadata.pending_activity_updates[event.event_id] = {
             "activity_id": base_activity_id,
             "activity_name": base_activity_id,
+            "_is_loop_iteration": is_loop_iteration,
+            "_is_loop_control": has_iter_suffix,
             "status": ActivityStatus.PENDING,
             "started_at": None,
             "completed_at": None,
@@ -1750,10 +1755,26 @@ class ActivitySyncService:
         ]
         for scheduled_id in terminal_scheduled_ids:
             data = metadata.pending_activity_updates[scheduled_id]
+            metadata.terminal_activity_ids.add(data["activity_id"])
             timeout_info = data.get("_timeout_info")
             if timeout_info:
                 timed_out_activities.append((data["activity_id"], timeout_info))
             del metadata.pending_activity_updates[scheduled_id]
+
+        # Clean up loop control entries whose status was overridden from terminal
+        # to RUNNING by _process_single_activity_sync.  These intermediate
+        # iterations have already been synced to the DB and would otherwise
+        # accumulate for the lifetime of the execution monitor.
+        # Only remove entries explicitly marked as overridden — naturally RUNNING
+        # entries (started but not yet completed) must be kept so that subsequent
+        # COMPLETED events are not silently dropped.
+        stale_loop_ids = [
+            sid
+            for sid, data in metadata.pending_activity_updates.items()
+            if data.get("_is_loop_control") and data.get("_status_overridden")
+        ]
+        for sid in stale_loop_ids:
+            del metadata.pending_activity_updates[sid]
 
         return terminal_scheduled_ids, timed_out_activities
 
@@ -1861,7 +1882,9 @@ class ActivitySyncService:
         # Don't regress terminal statuses — once skipped/completed/failed/cancelled,
         # later event processing (e.g. ACTIVITY_TASK_CANCELED after _sync_skipped_nodes)
         # must not overwrite. Check before querying to avoid wasted RPCs.
-        if existing.status in TERMINAL_ACTIVITY_STATUSES:
+        # Exception: loop iterations (_iter_N) reuse the same activity record across
+        # iterations, so each new iteration must be allowed to update the record.
+        if existing.status in TERMINAL_ACTIVITY_STATUSES and not activity_data.get("_is_loop_iteration"):
             return None
 
         # Query workflow for input/output data.
@@ -1871,6 +1894,19 @@ class ActivitySyncService:
         input_data, output_data = await self._query_activity_io(
             handle, activity_id, activity_data, activity_data.get("output_data")
         )
+
+        # Loop control nodes: keep the node "running" between iterations so the UI
+        # doesn't flash completed→pending on every cycle.  The final iteration
+        # populates iteration_results, so we only override intermediate ones.
+        # Body nodes (_is_loop_control=False) keep their real status per iteration.
+        if (
+            activity_data.get("_is_loop_control")
+            and activity_data.get("status") in TERMINAL_ACTIVITY_STATUSES
+            and isinstance(output_data, dict)
+            and output_data.get("iteration_results") is None
+        ):
+            activity_data["status"] = ActivityStatus.RUNNING
+            activity_data["_status_overridden"] = True
 
         # Update existing activity and track old values for patch generation
         old_values = self._update_activity_record(

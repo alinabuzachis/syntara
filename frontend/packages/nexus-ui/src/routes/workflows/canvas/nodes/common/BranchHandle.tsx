@@ -35,6 +35,7 @@ export function BranchHandle(
     isConnectable?: boolean
     nodeId?: string
     ariaLabel?: string
+    badge?: React.ReactNode
   }>
 ) {
   const approvalStyles = getApprovalBranchHandleStyles(props.id)
@@ -50,6 +51,7 @@ export function BranchHandle(
     >
       <div className={styles.branchHandleContent}>
         {props.children}
+        {props.badge}
         {isTaken && (
           <RhUiCheckIcon
             aria-hidden="true"

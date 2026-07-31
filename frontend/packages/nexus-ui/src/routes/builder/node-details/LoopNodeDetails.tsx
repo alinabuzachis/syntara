@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 
 import { useAlerts } from '../../../providers/alerts'
 import { useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
+import type { LoopFormData } from '../node-forms/LoopNodeForm'
 import { LoopNodeForm } from '../node-forms/LoopNodeForm'
 
 type LoopNodeDetailsProps = {
@@ -99,15 +100,7 @@ export function LoopNodeDetails({ loopData, nodeId, onClose, onHeaderContentChan
     })
   }
 
-  const handleSubmit = (data: {
-    name: string
-    type?: string
-    items?: string
-    condition?: string
-    maxIterations?: number
-    indexVariable?: string
-    itemVariable?: string
-  }) => {
+  const handleSubmit = (data: LoopFormData) => {
     try {
       if (!data.type || (data.type !== 'forEach' && data.type !== 'while')) {
         throw new Error('Invalid loop type')
@@ -128,6 +121,7 @@ export function LoopNodeDetails({ loopData, nodeId, onClose, onHeaderContentChan
         ...loopData,
         name: data.name,
         parameters: config,
+        settings: data.settings,
       } as LoopActivity
 
       updateActivity(nodeId, updatedActivity)
