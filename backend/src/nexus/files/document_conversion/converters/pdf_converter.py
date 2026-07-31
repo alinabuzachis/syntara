@@ -4,6 +4,7 @@ This module provides document conversion for PDF files to mark-down format
 using the pypdf library for text extraction.
 """
 
+import asyncio
 from io import BytesIO
 from typing import TYPE_CHECKING
 
@@ -36,12 +37,67 @@ class PDFConverter(DocumentConverter):
         """
         return ["application/pdf"]
 
+    def _convert_sync(self, file_content: bytes, mime_type: str) -> ConversionResult:
+        """Run the blocking pypdf extraction in a thread-safe manner.
+
+        Args:
+            file_content: Raw bytes content of the PDF document
+            mime_type: MIME type of the source file
+
+        Returns:
+            ConversionResult with converted markdown content
+
+        """
+        if mime_type != "application/pdf":
+            return ConversionResult.failure_result(
+                error_message=f"Unsupported MIME type: {mime_type}",
+                error_type="unsupported_format",
+                conversion_time_ms=0,
+            )
+
+        try:
+            reader = PdfReader(BytesIO(file_content))
+            page_count = len(reader.pages)
+            markdown_content = self._extract_text_as_markdown(reader)
+
+            if not markdown_content.strip():
+                return ConversionResult.failure_result(
+                    error_message="PDF appears to contain no extractable text (may be scanned images)",
+                    error_type="no_text_content",
+                    conversion_time_ms=0,
+                )
+
+            return ConversionResult.success_result(
+                converted_content=markdown_content,
+                conversion_time_ms=0,
+                metadata={
+                    "input_format": "pdf",
+                    "converter": "pypdf",
+                    "mime_type": mime_type,
+                    "page_count": page_count,
+                },
+            )
+
+        except (OSError, ValueError, RuntimeError) as e:
+            error_message = str(e)
+            error_type = self._classify_pdf_error(error_message)
+
+            return ConversionResult.failure_result(
+                error_message=error_message,
+                error_type=error_type,
+                conversion_time_ms=0,
+                metadata={"exception_type": type(e).__name__},
+            )
+
     async def convert(
         self,
         file_content: bytes,
         file_metadata: "FileMetadata",
     ) -> ConversionResult:
         """Convert PDF document content to markdown.
+
+        Runs pypdf in a thread pool so the event loop stays responsive
+        and asyncio.wait_for() can enforce timeouts.
 
         Args:
             file_content: Raw bytes content of the PDF document
@@ -59,48 +115,7 @@ class PDFConverter(DocumentConverter):
             assert result.converted_content
 
         """
-        # Verify MIME type
-        if file_metadata.mime_type != "application/pdf":
-            return ConversionResult.failure_result(
-                error_message=f"Unsupported MIME type: {file_metadata.mime_type}",
-                error_type="unsupported_format",
-                conversion_time_ms=0,
-            )
-
-        try:
-            # Extract text using pypdf
-            reader = PdfReader(BytesIO(file_content))
-            page_count = len(reader.pages)
-            markdown_content = self._extract_text_as_markdown(reader)
-
-            if not markdown_content.strip():
-                return ConversionResult.failure_result(
-                    error_message="PDF appears to contain no extractable text (may be scanned images)",
-                    error_type="no_text_content",
-                    conversion_time_ms=0,
-                )
-
-            return ConversionResult.success_result(
-                converted_content=markdown_content,
-                conversion_time_ms=0,  # Timing handled by base class
-                metadata={
-                    "input_format": "pdf",
-                    "converter": "pypdf",
-                    "mime_type": file_metadata.mime_type,
-                    "page_count": page_count,
-                },
-            )
-
-        except (OSError, ValueError, RuntimeError) as e:
-            error_message = str(e)
-            error_type = self._classify_pdf_error(error_message)
-
-            return ConversionResult.failure_result(
-                error_message=error_message,
-                error_type=error_type,
-                conversion_time_ms=0,
-                metadata={"exception_type": type(e).__name__},
-            )
+        return await asyncio.to_thread(self._convert_sync, file_content, file_metadata.mime_type)
 
     def _extract_text_as_markdown(self, reader: PdfReader) -> str:
         """Extract text from PDF document and format as markdown.

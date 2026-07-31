@@ -4,8 +4,9 @@ These tests verify that service methods correctly dispatch domain events
 which are then converted to AuditEvents by the registered handlers.
 """
 
+from collections.abc import Generator
 from typing import TYPE_CHECKING, cast
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from uuid import uuid4
 
 import pytest
@@ -167,6 +168,19 @@ class TestFileManagerAuditEvents:
 
 class TestDocumentConversionServiceAuditEvents:
     """Tests for audit event emission from DocumentConversionService.convert_file()."""
+
+    @pytest.fixture(autouse=True)
+    def _mock_conversion_config(self) -> Generator[MagicMock]:
+        """Patch ConversionConfig.from_settings so convert_file() doesn't hit SettingsCache."""
+        mock_config = MagicMock()
+        mock_config.overwrite_existing = True
+        mock_config.timeout_seconds = 30
+        mock_config.temp_dir = "/tmp/nexus-test"  # noqa: S108
+        with patch(
+            "nexus.files.document_conversion.services.document_conversion_service.ConversionConfig.from_settings",
+            return_value=mock_config,
+        ):
+            yield mock_config
 
     def setup_method(self) -> None:
         """Register files audit handlers before each test."""

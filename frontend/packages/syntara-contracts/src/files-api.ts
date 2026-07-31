@@ -44,6 +44,26 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/files/{file_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get File Details
+     * @description Retrieve metadata and conversion status for a single file by its ID. Use this endpoint to poll for conversion status after upload.
+     */
+    get: operations['get_file_details']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/files/{file_id}/download': {
     parameters: {
       query?: never
@@ -140,6 +160,45 @@ export interface components {
       mime_type: string
       /** @description Processing status (pending_conversion) */
       status: components['schemas']['FileStatus']
+    }
+    /**
+     * FileDetailResponse
+     * @description Response model for GET /api/v1/files/{file_id} endpoint.
+     */
+    FileDetailResponse: {
+      /**
+       * File ID
+       * Format: uuid
+       * @description Unique file identifier (UUID)
+       * @example 550e8400-e29b-41d4-a716-446655440000
+       */
+      file_id: string
+      /**
+       * Filename
+       * @description Original filename from upload
+       * @example document.pdf
+       */
+      filename: string
+      /**
+       * Size Bytes
+       * @description File size in bytes
+       * @example 524288
+       */
+      size_bytes: number
+      /**
+       * MIME Type
+       * @description Detected MIME type of the file
+       * @example application/pdf
+       */
+      mime_type: string
+      /** @description Current processing status */
+      status: components['schemas']['FileStatus']
+      /**
+       * Conversion Error
+       * @description Error message if conversion failed
+       * @example null
+       */
+      conversion_error?: string | null
     }
     /**
      * FilesMetadataResponse
@@ -437,6 +496,37 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['FilesMetadataResponse']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      429: components['responses']['RateLimitError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  get_file_details: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description UUID of the file */
+        file_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['FileDetailResponse']
         }
       }
       400: components['responses']['BadRequestError']

@@ -4,7 +4,8 @@ This module tests the main document conversion service that coordinates
 conversion operations with FileMetadata integration and status management.
 """
 
-from unittest.mock import AsyncMock, MagicMock
+from collections.abc import Generator
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -18,6 +19,20 @@ from nexus.files.document_conversion.services.document_conversion_service import
     DocumentConversionService,
 )
 from nexus.files.models import FileMetadata, FileStatus
+
+
+@pytest.fixture(autouse=True)
+def mock_conversion_config() -> Generator[MagicMock]:
+    """Patch ConversionConfig.from_settings for all service tests."""
+    mock_config = MagicMock()
+    mock_config.overwrite_existing = True
+    mock_config.timeout_seconds = 30
+    mock_config.temp_dir = "/tmp/nexus-test"  # noqa: S108
+    with patch(
+        "nexus.files.document_conversion.services.document_conversion_service.ConversionConfig.from_settings",
+        return_value=mock_config,
+    ):
+        yield mock_config
 
 
 class ConversionTestHelper:
@@ -325,6 +340,66 @@ class TestDocumentConversionServiceStatusUpdates:
         assert final_metadata.status == FileStatus.CONVERSION_FAILED
         assert final_metadata.conversion_error is not None
         assert "Unsupported MIME type" in final_metadata.conversion_error
+
+
+class TestDocumentConversionServiceOverwriteExisting:
+    """Test DocumentConversionService overwrite_existing setting."""
+
+    @pytest.mark.asyncio
+    async def test_skips_conversion_when_overwrite_disabled_and_already_converted(
+        self, mock_conversion_config: MagicMock, conversion_helper: ConversionTestHelper
+    ) -> None:
+        """Test that conversion is skipped when overwrite_existing=False and file already has converted content."""
+        mock_conversion_config.overwrite_existing = False
+
+        file_metadata = create_file_metadata(
+            filename="already_converted.pdf",
+            converted_content_path="/output/already_converted.md",
+        )
+
+        conversion_state = await conversion_helper.service.convert_file(file_metadata, conversion_helper.status_updater)
+
+        assert conversion_state == ConversionState.SKIPPED
+        assert file_metadata.status == FileStatus.CONVERTED
+        conversion_helper.status_updater.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_proceeds_when_overwrite_enabled_and_already_converted(
+        self, mock_conversion_config: MagicMock, conversion_helper: ConversionTestHelper
+    ) -> None:
+        """Test that conversion proceeds when overwrite_existing=True even if file already has converted content."""
+        mock_conversion_config.overwrite_existing = True
+
+        file_metadata = create_file_metadata(
+            filename="reconvert.pdf",
+            converted_content_path="/output/reconvert.md",
+        )
+
+        conversion_helper.setup_file_loading(b"PDF content")
+        conversion_helper.setup_converter("PDFConverter", create_success_result("# Reconverted", 500))
+        conversion_helper.setup_file_storage("/output/reconvert.md")
+
+        conversion_state = await conversion_helper.service.convert_file(file_metadata, conversion_helper.status_updater)
+
+        assert conversion_state == ConversionState.SUCCESS
+        assert file_metadata.status == FileStatus.CONVERTED
+
+    @pytest.mark.asyncio
+    async def test_proceeds_when_overwrite_disabled_and_no_existing_conversion(
+        self, mock_conversion_config: MagicMock, conversion_helper: ConversionTestHelper
+    ) -> None:
+        """Test that conversion proceeds when overwrite_existing=False but file has no existing converted content."""
+        mock_conversion_config.overwrite_existing = False
+
+        file_metadata = create_file_metadata(filename="new_file.pdf")
+
+        conversion_helper.setup_file_loading(b"PDF content")
+        conversion_helper.setup_converter("PDFConverter", create_success_result("# Converted", 500))
+        conversion_helper.setup_file_storage("/output/new_file.md")
+
+        conversion_state = await conversion_helper.service.convert_file(file_metadata, conversion_helper.status_updater)
+
+        assert conversion_state == ConversionState.SUCCESS
 
 
 class TestDocumentConversionServiceErrorHandling:

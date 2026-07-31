@@ -2,12 +2,15 @@
 
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
 from nexus.files.document_conversion.converters.ms_word_converter import (
     MSWordConverter,
+)
+from nexus.files.document_conversion.models.conversion_result import (
+    ConversionResult,
 )
 from nexus.files.models import FileMetadata
 
@@ -59,6 +62,28 @@ class TestMSWordConverterMimeTypeSupport:
 
         for mime_type in unsupported_types:
             assert converter.supports_mime_type(mime_type) is False
+
+
+class TestMSWordConverterThreadOffloading:
+    """Test that MSWordConverter offloads blocking work to a thread pool."""
+
+    @pytest.mark.asyncio
+    @patch("nexus.files.document_conversion.converters.ms_word_converter.asyncio.to_thread")
+    async def test_convert_runs_in_thread_pool(self, mock_to_thread: AsyncMock) -> None:
+        """Test that convert() offloads sync work via asyncio.to_thread."""
+        file_metadata = Mock()
+        file_metadata.mime_type = "application/msword"
+        file_metadata.filename = "test.doc"
+
+        mock_to_thread.return_value = ConversionResult.success_result("# Test", 0)
+
+        converter = MSWordConverter()
+        result = await converter.convert(b"test content", file_metadata)
+
+        mock_to_thread.assert_called_once_with(
+            converter._convert_sync, b"test content", "application/msword", "test.doc"
+        )
+        assert result.success is True
 
 
 class TestMSWordConverterConversion:

@@ -1,6 +1,7 @@
 """Test for DocumentConverter abstract base class."""
 
 import asyncio
+import time
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -126,6 +127,44 @@ class TestDocumentConverterTimingBehavior:
 
         assert result.success is True
         assert result.converted_content is not None
+
+
+class ThreadedBlockingConverter(DocumentConverter):
+    """Test converter that offloads a blocking call to a thread, allowing timeout to fire."""
+
+    def supported_mime_types(self) -> list[str]:
+        """Return test MIME types."""
+        return ["test/blocking"]
+
+    async def convert(self, _file_content: bytes, _file_metadata) -> ConversionResult:
+        """Simulate a blocking conversion offloaded to a thread."""
+        return await asyncio.to_thread(self._convert_sync)
+
+    @staticmethod
+    def _convert_sync() -> ConversionResult:
+        time.sleep(5)
+        return ConversionResult.success_result("Blocking conversion result", 5000)
+
+
+class TestDocumentConverterTimeoutWithBlockingConverter:
+    """Test that timeout works when a converter offloads blocking work to a thread."""
+
+    @patch("nexus.files.document_conversion.models.conversion_config.ConversionConfig.from_settings")
+    @pytest.mark.asyncio
+    async def test_timeout_fires_for_threaded_blocking_conversion(self, mock_from_settings: AsyncMock) -> None:
+        """Test that asyncio.wait_for can cancel a blocking conversion running in a thread."""
+        mock_config = Mock()
+        mock_config.timeout_seconds = 1
+        mock_from_settings.return_value = mock_config
+
+        converter = ThreadedBlockingConverter()
+        file_metadata = Mock()
+
+        result = await converter.convert_with_timeout(b"test content", file_metadata)
+
+        assert result.success is False
+        assert result.error_type == "timeout"
+        assert result.conversion_time_ms >= 900
 
 
 class TestDocumentConverterMimeTypeHandling:

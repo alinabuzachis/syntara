@@ -141,6 +141,52 @@ paths:
       security:
         - bearerAuth: []
 
+  /files/{file_id}:
+    get:
+      summary: Get File Details
+      description: |-
+        Retrieve metadata and conversion status for a single file by its ID. Use this endpoint to poll for conversion status after upload.
+      operationId: get_file_details
+      tags:
+        - Files
+      parameters:
+        - name: file_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: File Id
+          description: UUID of the file
+      x-app-permission:
+        resource: files
+        action: download
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileDetailResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '429':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+
   /files/{file_id}/download:
     get:
       summary: Download file
@@ -280,6 +326,54 @@ components:
         status:
           $ref: '#/components/schemas/FileStatus'
           description: Processing status (pending_conversion)
+
+    FileDetailResponse:
+      type: object
+      title: FileDetailResponse
+      description: Response model for GET /api/v1/files/{file_id} endpoint.
+      required:
+        - file_id
+        - filename
+        - size_bytes
+        - mime_type
+        - status
+      properties:
+        file_id:
+          type: string
+          format: uuid
+          title: File ID
+          description: Unique file identifier (UUID)
+          examples:
+            - 550e8400-e29b-41d4-a716-446655440000
+        filename:
+          type: string
+          title: Filename
+          description: Original filename from upload
+          examples:
+            - document.pdf
+        size_bytes:
+          type: integer
+          title: Size Bytes
+          description: File size in bytes
+          examples:
+            - 524288
+        mime_type:
+          type: string
+          title: MIME Type
+          description: Detected MIME type of the file
+          examples:
+            - application/pdf
+        status:
+          $ref: '#/components/schemas/FileStatus'
+          description: Current processing status
+        conversion_error:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Conversion Error
+          description: Error message if conversion failed
+          examples:
+            - null
 
     FilesMetadataResponse:
       type: object

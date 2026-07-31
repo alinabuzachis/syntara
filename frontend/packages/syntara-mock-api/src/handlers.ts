@@ -3539,6 +3539,33 @@ export const handlers = [
     return HttpResponse.json({ files })
   }),
 
+  http.get('/api/v1/files/:file_id', ({ params }) => {
+    const fileId = String(params.file_id)
+    const uploaded = mockUploadedFiles.get(fileId)
+    if (uploaded) {
+      return HttpResponse.json({
+        file_id: fileId,
+        filename: uploaded.filename,
+        size_bytes: uploaded.content.byteLength,
+        mime_type: uploaded.mime_type,
+        status: 'converted',
+        conversion_error: null,
+      })
+    }
+    const known = knownFileMetadata[fileId]
+    if (known) {
+      return HttpResponse.json({
+        file_id: fileId,
+        filename: known.filename,
+        size_bytes: known.size_bytes,
+        mime_type: known.mime_type ?? 'text/plain',
+        status: 'converted',
+        conversion_error: null,
+      })
+    }
+    return new HttpResponse(null, { status: 404 })
+  }),
+
   http.get('/api/v1/files/:file_id/download', ({ params }) => {
     const fileId = String(params.file_id)
     const uploaded = mockUploadedFiles.get(fileId)

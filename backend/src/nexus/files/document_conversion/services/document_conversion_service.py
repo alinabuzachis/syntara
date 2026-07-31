@@ -14,6 +14,7 @@ import structlog
 from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.core.exceptions import SafeValueError
 from nexus.files.audit.file_converted import ConversionStateAudit, FileConvertedEvent
+from nexus.files.document_conversion.models.conversion_config import ConversionConfig
 from nexus.files.document_conversion.registry import (
     ConverterRegistry,
     get_converter_registry,
@@ -203,6 +204,27 @@ class DocumentConversionService:
                 status=file_metadata.status,
             )
             # Dispatch audit event for skipped conversion
+            AuditEventDispatcher.dispatch(
+                FileConvertedEvent(
+                    file_id=file_metadata.id,
+                    filename=file_metadata.filename,
+                    mime_type=file_metadata.mime_type,
+                    size_bytes=file_metadata.size_bytes,
+                    conversion_state=ConversionStateAudit.SKIPPED,
+                )
+            )
+            return ConversionState.SKIPPED
+
+        # Check overwrite_existing setting
+        config = await ConversionConfig.from_settings()
+        if not config.overwrite_existing and file_metadata.converted_content_path is not None:
+            logger.info(
+                "Skipping conversion, file already converted and overwrite_existing is disabled",
+                filename=file_metadata.filename,
+                converted_content_path=file_metadata.converted_content_path,
+            )
+            file_metadata.status = FileStatus.CONVERTED
+            await status_updater(file_metadata)
             AuditEventDispatcher.dispatch(
                 FileConvertedEvent(
                     file_id=file_metadata.id,

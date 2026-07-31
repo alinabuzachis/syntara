@@ -4,6 +4,7 @@ This module provides document conversion for Microsoft Word documents
 using the pypandoc library with pandoc backend.
 """
 
+import asyncio
 import tempfile
 from contextlib import suppress
 from pathlib import Path
@@ -44,12 +45,90 @@ class MSWordConverter(DocumentConverter):
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  # .docx files
         ]
 
+    def _convert_sync(self, file_content: bytes, mime_type: str, filename: str) -> ConversionResult:
+        """Run the blocking pypandoc conversion in a thread-safe manner.
+
+        Args:
+            file_content: Raw bytes content of the document
+            mime_type: MIME type of the source file
+            filename: Original filename for logging
+
+        Returns:
+            ConversionResult with converted markdown content
+
+        """
+        input_format = self._get_pandoc_format(mime_type)
+        if not input_format:
+            return ConversionResult.failure_result(
+                error_message=f"Unsupported MIME type: {mime_type}",
+                error_type="unsupported_format",
+                conversion_time_ms=0,
+            )
+
+        temp_input_path = None
+        try:
+            file_extension = self._get_file_extension(mime_type)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
+                temp_file.write(file_content)
+                temp_input_path = temp_file.name
+
+            converted_content = pypandoc.convert_file(
+                temp_input_path,
+                "markdown",
+                format=input_format,
+                extra_args=["--wrap=none"],
+            )
+
+            return ConversionResult.success_result(
+                converted_content=converted_content,
+                conversion_time_ms=0,
+                metadata={"input_format": input_format, "converter": "pypandoc", "mime_type": mime_type},
+            )
+
+        except RuntimeError as e:
+            error_message = str(e)
+            error_type = self._classify_pypandoc_error(error_message)
+
+            return ConversionResult.failure_result(
+                error_message=error_message,
+                error_type=error_type,
+                conversion_time_ms=0,
+            )
+
+        except MemoryError:
+            return ConversionResult.failure_result(
+                error_message="Insufficient memory to process document",
+                error_type="memory_exhausted",
+                conversion_time_ms=0,
+            )
+
+        except (OSError, ValueError) as e:
+            error_message = "Unexpected error during document conversion."
+            logger.exception(
+                error_message,
+                filename=filename,
+            )
+            return ConversionResult.failure_result(
+                error_message=error_message,
+                error_type="conversion_error",
+                conversion_time_ms=0,
+                metadata={"exception_type": type(e).__name__},
+            )
+
+        finally:
+            if temp_input_path and Path(temp_input_path).exists():
+                with suppress(OSError):
+                    Path(temp_input_path).unlink()
+
     async def convert(
         self,
         file_content: bytes,
         file_metadata: "FileMetadata",
     ) -> ConversionResult:
         """Convert Word document content to markdown.
+
+        Runs pypandoc in a thread pool so the event loop stays responsive
+        and asyncio.wait_for() can enforce timeouts.
 
         Args:
             file_content: Raw bytes content of the document
@@ -67,73 +146,9 @@ class MSWordConverter(DocumentConverter):
             assert result.converted_content.startswith("#")
 
         """
-        # Determine input format from MIME type
-        input_format = self._get_pandoc_format(file_metadata.mime_type)
-        if not input_format:
-            return ConversionResult.failure_result(
-                error_message=f"Unsupported MIME type: {file_metadata.mime_type}",
-                error_type="unsupported_format",
-                conversion_time_ms=0,
-            )
-
-        # Write content to temporary file for pypandoc processing
-        temp_input_path = None
-        try:
-            # Create temporary file with appropriate extension
-            file_extension = self._get_file_extension(file_metadata.mime_type)
-            with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
-                temp_file.write(file_content)
-                temp_input_path = temp_file.name
-
-            # Convert using pypandoc
-            converted_content = pypandoc.convert_file(
-                temp_input_path,
-                "markdown",
-                format=input_format,
-                extra_args=["--wrap=none"],  # Prevent line wrapping issues
-            )
-
-            return ConversionResult.success_result(
-                converted_content=converted_content,
-                conversion_time_ms=0,  # Timing handled by base class
-                metadata={"input_format": input_format, "converter": "pypandoc", "mime_type": file_metadata.mime_type},
-            )
-
-        except RuntimeError as e:
-            error_message = str(e)
-            error_type = self._classify_pypandoc_error(error_message)
-
-            return ConversionResult.failure_result(
-                error_message=error_message,
-                error_type=error_type,
-                conversion_time_ms=0,  # Timing handled by base class
-            )
-
-        except MemoryError:
-            return ConversionResult.failure_result(
-                error_message="Insufficient memory to process document",
-                error_type="memory_exhausted",
-                conversion_time_ms=0,
-            )
-
-        except (OSError, ValueError) as e:
-            error_message = "Unexpected error during document conversion."
-            logger.exception(
-                error_message,
-                filename=file_metadata.filename,
-            )
-            return ConversionResult.failure_result(
-                error_message=error_message,
-                error_type="conversion_error",
-                conversion_time_ms=0,
-                metadata={"exception_type": type(e).__name__},
-            )
-
-        finally:
-            # Clean up temporary file
-            if temp_input_path and Path(temp_input_path).exists():
-                with suppress(OSError):
-                    Path(temp_input_path).unlink()
+        return await asyncio.to_thread(
+            self._convert_sync, file_content, file_metadata.mime_type, file_metadata.filename
+        )
 
     def _get_pandoc_format(self, mime_type: str) -> str:
         """Determine pandoc input format from MIME type.

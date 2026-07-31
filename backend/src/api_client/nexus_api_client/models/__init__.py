@@ -135,6 +135,7 @@ __all__ = (
     "ExecutionReadInputData",
     "ExecutionReadLabels",
     "ExecutionStatus",
+    "FileDetailResponse",
     "FilesMetadataResponse",
     "FileStatus",
     "FileUploadInfo",

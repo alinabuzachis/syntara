@@ -1,12 +1,15 @@
 """Test for PDFConverter functionality."""
 
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
 from nexus.files.document_conversion.converters.pdf_converter import (
     PDFConverter,
+)
+from nexus.files.document_conversion.models.conversion_result import (
+    ConversionResult,
 )
 from nexus.files.models import FileMetadata
 
@@ -43,6 +46,25 @@ class TestPDFConverterMimeTypeSupport:
 
         for mime_type in unsupported_types:
             assert converter.supports_mime_type(mime_type) is False
+
+
+class TestPDFConverterThreadOffloading:
+    """Test that PDFConverter offloads blocking work to a thread pool."""
+
+    @pytest.mark.asyncio
+    @patch("nexus.files.document_conversion.converters.pdf_converter.asyncio.to_thread")
+    async def test_convert_runs_in_thread_pool(self, mock_to_thread: AsyncMock) -> None:
+        """Test that convert() offloads sync work via asyncio.to_thread."""
+        file_metadata = Mock()
+        file_metadata.mime_type = "application/pdf"
+
+        mock_to_thread.return_value = ConversionResult.success_result("# PDF content", 0)
+
+        converter = PDFConverter()
+        result = await converter.convert(b"pdf content", file_metadata)
+
+        mock_to_thread.assert_called_once_with(converter._convert_sync, b"pdf content", "application/pdf")
+        assert result.success is True
 
 
 class TestPDFConverterConversion:

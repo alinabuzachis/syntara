@@ -236,6 +236,23 @@ _files_perm_download = PermissionChecker(
 )
 
 
+class FileDetailResponse(BaseModel):
+    """Response model for GET /api/v1/files/{file_id} endpoint."""
+
+    file_id: UUID = Field(
+        title="File ID", description="Unique file identifier (UUID)", examples=["550e8400-e29b-41d4-a716-446655440000"]
+    )
+    filename: str = Field(description="Original filename from upload", examples=["document.pdf"])
+    size_bytes: int = Field(description="File size in bytes", examples=[524288])
+    mime_type: str = Field(
+        title="MIME Type", description="Detected MIME type of the file", examples=["application/pdf"]
+    )
+    status: FileStatus = Field(description="Current processing status")
+    conversion_error: str | None = Field(
+        default=None, description="Error message if conversion failed", examples=[None]
+    )
+
+
 class FilesMetadataResponse(BaseModel):
     """Response model for GET /files/metadata endpoint."""
 
@@ -356,4 +373,48 @@ async def download_file(
             "content-disposition": f'attachment; filename="{safe_name}"',
             "x-content-type-options": "nosniff",
         },
+    )
+
+
+@router.get(
+    "/{file_id}",
+    summary="Get File Details",
+    description="Retrieve metadata and conversion status for a single file by its ID. "
+    "Use this endpoint to poll for conversion status after upload.",
+    dependencies=[Depends(_files_perm_download)],
+    operation_id="get_file_details",
+)
+async def get_file_details(
+    file_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    file_manager: Annotated[FileManager, Depends(get_file_manager)],
+) -> FileDetailResponse:
+    """Retrieve metadata and conversion status for a single file.
+
+    Args:
+        file_id: UUID of the file
+        db: Database session
+        file_manager: FileManager instance
+
+    Returns:
+        FileDetailResponse with file metadata, status, and any conversion error
+
+    Raises:
+        HTTPException: 404 if file not found
+
+    """
+    metadata = await file_manager.get_file_metadata(file_id, db)
+    if metadata is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="The requested file could not be found",
+        )
+
+    return FileDetailResponse(
+        file_id=metadata.id,
+        filename=metadata.filename,
+        size_bytes=metadata.size_bytes,
+        mime_type=metadata.mime_type,
+        status=metadata.status,
+        conversion_error=metadata.conversion_error,
     )
