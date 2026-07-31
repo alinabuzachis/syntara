@@ -1,4 +1,22 @@
-"""Test MCP server implementations using FastMCP for integration testing."""
+"""Test MCP server implementations using FastMCP for integration testing.
+
+Extension mechanism
+-------------------
+Use :func:`create_mcp_app` to build an MCP server pre-loaded with your own
+tools, without subclassing or forking ``ExampleMCPServer``::
+
+    from orchestrator_test_sdk.app.mcp_servers import create_mcp_app
+
+    def my_tool(x: int, y: int) -> int:
+        \"\"\"Multiply two numbers.\"\"\"
+        return x * y
+
+    server = create_mcp_app([my_tool], host="0.0.0.0", port=9000)
+
+``server`` is an :class:`ExampleMCPServer` instance ready to be started with
+``await server.start()`` or used as a context manager via ``async with
+server.running()``.
+"""
 
 # Re-exported from the canonical location for discoverability.
 # The implementation lives here; orchestrator_test_sdk.fixtures.example_mcp_server is a shim.
@@ -6,7 +24,7 @@
 import asyncio
 import logging
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager, suppress
 from typing import Any
 
@@ -195,6 +213,35 @@ class ExampleMCPServer(BaseServer):
         async def health_check(_request: Request) -> PlainTextResponse:
             """Health check endpoint."""
             return PlainTextResponse("OK")
+
+
+def create_mcp_app(
+    tools: list[Callable[..., Any]],
+    *,
+    host: str = "localhost",
+    port: int = 0,
+    auth: AuthProvider | None = None,
+) -> ExampleMCPServer:
+    """Build an MCP server pre-loaded with custom *tools*.
+
+    Creates an :class:`ExampleMCPServer` (with the built-in example tools and
+    health check) and registers each callable in *tools* as an additional MCP
+    tool.
+
+    Args:
+        tools: Callable tool functions to register with FastMCP.
+        host: Hostname to bind to.
+        port: Port to bind to (0 = pick a free port).
+        auth: Optional FastMCP auth provider.
+
+    Returns:
+        A configured :class:`ExampleMCPServer` ready to start.
+
+    """
+    server = ExampleMCPServer(host=host, port=port, auth=auth)
+    for tool_fn in tools:
+        server.mcp_app.tool(tool_fn)
+    return server
 
 
 class ForbiddenMCPServer(BaseServer):

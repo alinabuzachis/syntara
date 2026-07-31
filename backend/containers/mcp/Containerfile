@@ -34,6 +34,11 @@ RUN chown -R 1001:0 /opt/app-root && \
 # Switch back to non-root user (UBI default user)
 USER 1001
 
+# OCI container labels
+LABEL io.orchestrator.description="Orchestrator MCP development and testing server" \
+      io.orchestrator.use-case="development" \
+      io.orchestrator.mcp-protocol-version="2025-03-26"
+
 # Expose MCP server port
 EXPOSE 8765
 
