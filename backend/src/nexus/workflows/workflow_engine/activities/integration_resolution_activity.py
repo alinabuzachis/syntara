@@ -93,7 +93,7 @@ async def _resolve_integration(session: AsyncSession, integration_id: str) -> di
         msg = f"Integration '{integration_id}' has invalid configuration type"
         raise ApplicationError(msg, non_retryable=True)
 
-    base_url = config.aap_url.rstrip("/")
+    base_url = config.base_url.rstrip("/")
     verify_ssl = not config.insecure_skip_tls_verify
 
     logger.info(

@@ -130,7 +130,7 @@ def _aap_create(name: str | None = None, management_credential_id: UUID | None =
         name=name or unique_name("e2e-aap"),
         integration_type=IntegrationType.ANSIBLE_AUTOMATION_PLATFORM,
         configuration=AAPConfiguration(
-            aap_url="https://gateway.example.com",
+            base_url="https://gateway.example.com",
             insecure_skip_tls_verify=False,
         ),
         management_credential_id=management_credential_id,

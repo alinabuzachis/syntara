@@ -71,12 +71,12 @@ class TestIntegrationConfigurationModels:
         assert config.provider_hint == "red_hat_ai"
 
     def test_aap_configuration(self) -> None:
-        config = AAPConfiguration(aap_url="https://gateway.example.com")
+        config = AAPConfiguration(base_url="https://gateway.example.com")
         assert config.integration_type == "ansible_automation_platform"
         assert config.insecure_skip_tls_verify is False
 
     def test_aap_configuration_skip_tls_verify(self) -> None:
-        config = AAPConfiguration(aap_url="https://gateway.example.com", insecure_skip_tls_verify=True)
+        config = AAPConfiguration(base_url="https://gateway.example.com", insecure_skip_tls_verify=True)
         assert config.insecure_skip_tls_verify is True
 
     def test_mcp_server_rejects_extra_fields(self) -> None:
@@ -89,7 +89,7 @@ class TestIntegrationConfigurationModels:
 
     def test_aap_rejects_extra_fields(self) -> None:
         with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
-            AAPConfiguration(aap_url="https://gw.example.com", extra_field="val")
+            AAPConfiguration(base_url="https://gw.example.com", extra_field="val")
 
 
 class TestIntegrationSecurityMixin:
@@ -109,7 +109,7 @@ class TestIntegrationSecurityMixin:
         assert config.ca_certificate is None
 
     def test_aap_defaults_secure(self) -> None:
-        config = AAPConfiguration(aap_url="https://gateway.example.com")
+        config = AAPConfiguration(base_url="https://gateway.example.com")
         assert config.allow_http is False
         assert config.insecure_skip_tls_verify is False
         assert config.ca_certificate is None
@@ -126,26 +126,26 @@ class TestIntegrationSecurityMixin:
             MCPServerConfiguration(base_url="http://remote.example.com:8080")
 
     def test_aap_allow_http(self) -> None:
-        config = AAPConfiguration(aap_url="http://gateway.example.com", allow_http=True)
+        config = AAPConfiguration(base_url="http://gateway.example.com", allow_http=True)
         assert config.allow_http is True
-        assert config.aap_url == "http://gateway.example.com"
+        assert config.base_url == "http://gateway.example.com"
 
     def test_aap_ca_certificate(self, sample_ca_cert: str) -> None:
-        config = AAPConfiguration(aap_url="https://gateway.example.com", ca_certificate=sample_ca_cert)
+        config = AAPConfiguration(base_url="https://gateway.example.com", ca_certificate=sample_ca_cert)
         assert config.ca_certificate == sample_ca_cert.strip()
 
     def test_ca_certificate_rejects_arbitrary_text(self) -> None:
         with pytest.raises(ValidationError, match="BEGIN CERTIFICATE"):
-            AAPConfiguration(aap_url="https://gateway.example.com", ca_certificate="not-a-cert")
+            AAPConfiguration(base_url="https://gateway.example.com", ca_certificate="not-a-cert")
 
     def test_ca_certificate_rejects_invalid_pem_data(self) -> None:
         invalid_pem = "-----BEGIN CERTIFICATE-----\ninvalid\n-----END CERTIFICATE-----"
         with pytest.raises(ValidationError, match="invalid PEM data"):
-            AAPConfiguration(aap_url="https://gateway.example.com", ca_certificate=invalid_pem)
+            AAPConfiguration(base_url="https://gateway.example.com", ca_certificate=invalid_pem)
 
     @pytest.mark.parametrize("blank", [None, "", "   ", "  \n  "])
     def test_ca_certificate_none_for_empty_or_whitespace(self, blank: str | None) -> None:
-        config = AAPConfiguration(aap_url="https://gateway.example.com", ca_certificate=blank)
+        config = AAPConfiguration(base_url="https://gateway.example.com", ca_certificate=blank)
         assert config.ca_certificate is None
 
     def test_llm_insecure_skip_tls(self) -> None:
@@ -163,7 +163,7 @@ class TestIntegrationSecurityMixin:
     def test_security_fields_round_trip_via_model_dump(self, sample_ca_cert: str) -> None:
         """Security fields survive model_dump/model_validate round-trip."""
         config = AAPConfiguration(
-            aap_url="https://gw.example.com",
+            base_url="https://gw.example.com",
             allow_http=True,
             insecure_skip_tls_verify=False,
             ca_certificate=sample_ca_cert,
@@ -177,7 +177,7 @@ class TestIntegrationSecurityMixin:
     def test_insecure_skip_nullifies_ca_certificate_aap(self, sample_ca_cert: str) -> None:
         """ca_certificate is normalized to None when insecure_skip_tls_verify is True."""
         config = AAPConfiguration(
-            aap_url="https://gw.example.com",
+            base_url="https://gw.example.com",
             insecure_skip_tls_verify=True,
             ca_certificate=sample_ca_cert,
         )
@@ -202,7 +202,7 @@ class TestIntegrationSecurityMixin:
 
     def test_ca_certificate_preserved_when_verify_enabled(self, sample_ca_cert: str) -> None:
         config = AAPConfiguration(
-            aap_url="https://gw.example.com",
+            base_url="https://gw.example.com",
             insecure_skip_tls_verify=False,
             ca_certificate=sample_ca_cert,
         )
@@ -210,7 +210,7 @@ class TestIntegrationSecurityMixin:
 
     def test_insecure_skip_without_ca_cert_is_noop(self) -> None:
         config = AAPConfiguration(
-            aap_url="https://gw.example.com",
+            base_url="https://gw.example.com",
             insecure_skip_tls_verify=True,
             ca_certificate=None,
         )
@@ -255,23 +255,23 @@ class TestURLValidation:
 
     def test_aap_rejects_http(self) -> None:
         with pytest.raises(ValidationError, match="scheme must be"):
-            AAPConfiguration(aap_url="http://gateway.example.com")
+            AAPConfiguration(base_url="http://gateway.example.com")
 
     def test_aap_rejects_url_with_query(self) -> None:
         with pytest.raises(ValidationError, match="must not contain a query"):
-            AAPConfiguration(aap_url="https://gateway.example.com?token=abc")
+            AAPConfiguration(base_url="https://gateway.example.com?token=abc")
 
     def test_aap_rejects_url_with_path(self) -> None:
         with pytest.raises(ValidationError, match="must not contain a path"):
-            AAPConfiguration(aap_url="https://evil.com/foo/bar/")
+            AAPConfiguration(base_url="https://evil.com/foo/bar/")
 
     def test_aap_rejects_url_with_path_and_query(self) -> None:
         with pytest.raises(ValidationError, match="must not contain"):
-            AAPConfiguration(aap_url="https://evil.com/foo/?")
+            AAPConfiguration(base_url="https://evil.com/foo/?")
 
     def test_aap_accepts_https(self) -> None:
-        config = AAPConfiguration(aap_url="https://gateway.example.com")
-        assert config.aap_url == "https://gateway.example.com"
+        config = AAPConfiguration(base_url="https://gateway.example.com")
+        assert config.base_url == "https://gateway.example.com"
 
     def test_mcp_server_accepts_http_and_https(self) -> None:
         http = MCPServerConfiguration(base_url="http://localhost:8080")
@@ -312,7 +312,7 @@ class TestIntegrationCreate:
         data = IntegrationCreate(
             name="My Gateway",
             integration_type=IntegrationType.ANSIBLE_AUTOMATION_PLATFORM,
-            configuration={"integration_type": "ansible_automation_platform", "aap_url": "https://gw.example.com"},
+            configuration={"integration_type": "ansible_automation_platform", "base_url": "https://gw.example.com"},
         )
         assert data.integration_type == IntegrationType.ANSIBLE_AUTOMATION_PLATFORM
 

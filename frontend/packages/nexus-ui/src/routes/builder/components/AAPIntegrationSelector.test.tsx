@@ -42,12 +42,12 @@ const mockIntegrations = [
   {
     id: 'int-aap-1',
     name: 'AAP Production',
-    configuration: { aap_url: 'https://aap.example.com' },
+    configuration: { base_url: 'https://aap.example.com' },
   },
   {
     id: 'int-aap-2',
     name: 'AAP Staging',
-    configuration: { aap_url: 'https://aap-staging.example.com' },
+    configuration: { base_url: 'https://aap-staging.example.com' },
   },
 ]
 
@@ -267,7 +267,7 @@ describe('AAPIntegrationSelector', () => {
   it('renders integration without URL', async () => {
     const user = userEvent.setup()
     mockClients({
-      integrations: [{ id: 'int-no-url', name: 'AAP No URL', configuration: { aap_url: '' } }],
+      integrations: [{ id: 'int-no-url', name: 'AAP No URL', configuration: { base_url: '' } }],
     })
     renderSelector()
 
@@ -303,8 +303,8 @@ describe('AAPIntegrationSelector', () => {
   it('filters out integrations without id', () => {
     mockClients({
       integrations: [
-        { id: 'int-valid', name: 'Valid AAP', configuration: { aap_url: 'https://valid.example.com' } },
-        { id: '', name: 'No ID AAP', configuration: { aap_url: 'https://noid.example.com' } },
+        { id: 'int-valid', name: 'Valid AAP', configuration: { base_url: 'https://valid.example.com' } },
+        { id: '', name: 'No ID AAP', configuration: { base_url: 'https://noid.example.com' } },
       ] as typeof mockIntegrations,
     })
     renderSelector()
@@ -313,7 +313,7 @@ describe('AAPIntegrationSelector', () => {
     expect(screen.getByText('Integration')).toBeInTheDocument()
   })
 
-  it('renders integration with config missing aap_url key', async () => {
+  it('renders integration with config missing base_url key', async () => {
     const user = userEvent.setup()
     mockClients({
       integrations: [{ id: 'int-no-config', name: 'AAP No Config', configuration: {} }] as typeof mockIntegrations,
@@ -323,7 +323,7 @@ describe('AAPIntegrationSelector', () => {
     await user.click(screen.getByRole('button', { name: /integration/i }))
 
     expect(screen.getByText('AAP No Config')).toBeInTheDocument()
-    // No URL should be displayed since config doesn't have aap_url
+    // No URL should be displayed since config doesn't have base_url
   })
 
   it('renders integration with undefined configuration', async () => {

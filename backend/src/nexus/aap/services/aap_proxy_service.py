@@ -440,7 +440,7 @@ class AAPProxyService:
 
         await self._enforce_integration_visibility(integration)
 
-        base_url = config.aap_url.rstrip("/")
+        base_url = config.base_url.rstrip("/")
         verify_ssl = not config.insecure_skip_tls_verify
 
         logger.debug(

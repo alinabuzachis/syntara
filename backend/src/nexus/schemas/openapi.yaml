@@ -31887,7 +31887,7 @@ components:
           const: ansible_automation_platform
           default: ansible_automation_platform
           title: Integration Type
-        aap_url:
+        base_url:
           type: string
           format: uri
           title: AAP URL
@@ -31909,7 +31909,7 @@ components:
           title: Ca Certificate
           description: PEM-encoded CA certificate to trust for this integration's TLS connections.
       required:
-        - aap_url
+        - base_url
       title: AAPConfiguration
       type: object
     DiscoveredLLMModel:

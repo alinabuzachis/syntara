@@ -61,7 +61,7 @@ class IntegrationFactory:
         elif integration_type == IntegrationType.ANSIBLE_AUTOMATION_PLATFORM:
             configuration = AAPConfiguration(
                 integration_type="ansible_automation_platform",
-                aap_url=base_url,
+                base_url=base_url,
             )
         else:
             assert_never(integration_type)

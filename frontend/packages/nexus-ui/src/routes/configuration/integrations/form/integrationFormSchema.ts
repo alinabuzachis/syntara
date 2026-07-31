@@ -58,15 +58,15 @@ const aapSchema = z.object({
   configuration: z
     .object({
       integration_type: z.literal(IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM),
-      aap_url: z.string().min(1, 'AAP URL is required').url('Must be a valid URL'),
+      base_url: z.string().min(1, 'AAP URL is required').url('Must be a valid URL'),
       ...securityFields,
     })
     .superRefine((data, ctx) => {
-      if (!isAllowedScheme(data.aap_url, data.allow_http)) {
+      if (!isAllowedScheme(data.base_url, data.allow_http)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: data.allow_http ? 'Must be an HTTP or HTTPS URL' : 'Must be an HTTPS URL',
-          path: ['aap_url'],
+          path: ['base_url'],
         })
       }
     }),
@@ -133,7 +133,7 @@ export function getStep1Fields(integrationType: string, scope?: string): string[
     case IntegrationTypeEnum.MCP_SERVER:
       return [...shared, 'configuration.base_url']
     case IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM:
-      return [...shared, 'configuration.aap_url']
+      return [...shared, 'configuration.base_url']
     case IntegrationTypeEnum.LLM_PROVIDER:
       return [...shared, 'configuration.provider_hint', 'configuration.base_url']
     default:
@@ -146,7 +146,7 @@ export function getDefaultConfiguration(integrationType: string): IntegrationFor
     case IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM:
       return {
         integration_type: 'ansible_automation_platform' as const,
-        aap_url: '',
+        base_url: '',
         ...SECURITY_DEFAULTS,
       }
     case IntegrationTypeEnum.LLM_PROVIDER:

@@ -56,7 +56,7 @@ class AAPAdapter:
 
         Args:
             config: Non-sensitive integration configuration containing
-                aap_url and insecure_skip_tls_verify.
+                base_url and insecure_skip_tls_verify.
 
         """
         self._config = config
@@ -87,7 +87,7 @@ class AAPAdapter:
     ) -> ValidateResult:
         """Validate connectivity and credential against the Ansible Automation Platform.
 
-        Hits GET {aap_url}/api/gateway/v1/me/ with authenticated request.
+        Hits GET {base_url}/api/gateway/v1/me/ with authenticated request.
         A 200 response confirms both reachability and credential validity.
 
         Auth precedence: oauth_token (Bearer) → username+password (Basic).
@@ -103,7 +103,7 @@ class AAPAdapter:
         if auth is None:
             logger.warning(
                 "Ansible Automation Platform validate: no usable credentials configured",
-                aap_url=self._config.aap_url,
+                base_url=self._config.base_url,
             )
             return ValidateResult(
                 success=False,
@@ -113,12 +113,12 @@ class AAPAdapter:
             )
 
         headers, basic_auth, auth_method = auth
-        url = f"{self._config.aap_url.rstrip('/')}{_AAP_HEALTH_ENDPOINT}"
+        url = f"{self._config.base_url.rstrip('/')}{_AAP_HEALTH_ENDPOINT}"
 
         if self._config.insecure_skip_tls_verify:
             logger.warning(
                 "TLS verification disabled. Connection is vulnerable to MITM attacks",
-                aap_url=self._config.aap_url,
+                base_url=self._config.base_url,
             )
 
         verify = build_integration_httpx_verify(
@@ -140,7 +140,7 @@ class AAPAdapter:
 
             logger.info(
                 "Ansible Automation Platform validate succeeded",
-                aap_url=self._config.aap_url,
+                base_url=self._config.base_url,
                 auth_method=auth_method,
             )
 
@@ -150,7 +150,7 @@ class AAPAdapter:
             error_type = HealthCheckErrorType.TIMEOUT
             logger.warning(
                 "Ansible Automation Platform validate timed out",
-                aap_url=self._config.aap_url,
+                base_url=self._config.base_url,
                 timeout_seconds=timeout_seconds,
             )
 
@@ -160,7 +160,7 @@ class AAPAdapter:
             error_type, error_msg = classify_http_error(errors)
             logger.warning(
                 "Ansible Automation Platform validate HTTP error",
-                aap_url=self._config.aap_url,
+                base_url=self._config.base_url,
                 error_type=error_type.value,
                 status_codes=[e.response.status_code for e in errors if isinstance(e, HTTPStatusError)],
             )
@@ -172,7 +172,7 @@ class AAPAdapter:
             error_type = HealthCheckErrorType.SSL_ERROR
             logger.warning(
                 "Ansible Automation Platform validate SSL error",
-                aap_url=self._config.aap_url,
+                base_url=self._config.base_url,
                 error=str(errors[0]) if errors else "",
             )
 
@@ -183,7 +183,7 @@ class AAPAdapter:
             error_type = HealthCheckErrorType.CONNECTION_ERROR
             logger.warning(
                 "Ansible Automation Platform validate connection error",
-                aap_url=self._config.aap_url,
+                base_url=self._config.base_url,
                 error=str(errors[0]) if errors else "",
             )
 
@@ -194,7 +194,7 @@ class AAPAdapter:
             error_type = HealthCheckErrorType.CONNECTION_ERROR
             logger.exception(
                 "Unexpected error during Ansible Automation Platform validate",
-                aap_url=self._config.aap_url,
+                base_url=self._config.base_url,
                 error=str(errors[0]) if errors else "",
             )
 

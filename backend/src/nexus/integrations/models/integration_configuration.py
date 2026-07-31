@@ -126,7 +126,7 @@ class AAPConfiguration(IntegrationSecurityMixin):
 
     integration_type: Literal["ansible_automation_platform"] = "ansible_automation_platform"
 
-    aap_url: str = Field(
+    base_url: str = Field(
         title="AAP URL",
         description="URL of the Ansible Automation Platform",
         json_schema_extra={"format": "uri"},
@@ -135,9 +135,9 @@ class AAPConfiguration(IntegrationSecurityMixin):
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")  # type: ignore[assignment]
 
     @model_validator(mode="after")
-    def validate_aap_url_scheme(self) -> Self:
+    def validate_base_url_scheme(self) -> Self:
         """Validate and normalize URL to prevent SSRF."""
-        self.aap_url = validate_host_url(self.aap_url, allow_http=self.allow_http)
+        self.base_url = validate_host_url(self.base_url, allow_http=self.allow_http)
         return self
 
 

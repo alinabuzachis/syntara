@@ -935,7 +935,7 @@ def _mock_integration(
     integration_type: str = "ansible_automation_platform",
     enabled: bool = True,
     name: str = "Test AAP Integration",
-    aap_url: str = "https://aap-integration.example.com",
+    base_url: str = "https://aap-integration.example.com",
     insecure_skip_tls_verify: bool = False,
     config_valid: bool = True,
 ) -> MagicMock:
@@ -950,7 +950,7 @@ def _mock_integration(
 
     if config_valid:
         config = MagicMock()
-        config.aap_url = aap_url
+        config.base_url = base_url
         config.insecure_skip_tls_verify = insecure_skip_tls_verify
         # Make isinstance check pass for AAPConfiguration
         from nexus.integrations.models.integration_configuration import AAPConfiguration
@@ -982,7 +982,7 @@ class TestResolveConnectionFromIntegration:
         When integration_id and credential_id are provided, URL comes from integration,
         auth comes from credential.
         """
-        integration = _mock_integration(aap_url="https://aap-gw.example.com/")
+        integration = _mock_integration(base_url="https://aap-gw.example.com/")
         mock_session = _mock_session_with_integration(integration)
         service = AAPProxyService(settings=get_settings(), session=mock_session)
 
@@ -1064,7 +1064,7 @@ class TestResolveConnectionFromIntegration:
     async def test_integration_id_as_string_uuid_is_accepted(self) -> None:
         """String-form UUID for integration_id should be parsed and accepted."""
         integration_id = uuid4()
-        integration = _mock_integration(integration_id=integration_id, aap_url="https://aap-str.example.com")
+        integration = _mock_integration(integration_id=integration_id, base_url="https://aap-str.example.com")
         mock_session = _mock_session_with_integration(integration)
         service = AAPProxyService(settings=get_settings(), session=mock_session)
 
@@ -1107,7 +1107,7 @@ class TestResolveConnectionFromIntegration:
     async def test_integration_with_insecure_tls_sets_verify_ssl_false(self) -> None:
         """When integration config has insecure_skip_tls_verify=True, verify_ssl should be False."""
         integration = _mock_integration(
-            aap_url="https://aap-insecure.example.com",
+            base_url="https://aap-insecure.example.com",
             insecure_skip_tls_verify=True,
         )
         mock_session = _mock_session_with_integration(integration)
@@ -1160,7 +1160,7 @@ class TestEnforceIntegrationVisibility:
         from nexus.authz.engine import AllowedProjectsResult
         from nexus.integrations.models.integration import IntegrationScope
 
-        integration = _mock_integration(aap_url="https://aap-global.example.com")
+        integration = _mock_integration(base_url="https://aap-global.example.com")
         integration.scope = IntegrationScope.GLOBAL
         mock_session = _mock_session_with_integration(integration)
 
@@ -1193,7 +1193,7 @@ class TestEnforceIntegrationVisibility:
         from nexus.authz.engine import AllowedProjectsResult
         from nexus.integrations.models.integration import IntegrationScope
 
-        integration = _mock_integration(aap_url="https://aap-project.example.com")
+        integration = _mock_integration(base_url="https://aap-project.example.com")
         integration.scope = IntegrationScope.PROJECT
 
         mock_session = AsyncMock()

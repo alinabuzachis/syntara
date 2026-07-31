@@ -679,7 +679,7 @@ describe('IntegrationDetail', () => {
       integration_type: 'ansible_automation_platform',
       configuration: {
         integration_type: 'ansible_automation_platform',
-        aap_url: 'https://aap.example.com',
+        base_url: 'https://aap.example.com',
         allow_http: false,
         insecure_skip_tls_verify: false,
         ca_certificate: null,
@@ -727,7 +727,7 @@ describe('IntegrationDetail', () => {
           ...mockAapIntegration,
           configuration: {
             integration_type: 'ansible_automation_platform',
-            aap_url: 'https://aap.example.com',
+            base_url: 'https://aap.example.com',
             allow_http: false,
             insecure_skip_tls_verify: true,
             ca_certificate: null,
@@ -745,7 +745,7 @@ describe('IntegrationDetail', () => {
           ...mockAapIntegration,
           configuration: {
             integration_type: 'ansible_automation_platform',
-            aap_url: 'https://aap.example.com',
+            base_url: 'https://aap.example.com',
             allow_http: true,
             insecure_skip_tls_verify: false,
             ca_certificate: null,
@@ -1108,7 +1108,7 @@ describe('IntegrationDetail', () => {
           integration_type: 'ansible_automation_platform',
           configuration: {
             integration_type: 'ansible_automation_platform',
-            aap_url: 'https://aap.example.com',
+            base_url: 'https://aap.example.com',
           },
         },
       })

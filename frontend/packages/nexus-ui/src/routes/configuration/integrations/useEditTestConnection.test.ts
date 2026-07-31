@@ -229,10 +229,10 @@ describe('useEditTestConnection', () => {
     const aapIntegration: IntegrationRead = {
       ...BASE_INTEGRATION,
       integration_type: 'ansible_automation_platform',
-      configuration: { integration_type: 'ansible_automation_platform', aap_url: 'https://aap.example.com' },
+      configuration: { integration_type: 'ansible_automation_platform', base_url: 'https://aap.example.com' },
     }
     const getValues = vi.fn(() =>
-      makeFormValues({ integration_type: 'ansible_automation_platform', aap_url: 'https://aap.example.com' })
+      makeFormValues({ integration_type: 'ansible_automation_platform', base_url: 'https://aap.example.com' })
     )
     const { result } = renderHook(() => useEditTestConnection(aapIntegration, getValues))
 

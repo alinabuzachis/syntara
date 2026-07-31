@@ -30,8 +30,8 @@ export type AAPIntegrationSelectorProps = {
 
 function getIntegrationUrl(integration: IntegrationRead): string | undefined {
   const config = integration.configuration
-  if (config && 'aap_url' in config) {
-    return config.aap_url
+  if (config && 'base_url' in config) {
+    return config.base_url ?? undefined
   }
   return undefined
 }

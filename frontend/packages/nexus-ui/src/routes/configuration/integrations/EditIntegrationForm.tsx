@@ -90,8 +90,7 @@ function EditIntegrationFormFields({
   const isTestDisabled = (isCredentialRequired && !credentialId) || isTesting
   const isAnsibleAutomationPlatform = integration.integration_type === IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM
   const isLLM = isLLMProvider(integration)
-  const hideBaseUrl =
-    isAnsibleAutomationPlatform || (isLLM && PROVIDERS_HIDING_BASE_URL.has(getProviderHint(integration)))
+  const hideBaseUrl = isLLM && PROVIDERS_HIDING_BASE_URL.has(getProviderHint(integration))
 
   const credentialDescription =
     CREDENTIAL_DESCRIPTION[integration.integration_type ?? ''] ?? CREDENTIAL_DESCRIPTION[IntegrationTypeEnum.MCP_SERVER]
@@ -169,33 +168,6 @@ function EditIntegrationFormFields({
               <HelperText>
                 <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
                   {errors.base_url.message}
-                </HelperTextItem>
-              </HelperText>
-            </FormHelperText>
-          )}
-        </FormGroup>
-      )}
-
-      {isAnsibleAutomationPlatform && (
-        <FormGroup label="API URL" isRequired fieldId="edit-aap-url">
-          <Controller
-            name="aap_url"
-            control={control}
-            render={({ field }) => (
-              <TextInput
-                id="edit-aap-url"
-                isRequired
-                placeholder="e.g. https://aap.example.com"
-                validated={errors.aap_url ? 'error' : 'default'}
-                {...field}
-              />
-            )}
-          />
-          {errors.aap_url && (
-            <FormHelperText>
-              <HelperText>
-                <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                  {errors.aap_url.message}
                 </HelperTextItem>
               </HelperText>
             </FormHelperText>
@@ -335,7 +307,6 @@ export function EditIntegrationForm() {
       description: integration.description ?? '',
       integration_type: integration.integration_type ?? IntegrationTypeEnum.MCP_SERVER,
       base_url: 'base_url' in config ? String(config.base_url ?? '') : '',
-      aap_url: 'aap_url' in config ? String(config.aap_url ?? '') : '',
       allow_http: 'allow_http' in config ? Boolean(config.allow_http) : false,
       insecure_skip_tls_verify: 'insecure_skip_tls_verify' in config ? Boolean(config.insecure_skip_tls_verify) : false,
       ca_certificate: 'ca_certificate' in config ? ((config.ca_certificate as string | null) ?? null) : null,
@@ -360,7 +331,6 @@ export function EditIntegrationForm() {
       description: '',
       integration_type: '',
       base_url: '',
-      aap_url: '',
       allow_http: false,
       insecure_skip_tls_verify: false,
       ca_certificate: null,

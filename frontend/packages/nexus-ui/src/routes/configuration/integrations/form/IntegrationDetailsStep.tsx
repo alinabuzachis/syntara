@@ -30,7 +30,7 @@ import styles from './WizardSteps.module.css'
 
 type ControlledTextFieldProps = Readonly<{
   control: Control<IntegrationFormData>
-  name: 'name' | 'description' | 'configuration.base_url' | 'configuration.aap_url'
+  name: 'name' | 'description' | 'configuration.base_url'
   label: string
   fieldId: string
   placeholder: string
@@ -287,9 +287,9 @@ export function IntegrationDetailsStep({ control, setValue, onTypeChange }: Inte
         nameLabel: 'Server name / ID',
         namePlaceholder: 'Enter server name / ID',
         showProviderHint: false,
-        hideBaseUrl: isAAP,
-        requireBaseUrl: !isAAP,
-        baseUrlPlaceholder: isAAP ? '' : 'https://mcp-server.example.com/mcp',
+        hideBaseUrl: false,
+        requireBaseUrl: true,
+        baseUrlPlaceholder: isAAP ? 'e.g. https://aap.example.com' : 'https://mcp-server.example.com/mcp',
       }
 
   const renderTypeToggle = useCallback(
@@ -394,17 +394,6 @@ export function IntegrationDetailsStep({ control, setValue, onTypeChange }: Inte
             fieldId="base-url"
             placeholder={typeConfig.baseUrlPlaceholder}
             isRequired={typeConfig.requireBaseUrl}
-          />
-        )}
-
-        {isAAP && (
-          <ControlledTextField
-            control={control}
-            name="configuration.aap_url"
-            label="API URL"
-            fieldId="aap-url"
-            placeholder="e.g. https://aap.example.com"
-            isRequired
           />
         )}
 

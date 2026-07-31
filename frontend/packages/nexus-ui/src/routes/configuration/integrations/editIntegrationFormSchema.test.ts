@@ -25,7 +25,7 @@ const validAap = {
   name: 'My AAP',
   description: '',
   integration_type: 'ansible_automation_platform',
-  aap_url: 'https://aap.example.com',
+  base_url: 'https://aap.example.com',
   scope: 'global' as const,
   management_credential_id: null,
   ...securityDefaults,
@@ -114,11 +114,11 @@ describe('buildEditSchema', () => {
     })
 
     it.each([
-      ['empty aap_url', '', 'API URL is required'],
+      ['empty base_url', '', 'API URL is required'],
       ['HTTP URL (HTTPS only)', 'http://aap.example.com', 'Must be an HTTPS URL'],
       ['invalid URL', 'not-a-url', 'Must be a valid URL'],
     ])('rejects %s', (_label, url, expectedMessage) => {
-      const result = schema.safeParse({ ...validAap, aap_url: url })
+      const result = schema.safeParse({ ...validAap, base_url: url })
       expect(result.success).toBe(false)
       if (!result.success) {
         expect(result.error.issues.some((i) => i.message === expectedMessage)).toBe(true)
@@ -126,17 +126,17 @@ describe('buildEditSchema', () => {
     })
 
     it('accepts HTTP URL when allow_http is true', () => {
-      const result = schema.safeParse({ ...validAap, aap_url: 'http://aap.example.com', allow_http: true })
+      const result = schema.safeParse({ ...validAap, base_url: 'http://aap.example.com', allow_http: true })
       expect(result.success).toBe(true)
     })
 
     it('accepts HTTPS URL with port', () => {
-      const result = schema.safeParse({ ...validAap, aap_url: 'https://aap.example.com:8443' })
+      const result = schema.safeParse({ ...validAap, base_url: 'https://aap.example.com:8443' })
       expect(result.success).toBe(true)
     })
 
     it('rejects FTP scheme', () => {
-      const result = schema.safeParse({ ...validAap, aap_url: 'ftp://aap.example.com' })
+      const result = schema.safeParse({ ...validAap, base_url: 'ftp://aap.example.com' })
       expect(result.success).toBe(false)
     })
   })
@@ -283,12 +283,12 @@ describe('buildConfiguration', () => {
       const aapValues = {
         ...baseValues,
         integration_type: 'ansible_automation_platform',
-        aap_url: 'https://aap.example.com',
+        base_url: 'https://aap.example.com',
       }
       const config = buildConfiguration('ansible_automation_platform', aapValues)
       expect(config).toEqual({
         integration_type: 'ansible_automation_platform',
-        aap_url: 'https://aap.example.com',
+        base_url: 'https://aap.example.com',
         ...expectedSecurityDefaults,
       })
     })
@@ -299,7 +299,7 @@ describe('buildConfiguration', () => {
     })
 
     it('preserves insecure_skip_tls_verify=true', () => {
-      const aapValues = { ...baseValues, aap_url: 'https://aap.example.com', insecure_skip_tls_verify: true }
+      const aapValues = { ...baseValues, base_url: 'https://aap.example.com', insecure_skip_tls_verify: true }
       const config = buildConfiguration('ansible_automation_platform', aapValues)
       expect(config).toHaveProperty('insecure_skip_tls_verify', true)
     })

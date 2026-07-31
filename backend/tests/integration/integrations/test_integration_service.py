@@ -92,7 +92,7 @@ class TestCreateIntegration:
         result = await integration_service.create_integration(data)
 
         assert result.integration_type == IntegrationType.LLM_PROVIDER
-        assert result.configuration.base_url == "http://localhost:11434"  # type: ignore[union-attr]
+        assert result.configuration.base_url == "http://localhost:11434"
         assert result.configuration.provider_hint == "custom"  # type: ignore[union-attr]
 
     @pytest.mark.asyncio
@@ -111,7 +111,7 @@ class TestCreateIntegration:
             integration_type=IntegrationType.ANSIBLE_AUTOMATION_PLATFORM,
             configuration={
                 "integration_type": "ansible_automation_platform",
-                "aap_url": "https://gateway.example.com",
+                "base_url": "https://gateway.example.com",
                 "insecure_skip_tls_verify": True,
             },
             management_credential_id=cred.id,
@@ -119,7 +119,7 @@ class TestCreateIntegration:
         result = await integration_service.create_integration(data)
 
         assert result.integration_type == IntegrationType.ANSIBLE_AUTOMATION_PLATFORM
-        assert result.configuration.aap_url == "https://gateway.example.com"  # type: ignore[union-attr]
+        assert result.configuration.base_url == "https://gateway.example.com"
         assert result.configuration.insecure_skip_tls_verify is True
 
     @pytest.mark.asyncio
@@ -423,7 +423,7 @@ class TestPatchIntegration:
         )
 
         result = await integration_service.patch_integration(created.id, patch)
-        assert result.configuration.base_url == "https://updated.example.com"  # type: ignore[union-attr]
+        assert result.configuration.base_url == "https://updated.example.com"
 
     @pytest.mark.asyncio
     async def test_patch_not_found_raises(
@@ -654,7 +654,7 @@ class TestCredentialTypeValidation:
                 "Ansible Automation Platform",
                 {
                     "integration_type": "ansible_automation_platform",
-                    "aap_url": "https://gateway.example.com",
+                    "base_url": "https://gateway.example.com",
                     "insecure_skip_tls_verify": True,
                 },
             ),

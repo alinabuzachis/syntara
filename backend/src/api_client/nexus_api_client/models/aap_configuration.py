@@ -15,7 +15,7 @@ class AAPConfiguration:
     """Configuration for Ansible Automation Platform integrations.
 
     Attributes:
-        aap_url (str): URL of the Ansible Automation Platform
+        base_url (str): URL of the Ansible Automation Platform
         integration_type (Literal['ansible_automation_platform'] | Unset):  Default: 'ansible_automation_platform'.
         allow_http (bool | Unset): Allow HTTP (unencrypted) connections. Loopback addresses are always permitted over
             HTTP. Default: False.
@@ -24,14 +24,14 @@ class AAPConfiguration:
         ca_certificate (None | str | Unset): PEM-encoded CA certificate to trust for this integration's TLS connections.
     """
 
-    aap_url: str
+    base_url: str
     integration_type: Literal["ansible_automation_platform"] | Unset = "ansible_automation_platform"
     allow_http: bool | Unset = False
     insecure_skip_tls_verify: bool | Unset = False
     ca_certificate: None | str | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
-        aap_url = self.aap_url
+        base_url = self.base_url
 
         integration_type = self.integration_type
 
@@ -49,7 +49,7 @@ class AAPConfiguration:
 
         field_dict.update(
             {
-                "aap_url": aap_url,
+                "base_url": base_url,
             }
         )
         if integration_type is not UNSET:
@@ -66,7 +66,7 @@ class AAPConfiguration:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        aap_url = d.pop("aap_url")
+        base_url = d.pop("base_url")
 
         integration_type = cast(Literal["ansible_automation_platform"] | Unset, d.pop("integration_type", UNSET))
         if integration_type != "ansible_automation_platform" and not isinstance(integration_type, Unset):
@@ -88,7 +88,7 @@ class AAPConfiguration:
         ca_certificate = _parse_ca_certificate(d.pop("ca_certificate", UNSET))
 
         aap_configuration = cls(
-            aap_url=aap_url,
+            base_url=base_url,
             integration_type=integration_type,
             allow_http=allow_http,
             insecure_skip_tls_verify=insecure_skip_tls_verify,

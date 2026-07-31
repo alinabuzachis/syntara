@@ -647,7 +647,7 @@ export interface components {
        * Format: uri
        * @description URL of the Ansible Automation Platform
        */
-      aap_url: string
+      base_url: string
       /**
        * Allow Http
        * @description Allow HTTP (unencrypted) connections. Loopback addresses are always permitted over HTTP.

@@ -30,7 +30,7 @@ _TEST_PASSWORD = "secret-password"  # noqa: S105
 def aap_config() -> AAPConfiguration:
     """Create a test Ansible Automation Platform configuration."""
     return AAPConfiguration(
-        aap_url=_GATEWAY_URL,
+        base_url=_GATEWAY_URL,
         insecure_skip_tls_verify=False,
     )
 
@@ -393,7 +393,7 @@ class TestAAPValidateTLSConfig:
     async def test_validate_insecure_skip_tls_passes_verify_false(self, resolved_credential: dict[str, Any]) -> None:
         """insecure_skip_tls_verify=True passes verify=False to httpx.AsyncClient."""
         config = AAPConfiguration(
-            aap_url=_GATEWAY_URL,
+            base_url=_GATEWAY_URL,
             insecure_skip_tls_verify=True,
         )
         respx.get(_HEALTH_URL).mock(return_value=Response(200, json={}))
@@ -414,7 +414,7 @@ class TestAAPValidateTLSConfig:
     async def test_validate_default_tls_passes_verify_true(self, resolved_credential: dict[str, Any]) -> None:
         """insecure_skip_tls_verify=False (default) passes verify=True to httpx.AsyncClient."""
         config = AAPConfiguration(
-            aap_url=_GATEWAY_URL,
+            base_url=_GATEWAY_URL,
             insecure_skip_tls_verify=False,
         )
         respx.get(_HEALTH_URL).mock(return_value=Response(200, json={}))

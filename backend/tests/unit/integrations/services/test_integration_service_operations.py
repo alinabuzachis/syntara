@@ -587,7 +587,7 @@ class TestRefreshIntegrationResources:
             integration_type=IntegrationType.ANSIBLE_AUTOMATION_PLATFORM,
             configuration={
                 "integration_type": "ansible_automation_platform",
-                "aap_url": "https://gateway.example.com",
+                "base_url": "https://gateway.example.com",
             },
             created_by=test_user.id,
             updated_by=test_user.id,

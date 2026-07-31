@@ -89,10 +89,10 @@ describe('integrationUtils', () => {
       expect(getBaseUrl(buildLLMIntegration())).toBe('https://api.example.com')
     })
 
-    it('returns aap_url from AAP configuration', () => {
+    it('returns base_url from AAP configuration', () => {
       const integration = buildIntegration({
         integration_type: 'ansible_automation_platform',
-        configuration: { integration_type: 'ansible_automation_platform', aap_url: 'https://gateway.example.com' },
+        configuration: { integration_type: 'ansible_automation_platform', base_url: 'https://gateway.example.com' },
       })
       expect(getBaseUrl(integration)).toBe('https://gateway.example.com')
     })

@@ -19,7 +19,7 @@ const validAapBase = {
   integration_type: 'ansible_automation_platform' as const,
   configuration: {
     integration_type: 'ansible_automation_platform' as const,
-    aap_url: 'https://aap.example.com',
+    base_url: 'https://aap.example.com',
     ...securityDefaults,
   },
   scope: 'global' as const,
@@ -159,7 +159,7 @@ describe('integrationFormSchema', () => {
       expect(result.success).toBe(true)
       if (result.success) {
         expect(result.data.name).toBe('My Ansible Automation Platform')
-        expect(result.data.configuration).toHaveProperty('aap_url', 'https://aap.example.com')
+        expect(result.data.configuration).toHaveProperty('base_url', 'https://aap.example.com')
         expect(result.data.configuration).toHaveProperty('insecure_skip_tls_verify', false)
       }
     })
@@ -170,7 +170,7 @@ describe('integrationFormSchema', () => {
         name: 'Dev AAP',
         configuration: {
           integration_type: 'ansible_automation_platform' as const,
-          aap_url: 'https://dev-aap.example.com',
+          base_url: 'https://dev-aap.example.com',
           ...securityDefaults,
           insecure_skip_tls_verify: true,
         },
@@ -187,17 +187,17 @@ describe('integrationFormSchema', () => {
         name: 'AAP',
         configuration: {
           integration_type: 'ansible_automation_platform' as const,
-          aap_url: 'https://aap.example.com',
+          base_url: 'https://aap.example.com',
         },
       })
       expect(result.success).toBe(false)
     })
 
-    it('rejects Ansible Automation Platform without aap_url', () => {
+    it('rejects Ansible Automation Platform without base_url', () => {
       const result = integrationFormSchema.safeParse({
         ...validAapBase,
         name: 'AAP',
-        configuration: { integration_type: 'ansible_automation_platform' as const, aap_url: '', ...securityDefaults },
+        configuration: { integration_type: 'ansible_automation_platform' as const, base_url: '', ...securityDefaults },
       })
       expect(result.success).toBe(false)
       if (!result.success) {
@@ -211,7 +211,7 @@ describe('integrationFormSchema', () => {
         name: 'AAP',
         configuration: {
           integration_type: 'ansible_automation_platform' as const,
-          aap_url: 'http://aap.example.com',
+          base_url: 'http://aap.example.com',
           ...securityDefaults,
         },
       })
@@ -331,14 +331,12 @@ describe('integrationFormSchema', () => {
       const fields = getStep1Fields(IntegrationTypeEnum.MCP_SERVER)
       expect(fields).toContain('name')
       expect(fields).toContain('configuration.base_url')
-      expect(fields).not.toContain('configuration.aap_url')
     })
 
-    it('returns name and aap_url for Ansible Automation Platform', () => {
+    it('returns name and base_url for Ansible Automation Platform', () => {
       const fields = getStep1Fields(IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM)
       expect(fields).toContain('name')
-      expect(fields).toContain('configuration.aap_url')
-      expect(fields).not.toContain('configuration.base_url')
+      expect(fields).toContain('configuration.base_url')
     })
 
     it('returns name and provider fields for LLM Provider', () => {
@@ -369,7 +367,7 @@ describe('integrationFormSchema', () => {
         name: '',
         configuration: {
           integration_type: 'ansible_automation_platform' as const,
-          aap_url: '',
+          base_url: '',
           ...securityDefaults,
         },
       })
@@ -415,7 +413,7 @@ describe('integrationFormSchema', () => {
     it.each([
       [
         IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM,
-        { integration_type: 'ansible_automation_platform', aap_url: '', ...expectedSecurityDefaults },
+        { integration_type: 'ansible_automation_platform', base_url: '', ...expectedSecurityDefaults },
       ],
       [
         IntegrationTypeEnum.LLM_PROVIDER,
@@ -489,7 +487,7 @@ describe('integrationFormSchema', () => {
         name: 'AAP',
         configuration: {
           integration_type: 'ansible_automation_platform' as const,
-          aap_url: 'http://localhost:8080',
+          base_url: 'http://localhost:8080',
           ...securityDefaults,
         },
       })
@@ -579,7 +577,7 @@ describe('integrationFormSchema', () => {
         name: 'AAP',
         configuration: {
           integration_type: 'ansible_automation_platform' as const,
-          aap_url: 'http://aap.example.com',
+          base_url: 'http://aap.example.com',
           ...securityDefaults,
           allow_http: true,
         },
@@ -593,7 +591,7 @@ describe('integrationFormSchema', () => {
         name: 'AAP',
         configuration: {
           integration_type: 'ansible_automation_platform' as const,
-          aap_url: 'ftp://aap.example.com',
+          base_url: 'ftp://aap.example.com',
           ...securityDefaults,
           allow_http: true,
         },
@@ -610,7 +608,7 @@ describe('integrationFormSchema', () => {
         name: 'AAP',
         configuration: {
           integration_type: 'ansible_automation_platform' as const,
-          aap_url: 'http://aap.example.com',
+          base_url: 'http://aap.example.com',
           ...securityDefaults,
         },
       })

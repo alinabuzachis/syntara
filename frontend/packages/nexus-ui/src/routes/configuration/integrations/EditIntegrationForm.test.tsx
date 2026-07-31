@@ -111,7 +111,7 @@ const mockAapIntegration = {
   scope: 'global',
   configuration: {
     integration_type: 'ansible_automation_platform',
-    aap_url: 'https://aap.example.com',
+    base_url: 'https://aap.example.com',
     allow_http: false,
     insecure_skip_tls_verify: false,
     ca_certificate: null,
@@ -683,7 +683,7 @@ describe('EditIntegrationForm', () => {
             body: expect.objectContaining({
               configuration: {
                 integration_type: 'ansible_automation_platform',
-                aap_url: 'https://aap.example.com',
+                base_url: 'https://aap.example.com',
                 allow_http: false,
                 insecure_skip_tls_verify: false,
                 ca_certificate: null,
@@ -708,7 +708,7 @@ describe('EditIntegrationForm', () => {
             integration_type: 'ansible_automation_platform',
             configuration: expect.objectContaining({
               integration_type: 'ansible_automation_platform',
-              aap_url: 'https://aap.example.com',
+              base_url: 'https://aap.example.com',
             }) as Record<string, unknown>,
           }) as Record<string, unknown>,
         }),
@@ -755,7 +755,7 @@ describe('EditIntegrationForm', () => {
           ...mockAapIntegration,
           configuration: {
             integration_type: 'ansible_automation_platform',
-            aap_url: null,
+            base_url: null,
             allow_http: false,
             insecure_skip_tls_verify: false,
             ca_certificate: null,

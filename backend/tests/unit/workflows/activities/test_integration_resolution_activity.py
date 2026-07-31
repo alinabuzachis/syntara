@@ -18,7 +18,7 @@ def _make_integration(
     name: str = "My AAP",
     integration_type: str = IntegrationType.ANSIBLE_AUTOMATION_PLATFORM,
     enabled: bool = True,
-    aap_url: str = "https://aap.example.com/",
+    base_url: str = "https://aap.example.com/",
     insecure_skip_tls_verify: bool = False,
     use_real_config: bool = True,
 ) -> MagicMock:
@@ -29,7 +29,7 @@ def _make_integration(
     integration.enabled = enabled
     if use_real_config:
         integration.configuration = AAPConfiguration(
-            aap_url=aap_url,
+            base_url=base_url,
             insecure_skip_tls_verify=insecure_skip_tls_verify,
         )
     return integration
@@ -52,7 +52,7 @@ class TestResolveIntegration:
 
     @pytest.mark.anyio
     async def test_strips_trailing_slash_from_url(self) -> None:
-        integration = _make_integration(aap_url="https://aap.example.com/")
+        integration = _make_integration(base_url="https://aap.example.com/")
         session = AsyncMock()
         result_mock = MagicMock()
         result_mock.one_or_none.return_value = integration

@@ -26,7 +26,6 @@ export function getBaseUrl(integration: IntegrationRead): string {
     }
     return ''
   }
-  if ('aap_url' in config) return String(config.aap_url ?? '')
   return ''
 }
 

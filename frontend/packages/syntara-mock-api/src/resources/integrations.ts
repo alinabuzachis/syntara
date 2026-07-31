@@ -229,7 +229,7 @@ export const integrations: IntegrationRead[] = [
     scope: 'global',
     configuration: {
       integration_type: 'ansible_automation_platform',
-      aap_url: 'https://aap.prod.example.com',
+      base_url: 'https://aap.prod.example.com',
       allow_http: false,
       insecure_skip_tls_verify: true,
       ca_certificate: null,

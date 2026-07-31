@@ -37,7 +37,7 @@ function TestWrapper({
           integration_type: IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM,
           configuration: {
             integration_type: IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM,
-            aap_url: '',
+            base_url: '',
             allow_http: false,
             insecure_skip_tls_verify: false,
           },
@@ -74,7 +74,7 @@ function TestWrapper({
       } else if (newType === IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM) {
         newConfig = {
           integration_type: 'ansible_automation_platform' as const,
-          aap_url: '',
+          base_url: '',
           allow_http: false,
           insecure_skip_tls_verify: false,
         }

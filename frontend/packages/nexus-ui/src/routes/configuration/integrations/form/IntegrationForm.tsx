@@ -323,9 +323,6 @@ export function IntegrationForm() {
       if (errors.configuration && 'base_url' in errors.configuration && errors.configuration.base_url) {
         messages.push(errors.configuration.base_url.message ?? 'Base URL is invalid')
       }
-      if (errors.configuration && 'aap_url' in errors.configuration && errors.configuration.aap_url) {
-        messages.push(errors.configuration.aap_url.message ?? 'AAP URL is invalid')
-      }
       if (messages.length > 0) {
         showAlert({
           title: 'Unable to save integration',

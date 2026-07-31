@@ -34,7 +34,6 @@ export function buildEditSchema(requiresBaseUrl: boolean) {
       description: z.string(),
       integration_type: z.string(),
       base_url: z.string().optional(),
-      aap_url: z.string().optional(),
       allow_http: z.boolean(),
       insecure_skip_tls_verify: z.boolean(),
       ca_certificate: z.string().optional().nullable(),
@@ -59,12 +58,12 @@ export function buildEditSchema(requiresBaseUrl: boolean) {
         if (err) ctx.addIssue({ code: z.ZodIssueCode.custom, message: err, path: ['base_url'] })
       }
       if (data.integration_type === IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM) {
-        const err = validateUrl(data.aap_url, {
+        const err = validateUrl(data.base_url, {
           required: true,
           allowHttp: data.allow_http,
           fieldLabel: 'API URL',
         })
-        if (err) ctx.addIssue({ code: z.ZodIssueCode.custom, message: err, path: ['aap_url'] })
+        if (err) ctx.addIssue({ code: z.ZodIssueCode.custom, message: err, path: ['base_url'] })
       }
       if (data.integration_type === IntegrationTypeEnum.LLM_PROVIDER) {
         const err = validateUrl(data.base_url, {
@@ -96,7 +95,7 @@ export function buildConfiguration(integrationType: string, values: EditIntegrat
   if (integrationType === IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM) {
     return {
       integration_type: IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM,
-      aap_url: values.aap_url ?? '',
+      base_url: values.base_url ?? '',
       ...securityFields(values),
     }
   }

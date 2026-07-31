@@ -42,7 +42,7 @@ async function createAAPIntegration(
       integration_type: 'ansible_automation_platform',
       configuration: {
         integration_type: 'ansible_automation_platform',
-        aap_url: `https://${name}.example.com`,
+        base_url: `https://${name}.example.com`,
       },
       management_credential_id: cred.id,
       scope: 'global',

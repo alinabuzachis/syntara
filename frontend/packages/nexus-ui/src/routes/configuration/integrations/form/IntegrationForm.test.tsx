@@ -413,7 +413,7 @@ describe('IntegrationForm', () => {
               integration_type: IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM,
               configuration: expect.objectContaining({
                 integration_type: 'ansible_automation_platform',
-                aap_url: 'https://aap.example.com',
+                base_url: 'https://aap.example.com',
               }) as Record<string, unknown>,
               discovered_tools: null,
             }) as Record<string, unknown>,

@@ -40,7 +40,7 @@ def _aap_payload(name: str | None = None, management_credential_id: UUID | None 
         "integration_type": "ansible_automation_platform",
         "configuration": {
             "integration_type": "ansible_automation_platform",
-            "aap_url": "https://gw.example.com",
+            "base_url": "https://gw.example.com",
         },
     }
     if management_credential_id is not None:
@@ -198,13 +198,13 @@ class TestIntegrationsCreate:
         assert response.status_code == 422
 
     async def test_create_aap_rejects_http(self, auth_client: AsyncClient) -> None:
-        """ansible_automation_platform with http (non-https) aap_url is rejected."""
+        """ansible_automation_platform with http (non-https) base_url is rejected."""
         payload = {
             "name": f"aap-http-{uuid4().hex[:8]}",
             "integration_type": "ansible_automation_platform",
             "configuration": {
                 "integration_type": "ansible_automation_platform",
-                "aap_url": "http://gw.example.com",
+                "base_url": "http://gw.example.com",
             },
         }
         response = await auth_client.post(BASE_URL, json=payload)
