@@ -6,18 +6,34 @@ Covers:
 - Graceful Temporal unavailability
 - Non-scheduled triggers ignored
 - Validation errors
+- Search attribute registration and server-side filtering
 """
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Generator
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from temporalio.api.enums.v1 import IndexedValueType
 from temporalio.client import ScheduleAlreadyRunningError, ScheduleOverlapPolicy
+from temporalio.common import TypedSearchAttributes
 from temporalio.service import RPCError, RPCStatusCode
 
+import nexus.workflows.services.scheduled_trigger_service as _mod
 from nexus.workflows.exceptions import ScheduledTriggerSyncError, TriggerValidationError
-from nexus.workflows.services.scheduled_trigger_service import ScheduledTriggerService
+from nexus.workflows.services.scheduled_trigger_service import (
+    ScheduledTriggerService,
+)
+
+
+@pytest.fixture(autouse=True)
+def _reset_module_caches() -> Generator[None]:
+    """Reset module-level caches between tests."""
+    _mod._search_attr_available = None
+    _mod._cached_client = None
+    yield
+    _mod._search_attr_available = None
+    _mod._cached_client = None
 
 
 def _make_workflow_definition(
@@ -53,12 +69,6 @@ def _make_scheduled_trigger(
     }
 
 
-async def _empty_async_iter() -> AsyncIterator[Any]:
-    """Yield nothing — used as default for list_schedules."""
-    return
-    yield  # type: ignore[unreachable]
-
-
 def _make_schedule_list_entry(schedule_id: str) -> MagicMock:
     """Create a mock schedule list entry with a given ID."""
     entry = MagicMock()
@@ -72,19 +82,57 @@ async def _async_iter_from(items: list[Any]) -> AsyncIterator[Any]:
         yield item
 
 
-def _make_mock_client() -> MagicMock:
+def _make_mock_operator_service(
+    *,
+    attr_registered: bool = False,
+    add_raises: RPCError | None = None,
+    list_raises: RPCError | None = None,
+) -> MagicMock:
+    """Create a mock Temporal operator service."""
+    operator = MagicMock()
+    list_resp = MagicMock()
+    if attr_registered:
+        list_resp.custom_attributes = {
+            "NexusWorkflowId": IndexedValueType.INDEXED_VALUE_TYPE_KEYWORD,
+        }
+    else:
+        list_resp.custom_attributes = {}
+
+    if list_raises:
+        operator.list_search_attributes = AsyncMock(side_effect=list_raises)
+    else:
+        operator.list_search_attributes = AsyncMock(return_value=list_resp)
+
+    if add_raises:
+        operator.add_search_attributes = AsyncMock(side_effect=add_raises)
+    else:
+        operator.add_search_attributes = AsyncMock()
+
+    return operator
+
+
+def _make_mock_client(
+    *,
+    search_attr_available: bool = True,
+    list_raises: RPCError | None = None,
+) -> MagicMock:
     """Create a mock Temporal client with schedule handle methods."""
     client = MagicMock()
 
     # Mock schedule handle
     handle = AsyncMock()
-    handle.describe = AsyncMock(side_effect=RPCError("Schedule not found", RPCStatusCode.NOT_FOUND, b""))
     handle.delete = AsyncMock()
     handle.update = AsyncMock()
 
     client.get_schedule_handle = MagicMock(return_value=handle)
     client.create_schedule = AsyncMock()
-    client.list_schedules = AsyncMock(return_value=_empty_async_iter())
+    client.list_schedules = AsyncMock(return_value=_async_iter_from([]))
+
+    # Mock operator service for search attribute registration
+    client.operator_service = _make_mock_operator_service(
+        attr_registered=search_attr_available,
+        list_raises=list_raises,
+    )
 
     return client
 
@@ -272,7 +320,7 @@ class TestSyncScheduledTriggers:
     async def test_sync_deletes_removed_triggers(self) -> None:
         """Should delete Temporal Schedules for trigger nodes removed from the definition."""
         client = _make_mock_client()
-        # Simulate an existing schedule for a trigger node no longer in the definition
+        # Simulate search attr query returning both current and stale schedules
         client.list_schedules = AsyncMock(
             return_value=_async_iter_from(
                 [
@@ -317,35 +365,66 @@ class TestSyncScheduledTriggers:
         assert count == 0
         client.create_schedule.assert_not_called()
 
-    async def test_sync_connection_error_wraps_as_sync_error(self) -> None:
-        """UNAVAILABLE RPCError should invalidate client cache and raise ScheduledTriggerSyncError."""
+    @pytest.mark.parametrize("status", [RPCStatusCode.UNAVAILABLE, RPCStatusCode.DEADLINE_EXCEEDED])
+    async def test_sync_connection_error_wraps_as_sync_error(self, status: RPCStatusCode) -> None:
+        """Connection RPCError should invalidate client cache and raise ScheduledTriggerSyncError."""
         client = _make_mock_client()
-        client.create_schedule = AsyncMock(side_effect=RPCError("unavailable", RPCStatusCode.UNAVAILABLE, b""))
+        client.create_schedule = AsyncMock(side_effect=RPCError("conn error", status, b""))
 
         service = ScheduledTriggerService(temporal_client=client)
         definition = _make_workflow_definition(triggers=[_make_scheduled_trigger("trigger_1")])
 
-        with (
-            patch("nexus.workflows.services.scheduled_trigger_service._invalidate_client_cache") as mock_invalidate,
-            pytest.raises(ScheduledTriggerSyncError) as exc_info,
-        ):
+        with pytest.raises(ScheduledTriggerSyncError) as exc_info:
             await service.sync_scheduled_triggers(
                 workflow_id="wf-123",
                 workflow_definition=definition,
             )
 
-        mock_invalidate.assert_called_once()
         assert exc_info.value.__cause__ is not None
+        assert _mod._cached_client is None
+        assert _mod._search_attr_available is None
 
-    async def test_list_schedules_returns_empty_set(self) -> None:
-        """Empty schedule list should return empty set."""
+    async def test_sync_unexpected_rpc_error_reraises(self) -> None:
+        """RPCError that is not ALREADY_EXISTS or a connection error should propagate."""
         client = _make_mock_client()
-        client.list_schedules = AsyncMock(return_value=_empty_async_iter())
+        client.create_schedule = AsyncMock(side_effect=RPCError("internal", RPCStatusCode.INTERNAL, b""))
 
         service = ScheduledTriggerService(temporal_client=client)
-        result = await service._list_workflow_schedules(client, "wf-123")
+        definition = _make_workflow_definition(triggers=[_make_scheduled_trigger("trigger_1")])
 
-        assert result == set()
+        with pytest.raises(ScheduledTriggerSyncError) as exc_info:
+            await service.sync_scheduled_triggers(
+                workflow_id="wf-123",
+                workflow_definition=definition,
+            )
+
+        assert isinstance(exc_info.value.__cause__, RPCError)
+        assert exc_info.value.__cause__.status == RPCStatusCode.INTERNAL
+
+    async def test_stale_deletion_error_wraps_as_sync_error(self) -> None:
+        """RPCError during stale schedule deletion should wrap as ScheduledTriggerSyncError."""
+        client = _make_mock_client()
+        client.list_schedules = AsyncMock(
+            return_value=_async_iter_from(
+                [
+                    _make_schedule_list_entry("nexus-sched-wf-123-trigger_1"),
+                    _make_schedule_list_entry("nexus-sched-wf-123-trigger_old"),
+                ]
+            )
+        )
+        handle = client.get_schedule_handle.return_value
+        handle.delete = AsyncMock(side_effect=RPCError("internal", RPCStatusCode.INTERNAL, b""))
+
+        service = ScheduledTriggerService(temporal_client=client)
+        definition = _make_workflow_definition(triggers=[_make_scheduled_trigger("trigger_1")])
+
+        with pytest.raises(ScheduledTriggerSyncError) as exc_info:
+            await service.sync_scheduled_triggers(
+                workflow_id="wf-123",
+                workflow_definition=definition,
+            )
+
+        assert exc_info.value.__cause__ is not None
 
 
 class TestDeleteTriggersForWorkflow:
@@ -395,6 +474,23 @@ class TestDeleteTriggersForWorkflow:
 
         assert deleted == 0
 
+    async def test_delete_unexpected_rpc_error_reraises(self) -> None:
+        """RPCError that is not NOT_FOUND or a connection error should propagate."""
+        client = _make_mock_client()
+        client.list_schedules = AsyncMock(
+            return_value=_async_iter_from([_make_schedule_list_entry("nexus-sched-wf-123-trigger_1")])
+        )
+        handle = client.get_schedule_handle.return_value
+        handle.delete = AsyncMock(side_effect=RPCError("internal", RPCStatusCode.INTERNAL, b""))
+
+        service = ScheduledTriggerService(temporal_client=client)
+
+        with pytest.raises(ScheduledTriggerSyncError) as exc_info:
+            await service.delete_triggers_for_workflow(workflow_id="wf-123")
+
+        assert isinstance(exc_info.value.__cause__, RPCError)
+        assert exc_info.value.__cause__.status == RPCStatusCode.INTERNAL
+
 
 class TestGracefulTemporalUnavailability:
     """Tests for graceful handling of Temporal unavailability."""
@@ -428,24 +524,24 @@ class TestGracefulTemporalUnavailability:
 
         assert count == 0
 
-    async def test_delete_wraps_connection_error_as_sync_error(self) -> None:
-        """UNAVAILABLE RPCError during deletion should be wrapped as ScheduledTriggerSyncError."""
+    @pytest.mark.parametrize("status", [RPCStatusCode.UNAVAILABLE, RPCStatusCode.DEADLINE_EXCEEDED])
+    async def test_delete_wraps_connection_error_as_sync_error(self, status: RPCStatusCode) -> None:
+        """Connection RPCError during deletion should invalidate cache and wrap as ScheduledTriggerSyncError."""
         client = _make_mock_client()
         client.list_schedules = AsyncMock(
             return_value=_async_iter_from([_make_schedule_list_entry("nexus-sched-wf-123-trigger_1")])
         )
         handle = client.get_schedule_handle.return_value
-        handle.delete = AsyncMock(side_effect=RPCError("unavailable", RPCStatusCode.UNAVAILABLE, b""))
+        handle.delete = AsyncMock(side_effect=RPCError("conn error", status, b""))
 
         service = ScheduledTriggerService(temporal_client=client)
 
-        with (
-            patch("nexus.workflows.services.scheduled_trigger_service._invalidate_client_cache"),
-            pytest.raises(ScheduledTriggerSyncError) as exc_info,
-        ):
+        with pytest.raises(ScheduledTriggerSyncError) as exc_info:
             await service.delete_triggers_for_workflow(workflow_id="wf-123")
 
         assert exc_info.value.__cause__ is not None
+        assert _mod._cached_client is None
+        assert _mod._search_attr_available is None
 
     async def test_delete_skips_when_temporal_unavailable(self) -> None:
         """Should skip deletion gracefully when Temporal is unavailable."""
@@ -565,3 +661,329 @@ class TestScheduleAlreadyRunningError:
             )
 
         assert handle.update.call_count == 3
+
+
+class TestSearchAttributeRegistration:
+    """Tests for _ensure_search_attribute feature detection and registration."""
+
+    async def test_registers_attribute_when_not_present(self) -> None:
+        """Should register NexusWorkflowId and return True."""
+        client = _make_mock_client(search_attr_available=False)
+
+        result = await _mod._ensure_search_attribute(client)
+
+        assert result is True
+        client.operator_service.add_search_attributes.assert_called_once()
+
+    async def test_skips_registration_when_already_present(self) -> None:
+        """Should detect existing attribute and skip registration."""
+        client = _make_mock_client(search_attr_available=True)
+
+        result = await _mod._ensure_search_attribute(client)
+
+        assert result is True
+        client.operator_service.add_search_attributes.assert_not_called()
+
+    async def test_caches_result_across_calls(self) -> None:
+        """Should only call operator_service once, then use cached result."""
+        client = _make_mock_client(search_attr_available=True)
+
+        result1 = await _mod._ensure_search_attribute(client)
+        result2 = await _mod._ensure_search_attribute(client)
+
+        assert result1 is True
+        assert result2 is True
+        assert client.operator_service.list_search_attributes.call_count == 1
+
+    @pytest.mark.parametrize("status", [RPCStatusCode.UNIMPLEMENTED, RPCStatusCode.PERMISSION_DENIED])
+    async def test_falls_back_on_non_connection_rpc_error(self, status: RPCStatusCode) -> None:
+        """Should set _search_attr_available=False on non-connection RPC errors."""
+        client = _make_mock_client()
+        client.operator_service = _make_mock_operator_service(
+            list_raises=RPCError("error", status, b""),
+        )
+
+        result = await _mod._ensure_search_attribute(client)
+
+        assert result is False
+        assert _mod._search_attr_available is False
+
+    @pytest.mark.parametrize("status", [RPCStatusCode.UNAVAILABLE, RPCStatusCode.DEADLINE_EXCEEDED])
+    async def test_connection_errors_fall_back_to_prefix_scan(self, status: RPCStatusCode) -> None:
+        """Connection errors from operator service should fall back, not re-raise."""
+        client = _make_mock_client(
+            list_raises=RPCError("conn error", status, b""),
+        )
+
+        result = await _mod._ensure_search_attribute(client)
+
+        assert result is False
+        assert _mod._search_attr_available is False
+
+    async def test_wrong_type_falls_back(self) -> None:
+        """Should fall back if NexusWorkflowId exists with wrong type."""
+        client = _make_mock_client()
+        resp = MagicMock()
+        resp.custom_attributes = {
+            "NexusWorkflowId": IndexedValueType.INDEXED_VALUE_TYPE_TEXT,
+        }
+        client.operator_service.list_search_attributes = AsyncMock(return_value=resp)
+
+        result = await _mod._ensure_search_attribute(client)
+
+        assert result is False
+        client.operator_service.add_search_attributes.assert_not_called()
+
+    async def test_already_exists_race_still_returns_true(self) -> None:
+        """Concurrent registration by another replica should still enable the feature."""
+        client = _make_mock_client(search_attr_available=False)
+        client.operator_service = _make_mock_operator_service(
+            attr_registered=False,
+            add_raises=RPCError("already exists", RPCStatusCode.ALREADY_EXISTS, b""),
+        )
+
+        result = await _mod._ensure_search_attribute(client)
+
+        assert result is True
+        assert _mod._search_attr_available is True
+
+    async def ***REMOVED***(self) -> None:
+        """Non-connection error from add_search_attributes should fall back to prefix scan."""
+        client = _make_mock_client(search_attr_available=False)
+        client.operator_service = _make_mock_operator_service(
+            attr_registered=False,
+            add_raises=RPCError("denied", RPCStatusCode.PERMISSION_DENIED, b""),
+        )
+
+        result = await _mod._ensure_search_attribute(client)
+
+        assert result is False
+        assert _mod._search_attr_available is False
+
+    @pytest.mark.parametrize("status", [RPCStatusCode.UNAVAILABLE, RPCStatusCode.DEADLINE_EXCEEDED])
+    async def test_add_connection_error_falls_back(self, status: RPCStatusCode) -> None:
+        """Connection error from add_search_attributes should fall back, not re-raise."""
+        client = _make_mock_client(search_attr_available=False)
+        client.operator_service = _make_mock_operator_service(
+            attr_registered=False,
+            add_raises=RPCError("conn error", status, b""),
+        )
+
+        result = await _mod._ensure_search_attribute(client)
+
+        assert result is False
+        assert _mod._search_attr_available is False
+
+
+class TestListWorkflowSchedulesOptimized:
+    """Tests for _list_workflow_schedules with search attribute optimization."""
+
+    async def test_uses_query_when_search_attr_available(self) -> None:
+        """Should pass query parameter to list_schedules."""
+        client = _make_mock_client(search_attr_available=True)
+        client.list_schedules = AsyncMock(
+            return_value=_async_iter_from(
+                [
+                    _make_schedule_list_entry("nexus-sched-wf-123-trigger_1"),
+                ]
+            )
+        )
+
+        service = ScheduledTriggerService(temporal_client=client)
+        result = await service._list_workflow_schedules(client, "wf-123")
+
+        assert result == {"nexus-sched-wf-123-trigger_1"}
+        client.list_schedules.assert_called_once_with(query='NexusWorkflowId = "wf-123"')
+
+    async def test_falls_back_to_prefix_scan(self) -> None:
+        """Should use prefix scan when search attr not available."""
+        client = _make_mock_client(
+            list_raises=RPCError("not implemented", RPCStatusCode.UNIMPLEMENTED, b""),
+        )
+        client.list_schedules = AsyncMock(
+            return_value=_async_iter_from(
+                [
+                    _make_schedule_list_entry("nexus-sched-wf-123-trigger_1"),
+                    _make_schedule_list_entry("nexus-sched-other-trigger_1"),
+                ]
+            )
+        )
+
+        service = ScheduledTriggerService(temporal_client=client)
+        result = await service._list_workflow_schedules(client, "wf-123")
+
+        assert result == {"nexus-sched-wf-123-trigger_1"}
+        client.list_schedules.assert_called_once_with()
+
+    async def test_query_error_falls_back_to_prefix(self) -> None:
+        """Should fall back to prefix scan if query fails with non-connection error."""
+        client = _make_mock_client(search_attr_available=True)
+
+        query_error = RPCError("bad query", RPCStatusCode.INVALID_ARGUMENT, b"")
+        call_count = 0
+
+        async def _list_schedules_side_effect(
+            query: str | None = None,
+        ) -> AsyncIterator[Any]:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1 and query is not None:
+                raise query_error
+            return _async_iter_from(
+                [
+                    _make_schedule_list_entry("nexus-sched-wf-123-trigger_1"),
+                    _make_schedule_list_entry("nexus-sched-other-trigger_1"),
+                ]
+            )
+
+        client.list_schedules = AsyncMock(side_effect=_list_schedules_side_effect)
+
+        service = ScheduledTriggerService(temporal_client=client)
+        result = await service._list_workflow_schedules(client, "wf-123")
+
+        assert result == {"nexus-sched-wf-123-trigger_1"}
+        assert client.list_schedules.call_count == 2
+
+    async def test_connection_error_in_query_reraises(self) -> None:
+        """Connection errors during query should invalidate cache and re-raise."""
+        client = _make_mock_client(search_attr_available=True)
+        client.list_schedules = AsyncMock(
+            side_effect=RPCError("unavailable", RPCStatusCode.UNAVAILABLE, b""),
+        )
+
+        service = ScheduledTriggerService(temporal_client=client)
+
+        with (
+            patch("nexus.workflows.services.scheduled_trigger_service._invalidate_client_cache") as mock_invalidate,
+            pytest.raises(RPCError),
+        ):
+            await service._list_workflow_schedules(client, "wf-123")
+
+        mock_invalidate.assert_called()
+
+    async def test_list_schedules_returns_empty_set(self) -> None:
+        """Empty schedule list should return empty set."""
+        client = _make_mock_client(search_attr_available=True)
+        client.list_schedules = AsyncMock(return_value=_async_iter_from([]))
+
+        service = ScheduledTriggerService(temporal_client=client)
+        result = await service._list_workflow_schedules(client, "wf-123")
+
+        assert result == set()
+
+    @pytest.mark.parametrize("bad_id", ['wf-123" OR 1=1', "wf%bad"])
+    async def test_invalid_workflow_id_falls_back_to_prefix_scan(self, bad_id: str) -> None:
+        """Invalid workflow_id should skip search attr and fall back to prefix scan."""
+        client = _make_mock_client(search_attr_available=True)
+        expected_id = f"nexus-sched-{bad_id}-trigger_1"
+        client.list_schedules = AsyncMock(
+            return_value=_async_iter_from(
+                [
+                    _make_schedule_list_entry(expected_id),
+                    _make_schedule_list_entry("nexus-sched-other-trigger_1"),
+                ]
+            )
+        )
+
+        service = ScheduledTriggerService(temporal_client=client)
+        result = await service._list_workflow_schedules(client, bad_id)
+
+        assert result == {expected_id}
+        client.list_schedules.assert_called_once_with()
+
+
+class TestCreateScheduleWithSearchAttributes:
+    """Tests for _create_or_update_schedule with search attributes."""
+
+    async def test_create_passes_search_attributes(self) -> None:
+        """Should pass TypedSearchAttributes with NexusWorkflowId to create_schedule."""
+        client = _make_mock_client(search_attr_available=True)
+        service = ScheduledTriggerService(temporal_client=client)
+
+        definition = _make_workflow_definition(triggers=[_make_scheduled_trigger("trigger_1")])
+
+        await service.sync_scheduled_triggers(
+            workflow_id="wf-123",
+            workflow_definition=definition,
+        )
+
+        call_kwargs = client.create_schedule.call_args[1]
+        search_attrs = call_kwargs["search_attributes"]
+        assert isinstance(search_attrs, TypedSearchAttributes)
+        pairs = list(search_attrs)
+        assert len(pairs) == 1
+        assert pairs[0].key.name == "NexusWorkflowId"
+        assert pairs[0].value == "wf-123"
+
+    async def test_update_passes_search_attributes(self) -> None:
+        """On ALREADY_EXISTS, should pass search_attributes in ScheduleUpdate."""
+        client = _make_mock_client(search_attr_available=True)
+        client.create_schedule = AsyncMock(side_effect=RPCError("exists", RPCStatusCode.ALREADY_EXISTS, b""))
+        handle = client.get_schedule_handle.return_value
+
+        service = ScheduledTriggerService(temporal_client=client)
+        definition = _make_workflow_definition(triggers=[_make_scheduled_trigger("trigger_1")])
+
+        await service.sync_scheduled_triggers(
+            workflow_id="wf-123",
+            workflow_definition=definition,
+        )
+
+        handle.update.assert_called_once()
+        updater_fn = handle.update.call_args[0][0]
+        update_result = updater_fn(MagicMock())
+        assert update_result.search_attributes is not None
+        pairs = list(update_result.search_attributes)
+        assert len(pairs) == 1
+        assert pairs[0].key.name == "NexusWorkflowId"
+
+    async def test_create_without_search_attr_when_unavailable(self) -> None:
+        """Should pass None search_attributes when feature not available."""
+        client = _make_mock_client(
+            list_raises=RPCError("not implemented", RPCStatusCode.UNIMPLEMENTED, b""),
+        )
+        service = ScheduledTriggerService(temporal_client=client)
+
+        definition = _make_workflow_definition(triggers=[_make_scheduled_trigger("trigger_1")])
+
+        await service.sync_scheduled_triggers(
+            workflow_id="wf-123",
+            workflow_definition=definition,
+        )
+
+        call_kwargs = client.create_schedule.call_args[1]
+        assert call_kwargs["search_attributes"] is None
+
+
+class TestGetSharedClient:
+    """Tests for _get_shared_client module-level client caching."""
+
+    async def test_returns_cached_client(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Should return the cached client without reconnecting."""
+        sentinel = MagicMock()
+        monkeypatch.setattr(_mod, "_cached_client", sentinel)
+        result = await _mod._get_shared_client()
+        assert result is sentinel
+
+    async def test_connects_and_caches(self) -> None:
+        """Should connect, cache, and return a new client."""
+        mock_client = MagicMock()
+        with patch(
+            "nexus.workflows.services.scheduled_trigger_service.Client.connect",
+            new_callable=AsyncMock,
+            return_value=mock_client,
+        ):
+            result = await _mod._get_shared_client()
+        assert result is mock_client
+        assert _mod._cached_client is mock_client
+
+    @pytest.mark.parametrize(
+        "exc", [OSError("refused"), RuntimeError("boom"), RPCError("down", RPCStatusCode.UNAVAILABLE, b"")]
+    )
+    async def test_returns_none_on_connection_failure(self, exc: Exception) -> None:
+        """Should return None when Temporal is unreachable."""
+        with patch(
+            "nexus.workflows.services.scheduled_trigger_service.Client.connect", new_callable=AsyncMock, side_effect=exc
+        ):
+            result = await _mod._get_shared_client()
+        assert result is None

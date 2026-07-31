@@ -13,6 +13,11 @@ from typing import Any
 
 import structlog
 from pydantic import ValidationError
+from temporalio.api.enums.v1 import IndexedValueType
+from temporalio.api.operatorservice.v1 import (
+    AddSearchAttributesRequest,
+    ListSearchAttributesRequest,
+)
 from temporalio.client import (
     Client,
     Schedule,
@@ -22,6 +27,7 @@ from temporalio.client import (
     ScheduleUpdate,
     ScheduleUpdateInput,
 )
+from temporalio.common import SearchAttributeKey, SearchAttributePair, TypedSearchAttributes
 from temporalio.service import RPCError, RPCStatusCode
 
 from nexus.core.config.base import get_settings
@@ -35,18 +41,27 @@ from nexus.workflows.workflow_engine.models.workflow_definition import NodeType,
 
 logger = structlog.stdlib.get_logger(__name__)
 
+SA_NEXUS_WORKFLOW_ID = SearchAttributeKey.for_keyword("NexusWorkflowId")
+
 _client_lock = asyncio.Lock()
 _cached_client: Client | None = None
+
+_search_attr_available: bool | None = None
 
 _CONNECTION_ERRORS = frozenset({RPCStatusCode.UNAVAILABLE, RPCStatusCode.DEADLINE_EXCEEDED})
 
 
-async def _update_schedule_with_retry(client: Client, schedule_id: str, schedule: Schedule) -> None:
+async def _update_schedule_with_retry(
+    client: Client,
+    schedule_id: str,
+    schedule: Schedule,
+    search_attributes: TypedSearchAttributes | None = None,
+) -> None:
     """Update an existing Temporal Schedule, retrying if the action is in-flight."""
     handle = client.get_schedule_handle(schedule_id)
 
     def _updater(_: ScheduleUpdateInput) -> ScheduleUpdate:
-        return ScheduleUpdate(schedule=schedule)
+        return ScheduleUpdate(schedule=schedule, search_attributes=search_attributes)
 
     max_retries = 3
     for attempt in range(max_retries):
@@ -61,8 +76,67 @@ async def _update_schedule_with_retry(client: Client, schedule_id: str, schedule
 
 def _invalidate_client_cache() -> None:
     """Clear the cached Temporal client so the next call reconnects."""
-    global _cached_client  # noqa: PLW0603
+    global _cached_client, _search_attr_available  # noqa: PLW0603
     _cached_client = None
+    _search_attr_available = None
+
+
+async def _ensure_search_attribute(client: Client) -> bool:
+    """Ensure the NexusWorkflowId search attribute is registered in Temporal.
+
+    Returns True if the attribute is available for server-side filtering,
+    False if the Temporal server does not support it.  The result is cached
+    for the lifetime of the client connection.
+    """
+    global _search_attr_available  # noqa: PLW0603
+
+    if _search_attr_available is not None:
+        return _search_attr_available
+
+    try:
+        settings = get_settings()
+        resp = await client.operator_service.list_search_attributes(
+            ListSearchAttributesRequest(namespace=settings.temporal_namespace),
+        )
+        attr_type = resp.custom_attributes.get(SA_NEXUS_WORKFLOW_ID.name)
+        if attr_type == IndexedValueType.INDEXED_VALUE_TYPE_KEYWORD:
+            _search_attr_available = True
+            logger.info("NexusWorkflowId search attribute already registered")
+            return True
+        if attr_type is not None:
+            logger.warning(
+                "NexusWorkflowId has unexpected type, using prefix scan fallback",
+                type=attr_type,
+            )
+            _search_attr_available = False
+            return False
+
+        try:
+            await client.operator_service.add_search_attributes(
+                AddSearchAttributesRequest(
+                    namespace=settings.temporal_namespace,
+                    search_attributes={
+                        SA_NEXUS_WORKFLOW_ID.name: IndexedValueType.INDEXED_VALUE_TYPE_KEYWORD,
+                    },
+                ),
+            )
+        except RPCError as add_err:
+            if add_err.status != RPCStatusCode.ALREADY_EXISTS:
+                raise
+            logger.info("NexusWorkflowId registered concurrently by another replica")
+        else:
+            logger.info("Registered NexusWorkflowId search attribute")
+        _search_attr_available = True
+        return True
+
+    except RPCError as e:
+        _search_attr_available = False
+        logger.info(
+            "Custom search attributes not available, using prefix scan fallback",
+            error=str(e),
+            status=e.status.name,
+        )
+        return False
 
 
 async def _get_shared_client() -> Client | None:
@@ -216,9 +290,10 @@ class ScheduledTriggerService:
     ) -> int:
         """Delete all Temporal Schedules for a workflow.
 
-        Uses a prefix scan to find schedules rather than iterating the
-        workflow definition, so schedules created by any version are
-        cleaned up — not just those in the current draft.
+        Finds schedules via the NexusWorkflowId search attribute when
+        available, falling back to prefix scan otherwise.  Does not
+        iterate the workflow definition, so schedules created by any
+        version are cleaned up — not just those in the current draft.
 
         Args:
             workflow_id: The workflow UUID (as string).
@@ -284,8 +359,14 @@ class ScheduledTriggerService:
             state=ScheduleState(paused=False),
         )
 
+        search_attrs: TypedSearchAttributes | None = None
+        if await _ensure_search_attribute(client):
+            search_attrs = TypedSearchAttributes(
+                [SearchAttributePair(SA_NEXUS_WORKFLOW_ID, workflow_id)],
+            )
+
         try:
-            await client.create_schedule(schedule_id, schedule)
+            await client.create_schedule(schedule_id, schedule, search_attributes=search_attrs)
             logger.info(
                 "Created Temporal Schedule",
                 schedule_id=schedule_id,
@@ -296,7 +377,7 @@ class ScheduledTriggerService:
             if isinstance(e, ScheduleAlreadyRunningError) or (
                 isinstance(e, RPCError) and e.status == RPCStatusCode.ALREADY_EXISTS
             ):
-                await _update_schedule_with_retry(client, schedule_id, schedule)
+                await _update_schedule_with_retry(client, schedule_id, schedule, search_attrs)
                 logger.info(
                     "Updated Temporal Schedule",
                     schedule_id=schedule_id,
@@ -310,7 +391,38 @@ class ScheduledTriggerService:
                 raise
 
     async def _list_workflow_schedules(self, client: Client, workflow_id: str) -> set[str]:
-        """List all Temporal Schedule IDs belonging to a workflow."""
+        """List all Temporal Schedule IDs belonging to a workflow.
+
+        Uses server-side filtering via the NexusWorkflowId search attribute
+        when available, falling back to client-side prefix scan otherwise.
+        """
+        can_use_search_attr = await _ensure_search_attribute(client) and workflow_id.replace("-", "").isalnum()
+        if can_use_search_attr:
+            try:
+                return await self._list_schedules_by_search_attr(client, workflow_id)
+            except RPCError as e:
+                if e.status in _CONNECTION_ERRORS:
+                    _invalidate_client_cache()
+                    raise
+                logger.warning(
+                    "Search attribute query failed (may be expected after initial registration),"
+                    " falling back to prefix scan",
+                    workflow_id=workflow_id,
+                    error=str(e),
+                )
+
+        return await self._list_schedules_by_prefix(client, workflow_id)
+
+    async def _list_schedules_by_search_attr(self, client: Client, workflow_id: str) -> set[str]:
+        """List schedules using server-side NexusWorkflowId filter."""
+        query = f'{SA_NEXUS_WORKFLOW_ID.name} = "{workflow_id}"'
+        schedule_ids: set[str] = set()
+        async for entry in await client.list_schedules(query=query):
+            schedule_ids.add(entry.id)
+        return schedule_ids
+
+    async def _list_schedules_by_prefix(self, client: Client, workflow_id: str) -> set[str]:
+        """List schedules using client-side prefix scan (fallback)."""
         prefix = f"nexus-sched-{workflow_id}-"
         schedule_ids: set[str] = set()
         async for entry in await client.list_schedules():
