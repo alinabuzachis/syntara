@@ -165,13 +165,15 @@ class TestWorkflowWithValidCredential:
             name=unique_name("e2e-cred-bearer"),
         )
 
+        workflow_name = unique_name("e2e-cred-bearer-test")
+
         definition = _http_request_workflow(
-            name="e2e-cred-bearer-test",
+            name=workflow_name,
             url=f"{HTTPBIN_URL}/bearer",
             credential_id=str(cred_id),
         )
         execution = create_and_run_workflow(
-            nexus_api, "e2e-cred-bearer-test", definition, timeout=30, project_id=first_project_id
+            nexus_api, workflow_name, definition, timeout=30, project_id=first_project_id
         )
 
         assert execution.status == ExecutionStatus.COMPLETED, f"Unexpected status: {execution.status}"
@@ -195,13 +197,15 @@ class TestWorkflowWithValidCredential:
             inputs={"username": "admin", "password": "secret123"},
         )
 
+        workflow_name = unique_name("e2e-cred-basic-test")
+
         definition = _http_request_workflow(
-            name="e2e-cred-basic-test",
+            name=workflow_name,
             url=f"{HTTPBIN_URL}/basic-auth/admin/secret123",
             credential_id=str(cred_id),
         )
         execution = create_and_run_workflow(
-            nexus_api, "e2e-cred-basic-test", definition, timeout=30, project_id=first_project_id
+            nexus_api, workflow_name, definition, timeout=30, project_id=first_project_id
         )
 
         assert execution.status == ExecutionStatus.COMPLETED, f"Unexpected status: {execution.status}"
@@ -217,9 +221,11 @@ class TestWorkflowWithValidCredential:
         first_project_id: UUID,
     ) -> None:
         """HTTP request to a protected endpoint without credential — expect workflow failure with 401."""
+        workflow_name = "e2e-cred-none-test"
+
         definition = {
             "schema_version": "2.0.0",
-            "name": "e2e-cred-none-test",
+            "name": workflow_name,
             "description": "E2E: no credential against protected endpoint",
             "triggers": [{"id": "trigger", "type": "manual_trigger", "parameters": {}}],
             "nodes": [
@@ -233,7 +239,7 @@ class TestWorkflowWithValidCredential:
             "edges": [{"from": "trigger", "to": "api_call"}],
         }
         execution = create_and_run_workflow(
-            nexus_api, "e2e-cred-none-test", definition, timeout=30, project_id=first_project_id
+            nexus_api, workflow_name, definition, timeout=30, project_id=first_project_id
         )
 
         assert execution.status == ExecutionStatus.FAILED
@@ -268,13 +274,15 @@ class TestWorkflowWithDisabledCredential:
             body=CredentialUpdate(enabled=False),
         ).assert_and_get()
 
+        workflow_name = unique_name("e2e-cred-disabled-test")
+
         definition = _http_request_workflow(
-            name="e2e-cred-disabled-test",
+            name=workflow_name,
             url=f"{HTTPBIN_URL}/bearer",
             credential_id=str(cred_id),
         )
         execution = create_and_run_workflow(
-            nexus_api, "e2e-cred-disabled-test", definition, timeout=30, project_id=first_project_id
+            nexus_api, workflow_name, definition, timeout=30, project_id=first_project_id
         )
 
         assert execution.status == ExecutionStatus.FAILED
@@ -290,7 +298,7 @@ class TestWorkflowWithDisabledCredential:
         ).assert_and_get()
 
         execution = create_and_run_workflow(
-            nexus_api, "e2e-cred-disabled-test", definition, timeout=30, project_id=first_project_id
+            nexus_api, workflow_name, definition, timeout=30, project_id=first_project_id
         )
 
         assert execution.status == ExecutionStatus.COMPLETED, f"Unexpected status after re-enable: {execution.status}"
@@ -321,14 +329,16 @@ class TestWorkflowWithDeletedCredential:
             name=unique_name("e2e-cred-deleted"),
         )
 
+        workflow_name = unique_name("e2e-cred-deleted-test")
+
         definition = _http_request_workflow(
-            name="e2e-cred-deleted-test",
+            name=workflow_name,
             url=f"{HTTPBIN_URL}/bearer",
             credential_id=str(cred_id),
         )
         workflow = nexus_api.workflows.create(
             body=WorkflowCreate(
-                name=unique_name("e2e-cred-deleted-test"),
+                name=workflow_name,
                 description="E2E: deleted credential test",
                 workflow_definition=WorkflowDefinition.from_dict(definition),
                 project_id=first_project_id,
@@ -372,9 +382,11 @@ class TestCredentialScrubbing:
 
         cred_id, *_ = create_credential(api=nexus_api, project_id=first_project_id, name="e2e-scrub-stdout")
 
+        workflow_name = unique_name("e2e-scrub-stdout-test")
+
         definition = {
             "schema_version": "2.0.0",
-            "name": "e2e-scrub-stdout-test",
+            "name": workflow_name,
             "description": "AAP-79021: verify value-based credential scrubbing",
             "triggers": [{"id": "trigger_manual", "type": "manual_trigger", "parameters": {}}],
             "nodes": [
@@ -393,7 +405,7 @@ class TestCredentialScrubbing:
         }
 
         execution = create_and_run_workflow(
-            nexus_api, "e2e-scrub-stdout-test", definition, timeout=30, project_id=first_project_id
+            nexus_api, workflow_name, definition, timeout=30, project_id=first_project_id
         )
         status_str = str(execution.status)
         assert status_str in {"completed", "completed_with_errors"}, f"Unexpected status: {status_str}"
