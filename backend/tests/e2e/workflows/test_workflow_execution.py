@@ -598,7 +598,6 @@ class TestParallelBranches:
         # Allow generous slack for CI scheduling overhead; still proves concurrency.
         wall_clock_ceiling = branch_duration * 1.8  # 7.2s
 
-        start = datetime.now(UTC)
         result = create_and_run_workflow(
             nexus_api,
             "e2e-parallel-wait-branches",
@@ -642,6 +641,9 @@ class TestParallelBranches:
             },
             timeout=PARALLEL_POLL_TIMEOUT,
         )
+
+        # ExecutionRead.created_at is a better representation of when the Workflow execution started
+        start = result.created_at
         elapsed = (datetime.now(UTC) - start).total_seconds()
 
         assert result.status == ExecutionStatus.COMPLETED, f"Execution failed: {result.error_details}"
