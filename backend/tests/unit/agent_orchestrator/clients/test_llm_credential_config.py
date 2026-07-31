@@ -1,19 +1,20 @@
 """Unit tests for LLMCredentialConfig."""
 
 import pytest
+from pydantic import SecretStr, ValidationError
 
 from nexus.agent_orchestrator.models.llm_credential_config import LLMCredentialConfig
 
 
 class TestLLMCredentialConfig:
-    """Tests for LLMCredentialConfig frozen dataclass."""
+    """Tests for LLMCredentialConfig frozen SQLModel."""
 
     def test_create_config(self) -> None:
         """Config stores all fields."""
         config = LLMCredentialConfig(
             api_key="sk-123", base_url="https://api.example.com", model="gpt-4", provider_hint="openai"
         )
-        assert config.api_key == "sk-123"
+        assert config.api_key.get_secret_value() == "sk-123"
         assert config.base_url == "https://api.example.com"
         assert config.model == "gpt-4"
         assert config.provider_hint == "openai"
@@ -24,10 +25,10 @@ class TestLLMCredentialConfig:
         assert config.provider_hint is None
 
     def test_frozen_immutability(self) -> None:
-        """Frozen dataclass rejects attribute assignment."""
+        """Frozen SQLModel rejects attribute assignment."""
         config = LLMCredentialConfig(api_key="sk-123", base_url="https://api.example.com", model="gpt-4")
-        with pytest.raises(AttributeError):
-            config.api_key = "new-key"  # type: ignore[misc]
+        with pytest.raises(ValidationError):
+            config.api_key = SecretStr("new-key")
 
     def test_tls_fields_default_values(self) -> None:
         """TLS fields default to safe values when not specified."""

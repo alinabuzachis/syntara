@@ -336,7 +336,7 @@ class TestLLMRelevancyCheckerIntegration:
             mock_get_llm.assert_called_once_with(
                 model=_TEST_CREDENTIAL.model,
                 temperature=0.3,
-                api_key=_TEST_CREDENTIAL.api_key,
+                api_key=_TEST_CREDENTIAL.api_key.get_secret_value(),
                 base_url=_TEST_CREDENTIAL.base_url,
                 insecure_skip_tls_verify=False,
                 ca_certificate=None,

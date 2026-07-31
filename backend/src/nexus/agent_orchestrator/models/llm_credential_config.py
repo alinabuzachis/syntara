@@ -1,19 +1,23 @@
 """Lightweight credential config for threading LLM credentials through service layers."""
 
-from dataclasses import dataclass
+from typing import ClassVar
+
+from pydantic import ConfigDict, SecretStr
+from sqlmodel import Field, SQLModel
 
 
-@dataclass(frozen=True)
-class LLMCredentialConfig:
+class LLMCredentialConfig(SQLModel):
     """Immutable credential config carrying api_key, base_url, and model through the call chain.
 
     Each service creates its own LLM instance with these shared credentials
     but independent temperature/max_tokens settings.
     """
 
-    api_key: str
-    base_url: str
-    model: str
-    provider_hint: str | None = None
-    insecure_skip_tls_verify: bool = False
-    ca_certificate: str | None = None
+    model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)  # type: ignore[assignment]
+
+    api_key: SecretStr = Field(...)
+    base_url: str = Field(...)
+    model: str = Field(...)
+    provider_hint: str | None = Field(default=None)
+    insecure_skip_tls_verify: bool = Field(default=False)
+    ca_certificate: str | None = Field(default=None)

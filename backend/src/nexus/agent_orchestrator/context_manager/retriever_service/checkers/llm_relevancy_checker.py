@@ -325,7 +325,7 @@ class LLMRelevancyChecker(RelevancyChecker):
             msg = "LLM credential config is required for LLM relevancy checking"
             raise RelevancyCheckError(msg)
         return (
-            llm_credential_config.api_key,
+            llm_credential_config.api_key.get_secret_value(),
             llm_credential_config.base_url,
             llm_credential_config.model,
             llm_credential_config.insecure_skip_tls_verify,

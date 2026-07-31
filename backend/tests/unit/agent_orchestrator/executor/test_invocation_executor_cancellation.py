@@ -50,7 +50,7 @@ class TestInvocationExecutorCancellationRaceCondition:
         with (
             patch(
                 "nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm",
-                return_value=(MagicMock(), None),
+                return_value=(MagicMock(model_name="test-model", openai_api_base="https://test.example.com"), None),
             ),
             patch("nexus.agent_orchestrator.executor.invocation_executor.ContextManagerPlanner"),
             patch("nexus.agent_orchestrator.executor.invocation_executor.OrchestrationService") as mock_orchestration,
@@ -103,7 +103,7 @@ class TestInvocationExecutorCancellationRaceCondition:
         with (
             patch(
                 "nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm",
-                return_value=(MagicMock(), None),
+                return_value=(MagicMock(model_name="test-model", openai_api_base="https://test.example.com"), None),
             ),
             patch("nexus.agent_orchestrator.executor.invocation_executor.ContextManagerPlanner"),
             patch("nexus.agent_orchestrator.executor.invocation_executor.OrchestrationService") as mock_orchestration,
@@ -197,7 +197,7 @@ class TestInvocationExecutorCancellationRaceCondition:
         with (
             patch(
                 "nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm",
-                return_value=(MagicMock(), None),
+                return_value=(MagicMock(model_name="test-model", openai_api_base="https://test.example.com"), None),
             ),
             patch("nexus.agent_orchestrator.executor.invocation_executor.ContextManagerPlanner"),
             patch("nexus.agent_orchestrator.executor.invocation_executor.OrchestrationService") as mock_orchestration,
@@ -246,7 +246,7 @@ class TestInvocationExecutorCancellationRaceCondition:
         with (
             patch(
                 "nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm",
-                return_value=(MagicMock(), None),
+                return_value=(MagicMock(model_name="test-model", openai_api_base="https://test.example.com"), None),
             ),
             patch("nexus.agent_orchestrator.executor.invocation_executor.ContextManagerPlanner"),
             patch("nexus.agent_orchestrator.executor.invocation_executor.OrchestrationService") as mock_orchestration,
