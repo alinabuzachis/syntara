@@ -17,29 +17,31 @@ T = TypeVar("T", bound="RefreshResult")
 class RefreshResult:
     """Result returned by POST /integrations/{id}/refresh.
 
-    Field names use ``tools_*`` for both MCP and LLM refreshes. For MCP
-    servers, ``tools_disabled_count`` reflects tools soft-disabled as MISSING.
-    For LLM providers, it reflects models hard-deleted from the database.
+    Covers both MCP tool and LLM model refreshes. ``missing_count``
+    reflects resources no longer offered by the provider: MCP tools are
+    marked MISSING and LLM models are counted as missing. Rows are
+    preserved and ``enabled`` is never changed by discovery (it is
+    admin-controlled).
 
         Attributes:
-            tools_synced_count (int): Number of new resource records created
-            tools_updated_count (int): Number of existing resource records updated
-            tools_disabled_count (int): Number of resource records removed or disabled
+            synced_count (int): Number of new resource records created
+            updated_count (int): Number of existing resource records updated
+            missing_count (int): Number of resources no longer offered by the provider
             refreshed_at (datetime.datetime | None | Unset): Timestamp when the refresh completed
     """
 
-    tools_synced_count: int
-    tools_updated_count: int
-    tools_disabled_count: int
+    synced_count: int
+    updated_count: int
+    missing_count: int
     refreshed_at: datetime.datetime | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        tools_synced_count = self.tools_synced_count
+        synced_count = self.synced_count
 
-        tools_updated_count = self.tools_updated_count
+        updated_count = self.updated_count
 
-        tools_disabled_count = self.tools_disabled_count
+        missing_count = self.missing_count
 
         refreshed_at: None | str | Unset
         if isinstance(self.refreshed_at, Unset):
@@ -53,9 +55,9 @@ class RefreshResult:
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "tools_synced_count": tools_synced_count,
-                "tools_updated_count": tools_updated_count,
-                "tools_disabled_count": tools_disabled_count,
+                "synced_count": synced_count,
+                "updated_count": updated_count,
+                "missing_count": missing_count,
             }
         )
         if refreshed_at is not UNSET:
@@ -66,11 +68,11 @@ class RefreshResult:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        tools_synced_count = d.pop("tools_synced_count")
+        synced_count = d.pop("synced_count")
 
-        tools_updated_count = d.pop("tools_updated_count")
+        updated_count = d.pop("updated_count")
 
-        tools_disabled_count = d.pop("tools_disabled_count")
+        missing_count = d.pop("missing_count")
 
         def _parse_refreshed_at(data: object) -> datetime.datetime | None | Unset:
             if data is None:
@@ -90,9 +92,9 @@ class RefreshResult:
         refreshed_at = _parse_refreshed_at(d.pop("refreshed_at", UNSET))
 
         refresh_result = cls(
-            tools_synced_count=tools_synced_count,
-            tools_updated_count=tools_updated_count,
-            tools_disabled_count=tools_disabled_count,
+            synced_count=synced_count,
+            updated_count=updated_count,
+            missing_count=missing_count,
             refreshed_at=refreshed_at,
         )
 

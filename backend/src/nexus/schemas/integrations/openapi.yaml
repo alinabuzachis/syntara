@@ -1217,6 +1217,12 @@ components:
                   format: date-time
                 - type: "null"
               title: Last Refreshed At
+            last_successful_refresh_at:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: "null"
+              title: Last Successful Refresh At
             refresh_error:
               anyOf:
                 - type: string
@@ -1528,6 +1534,7 @@ components:
       enum:
         - refreshing
         - available
+        - warning
         - error
       title: IntegrationRefreshStatus
       description: Status of the last resource-refresh operation for an integration.
@@ -1536,22 +1543,24 @@ components:
       description: |-
         Result returned by POST /integrations/{id}/refresh.
 
-        Field names use ``tools_*`` for both MCP and LLM refreshes. For MCP
-        servers, ``tools_disabled_count`` reflects tools soft-disabled as MISSING.
-        For LLM providers, it reflects models hard-deleted from the database.
+        Covers both MCP tool and LLM model refreshes. ``missing_count``
+        reflects resources no longer offered by the provider: MCP tools are
+        marked MISSING and LLM models are counted as missing. Rows are
+        preserved and ``enabled`` is never changed by discovery (it is
+        admin-controlled).
       properties:
-        tools_synced_count:
+        synced_count:
           type: integer
-          title: Tools Synced Count
+          title: Synced Count
           description: Number of new resource records created
-        tools_updated_count:
+        updated_count:
           type: integer
-          title: Tools Updated Count
+          title: Updated Count
           description: Number of existing resource records updated
-        tools_disabled_count:
+        missing_count:
           type: integer
-          title: Tools Disabled Count
-          description: Number of resource records removed or disabled
+          title: Missing Count
+          description: Number of resources no longer offered by the provider
         refreshed_at:
           anyOf:
             - type: string
@@ -1560,9 +1569,9 @@ components:
           title: Refreshed At
           description: Timestamp when the refresh completed
       required:
-        - tools_synced_count
-        - tools_updated_count
-        - tools_disabled_count
+        - synced_count
+        - updated_count
+        - missing_count
       title: RefreshResult
       type: object
 

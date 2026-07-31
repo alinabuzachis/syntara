@@ -1,7 +1,7 @@
 """Integration Service for database operations and business logic."""
 
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import NoReturn
 from uuid import UUID
 
@@ -153,16 +153,18 @@ class IntegrationService(BaseService):
                 for t in data.discovered_tools
             ]
             enabled_map = {t.name: t.enabled for t in data.discovered_tools}
-            synced, updated, disabled = await self._sync_mcp_tools(integration, discovered, enabled_map=enabled_map)
+            synced, updated, missing = await self._sync_mcp_tools(integration, discovered, enabled_map=enabled_map)
+            now = datetime.now(UTC)
             integration.refresh_status = IntegrationRefreshStatus.AVAILABLE
-            integration.last_refreshed_at = datetime.now(UTC)
+            integration.last_refreshed_at = now
+            integration.last_successful_refresh_at = now
             await self.session.flush()
             logger.info(
                 "Initial tool sync completed",
                 integration_id=str(integration.id),
                 synced=synced,
                 updated=updated,
-                disabled=disabled,
+                missing=missing,
             )
         elif data.integration_type == IntegrationType.LLM_PROVIDER and data.discovered_models:
             discovered_models = [
@@ -175,18 +177,20 @@ class IntegrationService(BaseService):
             ]
             enabled_map = {m.model_id: m.enabled for m in data.discovered_models}
             default_model_id = next((m.model_id for m in data.discovered_models if m.is_default), None)
-            synced, updated, removed = await self._sync_llm_models(
+            synced, updated, missing = await self._sync_llm_models(
                 integration, discovered_models, enabled_map=enabled_map, default_model_id=default_model_id
             )
+            now = datetime.now(UTC)
             integration.refresh_status = IntegrationRefreshStatus.AVAILABLE
-            integration.last_refreshed_at = datetime.now(UTC)
+            integration.last_refreshed_at = now
+            integration.last_successful_refresh_at = now
             await self.session.flush()
             logger.info(
                 "Initial model sync completed",
                 integration_id=str(integration.id),
                 synced=synced,
                 updated=updated,
-                removed=removed,
+                missing=missing,
             )
 
     async def _get_or_raise(self, integration_id: UUID, *, for_update: bool = False) -> Integration:
@@ -786,17 +790,46 @@ class IntegrationService(BaseService):
 
         return result
 
-    async def refresh_resources(self, integration_id: UUID) -> RefreshResult:
+    _RECENT_REFRESH_SECONDS = 60
+
+    @staticmethod
+    def _skip_if_recently_refreshed(integration: Integration, threshold_seconds: int) -> RefreshResult | None:
+        """Return a no-op RefreshResult if refreshed within *threshold_seconds*, else None."""
+        if integration.last_refreshed_at and (datetime.now(UTC) - integration.last_refreshed_at) < timedelta(
+            seconds=threshold_seconds
+        ):
+            logger.info(
+                "Skipping refresh; recently refreshed",
+                integration_id=str(integration.id),
+                last_refreshed_at=integration.last_refreshed_at.isoformat(),
+            )
+            return RefreshResult(
+                synced_count=0,
+                updated_count=0,
+                missing_count=0,
+                refreshed_at=integration.last_refreshed_at,
+            )
+        return None
+
+    async def refresh_resources(self, integration_id: UUID, *, skip_if_recent: bool = False) -> RefreshResult:
         """Discover and sync resources (tools/models) for a saved integration.
 
         For MCP servers: discovers tools and upserts Tool records.
         For LLM providers: discovers models and upserts LLMModel records.
         Updates refresh_status and last_refreshed_at on the integration.
 
+        When *skip_if_recent* is True (used by the periodic discovery worker),
+        the refresh is skipped if the integration was already refreshed within
+        the last 60 seconds, preventing redundant work when a manual refresh
+        and a scheduled run overlap.
+
         Raises IntegrationRefreshNotSupportedError for unsupported integration types.
         """
         logger.info("Starting integration refresh", integration_id=str(integration_id))
         integration = await self._get_or_raise(integration_id)
+
+        if skip_if_recent and (skipped := self._skip_if_recently_refreshed(integration, self._RECENT_REFRESH_SECONDS)):
+            return skipped
 
         if integration.integration_type not in _REFRESHABLE_TYPES:
             raise IntegrationRefreshNotSupportedError(integration_id, integration.integration_type.value)
@@ -815,7 +848,7 @@ class IntegrationService(BaseService):
         timeout_seconds: int = await get_runtime_settings().get("integrations.connection_test_timeout_seconds")
         adapter = create_health_check_adapter(integration.integration_type, integration.configuration)
 
-        synced = updated = disabled = 0
+        synced = updated = missing = 0
         try:
             discover_result = await adapter.discover(resolved_credential, timeout_seconds)
 
@@ -835,19 +868,19 @@ class IntegrationService(BaseService):
                     )
                 )
                 return RefreshResult(
-                    tools_synced_count=0,
-                    tools_updated_count=0,
-                    tools_disabled_count=0,
+                    synced_count=0,
+                    updated_count=0,
+                    missing_count=0,
                     refreshed_at=integration.last_refreshed_at or datetime.now(UTC),
                 )
 
             if integration.integration_type == IntegrationType.MCP_SERVER:
-                synced, updated, disabled = await self._sync_mcp_tools(
+                synced, updated, missing = await self._sync_mcp_tools(
                     integration,
                     discover_result.discovered_tools or [],
                 )
             elif integration.integration_type == IntegrationType.LLM_PROVIDER:
-                synced, updated, disabled = await self._sync_llm_models(
+                synced, updated, missing = await self._sync_llm_models(
                     integration,
                     discover_result.discovered_models or [],
                 )
@@ -857,16 +890,21 @@ class IntegrationService(BaseService):
                 )
 
             integration = await self._get_or_raise(integration_id, for_update=True)
-            integration.refresh_status = IntegrationRefreshStatus.AVAILABLE
-            integration.last_refreshed_at = datetime.now(UTC)
-            integration.refresh_error = None
+            now = datetime.now(UTC)
+            integration.last_refreshed_at = now
+            integration.last_successful_refresh_at = now
+            warning = await self._default_model_missing(integration, discover_result.discovered_models or [])
+            integration.refresh_status = (
+                IntegrationRefreshStatus.WARNING if warning else IntegrationRefreshStatus.AVAILABLE
+            )
+            integration.refresh_error = warning
             await self.session.commit()
             logger.info(
                 "Integration refresh completed",
                 integration_id=str(integration_id),
                 synced=synced,
                 updated=updated,
-                disabled=disabled,
+                missing=missing,
             )
         except Exception as exc:
             logger.exception(
@@ -886,17 +924,17 @@ class IntegrationService(BaseService):
                 integration_id=integration.id,
                 integration_name=integration.name,
                 integration_type=integration.integration_type.value,
-                result_status=IntegrationRefreshStatus.AVAILABLE,
-                tools_synced_count=synced,
-                tools_updated_count=updated,
-                tools_disabled_count=disabled,
+                result_status=integration.refresh_status,
+                synced_count=synced,
+                updated_count=updated,
+                missing_count=missing,
             )
         )
 
         return RefreshResult(
-            tools_synced_count=synced,
-            tools_updated_count=updated,
-            tools_disabled_count=disabled,
+            synced_count=synced,
+            updated_count=updated,
+            missing_count=missing,
             refreshed_at=integration.last_refreshed_at,
         )
 
@@ -917,6 +955,25 @@ class IntegrationService(BaseService):
 
         return await resolve_mcp_bearer_token(self.session, self._secret_service, integration.id)
 
+    async def _default_model_missing(
+        self, integration: Integration, discovered_models: list[DiscoveredLLMModel]
+    ) -> str | None:
+        """Warning message if the integration's default LLM model was not in the latest discovery."""
+        if integration.integration_type != IntegrationType.LLM_PROVIDER:
+            return None
+        default_model = (
+            await self.session.exec(
+                select(LLMModel).where(
+                    LLMModel.integration_id == integration.id,
+                    col(LLMModel.is_default).is_(True),
+                )
+            )
+        ).first()
+        discovered_ids = {m.id for m in discovered_models}
+        if default_model is not None and default_model.model_id not in discovered_ids:
+            return f"Default model '{default_model.model_id}' is no longer offered by the provider"
+        return None
+
     async def _sync_mcp_tools(
         self,
         integration: Integration,
@@ -933,10 +990,11 @@ class IntegrationService(BaseService):
         according to the map (used during creation with user selections).
         Otherwise all new tools default to enabled=True.
 
-        Tools no longer present in the discovered list are disabled and
-        marked MISSING to preserve referential integrity with workflows.
+        Tools no longer present in the discovered list keep their admin
+        enabled state unchanged and are marked MISSING, so workflow
+        references stay valid and the orchestrator can still try them.
 
-        Returns a (synced_count, updated_count, disabled_count) tuple.
+        Returns a (synced_count, updated_count, missing_count) tuple.
         The caller is responsible for committing the session.
         """
         existing_query = await self.session.exec(select(Tool).where(Tool.integration_id == integration.id))
@@ -1010,21 +1068,20 @@ class IntegrationService(BaseService):
                     )
                 )
 
-        disabled_count = 0
+        missing_count = 0
         for name, tool in existing_tools.items():
             if name not in found_names:
                 logger.debug(
-                    "Disabling tool no longer in discovered list",
+                    "Marking tool MISSING; no longer in discovered list",
                     integration_id=str(integration.id),
                     tool_name=name,
                 )
-                tool.enabled = False
                 tool.status = ToolStatus.MISSING
                 tool.updated_by = self.user.id
                 tool.updated_at = datetime.now(UTC)
-                disabled_count += 1
+                missing_count += 1
 
-        return synced_count, updated_count, disabled_count
+        return synced_count, updated_count, missing_count
 
     async def delete_integration(self, integration_id: UUID) -> None:
         """Hard-delete an integration and all linked resources."""
@@ -1099,7 +1156,9 @@ class IntegrationService(BaseService):
     ) -> tuple[int, int, int]:
         """Upsert LLMModel records from discovered models.
 
-        Uses hard-delete for models that disappear from the provider.
+        Models that disappear from the provider are kept (not deleted)
+        and their admin-controlled ``enabled`` state is left untouched,
+        matching the MCP tool pattern.
 
         If ``enabled_map`` is provided, each model's enabled state is set
         according to the map (used during creation with user selections).
@@ -1109,7 +1168,7 @@ class IntegrationService(BaseService):
         default and all others are unset. During refresh (no default_model_id),
         existing default state is preserved.
 
-        Returns a (synced_count, updated_count, removed_count) tuple.
+        Returns a (synced_count, updated_count, missing_count) tuple.
         """
         existing_query = await self.session.exec(select(LLMModel).where(LLMModel.integration_id == integration.id))
         existing_models = {m.model_id: m for m in existing_query.all()}
@@ -1155,19 +1214,10 @@ class IntegrationService(BaseService):
                 self.session.add(new_model)
                 synced_count += 1
 
-        # Hard-delete models that are no longer available from the provider.
-        stale_ids = [m.id for mid, m in existing_models.items() if mid not in found_ids]
-        removed_count = len(stale_ids)
-        if stale_ids:
-            logger.debug(
-                "Removing models no longer in discovered list",
-                integration_id=str(integration.id),
-                removed_count=removed_count,
-            )
-            await self.session.exec(delete(LLMModel).where(col(LLMModel.id).in_(stale_ids)))
+        missing_count = sum(1 for mid in existing_models if mid not in found_ids)
 
         await self.session.flush()
-        return synced_count, updated_count, removed_count
+        return synced_count, updated_count, missing_count
 
 
 def _discovered_params_to_tool_params(

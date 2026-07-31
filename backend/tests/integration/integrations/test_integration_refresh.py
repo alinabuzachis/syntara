@@ -7,7 +7,7 @@ updates Integration.refresh_status / last_refreshed_at.
 
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
@@ -22,7 +22,7 @@ from nexus.integrations.models.integration import (
     IntegrationType,
 )
 from nexus.integrations.services.integration_service import IntegrationService
-from nexus.tool_manager.models.tool import Tool
+from nexus.tool_manager.models.tool import Tool, ToolStatus
 
 BASE_URL = "/api/v1/integrations"
 
@@ -94,13 +94,13 @@ class TestIntegrationRefreshContract:
 
         assert response.status_code == 200
         data = response.json()
-        assert "tools_synced_count" in data
-        assert "tools_updated_count" in data
-        assert "tools_disabled_count" in data
+        assert "synced_count" in data
+        assert "updated_count" in data
+        assert "missing_count" in data
         assert "refreshed_at" in data
-        assert data["tools_synced_count"] == 2
-        assert data["tools_updated_count"] == 0
-        assert data["tools_disabled_count"] == 0
+        assert data["synced_count"] == 2
+        assert data["updated_count"] == 0
+        assert data["missing_count"] == 0
 
     async def test_refresh_creates_tool_records(
         self, auth_client: AsyncClient, test_db_session: AsyncSession, test_user: User
@@ -122,7 +122,7 @@ class TestIntegrationRefreshContract:
 
         assert response.status_code == 200
 
-        tools = (await test_db_session.exec(select(Tool).where(Tool.integration_id == integration_id))).all()
+        tools = (await test_db_session.exec(select(Tool).where(Tool.integration_id == UUID(integration_id)))).all()
         assert len(tools) == 2
         assert {t.name for t in tools} == {"alpha", "beta"}
 
@@ -167,9 +167,9 @@ class TestIntegrationRefreshContract:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["tools_synced_count"] == 0
-        assert data["tools_updated_count"] == 0
-        assert data["tools_disabled_count"] == 0
+        assert data["synced_count"] == 0
+        assert data["updated_count"] == 0
+        assert data["missing_count"] == 0
 
         get_resp = await auth_client.get(f"{BASE_URL}/{integration_id}")
         assert get_resp.status_code == 200
@@ -178,13 +178,17 @@ class TestIntegrationRefreshContract:
         assert "Connection refused" in (integration_data.get("refresh_error") or "")
         assert integration_data["last_refreshed_at"] is not None
 
-    async def test_refresh_disables_missing_tools(
+    async def test_refresh_marks_missing_tools_without_disabling(
         self, auth_client: AsyncClient, test_db_session: AsyncSession, test_user: User
     ) -> None:
-        """Tools no longer returned by MCP server are disabled (not deleted)."""
-        integration_id = await _create_mcp_integration(test_db_session, test_user, "refresh-disable")
+        """A tool that vanishes upstream is kept with enabled unchanged and status=MISSING.
 
-        # First refresh — creates alpha and beta
+        Discovery must not touch the admin-controlled ``enabled`` flag; it only
+        flags the row MISSING so the orchestrator can still try to use it.
+        """
+        integration_id = await _create_mcp_integration(test_db_session, test_user, "refresh-missing")
+
+        # First refresh — creates alpha and beta (both enabled, AVAILABLE)
         first_result = DiscoverResult(
             success=True,
             checked_at=datetime.now(UTC),
@@ -193,7 +197,7 @@ class TestIntegrationRefreshContract:
         with patch(MCP_DISCOVER_PATCH, new=AsyncMock(return_value=first_result)):
             await auth_client.post(f"{BASE_URL}/{integration_id}/refresh")
 
-        # Second refresh — only alpha remains
+        # Second refresh — only alpha remains; beta disappears upstream
         second_result = DiscoverResult(
             success=True,
             checked_at=datetime.now(UTC),
@@ -204,8 +208,18 @@ class TestIntegrationRefreshContract:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["tools_updated_count"] == 1
-        assert data["tools_disabled_count"] == 1
+        assert data["updated_count"] == 1
+        assert data["missing_count"] == 1
+
+        # The vanished tool is kept (not deleted), enabled left untouched, marked MISSING.
+        result = await test_db_session.exec(select(Tool).where(Tool.integration_id == UUID(integration_id)))
+        tools = {t.name: t for t in result.all()}
+        assert set(tools) == {"alpha", "beta"}, "no tool row is deleted"
+        assert tools["beta"].enabled is True, "admin enabled state must not be changed by discovery"
+        assert tools["beta"].status == ToolStatus.MISSING
+        # The surviving tool stays AVAILABLE and enabled.
+        assert tools["alpha"].enabled is True
+        assert tools["alpha"].status == ToolStatus.AVAILABLE
 
     async def test_refresh_refreshed_at_is_iso_timestamp(
         self, auth_client: AsyncClient, test_db_session: AsyncSession, test_user: User

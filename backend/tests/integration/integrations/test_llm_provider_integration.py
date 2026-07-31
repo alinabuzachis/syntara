@@ -207,8 +207,8 @@ class TestLLMProviderRefreshIntegration:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["tools_synced_count"] == 2
-        assert data["tools_updated_count"] == 0
+        assert data["synced_count"] == 2
+        assert data["updated_count"] == 0
 
         models = (
             await test_db_session.exec(select(LLMModel).where(LLMModel.integration_id == UUID(integration_id)))
@@ -251,17 +251,17 @@ class TestLLMProviderRefreshIntegration:
             response = await auth_client.post(f"{BASE_URL}/{integration_id}/refresh")
 
         assert response.status_code == 200
-        assert response.json()["tools_synced_count"] == 0
+        assert response.json()["synced_count"] == 0
 
         get_resp = await auth_client.get(f"{BASE_URL}/{integration_id}")
         data = get_resp.json()
         assert data["refresh_status"] == IntegrationRefreshStatus.ERROR.value
         assert "timed out" in (data.get("refresh_error") or "")
 
-    async def ***REMOVED***(
+    async def test_refresh_keeps_missing_models_enabled(
         self, auth_client: AsyncClient, test_db_session: AsyncSession, test_user: User
     ) -> None:
-        """Models no longer returned by the provider are hard-deleted on refresh."""
+        """Models no longer returned by the provider are kept with enabled unchanged."""
         integration_id = await _create_llm_integration(test_db_session, test_user, "llm-ref-del")
 
         # First refresh: create two models
@@ -285,13 +285,15 @@ class TestLLMProviderRefreshIntegration:
         with patch(LLM_DISCOVER_PATCH, new=AsyncMock(return_value=second_result)):
             response = await auth_client.post(f"{BASE_URL}/{integration_id}/refresh")
 
-        assert response.json()["tools_disabled_count"] == 1
+        assert response.json()["missing_count"] == 1
 
         models = (
             await test_db_session.exec(select(LLMModel).where(LLMModel.integration_id == UUID(integration_id)))
         ).all()
-        assert len(models) == 1
-        assert models[0].model_id == "model-a"
+        by_id = {m.model_id: m for m in models}
+        assert set(by_id) == {"model-a", "model-b"}  # both rows preserved
+        assert by_id["model-a"].enabled is True
+        assert by_id["model-b"].enabled is True  # enabled is admin-controlled, not changed by discovery
 
     async def test_refresh_auth_failure_persists_error_type(
         self, auth_client: AsyncClient, test_db_session: AsyncSession, test_user: User

@@ -51,7 +51,9 @@ export function ResourcesTabContent({
           handleRemoveDefault={modelsState.handleRemoveDefault}
           resetSelectionToServer={modelsState.resetSelectionToServer}
           resetDefault={modelsState.resetDefault}
-          lastRefreshedAt={integration.last_refreshed_at}
+          lastRefreshedAt={integration.last_successful_refresh_at}
+          refreshStatus={integration.refresh_status}
+          refreshError={integration.refresh_error}
           canUpdate={canUpdate}
           updateTooltip={updateTooltip}
           onRefreshed={onRefreshed}
@@ -68,7 +70,7 @@ export function ResourcesTabContent({
         enabledToolIds={enabledToolIds}
         enabledCount={toolEnabledCount}
         handleSelectTool={handleSelectTool}
-        lastRefreshedAt={integration.last_refreshed_at}
+        lastRefreshedAt={integration.last_successful_refresh_at}
         canUpdate={canUpdate}
         onRefreshed={onRefreshed}
         refetchTools={refetchTools}

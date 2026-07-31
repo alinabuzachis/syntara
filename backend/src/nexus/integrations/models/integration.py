@@ -59,6 +59,7 @@ class IntegrationRefreshStatus(StrEnum):
 
     REFRESHING = "refreshing"
     AVAILABLE = "available"
+    WARNING = "warning"
     ERROR = "error"
 
 
@@ -142,14 +143,21 @@ class Integration(NamedResource, UserOwnedResource, table=True):
 
     last_refreshed_at: datetime | None = Field(
         default=None,
-        description="Timestamp of last successful resource refresh",
+        description="Timestamp of last resource-refresh attempt (success or failure)",
         sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
+        index=True,
     )
 
     refresh_error: str | None = Field(
         default=None,
         sa_type=Text(),  # type: ignore[call-overload]
         description="Error message from last refresh attempt",
+    )
+
+    last_successful_refresh_at: datetime | None = Field(
+        default=None,
+        description="Timestamp of last successful resource refresh (unchanged on failure)",
+        sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
     )
 
     __filterable_fields__: ClassVar[list[str]] = [
@@ -390,6 +398,7 @@ class IntegrationRead(NamedResource, UserOwnedResource):
     validation_error: str | None = None
     refresh_status: IntegrationRefreshStatus | None = None
     last_refreshed_at: datetime | None = None
+    last_successful_refresh_at: datetime | None = None
     refresh_error: str | None = None
     project_ids: list[UUID] = Field(
         default_factory=list,
@@ -484,12 +493,14 @@ class IntegrationListResponse(ResourcesResponse[IntegrationRead]):
 class RefreshResult(SQLModel):
     """Result returned by POST /integrations/{id}/refresh.
 
-    Field names use ``tools_*`` for both MCP and LLM refreshes. For MCP
-    servers, ``tools_disabled_count`` reflects tools soft-disabled as MISSING.
-    For LLM providers, it reflects models hard-deleted from the database.
+    Covers both MCP tool and LLM model refreshes. ``missing_count``
+    reflects resources no longer offered by the provider: MCP tools are
+    marked MISSING and LLM models are counted as missing. Rows are
+    preserved and ``enabled`` is never changed by discovery (it is
+    admin-controlled).
     """
 
-    tools_synced_count: int = Field(description="Number of new resource records created")
-    tools_updated_count: int = Field(description="Number of existing resource records updated")
-    tools_disabled_count: int = Field(description="Number of resource records removed or disabled")
+    synced_count: int = Field(description="Number of new resource records created")
+    updated_count: int = Field(description="Number of existing resource records updated")
+    missing_count: int = Field(description="Number of resources no longer offered by the provider")
     refreshed_at: datetime | None = Field(default=None, description="Timestamp when the refresh completed")

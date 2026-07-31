@@ -121,6 +121,47 @@ _BUILTIN_DEFINITIONS: list[dict[str, Any]] = [
         ],
         "edges": [{"from": "trigger_schedule", "to": "health_check"}],
     },
+    {
+        "schema_version": "2.0.0",
+        "name": "Integration Resource Discovery",
+        "description": (
+            "Scheduled workflow that re-discovers and syncs integration resources "
+            "(MCP tools, LLM models) on a recurring interval. Refreshes integrations "
+            "due based on discovery_interval_seconds."
+        ),
+        "triggers": [
+            {
+                "id": "trigger_schedule",
+                "type": "scheduled_trigger",
+                "parameters": {
+                    "schedule_type": "interval",
+                    "interval": "R/2024-01-01T00:00:00Z/PT30M",
+                    "missed_schedule_policy": "skip",
+                },
+            }
+        ],
+        "nodes": [
+            {
+                "id": "resource_discovery",
+                "type": "internal_activity",
+                "name": "Run Integration Resource Discovery",
+                "parameters": {
+                    "activity": "integration_resource_discovery",
+                    # Batch mode: discover all due integrations
+                    "input": {"batch": True},
+                },
+                "settings": {
+                    # No retries (next tick is the implicit retry). Timeout stays well
+                    # under the 30-minute interval so a slow pass can't overlap the next.
+                    "timeout": 600,
+                    "retry_policy": {
+                        "max_retries": 0,
+                    },
+                },
+            }
+        ],
+        "edges": [{"from": "trigger_schedule", "to": "resource_discovery"}],
+    },
 ]
 
 

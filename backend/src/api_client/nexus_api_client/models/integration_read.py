@@ -51,6 +51,7 @@ class IntegrationRead:
         validation_error (None | str | Unset):
         refresh_status (IntegrationRefreshStatus | None | Unset):
         last_refreshed_at (datetime.datetime | None | Unset):
+        last_successful_refresh_at (datetime.datetime | None | Unset):
         refresh_error (None | str | Unset):
         project_ids (list[UUID] | Unset): IDs of projects this integration is assigned to (empty for global scope)
         total_tool_count (int | Unset): Total number of tools linked to this integration Default: 0.
@@ -77,6 +78,7 @@ class IntegrationRead:
     validation_error: None | str | Unset = UNSET
     refresh_status: IntegrationRefreshStatus | None | Unset = UNSET
     last_refreshed_at: datetime.datetime | None | Unset = UNSET
+    last_successful_refresh_at: datetime.datetime | None | Unset = UNSET
     refresh_error: None | str | Unset = UNSET
     project_ids: list[UUID] | Unset = UNSET
     total_tool_count: int | Unset = 0
@@ -184,6 +186,14 @@ class IntegrationRead:
         else:
             last_refreshed_at = self.last_refreshed_at
 
+        last_successful_refresh_at: None | str | Unset
+        if isinstance(self.last_successful_refresh_at, Unset):
+            last_successful_refresh_at = UNSET
+        elif isinstance(self.last_successful_refresh_at, datetime.datetime):
+            last_successful_refresh_at = self.last_successful_refresh_at.isoformat()
+        else:
+            last_successful_refresh_at = self.last_successful_refresh_at
+
         refresh_error: None | str | Unset
         if isinstance(self.refresh_error, Unset):
             refresh_error = UNSET
@@ -243,6 +253,8 @@ class IntegrationRead:
             field_dict["refresh_status"] = refresh_status
         if last_refreshed_at is not UNSET:
             field_dict["last_refreshed_at"] = last_refreshed_at
+        if last_successful_refresh_at is not UNSET:
+            field_dict["last_successful_refresh_at"] = last_successful_refresh_at
         if refresh_error is not UNSET:
             field_dict["refresh_error"] = refresh_error
         if project_ids is not UNSET:
@@ -460,6 +472,23 @@ class IntegrationRead:
 
         last_refreshed_at = _parse_last_refreshed_at(d.pop("last_refreshed_at", UNSET))
 
+        def _parse_last_successful_refresh_at(data: object) -> datetime.datetime | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                last_successful_refresh_at_type_0 = isoparse(data)
+
+                return last_successful_refresh_at_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(datetime.datetime | None | Unset, data)
+
+        last_successful_refresh_at = _parse_last_successful_refresh_at(d.pop("last_successful_refresh_at", UNSET))
+
         def _parse_refresh_error(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -505,6 +534,7 @@ class IntegrationRead:
             validation_error=validation_error,
             refresh_status=refresh_status,
             last_refreshed_at=last_refreshed_at,
+            last_successful_refresh_at=last_successful_refresh_at,
             refresh_error=refresh_error,
             project_ids=project_ids,
             total_tool_count=total_tool_count,

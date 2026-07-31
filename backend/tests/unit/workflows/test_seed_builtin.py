@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -46,6 +46,45 @@ def _mock_project() -> MagicMock:
     project = MagicMock()
     project.id = uuid4()
     return project
+
+
+def _assert_worst_case_runtime_fits_interval(defn: dict[str, Any]) -> None:
+    """A scheduled builtin's worst-case run time must fit within one schedule interval.
+
+    Worst case = the node timeout on the first attempt plus every retry's backoff +
+    timeout. Fallbacks mirror node_settings_resolver.resolve_retry_policy so this
+    stays a true worst case even if a future edit sets max_retries without also
+    setting initial_interval/backoff_coefficient.
+    """
+    node_settings = defn["nodes"][0]["settings"]
+    node_timeout = node_settings["timeout"]
+    retry_policy = node_settings.get("retry_policy") or {}
+
+    max_retries = retry_policy.get("max_retries", 3)
+    initial_interval = retry_policy.get("initial_interval", 1)
+    max_interval = retry_policy.get("max_interval", 60)
+    backoff_coefficient = retry_policy.get("backoff_coefficient", 2.0)
+
+    total_worst_case = node_timeout  # first attempt
+    backoff = initial_interval
+    for _ in range(max_retries):
+        total_worst_case += backoff + node_timeout
+        backoff = min(backoff * backoff_coefficient, max_interval)
+
+    interval_spec = defn["triggers"][0]["parameters"]["interval"]
+    # ISO 8601 recurring interval, e.g. "R/2024-01-01T00:00:00Z/PT5M" — the last
+    # component is the ISO 8601 duration. Parsed narrowly here (not a general ISO
+    # 8601 duration parser) since this builtin's interval is a fixed, known constant.
+    duration_str = interval_spec.rsplit("/", 1)[-1]
+    parse_error_msg = f"Expected a PT<n>M duration, got {duration_str!r} — update parsing if format changed"
+    assert duration_str.startswith("PT"), parse_error_msg
+    assert duration_str.endswith("M"), parse_error_msg
+    interval_seconds = int(duration_str[2:-1]) * 60
+
+    assert total_worst_case < interval_seconds, (
+        f"Worst-case total time ({total_worst_case}s with max_retries={max_retries}) "
+        f"exceeds schedule interval ({interval_seconds}s)"
+    )
 
 
 class TestSeedBuiltinWorkflows:
@@ -274,36 +313,9 @@ class TestSeedBuiltinWorkflows:
     def test_health_check_node_timeout_fits_within_schedule_interval(self) -> None:
         """Worst-case execution time (all retries + backoff) must fit within one schedule interval."""
         hc_def = next(d for d in _BUILTIN_DEFINITIONS if d["name"] == "Integration Health Check")
-        node_settings = hc_def["nodes"][0]["settings"]
-        node_timeout = node_settings["timeout"]
-        retry_policy = node_settings.get("retry_policy") or {}
+        _assert_worst_case_runtime_fits_interval(hc_def)
 
-        # Mirrors node_settings_resolver.resolve_retry_policy's fallbacks for any
-        # field left unset here, so this stays a true worst case even if a future
-        # edit sets max_retries without also setting initial_interval/backoff_coefficient.
-        max_retries = retry_policy.get("max_retries", 3)
-        initial_interval = retry_policy.get("initial_interval", 1)
-        max_interval = retry_policy.get("max_interval", 60)
-        backoff_coefficient = retry_policy.get("backoff_coefficient", 2.0)
-
-        total_worst_case = node_timeout  # first attempt
-        backoff = initial_interval
-        for _ in range(max_retries):
-            total_worst_case += backoff + node_timeout
-            backoff = min(backoff * backoff_coefficient, max_interval)
-
-        interval_spec = hc_def["triggers"][0]["parameters"]["interval"]
-        # ISO 8601 recurring interval, e.g. "R/2024-01-01T00:00:00Z/PT5M" — the
-        # last component is the ISO 8601 duration. Parsed narrowly here (not a
-        # general ISO 8601 duration parser) since this builtin's interval is a
-        # fixed, known constant, not user-configurable input.
-        duration_str = interval_spec.rsplit("/", 1)[-1]
-        parse_error_msg = f"Expected a PT<n>M duration, got {duration_str!r} — update parsing if format changed"
-        assert duration_str.startswith("PT"), parse_error_msg
-        assert duration_str.endswith("M"), parse_error_msg
-        interval_seconds = int(duration_str[2:-1]) * 60
-
-        assert total_worst_case < interval_seconds, (
-            f"Worst-case total time ({total_worst_case}s with max_retries={max_retries}) "
-            f"exceeds schedule interval ({interval_seconds}s)"
-        )
+    def test_resource_discovery_node_timeout_fits_within_schedule_interval(self) -> None:
+        """Discovery's worst-case run time must fit within its schedule interval (timeout < interval)."""
+        rd_def = next(d for d in _BUILTIN_DEFINITIONS if d["name"] == "Integration Resource Discovery")
+        _assert_worst_case_runtime_fits_interval(rd_def)

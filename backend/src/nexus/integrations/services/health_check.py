@@ -107,6 +107,7 @@ async def run_health_checks() -> HealthCheckReport:
                 integration_id=str(int_id),
                 error_type=type(exc).__name__,
             )
+            report.checked += 1
             report.error += 1
             report.results.append(
                 IntegrationCheckResult(str(int_id), "error", f"Unexpected error: {type(exc).__name__}")

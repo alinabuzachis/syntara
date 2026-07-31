@@ -34,7 +34,11 @@ vi.mock('./IntegrationResourcesTab', () => ({
 const mockIntegration = {
   id: 'int-1',
   name: 'Test',
-  last_refreshed_at: '2024-01-01T00:00:00Z',
+  // last_refreshed_at is a later, failed attempt; last_successful_refresh_at is the older success.
+  last_refreshed_at: '2024-06-01T00:00:00Z',
+  last_successful_refresh_at: '2024-01-01T00:00:00Z',
+  refresh_status: 'warning',
+  refresh_error: 'Default model no longer offered',
 } as IntegrationsAPI.components['schemas']['IntegrationRead']
 
 function createModelsState(overrides: Record<string, unknown> = {}) {
@@ -175,7 +179,10 @@ describe('ResourcesTabContent', () => {
     expect(capturedModelsProps.handleRemoveDefault).toBe(modelsState.handleRemoveDefault)
     expect(capturedModelsProps.resetSelectionToServer).toBe(modelsState.resetSelectionToServer)
     expect(capturedModelsProps.resetDefault).toBe(modelsState.resetDefault)
+    // The displayed timestamp is the last SUCCESSFUL refresh, not the later failed attempt.
     expect(capturedModelsProps.lastRefreshedAt).toBe('2024-01-01T00:00:00Z')
+    expect(capturedModelsProps.refreshStatus).toBe('warning')
+    expect(capturedModelsProps.refreshError).toBe('Default model no longer offered')
     expect(capturedModelsProps.canUpdate).toBe(false)
     expect(capturedModelsProps.onRefreshed).toBe(defaultProps.onRefreshed)
   })
@@ -209,6 +216,7 @@ describe('ResourcesTabContent', () => {
     expect(capturedResourcesProps.enabledToolIds).toBe(enabledToolIds)
     expect(capturedResourcesProps.enabledCount).toBe(1)
     expect(capturedResourcesProps.handleSelectTool).toBe(handleSelectTool)
+    // The displayed timestamp is the last SUCCESSFUL refresh, not the later failed attempt.
     expect(capturedResourcesProps.lastRefreshedAt).toBe('2024-01-01T00:00:00Z')
     expect(capturedResourcesProps.canUpdate).toBe(false)
     expect(capturedResourcesProps.onRefreshed).toBe(onRefreshed)

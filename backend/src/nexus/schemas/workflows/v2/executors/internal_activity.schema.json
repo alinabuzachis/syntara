@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://automation.example.com/schemas/workflows/v2/executors/internal_activity",
   "title": "Internal Activity Node",
-  "description": "Execute built-in system operations (document conversion, invocation execution, integration health check) as native Temporal activities",
+  "description": "Execute built-in system operations (document conversion, invocation execution, integration health check, integration resource discovery) as native Temporal activities",
   "parameterSchema": {
     "type": "object",
     "required": [
@@ -14,7 +14,8 @@
         "enum": [
           "document_conversion",
           "invocation_execution",
-          "integration_health_check"
+          "integration_health_check",
+          "integration_resource_discovery"
         ],
         "description": "Internal operation to execute"
       },

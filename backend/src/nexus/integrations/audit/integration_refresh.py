@@ -36,9 +36,9 @@ class IntegrationRefreshEvent:
     integration_name: str
     integration_type: str
     result_status: IntegrationRefreshStatus | None = field(default=None)
-    tools_synced_count: int = field(default=0)
-    tools_updated_count: int = field(default=0)
-    tools_disabled_count: int = field(default=0)
+    synced_count: int = field(default=0)
+    updated_count: int = field(default=0)
+    missing_count: int = field(default=0)
     error_type: str | None = field(default=None)
 
 
@@ -75,9 +75,9 @@ class IntegrationRefreshHandler(AuditEventHandler[IntegrationRefreshEvent]):
             integration_name=event.integration_name,
             integration_type=event.integration_type,
             result_status=event.result_status.value if event.result_status else None,
-            tools_synced_count=event.tools_synced_count,
-            tools_updated_count=event.tools_updated_count,
-            tools_disabled_count=event.tools_disabled_count,
+            synced_count=event.synced_count,
+            updated_count=event.updated_count,
+            missing_count=event.missing_count,
         )
 
         return AuditEvent(

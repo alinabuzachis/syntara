@@ -134,6 +134,23 @@ describe('IntegrationResourcesTab', () => {
 
       expect(screen.getByRole('textbox', { name: /filter tools/i })).toBeInTheDocument()
     })
+
+    it('shows Missing label for tools with status missing', () => {
+      const toolsWithMissing = [
+        { ...mockTools[0], status: 'available' as const },
+        { ...mockTools[1], status: 'missing' as const },
+      ] as Tool[]
+      renderTab({ tools: toolsWithMissing, enabledToolIds: new Set(['t1', 't2']), enabledCount: 2 })
+
+      expect(screen.getByText('Missing')).toBeInTheDocument()
+    })
+
+    it('does not show Missing label for available tools', () => {
+      const toolsAllAvailable = mockTools.map((t) => ({ ...t, status: 'available' as const })) as Tool[]
+      renderTab({ tools: toolsAllAvailable })
+
+      expect(screen.queryByText('Missing')).not.toBeInTheDocument()
+    })
   })
 
   describe('Tool selection', () => {
@@ -233,6 +250,24 @@ describe('IntegrationResourcesTab', () => {
   describe('Accessibility', () => {
     it('has no accessibility violations', async () => {
       const { container } = renderTab()
+
+      let results: Awaited<ReturnType<typeof axe>>
+      await act(async () => {
+        results = await axe(container)
+      })
+      expect(results!).toHaveNoViolations()
+    })
+
+    it('has no accessibility violations with missing tools', async () => {
+      const toolsWithMissing = [
+        { ...mockTools[0], status: 'available' as const },
+        { ...mockTools[1], status: 'missing' as const },
+      ] as Tool[]
+      const { container } = renderTab({
+        tools: toolsWithMissing,
+        enabledToolIds: new Set(['t1', 't2']),
+        enabledCount: 2,
+      })
 
       let results: Awaited<ReturnType<typeof axe>>
       await act(async () => {

@@ -1,8 +1,9 @@
 """LLM Model storage for LLM provider integrations.
 
-Stores models discovered from LLM providers. Mirrors the Tool pattern
-used for MCP server integrations, but without soft deletion — models
-that disappear from a provider are hard-deleted during refresh.
+Stores models discovered from LLM providers. Models that disappear
+from a provider are kept (not deleted) to preserve referential
+integrity. The ``enabled`` flag is admin-controlled only; discovery
+never toggles it.
 """
 
 from datetime import datetime

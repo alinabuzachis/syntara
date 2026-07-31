@@ -1,11 +1,12 @@
-import { Button, Content, ContentVariants, StackItem, ToolbarItem } from '@patternfly/react-core'
-import { RhUiSyncIcon } from '@patternfly/react-icons'
+import { Button, Content, ContentVariants, StackItem, ToolbarItem, Tooltip } from '@patternfly/react-core'
+import { RhUiSyncIcon, RhUiWarningFillIcon } from '@patternfly/react-icons'
 import { Tbody, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IntegrationsAPI } from '@syntara/contracts'
 import { useCallback, useMemo, useState } from 'react'
 
 import { integrationsClient } from '../../../client'
 import { FilterBar } from '../../../components/filters/FilterBar'
+import { NxLabel } from '../../../components/labels/NxLabel'
 import { NxPageBody } from '../../../components/layout/NxPage'
 import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
 import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
@@ -23,6 +24,7 @@ import { getIntegrationNameFilterDefinition } from './integrationFilters'
 import { ModelRow } from './ModelRow'
 
 type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
+type IntegrationRefreshStatus = IntegrationsAPI.components['schemas']['IntegrationRefreshStatus']
 type LLMModelRead = IntegrationsAPI.components['schemas']['LLMModelRead']
 
 type IntegrationModelsTabProps = Readonly<{
@@ -56,8 +58,12 @@ type IntegrationModelsTabProps = Readonly<{
   resetSelectionToServer: () => void
   /** Resets default to server state. */
   resetDefault: () => void
-  /** ISO timestamp of the last model refresh, displayed in the toolbar. */
+  /** ISO timestamp of the last successful model refresh, displayed in the toolbar. */
   lastRefreshedAt: string | null | undefined
+  /** Refresh status of the integration; a 'warning' surfaces a persistent indicator. */
+  refreshStatus?: IntegrationRefreshStatus | null
+  /** Message accompanying a warning/error refresh status, shown as a tooltip. */
+  refreshError?: string | null
   /** Whether the user has permission to toggle, refresh, or save models. */
   canUpdate: boolean
   /** Tooltip explaining why actions are disabled when canUpdate is false. */
@@ -66,7 +72,30 @@ type IntegrationModelsTabProps = Readonly<{
   onRefreshed: () => Promise<IntegrationRead | undefined>
 }>
 
-/** Triggers a model refresh via the backend, refetches the model list, and shows a success or error toast. */
+/** Maps a refresh result to a toast (title/description/variant), distinguishing warning from error. */
+function refreshToast(updated: IntegrationRead | undefined): {
+  title: string
+  description: string
+  variant: 'success' | 'warning' | 'danger'
+} {
+  if (updated?.refresh_status === 'error') {
+    return {
+      title: 'Refresh failed',
+      description: updated.refresh_error ?? 'Failed to refresh models.',
+      variant: 'danger',
+    }
+  }
+  if (updated?.refresh_status === 'warning') {
+    return {
+      title: 'Refreshed with warnings',
+      description: updated.refresh_error ?? 'Models refreshed, but a warning was reported.',
+      variant: 'warning',
+    }
+  }
+  return { title: 'Models refreshed', description: 'Models have been refreshed successfully.', variant: 'success' }
+}
+
+/** Triggers a model refresh via the backend, refetches the model list, and shows a success, warning, or error toast. */
 async function performRefresh({
   integrationId,
   refreshAsync,
@@ -84,17 +113,7 @@ async function performRefresh({
     await refreshAsync({ params: { path: { integration_id: integrationId } } })
     const updated = await onRefreshed()
     detachPromise(refetchModels())
-    const title = updated?.refresh_status === 'error' ? 'Refresh failed' : 'Models refreshed'
-    const description =
-      updated?.refresh_status === 'error'
-        ? (updated.refresh_error ?? 'Failed to refresh models.')
-        : 'Models have been refreshed successfully.'
-    showAlert({
-      title,
-      description,
-      variant: updated?.refresh_status === 'error' ? 'danger' : 'success',
-      autoDismiss: true,
-    })
+    showAlert({ ...refreshToast(updated), autoDismiss: true })
   } catch (error: unknown) {
     showAlert({
       title: 'Refresh failed',
@@ -123,6 +142,8 @@ function ModelsToolbar({
   canUpdate,
   onRefresh,
   lastRefreshedAt,
+  refreshStatus,
+  refreshError,
 }: Readonly<{
   filters: FilterConfig[]
   onFilterChange: (filters: FilterConfig[]) => void
@@ -133,6 +154,8 @@ function ModelsToolbar({
   canUpdate: boolean
   onRefresh: () => void
   lastRefreshedAt: string | null | undefined
+  refreshStatus?: IntegrationRefreshStatus | null
+  refreshError?: string | null
 }>) {
   return (
     <FilterBar
@@ -160,6 +183,15 @@ function ModelsToolbar({
           <ToolbarItem>
             <Content component={ContentVariants.small}>Last refreshed: {formatTimeAgo(lastRefreshedAt)}</Content>
           </ToolbarItem>
+          {refreshStatus === 'warning' && (
+            <ToolbarItem>
+              <Tooltip content={refreshError ?? 'A warning was reported on the last refresh.'}>
+                <NxLabel status="warning" icon={<RhUiWarningFillIcon />}>
+                  Warning
+                </NxLabel>
+              </Tooltip>
+            </ToolbarItem>
+          )}
         </>
       }
     />
@@ -183,6 +215,8 @@ export function IntegrationModelsTab({
   resetSelectionToServer,
   resetDefault,
   lastRefreshedAt,
+  refreshStatus,
+  refreshError,
   canUpdate,
   updateTooltip,
   onRefreshed,
@@ -254,6 +288,8 @@ export function IntegrationModelsTab({
           canUpdate={canUpdate}
           onRefresh={handleRefresh}
           lastRefreshedAt={lastRefreshedAt}
+          refreshStatus={refreshStatus}
+          refreshError={refreshError}
         />
       </StackItem>
       {hasActiveFilters && filteredModels.length === 0 ? (

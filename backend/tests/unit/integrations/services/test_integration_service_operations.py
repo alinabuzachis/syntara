@@ -5,7 +5,7 @@ and _resolve_credential() — methods that interact with external adapters,
 credentials, and audit dispatching.
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -28,6 +28,7 @@ from nexus.integrations.exceptions import (
     IntegrationRefreshNotSupportedError,
 )
 from nexus.integrations.models.integration import (
+    InitialToolSelection,
     Integration,
     IntegrationCreate,
     IntegrationRefreshStatus,
@@ -446,9 +447,9 @@ class TestRefreshIntegrationResources:
 
         result = await integration_service.refresh_resources(created.id)
 
-        assert result.tools_synced_count == 2
-        assert result.tools_updated_count == 0
-        assert result.tools_disabled_count == 0
+        assert result.synced_count == 2
+        assert result.updated_count == 0
+        assert result.missing_count == 0
         assert result.refreshed_at is not None
 
         tools = (await test_db_session.exec(select(Tool).where(Tool.integration_id == created.id))).all()
@@ -491,14 +492,14 @@ class TestRefreshIntegrationResources:
 
         result = await integration_service.refresh_resources(created.id)
 
-        assert result.tools_synced_count == 0
-        assert result.tools_updated_count == 1
+        assert result.synced_count == 0
+        assert result.updated_count == 1
 
     @pytest.mark.asyncio
     @patch(f"{SERVICE_MODULE}.AuditEventDispatcher")
     @patch(f"{SERVICE_MODULE}.get_runtime_settings")
     @patch(f"{SERVICE_MODULE}.create_health_check_adapter")
-    async def test_refresh_disables_missing_tools(
+    async def test_refresh_marks_missing_tools_without_disabling(
         self,
         mock_adapter_factory: MagicMock,
         mock_settings: MagicMock,
@@ -506,6 +507,7 @@ class TestRefreshIntegrationResources:
         test_db_session: AsyncSession,
         integration_service: IntegrationService,
     ) -> None:
+        """A vanished tool is counted, kept with enabled unchanged, and marked MISSING."""
         created = await integration_service.create_integration(_mcp_create())
 
         mock_adapter = AsyncMock()
@@ -534,7 +536,14 @@ class TestRefreshIntegrationResources:
 
         result = await integration_service.refresh_resources(created.id)
 
-        assert result.tools_disabled_count == 1
+        assert result.missing_count == 1
+
+        # tool_b vanished: row kept, enabled untouched (admin-controlled), status MISSING.
+        tool_b = (
+            await test_db_session.exec(select(Tool).where(Tool.integration_id == created.id, Tool.name == "tool_b"))
+        ).one()
+        assert tool_b.status == ToolStatus.MISSING
+        assert tool_b.enabled is True
 
     @pytest.mark.asyncio
     @patch(f"{SERVICE_MODULE}.AuditEventDispatcher")
@@ -563,7 +572,7 @@ class TestRefreshIntegrationResources:
 
         result = await integration_service.refresh_resources(created.id)
 
-        assert result.tools_synced_count == 0
+        assert result.synced_count == 0
         integration = await test_db_session.get(Integration, created.id)
         assert integration is not None
         assert integration.refresh_status == IntegrationRefreshStatus.ERROR
@@ -628,6 +637,33 @@ class TestRefreshIntegrationResources:
         assert integration.refresh_status == IntegrationRefreshStatus.AVAILABLE
         assert integration.refresh_error is None
         assert integration.last_refreshed_at is not None
+        assert integration.last_successful_refresh_at == integration.last_refreshed_at
+
+    @pytest.mark.asyncio
+    @patch(f"{SERVICE_MODULE}.AuditEventDispatcher")
+    @patch(f"{SERVICE_MODULE}.get_runtime_settings")
+    @patch(f"{SERVICE_MODULE}.create_health_check_adapter")
+    async def test_create_with_discovered_tools_sets_both_timestamps(
+        self,
+        mock_adapter_factory: MagicMock,
+        mock_settings: MagicMock,
+        mock_audit: MagicMock,
+        test_db_session: AsyncSession,
+        integration_service: IntegrationService,
+    ) -> None:
+        """Creating an MCP integration with pre-discovered tools stamps both refresh timestamps.
+
+        The UI reads last_successful_refresh_at, so a freshly-created integration must not show "Never".
+        """
+        created = await integration_service.create_integration(
+            _mcp_create(discovered_tools=[InitialToolSelection(name="tool_a")])
+        )
+
+        integration = await test_db_session.get(Integration, created.id)
+        assert integration is not None
+        assert integration.last_refreshed_at is not None
+        assert integration.last_successful_refresh_at is not None
+        assert integration.last_successful_refresh_at == integration.last_refreshed_at
 
     @pytest.mark.asyncio
     @patch(f"{SERVICE_MODULE}.AuditEventDispatcher")
@@ -705,7 +741,10 @@ class TestRefreshIntegrationResources:
         test_db_session: AsyncSession,
         integration_service: IntegrationService,
     ) -> None:
-        """A tool marked MISSING that reappears gets status=AVAILABLE but keeps enabled state."""
+        """A MISSING tool that reappears is restored to AVAILABLE.
+
+        Discovery never overrides the admin-controlled enabled flag through either transition.
+        """
         created = await integration_service.create_integration(_mcp_create())
 
         mock_adapter = AsyncMock()
@@ -721,7 +760,14 @@ class TestRefreshIntegrationResources:
 
         await integration_service.refresh_resources(created.id)
 
-        # Tool disappears on next refresh — disabled, marked MISSING
+        # Admin disables tool_a — a human decision discovery must respect.
+        tool_a = (
+            await test_db_session.exec(select(Tool).where(Tool.integration_id == created.id, Tool.name == "tool_a"))
+        ).one()
+        tool_a.enabled = False
+        await test_db_session.flush()
+
+        # Tool disappears on next refresh — marked MISSING, enabled left untouched.
         mock_adapter.discover = AsyncMock(
             return_value=DiscoverResult(
                 success=True,
@@ -730,15 +776,15 @@ class TestRefreshIntegrationResources:
             )
         )
         result = await integration_service.refresh_resources(created.id)
-        assert result.tools_disabled_count == 1
+        assert result.missing_count == 1
 
         tool_a = (
             await test_db_session.exec(select(Tool).where(Tool.integration_id == created.id, Tool.name == "tool_a"))
         ).one()
         assert tool_a.status == ToolStatus.MISSING
-        assert tool_a.enabled is False
+        assert tool_a.enabled is False  # admin's disable preserved, not re-applied by discovery
 
-        # Tool reappears on next refresh — status restored, enabled stays False
+        # Tool reappears on next refresh — status restored, admin's disable still preserved.
         mock_adapter.discover = AsyncMock(
             return_value=DiscoverResult(
                 success=True,
@@ -747,15 +793,14 @@ class TestRefreshIntegrationResources:
             )
         )
         result = await integration_service.refresh_resources(created.id)
-        assert result.tools_updated_count == 1
+        assert result.updated_count == 1
 
         tool_a = (
             await test_db_session.exec(select(Tool).where(Tool.integration_id == created.id, Tool.name == "tool_a"))
         ).one()
         assert tool_a.status == ToolStatus.AVAILABLE
         assert tool_a.description == "A is back"
-        # enabled stays False because refresh doesn't override admin's disable
-        assert tool_a.enabled is False
+        assert tool_a.enabled is False  # refresh never overrides admin's disable
 
     @pytest.mark.asyncio
     @patch(f"{SERVICE_MODULE}.AuditEventDispatcher")
@@ -784,3 +829,59 @@ class TestRefreshIntegrationResources:
         assert integration.refresh_status == IntegrationRefreshStatus.ERROR
         assert integration.refresh_error == "Unexpected error during refresh: RuntimeError"
         assert integration.last_refreshed_at is not None
+
+    @pytest.mark.asyncio
+    async def test_refresh_skips_recently_refreshed_when_skip_if_recent(
+        self,
+        test_db_session: AsyncSession,
+        integration_service: IntegrationService,
+    ) -> None:
+        """With skip_if_recent=True, an integration refreshed within 60s is skipped."""
+        created = await integration_service.create_integration(_mcp_create())
+
+        integration = await test_db_session.get(Integration, created.id)
+        assert integration is not None
+        integration.last_refreshed_at = datetime.now(UTC) - timedelta(seconds=10)
+        await test_db_session.flush()
+
+        result = await integration_service.refresh_resources(created.id, skip_if_recent=True)
+
+        assert result.synced_count == 0
+        assert result.updated_count == 0
+        assert result.missing_count == 0
+        assert result.refreshed_at is not None
+
+    @pytest.mark.asyncio
+    @patch(f"{SERVICE_MODULE}.AuditEventDispatcher")
+    @patch(f"{SERVICE_MODULE}.get_runtime_settings")
+    @patch(f"{SERVICE_MODULE}.create_health_check_adapter")
+    async def test_manual_refresh_ignores_staleness_guard(
+        self,
+        mock_adapter_factory: MagicMock,
+        mock_settings: MagicMock,
+        mock_audit: MagicMock,
+        test_db_session: AsyncSession,
+        integration_service: IntegrationService,
+    ) -> None:
+        """Without skip_if_recent, a recent refresh does not prevent a new one."""
+        created = await integration_service.create_integration(_mcp_create())
+
+        integration = await test_db_session.get(Integration, created.id)
+        assert integration is not None
+        integration.last_refreshed_at = datetime.now(UTC) - timedelta(seconds=10)
+        await test_db_session.flush()
+
+        mock_adapter = AsyncMock()
+        mock_adapter.discover = AsyncMock(
+            return_value=DiscoverResult(
+                success=True,
+                checked_at=datetime.now(UTC),
+                discovered_tools=[DiscoveredTool(name="tool_a", description="A")],
+            )
+        )
+        mock_adapter_factory.return_value = mock_adapter
+        mock_settings.return_value = _mock_runtime_settings()
+
+        result = await integration_service.refresh_resources(created.id)
+
+        assert result.synced_count == 1

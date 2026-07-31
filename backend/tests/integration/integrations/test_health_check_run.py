@@ -128,3 +128,46 @@ class TestRunHealthChecksSelection:
         assert report.checked == 1
         checked_ids = [call.args[0] for call in service.validate_integration.await_args_list]
         assert checked_ids == [stale.id]
+
+    async def test_checked_counts_failed_validations(
+        self,
+        test_db_session: AsyncSession,
+        test_db_session_factory: async_sessionmaker[AsyncSession],
+        integration_factory: IntegrationFactory,
+    ) -> None:
+        """A validation that raises is still counted in ``checked`` (checked == available + error).
+
+        Mirrors the discovery report, where ``processed`` counts both success and
+        failure paths. Prevents ``checked`` from silently undercounting failures.
+        """
+        await _clear_integrations(test_db_session)
+        now = datetime.now(UTC)
+
+        # older is processed first (ASC last_validated_at); it raises. newer succeeds.
+        older = await integration_factory.create(name="hc-raises")
+        newer = await integration_factory.create(name="hc-ok")
+        older.last_validated_at = now - timedelta(days=30)
+        newer.last_validated_at = now - timedelta(days=10)
+        test_db_session.add_all([older, newer])
+        await test_db_session.commit()
+
+        service = _mock_service()
+        service.validate_integration = AsyncMock(
+            side_effect=[RuntimeError("upstream unreachable"), MagicMock(success=True, error=None)]
+        )
+        settings = _mock_settings(batch_size=50, interval_seconds=3600)
+        with (
+            patch.object(health_check, "AsyncSessionLocal", test_db_session_factory),
+            patch.object(health_check, "get_runtime_settings", return_value=settings),
+            patch.object(health_check, "get_settings", return_value=MagicMock()),
+            patch.object(health_check, "make_service_user", return_value=MagicMock()),
+            patch.object(health_check, "create_secret_service", return_value=MagicMock()),
+            patch.object(health_check, "IntegrationService", return_value=service),
+        ):
+            report = await health_check.run_health_checks()
+
+        # The failed validation is counted in checked, not dropped.
+        assert report.checked == 2
+        assert report.available == 1
+        assert report.error == 1
+        assert report.checked == report.available + report.error

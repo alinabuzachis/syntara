@@ -1,3 +1,4 @@
+import type { IntegrationsAPI } from '@syntara/contracts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -92,6 +93,8 @@ describe('IntegrationModelsTab', () => {
       enabledCount?: number
       allSelected?: boolean
       defaultModelId?: string | null
+      refreshStatus?: IntegrationsAPI.components['schemas']['IntegrationRefreshStatus'] | null
+      refreshError?: string | null
     } = {}
   ) {
     const {
@@ -103,6 +106,8 @@ describe('IntegrationModelsTab', () => {
       enabledCount = 2,
       allSelected = false,
       defaultModelId = 'm1',
+      refreshStatus = null,
+      refreshError = null,
     } = overrides
     return render(
       <IntegrationModelsTab
@@ -122,6 +127,8 @@ describe('IntegrationModelsTab', () => {
         resetSelectionToServer={mockResetSelectionToServer}
         resetDefault={mockResetDefault}
         lastRefreshedAt="2026-01-01T10:00:00Z"
+        refreshStatus={refreshStatus}
+        refreshError={refreshError}
         canUpdate={canUpdate}
         onRefreshed={mockOnRefreshed}
       />,
@@ -269,9 +276,70 @@ describe('IntegrationModelsTab', () => {
       })
     })
 
+    it('shows warning alert (with the warning message) when refresh returns warning status', async () => {
+      const user = userEvent.setup()
+      mockOnRefreshed.mockResolvedValue({
+        refresh_status: 'warning',
+        refresh_error: 'Default model "gpt-4o" is no longer offered',
+      })
+      renderTab()
+      await user.click(screen.getByRole('button', { name: 'Refresh models' }))
+      await waitFor(() => {
+        expect(screen.getByText('Refreshed with warnings')).toBeInTheDocument()
+        expect(screen.getByText('Default model "gpt-4o" is no longer offered')).toBeInTheDocument()
+      })
+    })
+
+    it('shows a fallback warning message when refresh returns warning with no error text', async () => {
+      const user = userEvent.setup()
+      mockOnRefreshed.mockResolvedValue({ refresh_status: 'warning', refresh_error: null })
+      renderTab()
+      await user.click(screen.getByRole('button', { name: 'Refresh models' }))
+      await waitFor(() => {
+        expect(screen.getByText('Models refreshed, but a warning was reported.')).toBeInTheDocument()
+      })
+    })
+
+    it('shows a fallback error message when refresh returns error with no error text', async () => {
+      const user = userEvent.setup()
+      mockOnRefreshed.mockResolvedValue({ refresh_status: 'error', refresh_error: null })
+      renderTab()
+      await user.click(screen.getByRole('button', { name: 'Refresh models' }))
+      await waitFor(() => {
+        expect(screen.getByText('Failed to refresh models.')).toBeInTheDocument()
+      })
+    })
+
+    it('shows the success toast when refresh returns no status', async () => {
+      const user = userEvent.setup()
+      mockOnRefreshed.mockResolvedValue(undefined)
+      renderTab()
+      await user.click(screen.getByRole('button', { name: 'Refresh models' }))
+      await waitFor(() => {
+        expect(screen.getByText('Models refreshed')).toBeInTheDocument()
+      })
+    })
+
     it('refresh button is disabled when canUpdate is false', () => {
       renderTab({ canUpdate: false })
       expect(screen.getByRole('button', { name: 'Refresh models' })).toHaveAttribute('aria-disabled', 'true')
+    })
+  })
+
+  describe('Warning status', () => {
+    it('shows a persistent warning indicator when refresh_status is warning', () => {
+      renderTab({ refreshStatus: 'warning', refreshError: 'Default model no longer offered' })
+      expect(screen.getByText('Warning')).toBeInTheDocument()
+    })
+
+    it('does not show the warning indicator when refresh_status is available', () => {
+      renderTab({ refreshStatus: 'available' })
+      expect(screen.queryByText('Warning')).not.toBeInTheDocument()
+    })
+
+    it('renders the warning indicator with a fallback tooltip when refreshError is null', () => {
+      renderTab({ refreshStatus: 'warning', refreshError: null })
+      expect(screen.getByText('Warning')).toBeInTheDocument()
     })
   })
 
@@ -328,6 +396,18 @@ describe('IntegrationModelsTab', () => {
 
     it('has no accessibility violations in empty state', async () => {
       const { container } = renderTab({ models: [], enabledModelIds: new Set(), enabledCount: 0 })
+      let results: Awaited<ReturnType<typeof axe>>
+      await act(async () => {
+        results = await axe(container)
+      })
+      expect(results!).toHaveNoViolations()
+    })
+
+    it('has no accessibility violations in warning state', async () => {
+      const { container } = renderTab({
+        refreshStatus: 'warning',
+        refreshError: 'Default model no longer offered',
+      })
       let results: Awaited<ReturnType<typeof axe>>
       await act(async () => {
         results = await axe(container)

@@ -164,7 +164,7 @@ async def _create_mcp_integration_and_refresh(jwt_client: AsyncClient) -> str:
     # Refresh integration — tool sync (populate Tool records from MCPProvider.get_base_tools)
     refresh_response = await jwt_client.post(f"/api/v1/integrations/{integration_id}/refresh")
     assert refresh_response.status_code == 200
-    assert refresh_response.json()["tools_synced_count"] > 0
+    assert refresh_response.json()["synced_count"] > 0
 
     return str(integration_id)
 

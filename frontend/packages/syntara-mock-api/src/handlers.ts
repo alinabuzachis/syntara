@@ -682,9 +682,9 @@ export const handlers = [
     integration.last_refreshed_at = mockDate.now
     integration.refresh_error = null
     return HttpResponse.json({
-      tools_synced_count: 0,
-      tools_updated_count: 0,
-      tools_disabled_count: 0,
+      synced_count: 0,
+      updated_count: 0,
+      missing_count: 0,
       refreshed_at: mockDate.now,
     })
   }),

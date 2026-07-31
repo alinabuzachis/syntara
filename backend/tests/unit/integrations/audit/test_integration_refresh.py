@@ -19,9 +19,9 @@ class TestIntegrationRefreshHandler:
             "integration_name": "GitHub MCP",
             "integration_type": "mcp_server",
             "result_status": IntegrationRefreshStatus.AVAILABLE,
-            "tools_synced_count": 5,
-            "tools_updated_count": 1,
-            "tools_disabled_count": 0,
+            "synced_count": 5,
+            "updated_count": 1,
+            "missing_count": 0,
             "error_type": None,
         }
         defaults.update(overrides)
@@ -48,9 +48,9 @@ class TestIntegrationRefreshHandler:
         event = self._make_event(
             error_type="DiscoverFailed",
             result_status=IntegrationRefreshStatus.ERROR,
-            tools_synced_count=0,
-            tools_updated_count=0,
-            tools_disabled_count=0,
+            synced_count=0,
+            updated_count=0,
+            missing_count=0,
         )
 
         audit_event = handler.handle(event)
@@ -79,9 +79,9 @@ class TestIntegrationRefreshHandler:
             integration_name="Slack MCP",
             integration_type="mcp_server",
             result_status=IntegrationRefreshStatus.AVAILABLE,
-            tools_synced_count=10,
-            tools_updated_count=3,
-            tools_disabled_count=2,
+            synced_count=10,
+            updated_count=3,
+            missing_count=2,
         )
 
         audit_event = handler.handle(event)
@@ -91,9 +91,9 @@ class TestIntegrationRefreshHandler:
         assert data.integration_name == "Slack MCP"  # type: ignore[attr-defined]
         assert data.integration_type == "mcp_server"  # type: ignore[attr-defined]
         assert data.result_status == "available"  # type: ignore[attr-defined]
-        assert data.tools_synced_count == 10  # type: ignore[attr-defined]
-        assert data.tools_updated_count == 3  # type: ignore[attr-defined]
-        assert data.tools_disabled_count == 2  # type: ignore[attr-defined]
+        assert data.synced_count == 10  # type: ignore[attr-defined]
+        assert data.updated_count == 3  # type: ignore[attr-defined]
+        assert data.missing_count == 2  # type: ignore[attr-defined]
         assert data.error_type is None
         assert data.error_message is None
 

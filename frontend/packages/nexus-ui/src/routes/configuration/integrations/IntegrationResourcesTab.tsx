@@ -12,12 +12,13 @@ import {
   ToolbarContent,
   ToolbarItem,
 } from '@patternfly/react-core'
-import { RhUiSyncIcon } from '@patternfly/react-icons'
+import { RhUiSyncIcon, RhUiWarningFillIcon } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import type { IntegrationsAPI, Tool } from '@syntara/contracts'
 import { useMemo, useState } from 'react'
 
 import { integrationsClient } from '../../../client'
+import { NxLabel } from '../../../components/labels/NxLabel'
 import { NxPageBody } from '../../../components/layout/NxPage'
 import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
@@ -160,6 +161,7 @@ export function IntegrationResourcesTab({
         <colgroup>
           <col className={styles.checkboxCol} />
           <col />
+          <col />
         </colgroup>
         <Thead>
           <Tr>
@@ -173,6 +175,7 @@ export function IntegrationResourcesTab({
               screenReaderText="Select all tools"
             />
             <Th>Name</Th>
+            <Th>Status</Th>
           </Tr>
         </Thead>
         <Tbody>
@@ -193,6 +196,13 @@ export function IntegrationResourcesTab({
                     <DescriptionListDescription>{tool.description}</DescriptionListDescription>
                   </DescriptionListGroup>
                 </DescriptionList>
+              </Td>
+              <Td dataLabel="Status">
+                {tool.status === 'missing' && (
+                  <NxLabel status="warning" icon={<RhUiWarningFillIcon />}>
+                    Missing
+                  </NxLabel>
+                )}
               </Td>
             </Tr>
           ))}

@@ -266,9 +266,9 @@ class TestRefreshIntegrationResources:
 
             result = await service.refresh_resources(integration_id)
 
-        assert result.tools_synced_count == 2
-        assert result.tools_updated_count == 0
-        assert result.tools_disabled_count == 0
+        assert result.synced_count == 2
+        assert result.updated_count == 0
+        assert result.missing_count == 0
 
         tools = (await test_db_session.exec(select(Tool).where(Tool.integration_id == integration_id))).all()
         assert len(tools) == 2

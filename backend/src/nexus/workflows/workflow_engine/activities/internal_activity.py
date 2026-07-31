@@ -83,10 +83,20 @@ async def _run_integration_health_check(operation_input: dict[str, Any]) -> dict
     return {"output": asdict(result)}
 
 
+async def _run_integration_resource_discovery(operation_input: dict[str, Any]) -> dict[str, Any]:  # noqa: ARG001
+    """Discover and sync resources for all integrations due for discovery (batch mode)."""
+    # Batch mode only: operation_input is reserved for a future single-integration path.
+    from nexus.integrations.services.resource_discovery import run_resource_discovery  # noqa: PLC0415
+
+    result = await run_resource_discovery()
+    return {"output": asdict(result)}
+
+
 _DISPATCH: dict[str, Callable[..., Awaitable[dict[str, Any]]]] = {
     "document_conversion": _run_document_conversion,
     "invocation_execution": _run_invocation_execution,
     "integration_health_check": _run_integration_health_check,
+    "integration_resource_discovery": _run_integration_resource_discovery,
 }
 
 

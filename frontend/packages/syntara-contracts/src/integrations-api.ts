@@ -522,6 +522,8 @@ export interface components {
         refresh_status?: components['schemas']['IntegrationRefreshStatus'] | null
         /** Last Refreshed At */
         last_refreshed_at?: string | null
+        /** Last Successful Refresh At */
+        last_successful_refresh_at?: string | null
         /** Refresh Error */
         refresh_error?: string | null
         /**
@@ -766,31 +768,33 @@ export interface components {
      * @description Status of the last resource-refresh operation for an integration.
      * @enum {string}
      */
-    IntegrationRefreshStatus: 'refreshing' | 'available' | 'error'
+    IntegrationRefreshStatus: 'refreshing' | 'available' | 'warning' | 'error'
     /**
      * RefreshResult
      * @description Result returned by POST /integrations/{id}/refresh.
      *
-     *     Field names use ``tools_*`` for both MCP and LLM refreshes. For MCP
-     *     servers, ``tools_disabled_count`` reflects tools soft-disabled as MISSING.
-     *     For LLM providers, it reflects models hard-deleted from the database.
+     *     Covers both MCP tool and LLM model refreshes. ``missing_count``
+     *     reflects resources no longer offered by the provider: MCP tools are
+     *     marked MISSING and LLM models are counted as missing. Rows are
+     *     preserved and ``enabled`` is never changed by discovery (it is
+     *     admin-controlled).
      */
     RefreshResult: {
       /**
-       * Tools Synced Count
+       * Synced Count
        * @description Number of new resource records created
        */
-      tools_synced_count: number
+      synced_count: number
       /**
-       * Tools Updated Count
+       * Updated Count
        * @description Number of existing resource records updated
        */
-      tools_updated_count: number
+      updated_count: number
       /**
-       * Tools Disabled Count
-       * @description Number of resource records removed or disabled
+       * Missing Count
+       * @description Number of resources no longer offered by the provider
        */
-      tools_disabled_count: number
+      missing_count: number
       /**
        * Refreshed At
        * @description Timestamp when the refresh completed

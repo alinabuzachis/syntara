@@ -289,3 +289,74 @@ class TestRunIntegrationHealthCheck:
         assert error_message == "Unexpected error: RuntimeError"
         assert "sk-secret-abc123" not in error_message
         assert "internal.example" not in error_message
+
+
+class TestRunIntegrationResourceDiscovery:
+    """Tests for the integration_resource_discovery internal activity."""
+
+    @pytest.mark.anyio
+    async def test_batch_mode_processes_all_due_integrations(self) -> None:
+        """Batch mode: query returns N due ids, each refreshed in its own session."""
+        id1, id2 = uuid4(), uuid4()
+
+        batch_exec_result = MagicMock()
+        batch_exec_result.all.return_value = [id1, id2]
+
+        session = AsyncMock()
+        session.exec = AsyncMock(return_value=batch_exec_result)
+
+        refresh_result = MagicMock(synced_count=1, updated_count=2, missing_count=0)
+        mock_service = MagicMock()
+        mock_service.refresh_resources = AsyncMock(return_value=refresh_result)
+
+        mock_settings = MagicMock()
+        mock_settings.get = AsyncMock(return_value=300)
+
+        with (
+            patch("nexus.integrations.services.resource_discovery.AsyncSessionLocal", _session_factory(session)),
+            patch("nexus.integrations.services.resource_discovery.get_runtime_settings", return_value=mock_settings),
+            patch("nexus.integrations.services.resource_discovery.create_secret_service", return_value=MagicMock()),
+            patch("nexus.integrations.services.resource_discovery.IntegrationService", return_value=mock_service),
+        ):
+            result = await execute_internal_activity(
+                {"activity": "integration_resource_discovery", "input": {"batch": True}},
+                None,
+            )
+
+        assert result["output"]["processed"] == 2
+        assert result["output"]["refreshed"] == 2
+        assert result["output"]["error"] == 0
+        assert mock_service.refresh_resources.await_count == 2
+
+    @pytest.mark.anyio
+    async def test_isolates_per_integration_failure(self) -> None:
+        """A failing integration is recorded as error; the batch continues."""
+        id1, id2 = uuid4(), uuid4()
+
+        batch_exec_result = MagicMock()
+        batch_exec_result.all.return_value = [id1, id2]
+
+        session = AsyncMock()
+        session.exec = AsyncMock(return_value=batch_exec_result)
+
+        ok = MagicMock(synced_count=0, updated_count=0, missing_count=0)
+        mock_service = MagicMock()
+        mock_service.refresh_resources = AsyncMock(side_effect=[ok, RuntimeError("boom")])
+
+        mock_settings = MagicMock()
+        mock_settings.get = AsyncMock(return_value=300)
+
+        with (
+            patch("nexus.integrations.services.resource_discovery.AsyncSessionLocal", _session_factory(session)),
+            patch("nexus.integrations.services.resource_discovery.get_runtime_settings", return_value=mock_settings),
+            patch("nexus.integrations.services.resource_discovery.create_secret_service", return_value=MagicMock()),
+            patch("nexus.integrations.services.resource_discovery.IntegrationService", return_value=mock_service),
+        ):
+            result = await execute_internal_activity(
+                {"activity": "integration_resource_discovery", "input": {"batch": True}},
+                None,
+            )
+
+        assert result["output"]["processed"] == 2
+        assert result["output"]["refreshed"] == 1
+        assert result["output"]["error"] == 1

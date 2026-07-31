@@ -5,7 +5,7 @@ Covers:
 - create_integration(llm_provider) without discovered_models creates no models
 - delete_integration() hard-deletes linked LLMModel records
 - refresh_resources() resolves credential and syncs LLMModel records
-- _sync_llm_models creates, updates, and hard-deletes models
+- _sync_llm_models creates, updates, and soft-disables missing models
 - validate_integration() does NOT sync models
 - discovered_models validation (wrong type, duplicates)
 """
@@ -317,9 +317,9 @@ class TestRefreshLLMModels:
 
             result = await service.refresh_resources(integration_id)
 
-        assert result.tools_synced_count == 2
-        assert result.tools_updated_count == 0
-        assert result.tools_disabled_count == 0
+        assert result.synced_count == 2
+        assert result.updated_count == 0
+        assert result.missing_count == 0
 
         models = (await test_db_session.exec(select(LLMModel).where(LLMModel.integration_id == integration_id))).all()
         assert len(models) == 2
@@ -376,8 +376,8 @@ class TestRefreshLLMModels:
             mock_factory.return_value = mock_adapter
             result = await service.refresh_resources(integration_id)
 
-        assert result.tools_synced_count == 0
-        assert result.tools_updated_count == 1
+        assert result.synced_count == 0
+        assert result.updated_count == 1
 
         models = (await test_db_session.exec(select(LLMModel).where(LLMModel.integration_id == integration_id))).all()
         assert len(models) == 1
@@ -506,14 +506,14 @@ class TestRefreshLLMModels:
         assert by_id["model-a"].is_default is False
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(
+    async def test_refresh_keeps_missing_models_enabled(
         self,
         test_db_session: AsyncSession,
         test_user: User,
         llm_integration: dict[str, Any],
         mock_secret_service: AsyncMock,
     ) -> None:
-        """Models no longer returned by the provider are hard-deleted."""
+        """Models no longer returned by the provider are kept with enabled unchanged."""
         integration_id = llm_integration["integration_id"]
         service = IntegrationService(test_db_session, test_user, secret_service=mock_secret_service)
 
@@ -554,21 +554,23 @@ class TestRefreshLLMModels:
             mock_factory.return_value = mock_adapter
             result = await service.refresh_resources(integration_id)
 
-        assert result.tools_disabled_count == 1  # model-b removed
+        assert result.missing_count == 1  # model-b missing
 
         models = (await test_db_session.exec(select(LLMModel).where(LLMModel.integration_id == integration_id))).all()
-        assert len(models) == 1
-        assert models[0].model_id == "model-a"
+        by_id = {m.model_id: m for m in models}
+        assert set(by_id) == {"model-a", "model-b"}  # both rows preserved
+        assert by_id["model-a"].enabled is True
+        assert by_id["model-b"].enabled is True  # enabled is admin-controlled, not changed by discovery
 
     @pytest.mark.asyncio
-    async def test_refresh_removes_default_model(
+    async def test_refresh_warns_when_default_model_missing(
         self,
         test_db_session: AsyncSession,
         test_user: User,
         llm_integration: dict[str, Any],
         mock_secret_service: AsyncMock,
     ) -> None:
-        """When the default model disappears from the provider, it is hard-deleted."""
+        """When the default model disappears, WARNING status is set but enabled is unchanged."""
         integration_id = llm_integration["integration_id"]
         service = IntegrationService(test_db_session, test_user, secret_service=mock_secret_service)
 
@@ -615,9 +617,61 @@ class TestRefreshLLMModels:
             await service.refresh_resources(integration_id)
 
         models = (await test_db_session.exec(select(LLMModel).where(LLMModel.integration_id == integration_id))).all()
-        assert len(models) == 1
-        assert models[0].model_id == "model-a"
-        assert models[0].is_default is False  # no default remains
+        by_id = {m.model_id: m for m in models}
+        assert set(by_id) == {"model-a", "model-b"}  # both rows preserved
+        assert by_id["model-b"].enabled is True  # enabled is admin-controlled, not changed by discovery
+
+        integration = (await test_db_session.exec(select(Integration).where(Integration.id == integration_id))).one()
+        assert integration.refresh_status == IntegrationRefreshStatus.WARNING
+        assert "model-b" in (integration.refresh_error or "")
+
+    @pytest.mark.asyncio
+    async def test_refresh_preserves_last_successful_on_failure(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        llm_integration: dict[str, Any],
+        mock_secret_service: AsyncMock,
+    ) -> None:
+        """A failed refresh advances last_refreshed_at but leaves last_successful_refresh_at intact."""
+        integration_id = llm_integration["integration_id"]
+        service = IntegrationService(test_db_session, test_user, secret_service=mock_secret_service)
+
+        good = DiscoverResult(
+            success=True,
+            checked_at=datetime.now(UTC),
+            discovered_models=[_make_discovered_model("model-a", "A")],
+        )
+        with (
+            patch("nexus.integrations.services.integration_service.create_health_check_adapter") as mock_factory,
+            patch("nexus.integrations.services.integration_service.get_runtime_settings") as mock_settings,
+        ):
+            mock_settings.return_value.get = AsyncMock(return_value=10)
+            mock_adapter = AsyncMock()
+            mock_adapter.discover = AsyncMock(return_value=good)
+            mock_factory.return_value = mock_adapter
+            await service.refresh_resources(integration_id)
+
+        integration = (await test_db_session.exec(select(Integration).where(Integration.id == integration_id))).one()
+        last_success = integration.last_successful_refresh_at
+        assert last_success is not None
+
+        bad = DiscoverResult(success=False, checked_at=datetime.now(UTC), error="upstream down")
+        with (
+            patch("nexus.integrations.services.integration_service.create_health_check_adapter") as mock_factory,
+            patch("nexus.integrations.services.integration_service.get_runtime_settings") as mock_settings,
+        ):
+            mock_settings.return_value.get = AsyncMock(return_value=10)
+            mock_adapter = AsyncMock()
+            mock_adapter.discover = AsyncMock(return_value=bad)
+            mock_factory.return_value = mock_adapter
+            await service.refresh_resources(integration_id)
+
+        integration = (await test_db_session.exec(select(Integration).where(Integration.id == integration_id))).one()
+        assert integration.refresh_status == IntegrationRefreshStatus.ERROR
+        assert integration.last_successful_refresh_at == last_success  # unchanged by the failure
+        assert integration.last_refreshed_at is not None
+        assert integration.last_refreshed_at >= last_success  # attempt timestamp advanced
 
     @pytest.mark.asyncio
     async def test_refresh_populates_profile_for_openai_models(
@@ -891,7 +945,7 @@ class TestRefreshLLMModels:
 
             result = await service.refresh_resources(integration_id)
 
-        assert result.tools_synced_count == 0
+        assert result.synced_count == 0
 
     @pytest.mark.asyncio
     async def test_create_with_partial_enabled_map(

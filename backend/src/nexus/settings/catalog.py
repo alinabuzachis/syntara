@@ -1006,6 +1006,34 @@ SETTINGS_CATALOG: list[SettingDefinition] = [
         helper_text="Minimum 1. Default: 500.",
         validation_schema={"min": 1},
     ),
+    SettingDefinition(
+        key="integrations.discovery_interval_seconds",
+        name="Resource discovery interval",
+        category=SettingCategory.INTEGRATIONS,
+        value_type=SettingValueType.INTEGER,
+        default_value=900,
+        description=(
+            "Interval in seconds between automatic integration resource "
+            "discovery runs. Each integration's tools/models are re-discovered "
+            "and synced on this schedule so new resources appear without a "
+            "manual refresh."
+        ),
+        helper_text="Minimum 60 seconds. Default: 900 (15 minutes).",
+        validation_schema={"min": 60},
+    ),
+    SettingDefinition(
+        key="integrations.discovery_batch_size",
+        name="Resource discovery batch size",
+        category=SettingCategory.INTEGRATIONS,
+        value_type=SettingValueType.INTEGER,
+        default_value=500,
+        description=(
+            "Maximum number of integrations whose resources are re-discovered "
+            "per run. Remaining integrations are picked up on the next run."
+        ),
+        helper_text="Minimum 1. Default: 500.",
+        validation_schema={"min": 1},
+    ),
     # Rate Limiting
     SettingDefinition(
         key="rate_limiting.requests_per_window",
