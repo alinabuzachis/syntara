@@ -4,15 +4,19 @@
 }
 
 .expandedLogo {
-  height: 28px;
+  height: var(--nexus-nav-logo-size);
   width: auto;
   margin-left: var(--pf-t--global--spacer--sm);
 }
 
+.collapsedBrand {
+  justify-content: center;
+}
+
 .collapsedLogo {
-  height: 28px;
-  width: auto;
-  margin-left: var(--pf-t--global--spacer--sm);
+  height: var(--nexus-nav-logo-size);
+  width: var(--nexus-nav-logo-size);
+  object-fit: contain;
 }
 
 /*

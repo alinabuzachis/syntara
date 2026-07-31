@@ -286,7 +286,7 @@ export function AppDockedNav() {
               isExpanded={isDockTextExpanded}
             />
           </MastheadToggle>
-          <MastheadBrand>
+          <MastheadBrand className={!isExpanded ? styles.collapsedBrand : undefined}>
             {isExpanded ? (
               <MastheadLogo component={(props) => <Link {...props} to="/" />} aria-label="Home">
                 <img

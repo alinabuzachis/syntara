@@ -7,6 +7,7 @@
 :root {
   --nexus-form-max-width: 600px;
   --nexus-disabled-opacity: 0.5;
+  --nexus-nav-logo-size: 28px;
 
   /* Solid chroma centers: nested color-mix() of --pf-t--color--* to hug legacy RGB */
   --nexus-deep-space-chroma-left: color-mix(

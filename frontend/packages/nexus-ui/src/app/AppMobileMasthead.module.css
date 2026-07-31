@@ -1,4 +1,5 @@
 .collapsedLogo {
-  height: 28px;
-  width: auto;
+  height: var(--nexus-nav-logo-size);
+  width: var(--nexus-nav-logo-size);
+  object-fit: contain;
 }
