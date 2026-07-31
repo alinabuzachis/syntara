@@ -43,9 +43,10 @@ function createWrapper() {
       mutations: { retry: false },
     },
   })
-  return ({ children }: { children: ReactNode }) => (
+  const Wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   )
+  return { Wrapper, queryClient }
 }
 
 describe('useProjectActions', () => {
@@ -60,6 +61,7 @@ describe('useProjectActions', () => {
   describe('onDeleteSettled callback', () => {
     it('calls onDeleteSettled when delete mutation completes', async () => {
       const mockOnDeleteSettled = vi.fn()
+      const { Wrapper } = createWrapper()
       const { result } = renderHook(
         () =>
           useProjectActions({
@@ -68,7 +70,7 @@ describe('useProjectActions', () => {
             onRefetch: mockOnRefetch,
             onDeleteSettled: mockOnDeleteSettled,
           }),
-        { wrapper: createWrapper() }
+        { wrapper: Wrapper }
       )
 
       const project = mockProject()
@@ -82,6 +84,7 @@ describe('useProjectActions', () => {
 
   describe('success messages', () => {
     it('shows correct delete success message with project name', async () => {
+      const { Wrapper } = createWrapper()
       const { result } = renderHook(
         () =>
           useProjectActions({
@@ -89,7 +92,7 @@ describe('useProjectActions', () => {
             showError: mockShowError,
             onRefetch: mockOnRefetch,
           }),
-        { wrapper: createWrapper() }
+        { wrapper: Wrapper }
       )
 
       const project = { id: 'proj-1', name: 'My Project' }
@@ -106,6 +109,8 @@ describe('useProjectActions', () => {
 
   describe('refetch behavior', () => {
     it('calls onRefetch after successful delete', async () => {
+      const { Wrapper, queryClient } = createWrapper()
+      const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
       const { result } = renderHook(
         () =>
           useProjectActions({
@@ -113,7 +118,7 @@ describe('useProjectActions', () => {
             showError: mockShowError,
             onRefetch: mockOnRefetch,
           }),
-        { wrapper: createWrapper() }
+        { wrapper: Wrapper }
       )
 
       const project = { id: 'proj-1', name: 'Test' }
@@ -122,11 +127,13 @@ describe('useProjectActions', () => {
       await waitFor(() => {
         expect(mockOnRefetch).toHaveBeenCalledTimes(1)
       })
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['all-projects'] })
     })
   })
 
   describe('guard conditions', () => {
     it('does not call delete mutation when project has no id', () => {
+      const { Wrapper } = createWrapper()
       const { result } = renderHook(
         () =>
           useProjectActions({
@@ -134,7 +141,7 @@ describe('useProjectActions', () => {
             showError: mockShowError,
             onRefetch: mockOnRefetch,
           }),
-        { wrapper: createWrapper() }
+        { wrapper: Wrapper }
       )
 
       const project = mockProject({ id: undefined })

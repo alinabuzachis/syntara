@@ -19,13 +19,13 @@ import { builtinProjectTooltip } from '../../../hooks/permissionUtils'
 import { useCursorPagination, useCursorReset } from '../../../hooks/useCursorPagination'
 import { useDeleteAction } from '../../../hooks/useDeleteAction'
 import { useProjectSelector } from '../../../hooks/useProjectSelector'
+import { useProjectsForGrouping } from '../../../hooks/useProjectsForGrouping'
 import { useTableSort } from '../../../hooks/useTableSort'
 import { useAlerts } from '../../../providers/alerts'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import { useDocLink } from '../../../utils/docs/useDocLink'
-import { useAllProjects } from '../../access/useAllProjects'
 
 import type { Credential, CredentialType } from './credentialConstants'
 import { CredentialEmptyState } from './CredentialEmptyState'
@@ -104,8 +104,8 @@ export default function Credentials() {
   const credentialsDocLink = useDocLink('credentials')
   const { showAlert } = useAlerts()
   const { selectedProject, isAllProjects, projects, ProjectSelector } = useProjectSelector()
-  const { projects: allProjects } = useAllProjects()
-  const allProjectsById = useMemo(() => new Map(allProjects.map((p) => [p.id, p])), [allProjects])
+  const projectsForGrouping = useProjectsForGrouping(projects, isAllProjects)
+  const projectsById = useMemo(() => new Map(projectsForGrouping.map((p) => [p.id, p])), [projectsForGrouping])
   const permissions = useCredentialPermissions()
   const isBuiltinSelected = !!selectedProject?.is_builtin
 
@@ -205,19 +205,22 @@ export default function Credentials() {
 
   const groupedCredentials = useMemo(() => {
     if (!isAllProjects) return null
-    const groups = new Map<string, { project: (typeof projects)[number] | null; credentials: Credential[] }>()
+    const groups = new Map<
+      string,
+      { project: (typeof projectsForGrouping)[number] | null; credentials: Credential[] }
+    >()
     for (const credential of credentials) {
       const projectId = credential.project_id ?? 'unknown'
       if (!groups.has(projectId)) {
         groups.set(projectId, {
-          project: allProjectsById.get(projectId) ?? projects.find((p) => p.id === projectId) ?? null,
+          project: projectsById.get(projectId) ?? null,
           credentials: [],
         })
       }
       groups.get(projectId)!.credentials.push(credential)
     }
     return groups
-  }, [credentials, projects, isAllProjects, allProjectsById])
+  }, [credentials, projectsById, isAllProjects])
 
   const toggleProjectCollapsed = (projectId: string) => {
     setCollapsedProjects((prev) => {
@@ -309,13 +312,13 @@ export default function Credentials() {
 
   const permissionToggleTooltip = permissions.canUpdate ? undefined : permissions.tooltips.enable
   const getToggleDisabledTooltip = (credential: Credential): string | undefined => {
-    const isBuiltinProject = !!allProjectsById.get(credential.project_id)?.is_builtin
+    const isBuiltinProject = !!selectedProject?.is_builtin || !!projectsById.get(credential.project_id)?.is_builtin
     if (isBuiltinProject) return builtinProjectTooltip('enable or disable this credential')
     return permissionToggleTooltip
   }
 
   const getRowActions = (credential: Credential) => {
-    const isBuiltinProject = !!allProjectsById.get(credential.project_id)?.is_builtin
+    const isBuiltinProject = !!selectedProject?.is_builtin || !!projectsById.get(credential.project_id)?.is_builtin
     return buildCredentialRowActions(credential, permissions, isBuiltinProject, {
       onEdit: setCredentialToEdit,
       onDelete: openDeleteDialog,

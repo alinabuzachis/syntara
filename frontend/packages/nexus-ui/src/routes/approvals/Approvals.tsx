@@ -18,6 +18,7 @@ import type { PaginationFooterProps } from '../../components/table/PaginationFoo
 import { permissionTooltip } from '../../hooks/permissionUtils'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
+import { useProjectsForGrouping } from '../../hooks/useProjectsForGrouping'
 import { detachPromise } from '../../utils/detachPromise'
 import { useDocLink } from '../../utils/docs/useDocLink'
 
@@ -318,6 +319,7 @@ export default function Approvals() {
 
 function ApprovalsPage({ approvalsDocLink }: { approvalsDocLink: string | null | undefined }) {
   const { selectedProjectId, stableProjectId, isAllProjects, projects, ProjectSelector } = useProjectSelector()
+  const projectsForGrouping = useProjectsForGrouping(projects, isAllProjects)
   const [{ expandedRows }, dispatch] = useReducer(approvalsReducer, {
     expandedRows: new Set<string>(),
   })
@@ -357,7 +359,7 @@ function ApprovalsPage({ approvalsDocLink }: { approvalsDocLink: string | null |
     isAllProjects,
     stableProjectId,
     queryParams,
-    projects,
+    projects: projectsForGrouping,
   })
 
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())

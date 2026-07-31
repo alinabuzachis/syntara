@@ -116,6 +116,14 @@ describe('useAllProjects', () => {
       })
     })
   })
+
+  it('does not fetch when enabled is false', () => {
+    const { result } = renderHook(() => useAllProjects({ enabled: false }), { wrapper })
+
+    expect(accessFetchClient.GET).not.toHaveBeenCalled()
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.projects).toEqual([])
+  })
 })
 
 describe('useSelectableProjects', () => {

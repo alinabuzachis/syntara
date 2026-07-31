@@ -47,6 +47,11 @@ vi.mock('../../hooks/useProjectSelector', () => ({
   useProjectSelector: () => mockUseProjectSelector(),
 }))
 
+// Passthrough — grouping name resolution is covered by useProjectsForGrouping tests.
+vi.mock('../../hooks/useProjectsForGrouping', () => ({
+  useProjectsForGrouping: (knownProjects: unknown) => knownProjects,
+}))
+
 vi.mock('@tanstack/react-router', async () => {
   const actual = await vi.importActual('@tanstack/react-router')
   return {

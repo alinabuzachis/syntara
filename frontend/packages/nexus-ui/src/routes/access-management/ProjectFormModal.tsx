@@ -14,11 +14,13 @@ import {
   TextInput,
 } from '@patternfly/react-core'
 import { RhUiAddIcon, RhUiErrorIcon } from '@patternfly/react-icons'
+import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 
 import { useFormMutationErrorHandler } from '../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../providers/alerts'
+import { detachPromise } from '../../utils/detachPromise'
 import { accessClient } from '../access/accessClient'
 import type { ProjectRead } from '../access/types'
 
@@ -47,7 +49,12 @@ export function ProjectFormModal({ project, isOpen, onClose, onSuccess, onCreate
   const isEditMode = Boolean(project)
   const title = isEditMode && project ? `Edit ${project.name}` : 'Create project'
 
+  const queryClient = useQueryClient()
   const { showAlert } = useAlerts()
+
+  const invalidateAllProjects = () => {
+    detachPromise(queryClient.invalidateQueries({ queryKey: ['all-projects'] }))
+  }
 
   const { control, handleSubmit, setError, reset } = useForm<ProjectFormData>({
     resolver: zodResolver(projectFormSchema, undefined, { mode: 'sync' }),
@@ -99,6 +106,7 @@ export function ProjectFormModal({ project, isOpen, onClose, onSuccess, onCreate
               variant: 'success',
               autoDismiss: true,
             })
+            invalidateAllProjects()
             handleClose()
             onSuccess()
           },
@@ -121,6 +129,7 @@ export function ProjectFormModal({ project, isOpen, onClose, onSuccess, onCreate
               variant: 'success',
               autoDismiss: true,
             })
+            invalidateAllProjects()
             handleClose()
             onSuccess()
             onCreated?.(created)

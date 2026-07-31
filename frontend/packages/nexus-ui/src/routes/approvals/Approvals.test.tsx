@@ -60,6 +60,11 @@ vi.mock('../../hooks/useProjectSelector', () => ({
   useProjectSelector: () => mockUseProjectSelector(),
 }))
 
+// Passthrough — grouping name resolution is covered by useProjectsForGrouping tests.
+vi.mock('../../hooks/useProjectsForGrouping', () => ({
+  useProjectsForGrouping: (knownProjects: unknown) => knownProjects,
+}))
+
 // Mock useApprovalDecideProjects to avoid QueryClientProvider dependency from useAllPermissions.
 // Stable references prevent infinite re-render loops in useMemo dependency chains.
 const EMPTY_PROJECT_NAMES = new Set<string>()

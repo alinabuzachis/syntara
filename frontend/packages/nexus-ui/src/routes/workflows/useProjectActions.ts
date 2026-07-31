@@ -1,7 +1,9 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 
 import type { useAlerts } from '../../providers/alerts'
 import { getErrorMessage } from '../../utils/apiErrors'
+import { detachPromise } from '../../utils/detachPromise'
 import { accessClient } from '../access/accessClient'
 import type { ProjectRead } from '../access/types'
 
@@ -13,6 +15,7 @@ type UseProjectActionsOptions = {
 }
 
 export function useProjectActions({ showSuccess, showError, onRefetch, onDeleteSettled }: UseProjectActionsOptions) {
+  const queryClient = useQueryClient()
   const { mutate: deleteProject, isPending: isDeletingProject } = accessClient.useMutation(
     'delete',
     '/projects/{project_id}'
@@ -30,6 +33,7 @@ export function useProjectActions({ showSuccess, showError, onRefetch, onDeleteS
               title: 'Project deleted',
               description: `Project "${project.name}" has been deleted successfully.`,
             })
+            detachPromise(queryClient.invalidateQueries({ queryKey: ['all-projects'] }))
             onRefetch()
           },
           onError: (error: unknown) => {
@@ -44,7 +48,7 @@ export function useProjectActions({ showSuccess, showError, onRefetch, onDeleteS
         }
       )
     },
-    [deleteProject, showSuccess, showError, onRefetch, onDeleteSettled]
+    [deleteProject, showSuccess, showError, onRefetch, onDeleteSettled, queryClient]
   )
 
   return {

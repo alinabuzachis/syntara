@@ -11,7 +11,6 @@ import { assertUrlParam, assertUrlParamIsNull } from '../../test/filter-test-hel
 import { expectPageTitle } from '../../test/pageTitle'
 import { routerTestState } from '../../test/setup'
 import { accessClient } from '../access/accessClient'
-import { useAllProjects } from '../access/useAllProjects'
 
 import Workflows from './Workflows'
 
@@ -58,6 +57,11 @@ const mockUseProjectSelector = vi.fn(() => ({
 }))
 vi.mock('../../hooks/useProjectSelector', () => ({
   useProjectSelector: () => mockUseProjectSelector(),
+}))
+
+// Passthrough — grouping name resolution is covered by useProjectsForGrouping tests.
+vi.mock('../../hooks/useProjectsForGrouping', () => ({
+  useProjectsForGrouping: (knownProjects: unknown) => knownProjects,
 }))
 
 const { mockWorkflowPermissions } = vi.hoisted(() => ({
@@ -2769,21 +2773,17 @@ describe('Workflows Component', () => {
 
   describe('builtin project protection', () => {
     beforeEach(() => {
-      vi.mocked(useAllProjects).mockReturnValue({
-        projects: [{ id: 'project-1', name: 'Project 1', is_builtin: true }] as never,
-        isLoading: false,
-        error: null,
-        refetch: vi.fn(),
-      })
-    })
-
-    afterEach(() => {
-      vi.mocked(useAllProjects).mockReturnValue({
-        projects: [],
-        isLoading: false,
-        error: null,
-        refetch: vi.fn(),
-      })
+      // Row builtin checks use selectedProject / grouping projects (not a standalone
+      // useAllProjects lookup). Select the builtin project that owns mockWorkflows[0].
+      mockUseProjectSelector.mockReturnValue({
+        selectedProject: { id: 'project-1', name: 'Project 1', is_builtin: true },
+        selectedProjectId: 'project-1',
+        stableProjectId: 'project-1',
+        isAllProjects: false,
+        projects: [{ id: 'project-1', name: 'Project 1', is_builtin: true }],
+        ProjectSelector: null,
+        refetchProjects: vi.fn(),
+      } as never)
     })
 
     it('disables edit row action for workflows in a builtin project', async () => {

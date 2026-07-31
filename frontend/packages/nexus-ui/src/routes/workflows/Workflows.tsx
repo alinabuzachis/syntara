@@ -14,12 +14,12 @@ import { builtinProjectTooltip } from '../../hooks/permissionUtils'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useDialogState } from '../../hooks/useDialogState'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
+import { useProjectsForGrouping } from '../../hooks/useProjectsForGrouping'
 import { useAlerts } from '../../providers/alerts'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
 import { useDocLink } from '../../utils/docs/useDocLink'
 import { downloadWorkflowExportById } from '../../utils/downloadWorkflowExport'
-import { useAllProjects } from '../access/useAllProjects'
 
 import { buildProjectRowActions } from './projectRowActions'
 import { useDuplicateWorkflow } from './useDuplicateWorkflow'
@@ -92,8 +92,8 @@ export default function Workflows() {
     ProjectSelector,
     refetchProjects,
   } = useProjectSelector()
-  const { projects: allProjects } = useAllProjects()
-  const allProjectsById = useMemo(() => new Map(allProjects.map((p) => [p.id, p])), [allProjects])
+  const projectsForGrouping = useProjectsForGrouping(projects, isAllProjects)
+  const projectsById = useMemo(() => new Map(projectsForGrouping.map((p) => [p.id, p])), [projectsForGrouping])
   // UUID — same as builder `resourceProject` so useCanI cache keys stay aligned.
   const permissions = useWorkflowPermissions({
     resourceProject: selectedProjectId ?? undefined,
@@ -158,7 +158,7 @@ export default function Workflows() {
 
   const { sortedWorkflows, groupedWorkflows, collapsedProjects, toggleProjectCollapsed } = useWorkflowGrouping(
     workflows,
-    projects,
+    projectsForGrouping,
     isAllProjects
   )
 
@@ -193,7 +193,7 @@ export default function Workflows() {
   })
 
   const getRowActions = (workflow: Workflow) => {
-    const isBuiltinProject = !!allProjectsById.get(workflow.project_id)?.is_builtin
+    const isBuiltinProject = !!selectedProject?.is_builtin || !!projectsById.get(workflow.project_id)?.is_builtin
     return buildWorkflowRowActions(workflow, permissions, isBuiltinProject, {
       navigate,
       onRun: (wf) => runDialog.open(wf),

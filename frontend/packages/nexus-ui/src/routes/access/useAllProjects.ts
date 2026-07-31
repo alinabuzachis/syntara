@@ -17,8 +17,14 @@ function makeProjectFetcher(extra?: { is_builtin?: boolean }) {
 const fetchAllProjects = makeProjectFetcher()
 const fetchSelectableProjects = makeProjectFetcher({ is_builtin: false })
 
+type UseAllProjectsOptions = {
+  /** When false, skips the fetch. Defaults to true. */
+  enabled?: boolean
+}
+
 /** All projects, including the built-in project. Use for display and name-lookup contexts. */
-export function useAllProjects() {
+export function useAllProjects(options?: UseAllProjectsOptions) {
+  const enabled = options?.enabled ?? true
   const {
     data: projects = [],
     isPending,
@@ -27,8 +33,9 @@ export function useAllProjects() {
   } = useQuery({
     queryKey: ['all-projects'],
     queryFn: fetchAllProjects,
+    enabled,
   })
-  return { projects, isLoading: isPending, error, refetch }
+  return { projects, isLoading: enabled && isPending, error, refetch }
 }
 
 /** Non-builtin projects only. Use for "pick a project to create a resource in" dropdowns. */

@@ -3703,8 +3703,10 @@ export const handlers = [
     const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
     const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
     const includeTotal = url.searchParams.get('include_total') === 'true'
+    // Match backend ProjectService default: sort or "-created_at"
+    const sort = url.searchParams.get('sort') ?? '-created_at'
 
-    let resources = mockProjects
+    let resources = [...mockProjects]
 
     if (nameContains) {
       const term = nameContains.toLowerCase()
@@ -3718,6 +3720,15 @@ export const handlers = [
     if (isBuiltin !== null) {
       resources = resources.filter((p) => p.is_builtin === (isBuiltin === 'true'))
     }
+
+    const isDesc = sort.startsWith('-')
+    const field = (isDesc ? sort.slice(1) : sort) as keyof (typeof resources)[0]
+    resources.sort((a, b) => {
+      const aVal = String(a[field] ?? '')
+      const bVal = String(b[field] ?? '')
+      const cmp = aVal.localeCompare(bVal)
+      return isDesc ? -cmp : cmp
+    })
 
     const body = paginate(resources, cursor, limit, includeTotal)
     return HttpResponse.json(body)

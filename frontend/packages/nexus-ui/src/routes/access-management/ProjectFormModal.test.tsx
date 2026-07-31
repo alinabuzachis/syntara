@@ -192,6 +192,7 @@ describe('ProjectFormModal', () => {
 
     it('calls onClose and onSuccess after successful create', async () => {
       const user = userEvent.setup()
+      const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
       render(<ProjectFormModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
 
       await user.type(screen.getByRole('textbox', { name: 'Project name' }), 'new-project')
@@ -208,6 +209,7 @@ describe('ProjectFormModal', () => {
 
       expect(mockOnClose).toHaveBeenCalled()
       expect(mockOnSuccess).toHaveBeenCalled()
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['all-projects'] })
     })
 
     it('calls error handler on failed create', async () => {
@@ -267,6 +269,7 @@ describe('ProjectFormModal', () => {
 
     it('calls onClose and onSuccess after successful update', async () => {
       const user = userEvent.setup()
+      const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
       render(<ProjectFormModal project={mockProject} isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, {
         wrapper,
       })
@@ -284,6 +287,7 @@ describe('ProjectFormModal', () => {
 
       expect(mockOnClose).toHaveBeenCalled()
       expect(mockOnSuccess).toHaveBeenCalled()
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['all-projects'] })
     })
 
     it('resets form when modal opens with different project', () => {

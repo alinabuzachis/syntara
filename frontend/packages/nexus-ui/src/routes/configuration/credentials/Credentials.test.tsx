@@ -770,10 +770,8 @@ describe('Credentials', () => {
     })
 
     it('disables edit and delete row actions when credential belongs to a builtin project', async () => {
-      mockAllProjectsRef.current = [
-        { id: 'proj-1', name: 'Project Alpha', is_builtin: true },
-        { id: 'proj-2', name: 'Project Beta' },
-      ]
+      // Builtin row actions use selectedProject / grouping projects, not useAllProjects alone.
+      mockSelectedProject.current = { id: 'proj-1', name: 'Project Alpha', is_builtin: true }
       const user = userEvent.setup()
       render(<Credentials />, { wrapper })
 
@@ -787,10 +785,7 @@ describe('Credentials', () => {
     })
 
     it('disables edit with builtin tooltip even when canUpdate is false', async () => {
-      mockAllProjectsRef.current = [
-        { id: 'proj-1', name: 'Project Alpha', is_builtin: true },
-        { id: 'proj-2', name: 'Project Beta' },
-      ]
+      mockSelectedProject.current = { id: 'proj-1', name: 'Project Alpha', is_builtin: true }
       mockCredentialPermissions.current = { ...mockCredentialPermissions.current, canUpdate: false }
       const user = userEvent.setup()
       render(<Credentials />, { wrapper })
@@ -803,10 +798,7 @@ describe('Credentials', () => {
     })
 
     it('disables delete with builtin tooltip even when canDelete is false', async () => {
-      mockAllProjectsRef.current = [
-        { id: 'proj-1', name: 'Project Alpha', is_builtin: true },
-        { id: 'proj-2', name: 'Project Beta' },
-      ]
+      mockSelectedProject.current = { id: 'proj-1', name: 'Project Alpha', is_builtin: true }
       mockCredentialPermissions.current = { ...mockCredentialPermissions.current, canDelete: false }
       const user = userEvent.setup()
       render(<Credentials />, { wrapper })

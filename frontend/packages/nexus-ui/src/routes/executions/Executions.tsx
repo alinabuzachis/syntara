@@ -17,6 +17,7 @@ import { useQueryState } from '../../components/states/useQueryState'
 import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
+import { useProjectsForGrouping } from '../../hooks/useProjectsForGrouping'
 import type { FilterFieldDefinition } from '../../types/filters'
 import { detachPromise } from '../../utils/detachPromise'
 import { useDocLink } from '../../utils/docs/useDocLink'
@@ -44,6 +45,7 @@ function buildFilterFieldDefinitions(executions: Execution[]): FilterFieldDefini
 export default function Executions() {
   const executionsDocLink = useDocLink('executions')
   const { selectedProject, isAllProjects, projects, ProjectSelector } = useProjectSelector()
+  const projectsForGrouping = useProjectsForGrouping(projects, isAllProjects)
   const searchParams: { workflow_id?: string } = useSearch({ strict: false })
   const workflowIdFilter = searchParams.workflow_id
 
@@ -88,7 +90,10 @@ export default function Executions() {
 
   const filterFieldDefinitions = useMemo(() => buildFilterFieldDefinitions(executions), [executions])
 
-  const builtinProjectIds = useMemo(() => new Set(projects.filter((p) => p.is_builtin).map((p) => p.id)), [projects])
+  const builtinProjectIds = useMemo(
+    () => new Set(projectsForGrouping.filter((p) => p.is_builtin).map((p) => p.id)),
+    [projectsForGrouping]
+  )
 
   const visibleExecutions = useMemo(() => {
     if (!isAllProjects) return executions
@@ -103,20 +108,20 @@ export default function Executions() {
 
   const groupedExecutions = useMemo(() => {
     if (!isAllProjects) return null
-    const groups = new Map<string, { project: (typeof projects)[number] | null; executions: Execution[] }>()
+    const groups = new Map<string, { project: (typeof projectsForGrouping)[number] | null; executions: Execution[] }>()
     for (const execution of visibleExecutions) {
       const projectId = execution.project_id ?? 'unknown'
       if (builtinProjectIds.has(projectId)) continue
       if (!groups.has(projectId)) {
         groups.set(projectId, {
-          project: projects.find((p) => p.id === projectId) ?? null,
+          project: projectsForGrouping.find((p) => p.id === projectId) ?? null,
           executions: [],
         })
       }
       groups.get(projectId)!.executions.push(execution)
     }
     return groups
-  }, [visibleExecutions, projects, isAllProjects, builtinProjectIds])
+  }, [visibleExecutions, projectsForGrouping, isAllProjects, builtinProjectIds])
 
   const toggleProjectCollapsed = (projectId: string) => {
     setCollapsedProjects((prev) => {
