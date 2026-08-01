@@ -8,6 +8,7 @@ import { axe } from 'vitest-axe'
 import { AlertProvider } from '../../providers/alerts'
 import { accessClient } from '../access/accessClient'
 
+import { GROUP_NAME_HELP } from './groupFieldHelpText'
 import { GroupFormModal } from './GroupFormModal'
 
 // Mock dependencies
@@ -119,6 +120,14 @@ describe('GroupFormModal Component', () => {
       expect(screen.getByPlaceholderText('Enter description')).toBeInTheDocument()
     })
 
+    it('shows group name help body on click', async () => {
+      const user = userEvent.setup()
+      render(<GroupFormModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'More info for Group name' }))
+      expect(screen.getByText(GROUP_NAME_HELP)).toBeInTheDocument()
+    })
+
     it('does not submit when required fields are empty', async () => {
       const user = userEvent.setup()
       render(<GroupFormModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
@@ -201,6 +210,16 @@ describe('GroupFormModal Component', () => {
 
       expect(screen.getByPlaceholderText('Enter group name')).toHaveValue('Admins')
       expect(screen.getByPlaceholderText('Enter description')).toHaveValue('Administrator group')
+    })
+
+    it('shows group name help body on click', async () => {
+      const user = userEvent.setup()
+      render(<GroupFormModal group={mockGroup} isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, {
+        wrapper,
+      })
+
+      await user.click(screen.getByRole('button', { name: 'More info for Group name' }))
+      expect(screen.getByText(GROUP_NAME_HELP)).toBeInTheDocument()
     })
 
     it('calls update mutation with form data on submit', async () => {

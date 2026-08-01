@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { axe } from 'vitest-axe'
 
+import { createFieldHelp } from './createFieldHelp'
 import { FieldHelpPopover } from './FieldHelpPopover'
 
 describe('FieldHelpPopover', () => {
@@ -49,5 +50,16 @@ describe('FieldHelpPopover', () => {
     const { container } = render(<FieldHelpPopover helpText="Help copy." headerContent="Field" />)
     const results = await axe(container)
     expect(results).toHaveNoViolations()
+  })
+})
+
+describe('createFieldHelp', () => {
+  it('creates a More info popover with the given header and body', async () => {
+    const user = userEvent.setup()
+    render(createFieldHelp('Organization', 'Select the AAP organization.'))
+
+    await user.click(screen.getByRole('button', { name: 'More info for Organization' }))
+    expect(screen.getByText('Organization')).toBeInTheDocument()
+    expect(screen.getByText('Select the AAP organization.')).toBeInTheDocument()
   })
 })

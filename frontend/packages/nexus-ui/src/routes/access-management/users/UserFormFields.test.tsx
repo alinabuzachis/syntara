@@ -11,6 +11,7 @@ import { PASSWORD_CHARACTER_CLASSES_MESSAGE, PASSWORD_MIN_LENGTH_MESSAGE } from 
 import { COMPLIANT_TEST_PASSWORD } from '../passwordComplexity.testFixtures'
 import type { UserFormData } from '../userFormSchema'
 
+import { EMAIL_FEDERATED_EDIT_HELP, EMAIL_HELP, GROUPS_HELP, STATUS_HELP, USERNAME_HELP } from './userFieldHelpText'
 import { UserFormFields } from './UserFormFields'
 
 vi.mock('../../access/useAllGroups', () => ({
@@ -42,7 +43,7 @@ function QueryWrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 }
 
-function TestWrapper({ isEdit = false }: { isEdit?: boolean }) {
+function TestWrapper({ isEdit = false, isFederatedUser = false }: { isEdit?: boolean; isFederatedUser?: boolean }) {
   const methods = useForm<UserFormData>({
     defaultValues,
   })
@@ -51,7 +52,7 @@ function TestWrapper({ isEdit = false }: { isEdit?: boolean }) {
     <QueryWrapper>
       <FormProvider {...methods}>
         <form>
-          <UserFormFields control={methods.control} isEdit={isEdit} />
+          <UserFormFields control={methods.control} isEdit={isEdit} isFederatedUser={isFederatedUser} />
         </form>
       </FormProvider>
     </QueryWrapper>
@@ -196,6 +197,69 @@ describe('UserFormFields', () => {
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()
+  })
+
+  describe('field help popovers', () => {
+    it('shows username help body on click', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper />)
+
+      await user.click(screen.getByRole('button', { name: 'More info for Username' }))
+      expect(screen.getByText(USERNAME_HELP)).toBeInTheDocument()
+    })
+
+    it('shows generic email help on create', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper />)
+
+      await user.click(screen.getByRole('button', { name: 'More info for Email' }))
+      expect(screen.getByText(EMAIL_HELP)).toBeInTheDocument()
+    })
+
+    it('shows generic email help when editing a local user', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper isEdit />)
+
+      await user.click(screen.getByRole('button', { name: 'More info for Email' }))
+      expect(screen.getByText(EMAIL_HELP)).toBeInTheDocument()
+    })
+
+    it('shows federated email help only when editing a federated user', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper isEdit isFederatedUser />)
+
+      await user.click(screen.getByRole('button', { name: 'More info for Email' }))
+      expect(screen.getByText(EMAIL_FEDERATED_EDIT_HELP)).toBeInTheDocument()
+      expect(screen.queryByText(EMAIL_HELP)).not.toBeInTheDocument()
+    })
+
+    it('shows generic email help for federated users on create', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper isFederatedUser />)
+
+      await user.click(screen.getByRole('button', { name: 'More info for Email' }))
+      expect(screen.getByText(EMAIL_HELP)).toBeInTheDocument()
+      expect(screen.queryByText(EMAIL_FEDERATED_EDIT_HELP)).not.toBeInTheDocument()
+      expect(screen.queryByLabelText('Password', { selector: 'input' })).not.toBeInTheDocument()
+    })
+
+    it('shows groups help on create and status help on click', async () => {
+      const user = userEvent.setup()
+      render(<TestWrapper />)
+
+      await user.click(screen.getByRole('button', { name: 'More info for Groups' }))
+      expect(screen.getByText(GROUPS_HELP)).toBeInTheDocument()
+
+      await user.keyboard('{Escape}')
+      await user.click(screen.getByRole('button', { name: 'More info for Status' }))
+      expect(screen.getByText(STATUS_HELP)).toBeInTheDocument()
+    })
+
+    it('does not add a password help popover', () => {
+      render(<TestWrapper />)
+
+      expect(screen.queryByRole('button', { name: 'More info for Password' })).not.toBeInTheDocument()
+    })
   })
 
   describe('GroupMultiSelect', () => {

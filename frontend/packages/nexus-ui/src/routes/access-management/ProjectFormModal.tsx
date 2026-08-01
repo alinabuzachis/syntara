@@ -25,6 +25,7 @@ import { accessClient } from '../access/accessClient'
 import type { ProjectRead } from '../access/types'
 
 import { HintOrError } from './authentication/identity-providers/formFieldHelpers'
+import { projectHelp } from './projectFieldHelp'
 import {
   PROJECT_NAME_HINT,
   PROJECT_NAME_PLACEHOLDER,
@@ -149,7 +150,7 @@ export function ProjectFormModal({ project, isOpen, onClose, onSuccess, onCreate
             name="name"
             control={control}
             render={({ field, fieldState }) => (
-              <FormGroup label="Project name" fieldId="project-name" isRequired>
+              <FormGroup label="Project name" fieldId="project-name" isRequired labelHelp={projectHelp.name}>
                 <TextInput
                   id="project-name"
                   aria-label="Project name"

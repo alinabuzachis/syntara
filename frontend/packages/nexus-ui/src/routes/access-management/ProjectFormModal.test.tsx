@@ -9,6 +9,7 @@ import { AlertProvider } from '../../providers/alerts'
 import { accessClient } from '../access/accessClient'
 import type { ProjectRead } from '../access/types'
 
+import { PROJECT_NAME_HELP } from './projectFieldHelp'
 import { ProjectFormModal } from './ProjectFormModal'
 import { PROJECT_NAME_HINT, PROJECT_NAME_VALIDATION_MESSAGE } from './projectFormSchema'
 
@@ -109,6 +110,16 @@ describe('ProjectFormModal', () => {
       expect(screen.getByPlaceholderText('project-name')).toBeInTheDocument()
       expect(screen.getByText(PROJECT_NAME_HINT)).toBeInTheDocument()
       expect(screen.getByPlaceholderText('Enter description')).toBeInTheDocument()
+    })
+
+    it('shows project name help body on click while keeping format hint inline', async () => {
+      const user = userEvent.setup()
+      render(<ProjectFormModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
+
+      expect(screen.getByText(PROJECT_NAME_HINT)).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'More info for Project name' }))
+      expect(screen.getByText(PROJECT_NAME_HELP)).toBeInTheDocument()
+      expect(screen.getByText(PROJECT_NAME_HINT)).toBeInTheDocument()
     })
 
     it('does not submit when required name field is empty', async () => {
@@ -244,6 +255,16 @@ describe('ProjectFormModal', () => {
 
       expect(screen.getByPlaceholderText('project-name')).toHaveValue('Alpha')
       expect(screen.getByPlaceholderText('Enter description')).toHaveValue('Alpha project')
+    })
+
+    it('shows project name help body on click', async () => {
+      const user = userEvent.setup()
+      render(<ProjectFormModal project={mockProject} isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, {
+        wrapper,
+      })
+
+      await user.click(screen.getByRole('button', { name: 'More info for Project name' }))
+      expect(screen.getByText(PROJECT_NAME_HELP)).toBeInTheDocument()
     })
 
     it('calls update mutation with form data on submit', async () => {

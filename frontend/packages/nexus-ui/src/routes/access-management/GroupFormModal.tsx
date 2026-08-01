@@ -22,6 +22,7 @@ import { useFormMutationErrorHandler } from '../../hooks/useFormMutationErrorHan
 import { useAlerts } from '../../providers/alerts'
 import { accessClient } from '../access/accessClient'
 
+import { groupHelp } from './groupFieldHelp'
 import { groupFormSchema, type GroupFormData } from './groupFormSchema'
 
 export type GroupFormModalProps = {
@@ -133,7 +134,7 @@ export function GroupFormModal({ group, initialName, isOpen, onClose, onSuccess 
             name="name"
             control={control}
             render={({ field, fieldState }) => (
-              <FormGroup label="Group name" fieldId="group-name" isRequired>
+              <FormGroup label="Group name" fieldId="group-name" isRequired labelHelp={groupHelp.name}>
                 <TextInput
                   id="group-name"
                   aria-label="Group name"

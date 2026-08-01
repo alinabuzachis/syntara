@@ -18,7 +18,7 @@ import {
   Tooltip,
 } from '@patternfly/react-core'
 import { RhUiCloseIcon, RhUiErrorIcon, RhUiViewIcon, RhUiViewOffIcon } from '@patternfly/react-icons'
-import { type Ref, useCallback, useMemo, useRef, useState } from 'react'
+import { type ReactElement, type Ref, useCallback, useMemo, useRef, useState } from 'react'
 import type { Control, ControllerFieldState, ControllerRenderProps } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
 
@@ -27,6 +27,8 @@ import { NxSelect } from '../../../components/NxSelect'
 import { useAllGroups } from '../../access/useAllGroups'
 import { PASSWORD_CHARACTER_CLASSES_MESSAGE, PASSWORD_MIN_LENGTH_MESSAGE } from '../passwordComplexity'
 import type { UserFormData } from '../userFormSchema'
+
+import { userHelp } from './userFieldHelp'
 
 type ControlledTextFieldProps = {
   name: 'username' | 'first_name' | 'last_name' | 'email' | 'password'
@@ -38,6 +40,7 @@ type ControlledTextFieldProps = {
   isDisabled?: boolean
   type?: 'text' | 'email' | 'password' | 'search' | 'tel' | 'url' | 'date' | 'time' | 'number'
   autoComplete?: string
+  labelHelp?: ReactElement
 }
 
 function ControlledTextField({
@@ -50,13 +53,14 @@ function ControlledTextField({
   isDisabled,
   type,
   autoComplete,
+  labelHelp,
 }: Readonly<ControlledTextFieldProps>) {
   return (
     <Controller
       name={name}
       control={control}
       render={({ field, fieldState }) => (
-        <FormGroup label={label} fieldId={fieldId} isRequired={isRequired}>
+        <FormGroup label={label} fieldId={fieldId} isRequired={isRequired} labelHelp={labelHelp}>
           <TextInput
             id={fieldId}
             aria-label={label}
@@ -236,7 +240,7 @@ function GroupField({ control }: Readonly<{ control: Control<UserFormData> }>) {
       name="group_names"
       control={control}
       render={({ field }) => (
-        <FormGroup label="Groups" fieldId="user-groups-select">
+        <FormGroup label="Groups" fieldId="user-groups-select" labelHelp={userHelp.groups}>
           <GroupMultiSelect
             selected={field.value ?? []}
             onChange={field.onChange}
@@ -316,9 +320,12 @@ export function UserFormFields({
   isEdit,
   isBuiltinUser = false,
   isBuiltinSelf = false,
-  isFederatedUser = false,
+  isFederatedUser,
   statusToggleDisabledReason,
 }: Readonly<UserFormFieldsProps>) {
+  const federatedUser = Boolean(isFederatedUser)
+  const emailLabelHelp = isEdit && federatedUser ? userHelp.emailFederatedEdit : userHelp.email
+
   return (
     <>
       <ControlledTextField
@@ -330,6 +337,7 @@ export function UserFormFields({
         isRequired
         isDisabled={isBuiltinUser}
         autoComplete="off"
+        labelHelp={userHelp.username}
       />
       <ControlledTextField
         name="first_name"
@@ -354,8 +362,9 @@ export function UserFormFields({
         fieldId="user-email"
         placeholder="Enter email address"
         isDisabled={isBuiltinUser}
+        labelHelp={emailLabelHelp}
       />
-      {!isFederatedUser && (
+      {!federatedUser && (
         <Controller
           name="password"
           control={control}
@@ -388,7 +397,7 @@ export function UserFormFields({
           )
 
           return (
-            <FormGroup label="Status" fieldId="user-is-enabled">
+            <FormGroup label="Status" fieldId="user-is-enabled" labelHelp={userHelp.status}>
               {statusToggleDisabledReason ? (
                 <Tooltip content={statusToggleDisabledReason}>
                   {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
