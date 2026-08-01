@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { credentialsClient, integrationsClient, toolManagerClient } from '../../../client'
+import { credentialsClient, integrationsClient } from '../../../client'
 import { AlertProvider } from '../../../providers/alerts'
 
 import { IntegrationDetail } from './IntegrationDetail'
@@ -17,9 +17,6 @@ vi.mock('../../../client', () => ({
   },
   credentialsClient: {
     useQuery: vi.fn(),
-  },
-  toolManagerClient: {
-    useMutation: vi.fn(),
   },
 }))
 
@@ -199,43 +196,46 @@ function setupMocks(overrides?: {
     error: null,
   } as never)
 
-  vi.mocked(integrationsClient.useMutation).mockReturnValue({
-    mutate: vi.fn(),
-    isPending: false,
-    mutateAsync: vi.fn(),
-    isIdle: true,
-    isSuccess: false,
-    isError: false,
-    error: null,
-    data: null,
-    reset: vi.fn(),
-    failureCount: 0,
-    failureReason: null,
-    context: undefined,
-    submittedAt: 0,
-    variables: undefined,
-    status: 'idle',
-    isPaused: false,
-  } as never)
-
-  vi.mocked(toolManagerClient.useMutation).mockReturnValue({
-    mutateAsync: vi.fn().mockResolvedValue({}),
-    mutate: vi.fn(),
-    isPending: false,
-    isIdle: true,
-    isSuccess: false,
-    isError: false,
-    error: null,
-    data: null,
-    reset: vi.fn(),
-    failureCount: 0,
-    failureReason: null,
-    context: undefined,
-    submittedAt: 0,
-    variables: undefined,
-    status: 'idle',
-    isPaused: false,
-  } as never)
+  vi.mocked(integrationsClient.useMutation).mockImplementation((_method: string, path: string) => {
+    if (path === '/integrations/{integration_id}/tools/bulk_update') {
+      return {
+        mutateAsync: vi.fn().mockResolvedValue({}),
+        mutate: vi.fn(),
+        isPending: false,
+        isIdle: true,
+        isSuccess: false,
+        isError: false,
+        error: null,
+        data: null,
+        reset: vi.fn(),
+        failureCount: 0,
+        failureReason: null,
+        context: undefined,
+        submittedAt: 0,
+        variables: undefined,
+        status: 'idle',
+        isPaused: false,
+      } as never
+    }
+    return {
+      mutate: vi.fn(),
+      mutateAsync: vi.fn(),
+      isPending: false,
+      isIdle: true,
+      isSuccess: false,
+      isError: false,
+      error: null,
+      data: null,
+      reset: vi.fn(),
+      failureCount: 0,
+      failureReason: null,
+      context: undefined,
+      submittedAt: 0,
+      variables: undefined,
+      status: 'idle',
+      isPaused: false,
+    } as never
+  })
 }
 
 describe('IntegrationProjectsList (via IntegrationDetail)', () => {

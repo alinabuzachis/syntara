@@ -2,7 +2,7 @@
 
 Tests the end-to-end filtering functionality from HTTP GET through FastAPI router
 to the service layer, covering the OR logic implementation for comma-separated values.
-Uses the /tool_manager/tools endpoint (replacing the removed /tool_manager/tool_providers endpoint).
+Uses the /tools endpoint.
 """
 
 import pytest
@@ -105,7 +105,7 @@ class TestFilteringORLogic:
         jwt_client: AsyncClient,
     ) -> None:
         """Test filtering on a single field with single value."""
-        response = await jwt_client.get("/api/v1/tool_manager/tools", params={"enabled[eq]": "true"})
+        response = await jwt_client.get("/api/v1/tools", params={"enabled[eq]": "true"})
 
         assert response.status_code == 200
         data = response.json()
@@ -130,7 +130,7 @@ class TestFilteringORLogic:
     ) -> None:
         """Test filtering on multiple fields using AND logic."""
         response = await jwt_client.get(
-            "/api/v1/tool_manager/tools",
+            "/api/v1/tools",
             params={"enabled[eq]": "true", "description[contains]": "Development"},
         )
 
@@ -157,7 +157,7 @@ class TestFilteringORLogic:
         jwt_client: AsyncClient,
     ) -> None:
         """Test filtering on a single field using OR logic (comma-separated values)."""
-        response = await jwt_client.get("/api/v1/tool_manager/tools", params={"name[contains]": "Service,Provider"})
+        response = await jwt_client.get("/api/v1/tools", params={"name[contains]": "Service,Provider"})
 
         assert response.status_code == 200
         data = response.json()
@@ -189,7 +189,7 @@ class TestFilteringORLogic:
     ) -> None:
         """Test filtering with one field using OR and another using AND."""
         response = await jwt_client.get(
-            "/api/v1/tool_manager/tools",
+            "/api/v1/tools",
             params={
                 "name[contains]": "Service,Delta",  # OR logic within this field
                 "enabled[eq]": "true",  # AND logic between fields
@@ -220,7 +220,7 @@ class TestFilteringORLogic:
         jwt_client: AsyncClient,
     ) -> None:
         """Test filtering with the [in] operator for multi-value OR logic."""
-        response = await jwt_client.get("/api/v1/tool_manager/tools", params={"status[in]": "available,missing"})
+        response = await jwt_client.get("/api/v1/tools", params={"status[in]": "available,missing"})
 
         assert response.status_code == 200
         data = response.json()
@@ -240,7 +240,7 @@ class TestFilteringORLogic:
     ) -> None:
         """Test [in] operator combined with another filter using AND logic."""
         response = await jwt_client.get(
-            "/api/v1/tool_manager/tools",
+            "/api/v1/tools",
             params={
                 "status[in]": "available,missing",
                 "enabled[eq]": "true",
@@ -265,7 +265,7 @@ class TestFilteringORLogic:
         jwt_client: AsyncClient,
     ) -> None:
         """Test [in] operator with a single value behaves like equality."""
-        response = await jwt_client.get("/api/v1/tool_manager/tools", params={"status[in]": "missing"})
+        response = await jwt_client.get("/api/v1/tools", params={"status[in]": "missing"})
 
         assert response.status_code == 200
         data = response.json()
@@ -285,7 +285,7 @@ class TestFilteringORLogic:
     ) -> None:
         """Test filtering with multiple fields each using OR logic."""
         response = await jwt_client.get(
-            "/api/v1/tool_manager/tools",
+            "/api/v1/tools",
             params={
                 "name[contains]": "Alpha,Echo",  # OR within field
                 "description[contains]": "Development,Production",  # OR within field, AND between fields

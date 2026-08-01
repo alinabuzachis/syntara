@@ -115,6 +115,25 @@ class ToolService(BaseService):
             id_restriction=id_restriction,
         )
 
+    async def _get_tool_for_integration(self, integration_id: UUID, tool_id: UUID) -> Tool:
+        """Fetch a tool and verify it belongs to the specified integration."""
+        query = select(Tool).options(selectinload(Tool.parameters)).filter(Tool.id == tool_id)  # type: ignore[arg-type]
+        result = await self.session.exec(query)
+        tool = result.one_or_none()
+        if not tool or tool.integration_id != integration_id:
+            logger.warning(
+                "Tool not found for integration",
+                tool_id=str(tool_id),
+                integration_id=str(integration_id),
+            )
+            raise ToolNotFoundError(str(tool_id))
+        return tool
+
+    async def get_tool_detail_for_integration(self, integration_id: UUID, tool_id: UUID) -> ToolWithParameters:
+        """Get a tool by ID, scoped to an integration (IDOR protection)."""
+        tool = await self._get_tool_for_integration(integration_id, tool_id)
+        return ToolWithParameters.model_validate(tool)
+
     async def get_tool_detail(self, tool_id: UUID) -> ToolWithParameters:
         """Get a tool by ID with full details including parameters.
 
@@ -140,6 +159,16 @@ class ToolService(BaseService):
             raise ToolNotFoundError(msg)
 
         return ToolWithParameters.model_validate(tool)
+
+    async def update_tool_for_integration(
+        self,
+        integration_id: UUID,
+        tool_id: UUID,
+        tool_update: ToolUpdate,
+    ) -> ToolWithParameters:
+        """Update a tool, scoped to an integration (IDOR protection)."""
+        await self._get_tool_for_integration(integration_id, tool_id)
+        return await self.update_tool(tool_id, tool_update)
 
     async def update_tool(
         self,
@@ -313,6 +342,71 @@ class ToolService(BaseService):
             unique_requested=len(unique_tool_ids),
             duplicates=duplicate_count,
             not_found=len(not_found_tool_ids),
+        )
+
+        return {
+            "updated_count": updated_count,
+            "skipped_count": skipped_count,
+            "updated_at": current_time,
+        }
+
+    async def bulk_update_tools_for_integration(
+        self,
+        integration_id: UUID,
+        tool_ids: list[UUID],
+        *,
+        enabled: bool,
+    ) -> dict[str, Any]:
+        """Bulk enable/disable tools, scoped to an integration (IDOR protection).
+
+        Only tools belonging to the specified integration are updated.
+        Tool IDs that don't belong to this integration are silently skipped.
+        """
+        if not tool_ids:
+            msg = "tool_ids cannot be empty"
+            raise ToolBulkUpdateValidationError(msg)
+
+        if len(tool_ids) > MAX_BULK_UPDATES:
+            msg = f"Cannot update more than {MAX_BULK_UPDATES} tools at once"
+            raise ToolBulkUpdateValidationError(msg)
+
+        unique_tool_ids = list(dict.fromkeys(tool_ids))
+
+        query = select(Tool).filter(
+            Tool.id.in_(unique_tool_ids),  # type: ignore[attr-defined]
+            Tool.integration_id == integration_id,  # type: ignore[arg-type]
+        )
+        result = await self.session.exec(query)
+        found_tools = result.all()
+
+        skipped_count = len(unique_tool_ids) - len(found_tools)
+        if skipped_count > 0:
+            logger.warning(
+                "Bulk update included tool IDs not found in integration",
+                integration_id=str(integration_id),
+                requested_count=len(unique_tool_ids),
+                not_found_count=skipped_count,
+                enabled=enabled,
+            )
+
+        current_time = datetime.now(UTC)
+        updated_count = 0
+        for tool in found_tools:
+            tool.enabled = enabled
+            tool.updated_by = self.user.id
+            tool.updated_at = current_time
+            updated_count += 1
+
+        await self.session.flush()
+        await self.session.commit()
+
+        AuditEventDispatcher.dispatch(
+            ToolBulkUpdateEvent(
+                tool_ids=tool_ids,
+                enabled=enabled,
+                updated_count=updated_count,
+                skipped_count=skipped_count,
+            )
         )
 
         return {

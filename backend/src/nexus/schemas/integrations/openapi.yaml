@@ -807,6 +807,212 @@ paths:
       tags:
         - Integrations
 
+  /integrations/{integration_id}/tools:
+    get:
+      summary: List Integration Tools
+      description: List tools for an integration with filtering, sorting, and pagination.
+      operationId: list_integration_tools
+      x-app-permission:
+        resource: tool
+        action: read
+      parameters:
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Integration Id
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolListResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "429":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+      tags:
+        - Integrations
+
+  /integrations/{integration_id}/tools/{tool_id}:
+    get:
+      summary: Get Integration Tool
+      description: Get a tool by ID, scoped to an integration.
+      operationId: get_integration_tool
+      x-app-permission:
+        resource: tool
+        action: read
+      parameters:
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Integration Id
+        - name: tool_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Tool Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolWithParameters'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "429":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+      tags:
+        - Integrations
+    patch:
+      summary: Update Integration Tool
+      description: Update a tool (enable/disable), scoped to an integration.
+      operationId: update_integration_tool
+      x-app-permission:
+        resource: tool
+        action: update
+      parameters:
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Integration Id
+        - name: tool_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Tool Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolWithParameters'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "429":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+      tags:
+        - Integrations
+
+  /integrations/{integration_id}/tools/bulk_update:
+    patch:
+      summary: Bulk Update Integration Tools
+      description: Bulk enable/disable tools for an integration.
+      operationId: bulk_update_integration_tools
+      x-app-permission:
+        resource: tool
+        action: update
+      parameters:
+        - name: integration_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Integration Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolBulkUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Bulk Update Integration Tools
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "429":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+      tags:
+        - Integrations
+
 components:
   schemas:
     IntegrationType:
@@ -1839,6 +2045,15 @@ components:
           type: integer
           title: Skipped Count
           description: Number of model IDs not found in integration
+
+    ToolListResponse:
+      $ref: '../tool_manager/openapi.yaml#/components/schemas/ToolListResponse'
+    ToolWithParameters:
+      $ref: '../tool_manager/openapi.yaml#/components/schemas/ToolWithParameters'
+    ToolUpdate:
+      $ref: '../tool_manager/openapi.yaml#/components/schemas/ToolUpdate'
+    ToolBulkUpdate:
+      $ref: '../tool_manager/openapi.yaml#/components/schemas/ToolBulkUpdate'
 
   securitySchemes:
     bearerAuth:

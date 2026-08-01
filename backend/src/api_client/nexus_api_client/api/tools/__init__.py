@@ -1,4 +1,4 @@
-"""tool_manager API endpoints."""
+"""tools API endpoints."""
 
 from __future__ import annotations
 
@@ -15,8 +15,8 @@ class _EndpointModule(Protocol):
     async def asyncio_detailed(self, *, client: AuthenticatedClient, **kwargs: Any) -> Response[Any]: ...
 
 
-class ToolManagerApi:
-    """Registry for tool_manager API endpoints."""
+class ToolsApi:
+    """Registry for tools API endpoints."""
 
     def __init__(self, client: AuthenticatedClient) -> None:
         self._client = client
@@ -24,34 +24,26 @@ class ToolManagerApi:
     def _load_endpoint_module(self, module_name: str) -> _EndpointModule:
         return cast(_EndpointModule, importlib.import_module(f"{__name__}.{module_name}"))
 
-    def get_tools(self, **kwargs: Any) -> Response[Any]:
-        endpoint_module = self._load_endpoint_module("get_tools")
+    def list(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("list_tools")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
-    async def async_get_tools(self, **kwargs: Any) -> Response[Any]:
-        endpoint_module = self._load_endpoint_module("get_tools")
+    async def async_list(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("list_tools")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
-    def get_tool(self, **kwargs: Any) -> Response[Any]:
+    def get(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("get_tool")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
-    async def async_get_tool(self, **kwargs: Any) -> Response[Any]:
+    async def async_get(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("get_tool")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
-    def patch_tool(self, **kwargs: Any) -> Response[Any]:
-        endpoint_module = self._load_endpoint_module("patch_tool")
+    def update(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("update_tool")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)
 
-    async def async_patch_tool(self, **kwargs: Any) -> Response[Any]:
-        endpoint_module = self._load_endpoint_module("patch_tool")
-        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
-
-    def bulk_update_tools(self, **kwargs: Any) -> Response[Any]:
-        endpoint_module = self._load_endpoint_module("bulk_update_tools")
-        return endpoint_module.sync_detailed(client=self._client, **kwargs)
-
-    async def async_bulk_update_tools(self, **kwargs: Any) -> Response[Any]:
-        endpoint_module = self._load_endpoint_module("bulk_update_tools")
+    async def async_update(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("update_tool")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)

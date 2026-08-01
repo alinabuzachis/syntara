@@ -29,7 +29,7 @@ from tests.integration.api.conftest import (
     make_user_role,
 )
 
-TOOLS_URL = "/api/v1/tool_manager/tools"
+TOOLS_URL = "/api/v1/tools"
 
 
 async def _create_integration_with_tool(

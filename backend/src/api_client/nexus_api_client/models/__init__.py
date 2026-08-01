@@ -84,7 +84,7 @@ __all__ = (
     "BatchApprovalResponse",
     "BatchApprovalResult",
     "BodyToken",
-    "BulkUpdateToolsResponseBulkUpdateTools",
+    "BulkUpdateIntegrationToolsResponseBulkUpdateIntegrationTools",
     "CanIRequest",
     "CanIRequestResourceLabels",
     "CanIRequestResourceMetadata",

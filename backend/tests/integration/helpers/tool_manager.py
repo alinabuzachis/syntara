@@ -39,7 +39,7 @@ async def wait_for_tool_status(
 
     while elapsed_time < max_wait_time:
         # Check the current status of the tool
-        status_response = await client.get(f"/api/v1/tool_manager/tools/{tool_id}")
+        status_response = await client.get(f"/api/v1/tools/{tool_id}")
         if status_response.status_code == 200:
             status_data = status_response.json()
             if status_data.get("status") == expected_status:
@@ -51,7 +51,7 @@ async def wait_for_tool_status(
 
     # If we didn't get the expected status, get the current state for testing
     if final_data is None:
-        status_response = await client.get(f"/api/v1/tool_manager/tools/{tool_id}")
+        status_response = await client.get(f"/api/v1/tools/{tool_id}")
         if status_response.status_code == 200:
             final_data = status_response.json()
 

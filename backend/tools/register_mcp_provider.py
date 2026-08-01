@@ -90,7 +90,7 @@ sys.stdout.write(
 )
 
 # --- Show registered tools ---
-tools = _get("/tool_manager/tools", params={"provider_id": provider_id, "limit": 100})["resources"]
+tools = _get("/tools", params={"provider_id": provider_id, "limit": 100})["resources"]
 sys.stdout.write(f"\nTools ({len(tools)}):\n")
 for t in tools:
     sys.stdout.write(f"  {t['namespaced_name']}  status={t['status']}\n")

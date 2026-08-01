@@ -1,5 +1,6 @@
 from http import HTTPStatus
 from typing import Any
+from uuid import UUID
 
 import httpx
 
@@ -11,6 +12,7 @@ from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
+    integration_id: UUID,
     *,
     limit: int | Unset = 20,
     cursor: None | str | Unset = UNSET,
@@ -44,7 +46,7 @@ def _get_kwargs(
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/tool_manager/tools",
+        "url": f"/integrations/{integration_id}/tools",
         "params": params,
     }
 
@@ -119,6 +121,7 @@ def _build_response(
 
 
 def sync_detailed(
+    integration_id: UUID,
     *,
     client: AuthenticatedClient,
     limit: int | Unset = 20,
@@ -127,14 +130,12 @@ def sync_detailed(
     include_total: bool | Unset = False,
     additional_params: dict[str, Any] | None = None,
 ) -> Response[ErrorData | ToolListResponse]:
-    """Get tools
+    """List Integration Tools
 
-     List tools with filtering, sorting, and pagination.
-
-    Tools are filtered by the caller's integration visibility — only tools
-    belonging to visible integrations are returned.
+     List tools for an integration with filtering, sorting, and pagination.
 
     Args:
+        integration_id (UUID):
         limit (int | Unset): Maximum number of results per page Default: 20.
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
@@ -149,7 +150,12 @@ def sync_detailed(
     """
 
     kwargs = _get_kwargs(
-        limit=limit, cursor=cursor, sort=sort, include_total=include_total, additional_params=additional_params
+        integration_id=integration_id,
+        limit=limit,
+        cursor=cursor,
+        sort=sort,
+        include_total=include_total,
+        additional_params=additional_params,
     )
 
     response = client.get_httpx_client().request(
@@ -160,6 +166,7 @@ def sync_detailed(
 
 
 def sync(
+    integration_id: UUID,
     *,
     client: AuthenticatedClient,
     limit: int | Unset = 20,
@@ -167,14 +174,12 @@ def sync(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> ErrorData | ToolListResponse | None:
-    """Get tools
+    """List Integration Tools
 
-     List tools with filtering, sorting, and pagination.
-
-    Tools are filtered by the caller's integration visibility — only tools
-    belonging to visible integrations are returned.
+     List tools for an integration with filtering, sorting, and pagination.
 
     Args:
+        integration_id (UUID):
         limit (int | Unset): Maximum number of results per page Default: 20.
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
@@ -189,6 +194,7 @@ def sync(
     """
 
     return sync_detailed(
+        integration_id=integration_id,
         client=client,
         limit=limit,
         cursor=cursor,
@@ -198,6 +204,7 @@ def sync(
 
 
 async def asyncio_detailed(
+    integration_id: UUID,
     *,
     client: AuthenticatedClient,
     limit: int | Unset = 20,
@@ -205,14 +212,12 @@ async def asyncio_detailed(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> Response[ErrorData | ToolListResponse]:
-    """Get tools
+    """List Integration Tools
 
-     List tools with filtering, sorting, and pagination.
-
-    Tools are filtered by the caller's integration visibility — only tools
-    belonging to visible integrations are returned.
+     List tools for an integration with filtering, sorting, and pagination.
 
     Args:
+        integration_id (UUID):
         limit (int | Unset): Maximum number of results per page Default: 20.
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
@@ -227,6 +232,7 @@ async def asyncio_detailed(
     """
 
     kwargs = _get_kwargs(
+        integration_id=integration_id,
         limit=limit,
         cursor=cursor,
         sort=sort,
@@ -239,6 +245,7 @@ async def asyncio_detailed(
 
 
 async def asyncio(
+    integration_id: UUID,
     *,
     client: AuthenticatedClient,
     limit: int | Unset = 20,
@@ -246,14 +253,12 @@ async def asyncio(
     sort: None | str | Unset = UNSET,
     include_total: bool | Unset = False,
 ) -> ErrorData | ToolListResponse | None:
-    """Get tools
+    """List Integration Tools
 
-     List tools with filtering, sorting, and pagination.
-
-    Tools are filtered by the caller's integration visibility — only tools
-    belonging to visible integrations are returned.
+     List tools for an integration with filtering, sorting, and pagination.
 
     Args:
+        integration_id (UUID):
         limit (int | Unset): Maximum number of results per page Default: 20.
         cursor (None | str | Unset): Pagination cursor from previous response
         sort (None | str | Unset): Sort parameter (e.g., 'name', '-created_at')
@@ -269,6 +274,7 @@ async def asyncio(
 
     return (
         await asyncio_detailed(
+            integration_id=integration_id,
             client=client,
             limit=limit,
             cursor=cursor,

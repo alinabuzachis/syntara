@@ -1,10 +1,10 @@
-import type { Tool, ToolManagerAPI } from '@syntara/contracts'
+import type { Tool, IntegrationsAPI } from '@syntara/contracts'
 import { useQuery } from '@tanstack/react-query'
 
-import { toolManagerFetchClient } from '../../../client'
+import { integrationsFetchClient } from '../../../client'
 import { fetchAllPages, MAX_PAGE_SIZE } from '../../../utils/fetchAllPages'
 
-type ToolWithParameters = ToolManagerAPI.components['schemas']['ToolWithParameters']
+type ToolWithParameters = IntegrationsAPI.components['schemas']['ToolWithParameters']
 
 function isToolRow(row: ToolWithParameters): row is Tool {
   return typeof row.id === 'string'
@@ -12,8 +12,8 @@ function isToolRow(row: ToolWithParameters): row is Tool {
 
 async function fetchAllIntegrationTools(integrationId: string): Promise<Tool[]> {
   const rows = await fetchAllPages<ToolWithParameters>((cursor) =>
-    toolManagerFetchClient.GET('/tool_manager/tools', {
-      params: { query: { sort: 'name', integration_id: integrationId, limit: MAX_PAGE_SIZE, cursor } },
+    integrationsFetchClient.GET('/integrations/{integration_id}/tools', {
+      params: { path: { integration_id: integrationId }, query: { sort: 'name', limit: MAX_PAGE_SIZE, cursor } },
     })
   )
   return rows.filter(isToolRow)

@@ -162,7 +162,7 @@ class TestOrchestrationServiceGetTools:
             assert mock_mcp_instance.get_tools.called, "get_tools should have been called"
 
             # Verify the enabled tool was NOT mutated (still available, still enabled)
-            tool_response = await jwt_client.get(f"/api/v1/tool_manager/tools/{enabled_tool_id}")
+            tool_response = await jwt_client.get(f"/api/v1/tools/{enabled_tool_id}")
             assert tool_response.status_code == 200
             enabled_tool = tool_response.json()
 
@@ -171,7 +171,7 @@ class TestOrchestrationServiceGetTools:
             assert enabled_tool["enabled"] is True
 
             # Verify that the disabled tool also remains unchanged
-            tool_response = await jwt_client.get(f"/api/v1/tool_manager/tools/{disabled_tool_id}")
+            tool_response = await jwt_client.get(f"/api/v1/tools/{disabled_tool_id}")
             assert tool_response.status_code == 200
             disabled_tool = tool_response.json()
 
@@ -213,7 +213,7 @@ class TestOrchestrationServiceGetTools:
             assert len(result_tools) == 1
             assert result_tools[0] is mock_enabled_tool
 
-            tool_response = await jwt_client.get(f"/api/v1/tool_manager/tools/{enabled_tool_id}")
+            tool_response = await jwt_client.get(f"/api/v1/tools/{enabled_tool_id}")
             assert tool_response.status_code == 200
             enabled_tool = tool_response.json()
 
@@ -221,7 +221,7 @@ class TestOrchestrationServiceGetTools:
             assert enabled_tool["enabled"] is True
             assert enabled_tool["refresh_error"] is None
 
-            tool_response = await jwt_client.get(f"/api/v1/tool_manager/tools/{disabled_tool_id}")
+            tool_response = await jwt_client.get(f"/api/v1/tools/{disabled_tool_id}")
             assert tool_response.status_code == 200
             disabled_tool = tool_response.json()
 
@@ -291,7 +291,7 @@ class TestOrchestrationServiceGetTools:
             assert updated_integration["validation_error"] is None  # No error set
 
             # Tool should also be untouched
-            tool_response = await jwt_client.get(f"/api/v1/tool_manager/tools/{integration_tool.id}")
+            tool_response = await jwt_client.get(f"/api/v1/tools/{integration_tool.id}")
             assert tool_response.status_code == 200
             affected_tool = tool_response.json()
 

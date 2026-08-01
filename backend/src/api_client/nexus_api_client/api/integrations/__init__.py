@@ -143,3 +143,35 @@ class IntegrationsApi:
     async def async_bulk_update_models(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("bulk_update_integration_models")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
+    def list_tools(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("list_integration_tools")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_list_tools(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("list_integration_tools")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
+    def get_tool(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("get_integration_tool")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_get_tool(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("get_integration_tool")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
+    def update_tool(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("update_integration_tool")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_update_tool(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("update_integration_tool")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
+    def bulk_update_tools(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("bulk_update_integration_tools")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_bulk_update_tools(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("bulk_update_integration_tools")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)

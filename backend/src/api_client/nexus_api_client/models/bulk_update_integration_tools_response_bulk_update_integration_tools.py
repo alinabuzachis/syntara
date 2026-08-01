@@ -6,11 +6,11 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="BulkUpdateToolsResponseBulkUpdateTools")
+T = TypeVar("T", bound="BulkUpdateIntegrationToolsResponseBulkUpdateIntegrationTools")
 
 
 @_attrs_define
-class BulkUpdateToolsResponseBulkUpdateTools:
+class BulkUpdateIntegrationToolsResponseBulkUpdateIntegrationTools:
     """ """
 
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
@@ -24,10 +24,10 @@ class BulkUpdateToolsResponseBulkUpdateTools:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        bulk_update_tools_response_bulk_update_tools = cls()
+        bulk_update_integration_tools_response_bulk_update_integration_tools = cls()
 
-        bulk_update_tools_response_bulk_update_tools.additional_properties = d
-        return bulk_update_tools_response_bulk_update_tools
+        bulk_update_integration_tools_response_bulk_update_integration_tools.additional_properties = d
+        return bulk_update_integration_tools_response_bulk_update_integration_tools
 
     @property
     def additional_keys(self) -> list[str]:

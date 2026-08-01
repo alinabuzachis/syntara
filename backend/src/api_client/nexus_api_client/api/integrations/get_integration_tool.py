@@ -12,11 +12,12 @@ from ...types import Response
 
 
 def _get_kwargs(
+    integration_id: UUID,
     tool_id: UUID,
 ) -> dict[str, Any]:
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": f"/tool_manager/tools/{tool_id}",
+        "url": f"/integrations/{integration_id}/tools/{tool_id}",
     }
 
     return _kwargs
@@ -90,15 +91,17 @@ def _build_response(
 
 
 def sync_detailed(
+    integration_id: UUID,
     tool_id: UUID,
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | ToolWithParameters]:
-    """Get tool
+    """Get Integration Tool
 
-     Get tool details by ID.
+     Get a tool by ID, scoped to an integration.
 
     Args:
+        integration_id (UUID):
         tool_id (UUID):
 
     Raises:
@@ -110,6 +113,7 @@ def sync_detailed(
     """
 
     kwargs = _get_kwargs(
+        integration_id=integration_id,
         tool_id=tool_id,
     )
 
@@ -121,15 +125,17 @@ def sync_detailed(
 
 
 def sync(
+    integration_id: UUID,
     tool_id: UUID,
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | ToolWithParameters | None:
-    """Get tool
+    """Get Integration Tool
 
-     Get tool details by ID.
+     Get a tool by ID, scoped to an integration.
 
     Args:
+        integration_id (UUID):
         tool_id (UUID):
 
     Raises:
@@ -141,21 +147,24 @@ def sync(
     """
 
     return sync_detailed(
+        integration_id=integration_id,
         tool_id=tool_id,
         client=client,
     ).parsed
 
 
 async def asyncio_detailed(
+    integration_id: UUID,
     tool_id: UUID,
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorData | ToolWithParameters]:
-    """Get tool
+    """Get Integration Tool
 
-     Get tool details by ID.
+     Get a tool by ID, scoped to an integration.
 
     Args:
+        integration_id (UUID):
         tool_id (UUID):
 
     Raises:
@@ -167,6 +176,7 @@ async def asyncio_detailed(
     """
 
     kwargs = _get_kwargs(
+        integration_id=integration_id,
         tool_id=tool_id,
     )
 
@@ -176,15 +186,17 @@ async def asyncio_detailed(
 
 
 async def asyncio(
+    integration_id: UUID,
     tool_id: UUID,
     *,
     client: AuthenticatedClient,
 ) -> ErrorData | ToolWithParameters | None:
-    """Get tool
+    """Get Integration Tool
 
-     Get tool details by ID.
+     Get a tool by ID, scoped to an integration.
 
     Args:
+        integration_id (UUID):
         tool_id (UUID):
 
     Raises:
@@ -197,6 +209,7 @@ async def asyncio(
 
     return (
         await asyncio_detailed(
+            integration_id=integration_id,
             tool_id=tool_id,
             client=client,
         )

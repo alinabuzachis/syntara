@@ -1,25 +1,27 @@
 from http import HTTPStatus
 from typing import Any
+from uuid import UUID
 
 import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.bulk_update_tools_response_bulk_update_tools import BulkUpdateToolsResponseBulkUpdateTools
 from ...models.error_data import ErrorData
-from ...models.tool_bulk_update import ToolBulkUpdate
+from ...models.tool_update import ToolUpdate
+from ...models.tool_with_parameters import ToolWithParameters
 from ...types import Response
 
 
 def _get_kwargs(
+    tool_id: UUID,
     *,
-    body: ToolBulkUpdate,
+    body: ToolUpdate,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
 
     _kwargs: dict[str, Any] = {
         "method": "patch",
-        "url": "/tool_manager/tools/bulk_update",
+        "url": f"/tools/{tool_id}",
     }
 
     _kwargs["json"] = body.to_dict()
@@ -32,9 +34,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> BulkUpdateToolsResponseBulkUpdateTools | ErrorData | None:
+) -> ErrorData | ToolWithParameters | None:
     if response.status_code == 200:
-        response_200 = BulkUpdateToolsResponseBulkUpdateTools.from_dict(response.json())
+        response_200 = ToolWithParameters.from_dict(response.json())
 
         return response_200
 
@@ -86,7 +88,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[BulkUpdateToolsResponseBulkUpdateTools | ErrorData]:
+) -> Response[ErrorData | ToolWithParameters]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -98,30 +100,29 @@ def _build_response(
 
 
 def sync_detailed(
+    tool_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: ToolBulkUpdate,
-) -> Response[BulkUpdateToolsResponseBulkUpdateTools | ErrorData]:
-    """Bulk update tools
+    body: ToolUpdate,
+) -> Response[ErrorData | ToolWithParameters]:
+    """Update Tool
 
-     Bulk update tool status (enable/disable multiple tools).
+     Update tool status (enable/disable).
 
     Args:
-        body (ToolBulkUpdate): Request model for bulk updating tool status.
-
-            Attributes:
-                tool_ids: List of tool UUIDs to update (max 50)
-                enabled: Enable or disable the Tool.
+        tool_id (UUID):
+        body (ToolUpdate): Model for updating tool configuration.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[BulkUpdateToolsResponseBulkUpdateTools | ErrorData]
+        Response[ErrorData | ToolWithParameters]
     """
 
     kwargs = _get_kwargs(
+        tool_id=tool_id,
         body=body,
     )
 
@@ -133,60 +134,58 @@ def sync_detailed(
 
 
 def sync(
+    tool_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: ToolBulkUpdate,
-) -> BulkUpdateToolsResponseBulkUpdateTools | ErrorData | None:
-    """Bulk update tools
+    body: ToolUpdate,
+) -> ErrorData | ToolWithParameters | None:
+    """Update Tool
 
-     Bulk update tool status (enable/disable multiple tools).
+     Update tool status (enable/disable).
 
     Args:
-        body (ToolBulkUpdate): Request model for bulk updating tool status.
-
-            Attributes:
-                tool_ids: List of tool UUIDs to update (max 50)
-                enabled: Enable or disable the Tool.
+        tool_id (UUID):
+        body (ToolUpdate): Model for updating tool configuration.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        BulkUpdateToolsResponseBulkUpdateTools | ErrorData
+        ErrorData | ToolWithParameters
     """
 
     return sync_detailed(
+        tool_id=tool_id,
         client=client,
         body=body,
     ).parsed
 
 
 async def asyncio_detailed(
+    tool_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: ToolBulkUpdate,
-) -> Response[BulkUpdateToolsResponseBulkUpdateTools | ErrorData]:
-    """Bulk update tools
+    body: ToolUpdate,
+) -> Response[ErrorData | ToolWithParameters]:
+    """Update Tool
 
-     Bulk update tool status (enable/disable multiple tools).
+     Update tool status (enable/disable).
 
     Args:
-        body (ToolBulkUpdate): Request model for bulk updating tool status.
-
-            Attributes:
-                tool_ids: List of tool UUIDs to update (max 50)
-                enabled: Enable or disable the Tool.
+        tool_id (UUID):
+        body (ToolUpdate): Model for updating tool configuration.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[BulkUpdateToolsResponseBulkUpdateTools | ErrorData]
+        Response[ErrorData | ToolWithParameters]
     """
 
     kwargs = _get_kwargs(
+        tool_id=tool_id,
         body=body,
     )
 
@@ -196,31 +195,30 @@ async def asyncio_detailed(
 
 
 async def asyncio(
+    tool_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: ToolBulkUpdate,
-) -> BulkUpdateToolsResponseBulkUpdateTools | ErrorData | None:
-    """Bulk update tools
+    body: ToolUpdate,
+) -> ErrorData | ToolWithParameters | None:
+    """Update Tool
 
-     Bulk update tool status (enable/disable multiple tools).
+     Update tool status (enable/disable).
 
     Args:
-        body (ToolBulkUpdate): Request model for bulk updating tool status.
-
-            Attributes:
-                tool_ids: List of tool UUIDs to update (max 50)
-                enabled: Enable or disable the Tool.
+        tool_id (UUID):
+        body (ToolUpdate): Model for updating tool configuration.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        BulkUpdateToolsResponseBulkUpdateTools | ErrorData
+        ErrorData | ToolWithParameters
     """
 
     return (
         await asyncio_detailed(
+            tool_id=tool_id,
             client=client,
             body=body,
         )

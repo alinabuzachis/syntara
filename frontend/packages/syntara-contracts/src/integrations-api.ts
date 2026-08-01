@@ -237,6 +237,70 @@ export interface paths {
     patch: operations['bulk_update_integration_models']
     trace?: never
   }
+  '/integrations/{integration_id}/tools': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Integration Tools
+     * @description List tools for an integration with filtering, sorting, and pagination.
+     */
+    get: operations['list_integration_tools']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/integrations/{integration_id}/tools/{tool_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Integration Tool
+     * @description Get a tool by ID, scoped to an integration.
+     */
+    get: operations['get_integration_tool']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /**
+     * Update Integration Tool
+     * @description Update a tool (enable/disable), scoped to an integration.
+     */
+    patch: operations['update_integration_tool']
+    trace?: never
+  }
+  '/integrations/{integration_id}/tools/bulk_update': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /**
+     * Bulk Update Integration Tools
+     * @description Bulk enable/disable tools for an integration.
+     */
+    patch: operations['bulk_update_integration_tools']
+    trace?: never
+  }
 }
 export type webhooks = Record<string, never>
 export interface components {
@@ -953,6 +1017,107 @@ export interface components {
       skipped_count: number
     }
     /**
+     * ToolListResponse
+     * @description Paginated list response for tools.
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
+     */
+    ToolListResponse: components['schemas']['ResourcesResponseBase'] & {
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['ToolWithParameters'][]
+    }
+    ToolWithParameters: components['schemas']['UserOwnedResource'] &
+      components['schemas']['NamedResource'] & {
+        /**
+         * Integration Id
+         * @description UUID of the owning Integration (mcp_server)
+         */
+        integration_id?: string | null
+        /**
+         * Namespaced Name
+         * @description Unique namespaced name for the tool
+         */
+        namespaced_name: string
+        /**
+         * Enabled
+         * @description Whether the tool is enabled
+         * @default true
+         */
+        enabled?: boolean
+        /**
+         * @description Current status of the tool
+         * @default available
+         */
+        status?: components['schemas']['ToolStatus']
+        /**
+         * Last Executed At
+         * @description Timestamp of last execution
+         */
+        last_executed_at?: string | null
+        /**
+         * Last Refreshed At
+         * @description Timestamp of last refresh from provider
+         */
+        last_refreshed_at?: string | null
+        /**
+         * Refresh Error
+         * @description Error message from last refresh attempt
+         */
+        refresh_error?: string | null
+        /**
+         * Parameters
+         * @description Tool parameters
+         */
+        parameters: components['schemas']['ToolParameter'][]
+      }
+    /**
+     * ToolUpdate
+     * @description Model for updating tool configuration.
+     */
+    ToolUpdate: {
+      /**
+       * Enabled
+       * @description Whether the tool is enabled
+       */
+      enabled?: boolean | null
+      /** @description Current status of the tool */
+      status?: components['schemas']['ToolStatus'] | null
+      /**
+       * Refresh Error
+       * @description Error message from last refresh attempt
+       */
+      refresh_error?: string | null
+    }
+    /**
+     * ToolBulkUpdate
+     * @description Request model for bulk updating tool status.
+     *
+     *     Attributes:
+     *         tool_ids: List of tool UUIDs to update (max 50)
+     *         enabled: Enable or disable the Tool.
+     */
+    ToolBulkUpdate: {
+      /**
+       * Tool Ids
+       * @description List of tool UUIDs to update (max 50)
+       */
+      tool_ids: string[]
+      /**
+       * Enabled
+       * @description Enable/disable the Tool
+       */
+      enabled: boolean
+    }
+    /**
      * Paginated Response Base
      * @description Pagination metadata structure for list responses
      * @example {
@@ -1120,6 +1285,56 @@ export interface components {
        * @example /invocations/550e8400-e29b-41d4-a716-446655440000
        */
       instance?: string | null
+    }
+    /**
+     * ToolStatus
+     * @description Status of a tool.
+     * @enum {string}
+     */
+    ToolStatus: 'available' | 'missing' | 'error'
+    /**
+     * ToolParameterType
+     * @description Parameter types for tools.
+     * @enum {string}
+     */
+    ToolParameterType: 'string' | 'number' | 'boolean' | 'object' | 'array'
+    ToolParameter: components['schemas']['BaseResource'] & {
+      /**
+       * Tool Id
+       * Format: uuid
+       */
+      tool_id: string
+      /**
+       * Name
+       * @description Parameter name
+       */
+      name: string
+      /** @description Parameter type */
+      type: components['schemas']['ToolParameterType']
+      /**
+       * Description
+       * @description Parameter description
+       */
+      description: string
+      /**
+       * Required
+       * @description Whether this parameter is required
+       */
+      required: boolean
+      /**
+       * Default Value
+       * @description Default value for the parameter
+       */
+      default_value?: {
+        [key: string]: unknown
+      } | null
+      /**
+       * Example Value
+       * @description Example value for the parameter
+       */
+      example_value?: {
+        [key: string]: unknown
+      } | null
     }
   }
   responses: {
@@ -1777,6 +1992,147 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['LLMModelBulkUpdateResponse']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      429: components['responses']['RateLimitError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  list_integration_tools: {
+    parameters: {
+      query?: {
+        /** @description Maximum number of results per page */
+        limit?: components['parameters']['limitParam']
+        /** @description Pagination cursor from previous response */
+        cursor?: components['parameters']['cursorParam']
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
+        include_total?: components['parameters']['includeTotalParam']
+      }
+      header?: never
+      path: {
+        integration_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ToolListResponse']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      429: components['responses']['RateLimitError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  get_integration_tool: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integration_id: string
+        tool_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ToolWithParameters']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      429: components['responses']['RateLimitError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  update_integration_tool: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integration_id: string
+        tool_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ToolUpdate']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ToolWithParameters']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      429: components['responses']['RateLimitError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  bulk_update_integration_tools: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        integration_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ToolBulkUpdate']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            [key: string]: unknown
+          }
         }
       }
       400: components['responses']['BadRequestError']

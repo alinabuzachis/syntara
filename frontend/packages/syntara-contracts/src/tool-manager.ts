@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-  '/tool_manager/tools': {
+  '/tools': {
     parameters: {
       query?: never
       header?: never
@@ -12,13 +12,13 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get tools
+     * List Tools
      * @description List tools with filtering, sorting, and pagination.
      *
      *     Tools are filtered by the caller's integration visibility — only tools
      *     belonging to visible integrations are returned.
      */
-    get: operations['get_tools']
+    get: operations['list_tools']
     put?: never
     post?: never
     delete?: never
@@ -27,7 +27,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/tool_manager/tools/{tool_id}': {
+  '/tools/{tool_id}': {
     parameters: {
       query?: never
       header?: never
@@ -35,7 +35,7 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get tool
+     * Get Tool
      * @description Get tool details by ID.
      */
     get: operations['get_tool']
@@ -45,30 +45,10 @@ export interface paths {
     options?: never
     head?: never
     /**
-     * Patch tool
+     * Update Tool
      * @description Update tool status (enable/disable).
      */
-    patch: operations['patch_tool']
-    trace?: never
-  }
-  '/tool_manager/tools/bulk_update': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    /**
-     * Bulk update tools
-     * @description Bulk update tool status (enable/disable multiple tools).
-     */
-    patch: operations['bulk_update_tools']
+    patch: operations['update_tool']
     trace?: never
   }
 }
@@ -560,7 +540,7 @@ export interface components {
 }
 export type $defs = Record<string, never>
 export interface operations {
-  get_tools: {
+  list_tools: {
     parameters: {
       query?: {
         /** @description Maximum number of results per page */
@@ -627,7 +607,7 @@ export interface operations {
       500: components['responses']['InternalServerError']
     }
   }
-  patch_tool: {
+  update_tool: {
     parameters: {
       query?: never
       header?: never
@@ -649,40 +629,6 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['ToolWithParameters']
-        }
-      }
-      400: components['responses']['BadRequestError']
-      401: components['responses']['UnauthorizedError']
-      403: components['responses']['ForbiddenError']
-      404: components['responses']['NotFoundError']
-      409: components['responses']['ConflictError']
-      422: components['responses']['ValidationError']
-      429: components['responses']['RateLimitError']
-      500: components['responses']['InternalServerError']
-    }
-  }
-  bulk_update_tools: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ToolBulkUpdate']
-      }
-    }
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': {
-            [key: string]: unknown
-          }
         }
       }
       400: components['responses']['BadRequestError']

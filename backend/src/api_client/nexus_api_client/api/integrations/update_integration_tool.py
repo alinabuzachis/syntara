@@ -13,6 +13,7 @@ from ...types import Response
 
 
 def _get_kwargs(
+    integration_id: UUID,
     tool_id: UUID,
     *,
     body: ToolUpdate,
@@ -21,7 +22,7 @@ def _get_kwargs(
 
     _kwargs: dict[str, Any] = {
         "method": "patch",
-        "url": f"/tool_manager/tools/{tool_id}",
+        "url": f"/integrations/{integration_id}/tools/{tool_id}",
     }
 
     _kwargs["json"] = body.to_dict()
@@ -100,16 +101,18 @@ def _build_response(
 
 
 def sync_detailed(
+    integration_id: UUID,
     tool_id: UUID,
     *,
     client: AuthenticatedClient,
     body: ToolUpdate,
 ) -> Response[ErrorData | ToolWithParameters]:
-    """Patch tool
+    """Update Integration Tool
 
-     Update tool status (enable/disable).
+     Update a tool (enable/disable), scoped to an integration.
 
     Args:
+        integration_id (UUID):
         tool_id (UUID):
         body (ToolUpdate): Model for updating tool configuration.
 
@@ -122,6 +125,7 @@ def sync_detailed(
     """
 
     kwargs = _get_kwargs(
+        integration_id=integration_id,
         tool_id=tool_id,
         body=body,
     )
@@ -134,16 +138,18 @@ def sync_detailed(
 
 
 def sync(
+    integration_id: UUID,
     tool_id: UUID,
     *,
     client: AuthenticatedClient,
     body: ToolUpdate,
 ) -> ErrorData | ToolWithParameters | None:
-    """Patch tool
+    """Update Integration Tool
 
-     Update tool status (enable/disable).
+     Update a tool (enable/disable), scoped to an integration.
 
     Args:
+        integration_id (UUID):
         tool_id (UUID):
         body (ToolUpdate): Model for updating tool configuration.
 
@@ -156,6 +162,7 @@ def sync(
     """
 
     return sync_detailed(
+        integration_id=integration_id,
         tool_id=tool_id,
         client=client,
         body=body,
@@ -163,16 +170,18 @@ def sync(
 
 
 async def asyncio_detailed(
+    integration_id: UUID,
     tool_id: UUID,
     *,
     client: AuthenticatedClient,
     body: ToolUpdate,
 ) -> Response[ErrorData | ToolWithParameters]:
-    """Patch tool
+    """Update Integration Tool
 
-     Update tool status (enable/disable).
+     Update a tool (enable/disable), scoped to an integration.
 
     Args:
+        integration_id (UUID):
         tool_id (UUID):
         body (ToolUpdate): Model for updating tool configuration.
 
@@ -185,6 +194,7 @@ async def asyncio_detailed(
     """
 
     kwargs = _get_kwargs(
+        integration_id=integration_id,
         tool_id=tool_id,
         body=body,
     )
@@ -195,16 +205,18 @@ async def asyncio_detailed(
 
 
 async def asyncio(
+    integration_id: UUID,
     tool_id: UUID,
     *,
     client: AuthenticatedClient,
     body: ToolUpdate,
 ) -> ErrorData | ToolWithParameters | None:
-    """Patch tool
+    """Update Integration Tool
 
-     Update tool status (enable/disable).
+     Update a tool (enable/disable), scoped to an integration.
 
     Args:
+        integration_id (UUID):
         tool_id (UUID):
         body (ToolUpdate): Model for updating tool configuration.
 
@@ -218,6 +230,7 @@ async def asyncio(
 
     return (
         await asyncio_detailed(
+            integration_id=integration_id,
             tool_id=tool_id,
             client=client,
             body=body,

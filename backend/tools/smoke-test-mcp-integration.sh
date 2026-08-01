@@ -186,7 +186,7 @@ pretty "$INTEGRATION"
 # ─── Step 6: (5) List tools before validation ───────────────────────────────
 
 section "Step 6 (5a): List tools filtered by integration (before refresh)"
-TOOLS_BEFORE=$(api_get "/tool_manager/tools?integration_id=${INTEGRATION_ID}")
+TOOLS_BEFORE=$(api_get "/integrations/${INTEGRATION_ID}/tools")
 TOOL_COUNT_BEFORE=$(echo "$TOOLS_BEFORE" | jq '.resources | length')
 ok "Tools before refresh: ${TOOL_COUNT_BEFORE}"
 hr
@@ -222,7 +222,7 @@ pretty "$REFRESH_RESULT"
 # ─── Step 9: List tools after refresh ───────────────────────────────────────
 
 section "Step 9 (5b): List tools filtered by integration (after refresh)"
-TOOLS_AFTER=$(api_get "/tool_manager/tools?integration_id=${INTEGRATION_ID}")
+TOOLS_AFTER=$(api_get "/integrations/${INTEGRATION_ID}/tools")
 TOOL_COUNT_AFTER=$(echo "$TOOLS_AFTER" | jq '.resources | length')
 ok "Tools after refresh: ${TOOL_COUNT_AFTER}"
 hr
@@ -247,7 +247,7 @@ ok "Re-refresh complete — synced: ${REREFRESH_SYNCED}, disabled: ${REREFRESH_D
 hr
 pretty "$REREFRESH_RESULT"
 
-TOOLS_FINAL=$(api_get "/tool_manager/tools?integration_id=${INTEGRATION_ID}")
+TOOLS_FINAL=$(api_get "/integrations/${INTEGRATION_ID}/tools")
 TOOL_COUNT_FINAL=$(echo "$TOOLS_FINAL" | jq '.resources | length')
 ok "Final tool count: ${TOOL_COUNT_FINAL}"
 

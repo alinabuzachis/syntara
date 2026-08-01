@@ -13,6 +13,7 @@ from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
+from nexus.integrations.models.integration import Integration
 from nexus.tool_manager.models import Tool
 from tests.integration.api.conftest import (
     make_admin,
@@ -20,7 +21,8 @@ from tests.integration.api.conftest import (
     make_user_role,
 )
 
-BASE_URL = "/api/v1/tool_manager/tools"
+BASE_URL = "/api/v1/tools"
+INTEGRATION_TOOLS_URL = "/api/v1/integrations/{integration_id}/tools"
 
 
 # ============================================================================
@@ -95,7 +97,7 @@ class TestUserRolePermissions:
         auth_as(user)
 
         resp = await auth_client.patch(
-            f"{BASE_URL}/bulk_update",
+            f"/api/v1/integrations/{test_tool.integration_id}/tools/bulk_update",
             json={"tool_ids": [str(test_tool.id)], "enabled": False},
         )
         assert resp.status_code == 403
@@ -173,7 +175,7 @@ class TestAuditorPermissions:
         auth_as(auditor)
 
         resp = await auth_client.patch(
-            f"{BASE_URL}/bulk_update",
+            f"/api/v1/integrations/{test_tool.integration_id}/tools/bulk_update",
             json={"tool_ids": [str(test_tool.id)], "enabled": False},
         )
         assert resp.status_code == 403
@@ -251,7 +253,7 @@ class TestAdminPermissions:
         auth_as(admin)
 
         resp = await auth_client.patch(
-            f"{BASE_URL}/bulk_update",
+            f"/api/v1/integrations/{test_tool.integration_id}/tools/bulk_update",
             json={"tool_ids": [str(test_tool.id)], "enabled": False},
         )
         assert resp.status_code == 200
@@ -298,7 +300,214 @@ class TestUnauthenticatedAccess:
     ) -> None:
         """Unauthenticated request to bulk-update tools returns 401."""
         resp = await base_client.patch(
-            f"{BASE_URL}/bulk_update",
+            f"/api/v1/integrations/{test_tool.integration_id}/tools/bulk_update",
             json={"tool_ids": [str(test_tool.id)], "enabled": False},
+        )
+        assert resp.status_code == 401
+
+
+# ============================================================================
+# Integration-scoped tool list RBAC
+# ============================================================================
+
+
+class TestIntegrationScopedListToolsAuthz:
+    """RBAC for GET /integrations/{integration_id}/tools."""
+
+    async def test_user_can_list_integration_tools(
+        self,
+        auth_client: AsyncClient,
+        test_tool: Tool,
+        test_mcp_integration: Integration,
+        test_db_session: AsyncSession,
+        user_factory: Callable[..., Awaitable[User]],
+        auth_as: Callable[[User], None],
+    ) -> None:
+        user = await user_factory(username=f"it-usr-{uuid4().hex[:6]}", email=f"it-usr-{uuid4().hex[:6]}@test.com")
+        await make_user_role(test_db_session, user)
+        auth_as(user)
+
+        resp = await auth_client.get(INTEGRATION_TOOLS_URL.format(integration_id=test_mcp_integration.id))
+        assert resp.status_code == 200
+
+    async def test_auditor_can_list_integration_tools(
+        self,
+        auth_client: AsyncClient,
+        test_tool: Tool,
+        test_mcp_integration: Integration,
+        test_db_session: AsyncSession,
+        user_factory: Callable[..., Awaitable[User]],
+        auth_as: Callable[[User], None],
+    ) -> None:
+        auditor = await user_factory(username=f"it-aud-{uuid4().hex[:6]}", email=f"it-aud-{uuid4().hex[:6]}@test.com")
+        await make_auditor(test_db_session, auditor)
+        auth_as(auditor)
+
+        resp = await auth_client.get(INTEGRATION_TOOLS_URL.format(integration_id=test_mcp_integration.id))
+        assert resp.status_code == 200
+
+    async def test_admin_can_list_integration_tools(
+        self,
+        auth_client: AsyncClient,
+        test_tool: Tool,
+        test_mcp_integration: Integration,
+        test_db_session: AsyncSession,
+        user_factory: Callable[..., Awaitable[User]],
+        auth_as: Callable[[User], None],
+    ) -> None:
+        admin = await user_factory(username=f"it-adm-{uuid4().hex[:6]}", email=f"it-adm-{uuid4().hex[:6]}@test.com")
+        await make_admin(test_db_session, admin)
+        auth_as(admin)
+
+        resp = await auth_client.get(INTEGRATION_TOOLS_URL.format(integration_id=test_mcp_integration.id))
+        assert resp.status_code == 200
+
+    async def test_unauthenticated_cannot_list_integration_tools(
+        self,
+        base_client: AsyncClient,
+        test_mcp_integration: Integration,
+    ) -> None:
+        resp = await base_client.get(INTEGRATION_TOOLS_URL.format(integration_id=test_mcp_integration.id))
+        assert resp.status_code == 401
+
+
+class TestIntegrationScopedGetToolAuthz:
+    """RBAC for GET /integrations/{integration_id}/tools/{tool_id}."""
+
+    async def test_user_can_get_integration_tool(
+        self,
+        auth_client: AsyncClient,
+        test_tool: Tool,
+        test_mcp_integration: Integration,
+        test_db_session: AsyncSession,
+        user_factory: Callable[..., Awaitable[User]],
+        auth_as: Callable[[User], None],
+    ) -> None:
+        user = await user_factory(username=f"itg-usr-{uuid4().hex[:6]}", email=f"itg-usr-{uuid4().hex[:6]}@test.com")
+        await make_user_role(test_db_session, user)
+        auth_as(user)
+
+        resp = await auth_client.get(
+            f"{INTEGRATION_TOOLS_URL.format(integration_id=test_mcp_integration.id)}/{test_tool.id}"
+        )
+        assert resp.status_code == 200
+
+    async def test_auditor_can_get_integration_tool(
+        self,
+        auth_client: AsyncClient,
+        test_tool: Tool,
+        test_mcp_integration: Integration,
+        test_db_session: AsyncSession,
+        user_factory: Callable[..., Awaitable[User]],
+        auth_as: Callable[[User], None],
+    ) -> None:
+        auditor = await user_factory(username=f"itg-aud-{uuid4().hex[:6]}", email=f"itg-aud-{uuid4().hex[:6]}@test.com")
+        await make_auditor(test_db_session, auditor)
+        auth_as(auditor)
+
+        resp = await auth_client.get(
+            f"{INTEGRATION_TOOLS_URL.format(integration_id=test_mcp_integration.id)}/{test_tool.id}"
+        )
+        assert resp.status_code == 200
+
+    async def test_admin_can_get_integration_tool(
+        self,
+        auth_client: AsyncClient,
+        test_tool: Tool,
+        test_mcp_integration: Integration,
+        test_db_session: AsyncSession,
+        user_factory: Callable[..., Awaitable[User]],
+        auth_as: Callable[[User], None],
+    ) -> None:
+        admin = await user_factory(username=f"itg-adm-{uuid4().hex[:6]}", email=f"itg-adm-{uuid4().hex[:6]}@test.com")
+        await make_admin(test_db_session, admin)
+        auth_as(admin)
+
+        resp = await auth_client.get(
+            f"{INTEGRATION_TOOLS_URL.format(integration_id=test_mcp_integration.id)}/{test_tool.id}"
+        )
+        assert resp.status_code == 200
+
+    async def test_unauthenticated_cannot_get_integration_tool(
+        self,
+        base_client: AsyncClient,
+        test_tool: Tool,
+        test_mcp_integration: Integration,
+    ) -> None:
+        resp = await base_client.get(
+            f"{INTEGRATION_TOOLS_URL.format(integration_id=test_mcp_integration.id)}/{test_tool.id}"
+        )
+        assert resp.status_code == 401
+
+
+class TestIntegrationScopedUpdateToolAuthz:
+    """RBAC for PATCH /integrations/{integration_id}/tools/{tool_id}."""
+
+    async def ***REMOVED***(
+        self,
+        auth_client: AsyncClient,
+        test_tool: Tool,
+        test_mcp_integration: Integration,
+        test_db_session: AsyncSession,
+        user_factory: Callable[..., Awaitable[User]],
+        auth_as: Callable[[User], None],
+    ) -> None:
+        user = await user_factory(username=f"itu-usr-{uuid4().hex[:6]}", email=f"itu-usr-{uuid4().hex[:6]}@test.com")
+        await make_user_role(test_db_session, user)
+        auth_as(user)
+
+        resp = await auth_client.patch(
+            f"{INTEGRATION_TOOLS_URL.format(integration_id=test_mcp_integration.id)}/{test_tool.id}",
+            json={"enabled": False},
+        )
+        assert resp.status_code == 403
+
+    async def test_auditor_cannot_update_integration_tool(
+        self,
+        auth_client: AsyncClient,
+        test_tool: Tool,
+        test_mcp_integration: Integration,
+        test_db_session: AsyncSession,
+        user_factory: Callable[..., Awaitable[User]],
+        auth_as: Callable[[User], None],
+    ) -> None:
+        auditor = await user_factory(username=f"itu-aud-{uuid4().hex[:6]}", email=f"itu-aud-{uuid4().hex[:6]}@test.com")
+        await make_auditor(test_db_session, auditor)
+        auth_as(auditor)
+
+        resp = await auth_client.patch(
+            f"{INTEGRATION_TOOLS_URL.format(integration_id=test_mcp_integration.id)}/{test_tool.id}",
+            json={"enabled": False},
+        )
+        assert resp.status_code == 403
+
+    async def test_admin_can_update_integration_tool(
+        self,
+        auth_client: AsyncClient,
+        test_tool: Tool,
+        test_mcp_integration: Integration,
+        test_db_session: AsyncSession,
+        user_factory: Callable[..., Awaitable[User]],
+        auth_as: Callable[[User], None],
+    ) -> None:
+        admin = await user_factory(username=f"itu-adm-{uuid4().hex[:6]}", email=f"itu-adm-{uuid4().hex[:6]}@test.com")
+        await make_admin(test_db_session, admin)
+        auth_as(admin)
+
+        resp = await auth_client.patch(
+            f"{INTEGRATION_TOOLS_URL.format(integration_id=test_mcp_integration.id)}/{test_tool.id}",
+            json={"enabled": False},
+        )
+        assert resp.status_code == 200
+
+    async def test_unauthenticated_cannot_update_integration_tool(
+        self,
+        base_client: AsyncClient,
+        test_tool: Tool,
+        test_mcp_integration: Integration,
+    ) -> None:
+        resp = await base_client.patch(
+            f"{INTEGRATION_TOOLS_URL.format(integration_id=test_mcp_integration.id)}/{test_tool.id}",
+            json={"enabled": False},
         )
         assert resp.status_code == 401

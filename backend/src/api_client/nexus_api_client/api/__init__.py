@@ -29,8 +29,8 @@ if TYPE_CHECKING:
     from .service_account_credentials import ServiceAccountCredentialsApi
     from .service_accounts import ServiceAccountsApi
     from .settings import SettingsApi
-    from .tool_manager import ToolManagerApi
     from .tool_metrics import ToolMetricsApi
+    from .tools import ToolsApi
     from .users import UsersApi
     from .users_directory import UsersDirectoryApi
     from .webhooks import WebhooksApi
@@ -158,10 +158,10 @@ class NexusApiRegistry:
         return ToolMetricsApi(client=self._client)
 
     @cached_property
-    def tool_manager(self) -> ToolManagerApi:
-        from .tool_manager import ToolManagerApi
+    def tools(self) -> ToolsApi:
+        from .tools import ToolsApi
 
-        return ToolManagerApi(client=self._client)
+        return ToolsApi(client=self._client)
 
     @cached_property
     def users(self) -> UsersApi:

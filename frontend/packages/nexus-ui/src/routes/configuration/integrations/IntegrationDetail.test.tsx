@@ -7,7 +7,7 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { credentialsClient, integrationsClient, toolManagerClient } from '../../../client'
+import { credentialsClient, integrationsClient } from '../../../client'
 import { AlertProvider } from '../../../providers/alerts'
 
 import { IntegrationDetail } from './IntegrationDetail'
@@ -19,9 +19,6 @@ vi.mock('../../../client', () => ({
   },
   credentialsClient: {
     useQuery: vi.fn(),
-  },
-  toolManagerClient: {
-    useMutation: vi.fn(),
   },
 }))
 
@@ -205,10 +202,8 @@ describe('IntegrationDetail', () => {
       error: null,
     } as never)
 
-    vi.mocked(integrationsClient.useMutation).mockReturnValue({
-      mutate: mockMutate,
+    const baseMutationResult = {
       isPending: false,
-      mutateAsync: vi.fn(),
       isIdle: true,
       isSuccess: false,
       isError: false,
@@ -222,26 +217,14 @@ describe('IntegrationDetail', () => {
       variables: undefined,
       status: 'idle',
       isPaused: false,
-    } as never)
+    }
 
-    vi.mocked(toolManagerClient.useMutation).mockReturnValue({
-      mutateAsync: vi.fn().mockResolvedValue({}),
-      mutate: vi.fn(),
-      isPending: false,
-      isIdle: true,
-      isSuccess: false,
-      isError: false,
-      error: null,
-      data: null,
-      reset: vi.fn(),
-      failureCount: 0,
-      failureReason: null,
-      context: undefined,
-      submittedAt: 0,
-      variables: undefined,
-      status: 'idle',
-      isPaused: false,
-    } as never)
+    vi.mocked(integrationsClient.useMutation).mockImplementation((_method, path) => {
+      if (path === '/integrations/{integration_id}/tools/bulk_update') {
+        return { ...baseMutationResult, mutate: vi.fn(), mutateAsync: vi.fn().mockResolvedValue({}) } as never
+      }
+      return { ...baseMutationResult, mutate: mockMutate, mutateAsync: vi.fn().mockResolvedValue({}) } as never
+    })
   }
 
   beforeEach(() => {
@@ -521,7 +504,7 @@ describe('IntegrationDetail', () => {
         mutate: mockMutate,
         isPending: false,
       } as never)
-      vi.mocked(toolManagerClient.useMutation).mockReturnValue({
+      vi.mocked(integrationsClient.useMutation).mockReturnValue({
         mutateAsync: vi.fn().mockResolvedValue({}),
         mutate: vi.fn(),
         isPending: false,
@@ -614,24 +597,30 @@ describe('IntegrationDetail', () => {
         resetToServer: vi.fn(),
       })
 
-      vi.mocked(toolManagerClient.useMutation).mockReturnValue({
-        mutateAsync: mockMutateAsync,
-        mutate: vi.fn(),
-        isPending: false,
-        isIdle: true,
-        isSuccess: false,
-        isError: false,
-        error: null,
-        data: null,
-        reset: vi.fn(),
-        failureCount: 0,
-        failureReason: null,
-        context: undefined,
-        submittedAt: 0,
-        variables: undefined,
-        status: 'idle',
-        isPaused: false,
-      } as never)
+      vi.mocked(integrationsClient.useMutation).mockImplementation(
+        (_method, path) =>
+          ({
+            mutateAsync:
+              path === '/integrations/{integration_id}/tools/bulk_update'
+                ? mockMutateAsync
+                : vi.fn().mockResolvedValue({}),
+            mutate: vi.fn(),
+            isPending: false,
+            isIdle: true,
+            isSuccess: false,
+            isError: false,
+            error: null,
+            data: null,
+            reset: vi.fn(),
+            failureCount: 0,
+            failureReason: null,
+            context: undefined,
+            submittedAt: 0,
+            variables: undefined,
+            status: 'idle',
+            isPaused: false,
+          }) as never
+      )
     })
 
     it('calls updateTools with enabled and disabled tool IDs when save is clicked', async () => {
@@ -641,9 +630,15 @@ describe('IntegrationDetail', () => {
       await user.click(screen.getByRole('button', { name: 'Save changes' }))
 
       await waitFor(() => {
-        expect(mockMutateAsync).toHaveBeenCalledWith({ body: { tool_ids: ['t1'], enabled: true } })
+        expect(mockMutateAsync).toHaveBeenCalledWith({
+          params: { path: { integration_id: 'int-1' } },
+          body: { tool_ids: ['t1'], enabled: true },
+        })
       })
-      expect(mockMutateAsync).toHaveBeenCalledWith({ body: { tool_ids: ['t2'], enabled: false } })
+      expect(mockMutateAsync).toHaveBeenCalledWith({
+        params: { path: { integration_id: 'int-1' } },
+        body: { tool_ids: ['t2'], enabled: false },
+      })
     })
 
     it('shows success alert after save completes', async () => {
@@ -821,24 +816,30 @@ describe('IntegrationDetail', () => {
 
     it('saveAndExit() triggers the save mutation', async () => {
       const mockMutateAsync = vi.fn().mockResolvedValue({})
-      vi.mocked(toolManagerClient.useMutation).mockReturnValue({
-        mutateAsync: mockMutateAsync,
-        mutate: vi.fn(),
-        isPending: false,
-        isIdle: true,
-        isSuccess: false,
-        isError: false,
-        error: null,
-        data: null,
-        reset: vi.fn(),
-        failureCount: 0,
-        failureReason: null,
-        context: undefined,
-        submittedAt: 0,
-        variables: undefined,
-        status: 'idle',
-        isPaused: false,
-      } as never)
+      vi.mocked(integrationsClient.useMutation).mockImplementation(
+        (_method, path) =>
+          ({
+            mutateAsync:
+              path === '/integrations/{integration_id}/tools/bulk_update'
+                ? mockMutateAsync
+                : vi.fn().mockResolvedValue({}),
+            mutate: vi.fn(),
+            isPending: false,
+            isIdle: true,
+            isSuccess: false,
+            isError: false,
+            error: null,
+            data: null,
+            reset: vi.fn(),
+            failureCount: 0,
+            failureReason: null,
+            context: undefined,
+            submittedAt: 0,
+            variables: undefined,
+            status: 'idle',
+            isPaused: false,
+          }) as never
+      )
 
       mockUseAllIntegrationTools.mockReturnValue({
         tools: [{ id: 't1' }] as unknown as Tool[],
@@ -865,7 +866,10 @@ describe('IntegrationDetail', () => {
         result = await (opts.saveAndExit as () => Promise<boolean>)()
       })
       expect(result).toBe(true)
-      expect(mockMutateAsync).toHaveBeenCalledWith({ body: { tool_ids: ['t1'], enabled: true } })
+      expect(mockMutateAsync).toHaveBeenCalledWith({
+        params: { path: { integration_id: 'int-1' } },
+        body: { tool_ids: ['t1'], enabled: true },
+      })
     })
   })
 

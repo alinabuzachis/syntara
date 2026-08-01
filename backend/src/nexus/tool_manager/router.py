@@ -1,9 +1,14 @@
-"""Tool Manager API endpoints."""
+"""Top-level tool endpoints.
 
-from typing import Annotated, Any
+Provides cross-integration tool listing at GET /tools and
+unscoped tool update at PATCH /tools/{tool_id} (used by the
+agent orchestrator for operational status reporting).
+Integration-scoped tool CRUD lives in nexus.integrations.router.
+"""
+
+from typing import Annotated
 from uuid import UUID
 
-import structlog
 from fastapi import Depends, Query, Request
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -25,34 +30,15 @@ from nexus.tool_manager.models.tool import (
     ToolUpdate,
     ToolWithParameters,
 )
-from nexus.tool_manager.models.tool_bulk_update import ToolBulkUpdate
 from nexus.tool_manager.services.tool_service import ToolService
 
-router = NexusRouter(prefix="/tool_manager", tags=["Tool Manager"])
-
-_perm_read = PermissionChecker("tool", "read")
-_perm_update = PermissionChecker("tool", "update")
-
-logger = structlog.stdlib.get_logger(__name__)
-
-
-# ============================================================================
-# Dependency Injection Providers
-# ============================================================================
-
-
-def get_tool_service(
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
-) -> ToolService:
-    """Dependency provider for ToolService."""
-    return ToolService(db, current_user)
-
+router = NexusRouter(tags=["Tools"])
 
 _tool_read_gate = VisibilityFilter("tool", "read")
+_perm_tool_update = PermissionChecker("tool", "update")
 
 
-async def tool_read_visibility(
+async def _tool_read_visibility(
     request: Request,
     current_user: User = Depends(get_current_user),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
@@ -70,20 +56,28 @@ async def tool_read_visibility(
     return await integration_read_visibility(request, current_user, db)
 
 
-@router.get("/tools", summary="Get tools", dependencies=[Depends(_tool_read_gate)], operation_id="get_tools")
-async def get_tools(
+def _get_tool_service(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> ToolService:
+    """Dependency provider for ToolService."""
+    return ToolService(db, current_user)
+
+
+@router.get("/tools", dependencies=[Depends(_tool_read_gate)], operation_id="list_tools")
+async def list_tools(
     request: Request,
-    service: Annotated[ToolService, Depends(get_tool_service)],
+    service: Annotated[ToolService, Depends(_get_tool_service)],
     params: Annotated[ToolListParams, Query()],
     db: Annotated[AsyncSession, Depends(get_db)],
-    allowed_projects: Annotated[AllowedProjectsResult, Depends(tool_read_visibility)],
+    allowed_projects: Annotated[AllowedProjectsResult, Depends(_tool_read_visibility)],
 ) -> ToolListResponse:
     """List tools with filtering, sorting, and pagination.
 
     Tools are filtered by the caller's integration visibility — only tools
     belonging to visible integrations are returned.
     """
-    visible_ids = await IntegrationService.resolve_visible_integration_ids(db, allowed_projects)
+    visible_ids: list[UUID] | None = await IntegrationService.resolve_visible_integration_ids(db, allowed_projects)
     return await service.list_tools(
         limit=params.limit,
         cursor=params.cursor,
@@ -94,12 +88,12 @@ async def get_tools(
     )
 
 
-@router.get("/tools/{tool_id}", summary="Get tool", dependencies=[Depends(_tool_read_gate)], operation_id="get_tool")
+@router.get("/tools/{tool_id}", dependencies=[Depends(_tool_read_gate)], operation_id="get_tool")
 async def get_tool(
     tool_id: UUID,
-    service: Annotated[ToolService, Depends(get_tool_service)],
+    service: Annotated[ToolService, Depends(_get_tool_service)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    allowed_projects: Annotated[AllowedProjectsResult, Depends(tool_read_visibility)],
+    allowed_projects: Annotated[AllowedProjectsResult, Depends(_tool_read_visibility)],
 ) -> ToolWithParameters:
     """Get tool details by ID."""
     tool = await service.get_tool_detail(tool_id)
@@ -109,30 +103,12 @@ async def get_tool(
     return tool
 
 
-@router.patch(
-    "/tools/bulk_update",
-    summary="Bulk update tools",
-    dependencies=[Depends(_perm_update)],
-    operation_id="bulk_update_tools",
-)
-@audit(EventCategory.USER_ACTION, event_action="tool_bulk_update")
-async def bulk_update_tools(
-    bulk_update: ToolBulkUpdate,
-    service: Annotated[ToolService, Depends(get_tool_service)],
-) -> dict[str, Any]:
-    """Bulk update tool status (enable/disable multiple tools)."""
-    return await service.bulk_update_tools(bulk_update.tool_ids, enabled=bulk_update.enabled)
-
-
-@router.patch("/tools/{tool_id}", summary="Patch tool", dependencies=[Depends(_perm_update)], operation_id="patch_tool")
+@router.patch("/tools/{tool_id}", dependencies=[Depends(_perm_tool_update)], operation_id="update_tool")
 @audit(EventCategory.USER_ACTION, event_action="tool_update", capture_args={"tool_id"})
-async def patch_tool(
+async def update_tool(
     tool_id: UUID,
     tool_update: ToolUpdate,
-    service: Annotated[ToolService, Depends(get_tool_service)],
+    service: Annotated[ToolService, Depends(_get_tool_service)],
 ) -> ToolWithParameters:
     """Update tool status (enable/disable)."""
-    return await service.update_tool(
-        tool_id,
-        tool_update,
-    )
+    return await service.update_tool(tool_id, tool_update)

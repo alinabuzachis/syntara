@@ -3,12 +3,12 @@ import { renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { toolManagerFetchClient } from '../../../client'
+import { integrationsFetchClient } from '../../../client'
 
 import { useAllIntegrationTools } from './useAllIntegrationTools'
 
 vi.mock('../../../client', () => ({
-  toolManagerFetchClient: {
+  integrationsFetchClient: {
     GET: vi.fn(),
     use: vi.fn(),
   },
@@ -34,7 +34,7 @@ describe('useAllIntegrationTools', () => {
   })
 
   it('returns tools on successful fetch', async () => {
-    vi.mocked(toolManagerFetchClient.GET).mockResolvedValue({
+    vi.mocked(integrationsFetchClient.GET).mockResolvedValue({
       data: { resources: mockTools },
       error: null,
     } as never)
@@ -53,7 +53,7 @@ describe('useAllIntegrationTools', () => {
     const page1 = [{ id: 't1', name: 'tool_a', description: '', enabled: true }]
     const page2 = [{ id: 't2', name: 'tool_b', description: '', enabled: false }]
 
-    vi.mocked(toolManagerFetchClient.GET)
+    vi.mocked(integrationsFetchClient.GET)
       .mockResolvedValueOnce({ data: { resources: page1, next: 'cursor-1' }, error: null } as never)
       .mockResolvedValueOnce({ data: { resources: page2 }, error: null } as never)
 
@@ -64,11 +64,11 @@ describe('useAllIntegrationTools', () => {
     })
 
     expect(result.current.tools).toEqual([...page1, ...page2])
-    expect(toolManagerFetchClient.GET).toHaveBeenCalledTimes(2)
+    expect(integrationsFetchClient.GET).toHaveBeenCalledTimes(2)
   })
 
   it('returns error when fetch fails', async () => {
-    vi.mocked(toolManagerFetchClient.GET).mockResolvedValue({
+    vi.mocked(integrationsFetchClient.GET).mockResolvedValue({
       data: undefined,
       error: { detail: 'Forbidden' },
     } as never)
@@ -83,7 +83,7 @@ describe('useAllIntegrationTools', () => {
   })
 
   it('is loading initially', () => {
-    vi.mocked(toolManagerFetchClient.GET).mockReturnValue(new Promise(() => {}))
+    vi.mocked(integrationsFetchClient.GET).mockReturnValue(new Promise(() => {}))
 
     const { result } = renderHook(() => useAllIntegrationTools('int-1'), { wrapper })
 
@@ -95,11 +95,11 @@ describe('useAllIntegrationTools', () => {
     const { result } = renderHook(() => useAllIntegrationTools(''), { wrapper })
 
     expect(result.current.tools).toEqual([])
-    expect(toolManagerFetchClient.GET).not.toHaveBeenCalled()
+    expect(integrationsFetchClient.GET).not.toHaveBeenCalled()
   })
 
-  it('passes integration_id in query parameters', async () => {
-    vi.mocked(toolManagerFetchClient.GET).mockResolvedValue({
+  it('passes integration_id in path parameters', async () => {
+    vi.mocked(integrationsFetchClient.GET).mockResolvedValue({
       data: { resources: [] },
       error: null,
     } as never)
@@ -107,11 +107,13 @@ describe('useAllIntegrationTools', () => {
     renderHook(() => useAllIntegrationTools('int-42'), { wrapper })
 
     await waitFor(() => {
-      expect(toolManagerFetchClient.GET).toHaveBeenCalledWith('/tool_manager/tools', {
-        params: {
-          query: expect.objectContaining({ sort: 'name', integration_id: 'int-42' }) as Record<string, unknown>,
-        },
-      })
+      expect(integrationsFetchClient.GET).toHaveBeenCalled()
+    })
+
+    const call = vi.mocked(integrationsFetchClient.GET).mock.calls[0] as [string, Record<string, unknown>]
+    expect(call[0]).toBe('/integrations/{integration_id}/tools')
+    expect(call[1]).toMatchObject({
+      params: { path: { integration_id: 'int-42' } },
     })
   })
 })

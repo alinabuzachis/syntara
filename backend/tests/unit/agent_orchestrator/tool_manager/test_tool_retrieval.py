@@ -58,7 +58,7 @@ class TestToolRetrieval:
     async def test_get_all_tools_success(self, client: ToolManagerClient, sample_tool_response: dict[str, Any]) -> None:
         """Test successful retrieval of all tools."""
         # Mock successful API response
-        respx.get("http://test-api/api/v1/tool_manager/tools").mock(
+        respx.get("http://test-api/api/v1/tools").mock(
             return_value=httpx.Response(200, json={"resources": [sample_tool_response], "total_count": 1, "next": None})
         )
 
@@ -83,7 +83,7 @@ class TestToolRetrieval:
     async def test_get_all_tools_no_filter(self, client: ToolManagerClient) -> None:
         """Test that all tools are requested without enabled filter."""
         # Mock API response
-        respx.get("http://test-api/api/v1/tool_manager/tools").mock(
+        respx.get("http://test-api/api/v1/tools").mock(
             return_value=httpx.Response(200, json={"resources": [], "total_count": 0})
         )
 
@@ -96,7 +96,7 @@ class TestToolRetrieval:
     @respx.mock
     async def test_get_all_tools_empty_response(self, client: ToolManagerClient) -> None:
         """Test handling of empty tools list."""
-        respx.get("http://test-api/api/v1/tool_manager/tools").mock(
+        respx.get("http://test-api/api/v1/tools").mock(
             return_value=httpx.Response(200, json={"resources": [], "total_count": 0})
         )
 
@@ -160,7 +160,7 @@ class TestToolRetrieval:
             "labels": {},
         }
 
-        respx.get("http://test-api/api/v1/tool_manager/tools").mock(
+        respx.get("http://test-api/api/v1/tools").mock(
             return_value=httpx.Response(200, json={"resources": [complex_tool], "total_count": 1, "next": None})
         )
 
@@ -183,9 +183,7 @@ class TestToolRetrieval:
     @pytest.mark.usefixtures("fast_retry_settings")
     async def test_get_all_tools_api_error(self, client: ToolManagerClient) -> None:
         """Test handling of API errors during tool retrieval."""
-        respx.get("http://test-api/api/v1/tool_manager/tools").mock(
-            return_value=httpx.Response(500, text="Internal server error")
-        )
+        respx.get("http://test-api/api/v1/tools").mock(return_value=httpx.Response(500, text="Internal server error"))
 
         with pytest.raises(httpx.HTTPStatusError):
             await client.get_all_tools()
@@ -194,9 +192,7 @@ class TestToolRetrieval:
     @pytest.mark.usefixtures("fast_retry_settings")
     async def test_get_all_tools_timeout(self, client: ToolManagerClient) -> None:
         """Test handling of timeout during tool retrieval."""
-        respx.get("http://test-api/api/v1/tool_manager/tools").mock(
-            side_effect=httpx.TimeoutException("Request timeout")
-        )
+        respx.get("http://test-api/api/v1/tools").mock(side_effect=httpx.TimeoutException("Request timeout"))
 
         with pytest.raises(httpx.TimeoutException):
             await client.get_all_tools()
@@ -205,7 +201,7 @@ class TestToolRetrieval:
     @pytest.mark.usefixtures("fast_retry_settings")
     async def test_get_all_tools_network_error(self, client: ToolManagerClient) -> None:
         """Test handling of network errors during tool retrieval."""
-        respx.get("http://test-api/api/v1/tool_manager/tools").mock(side_effect=httpx.ConnectError("Connection failed"))
+        respx.get("http://test-api/api/v1/tools").mock(side_effect=httpx.ConnectError("Connection failed"))
 
         with pytest.raises(httpx.ConnectError):
             await client.get_all_tools()
@@ -296,7 +292,7 @@ class TestToolRetrieval:
             },
         ]
 
-        respx.get("http://test-api/api/v1/tool_manager/tools").mock(
+        respx.get("http://test-api/api/v1/tools").mock(
             return_value=httpx.Response(200, json={"resources": mixed_status_tools, "total_count": 2, "next": None})
         )
 

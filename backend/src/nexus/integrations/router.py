@@ -1,6 +1,6 @@
 """Integration Management API endpoints."""
 
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import Depends, Query, Request, status
@@ -50,6 +50,14 @@ from nexus.integrations.models.llm_model import (
 )
 from nexus.integrations.services.integration_service import IntegrationService
 from nexus.integrations.services.llm_model_service import LLMModelService
+from nexus.tool_manager.models import ToolListParams
+from nexus.tool_manager.models.tool import (
+    ToolListResponse,
+    ToolUpdate,
+    ToolWithParameters,
+)
+from nexus.tool_manager.models.tool_bulk_update import ToolBulkUpdate
+from nexus.tool_manager.services.tool_service import ToolService
 
 router = NexusRouter(tags=["Integrations"])
 
@@ -66,6 +74,8 @@ _perm_validate = PermissionChecker("integration", "validate")
 _perm_refresh = PermissionChecker("integration", "refresh")
 _model_read_gate = VisibilityFilter("llm_model", "read")
 _perm_model_update = PermissionChecker("llm_model", "update")
+_tool_read_gate = VisibilityFilter("tool", "read")
+_perm_tool_update = PermissionChecker("tool", "update")
 
 
 # ============================================================================
@@ -495,3 +505,108 @@ async def update_integration_model(
 ) -> LLMModelRead:
     """Update an LLM model (enable/disable)."""
     return await service.update_model(integration_id, model_id, data)
+
+
+# ============================================================================
+# Integration Tool Endpoints
+# ============================================================================
+
+
+def get_tool_service(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> ToolService:
+    """Dependency provider for ToolService."""
+    return ToolService(db, current_user)
+
+
+async def _require_visible_mcp_server(
+    integration_id: UUID,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> None:
+    """Verify the integration exists, is an MCP server, user has tool:read, and integration is visible."""
+    gate_result = await _tool_read_gate(request, current_user, db)
+    if not gate_result.unrestricted and not gate_result.allowed_project_ids:
+        msg = "Not authorized to perform read on tool"
+        raise AuthorizationDeniedError(msg)
+
+    allowed_projects = await integration_read_visibility(request, current_user, db)
+    integration = await db.get(Integration, integration_id)
+    if not integration:
+        raise IntegrationNotFoundError(integration_id)
+    if integration.integration_type != IntegrationType.MCP_SERVER:
+        raise IntegrationTypeMismatchError(
+            integration_id,
+            expected_type=IntegrationType.MCP_SERVER.value,
+            actual_type=integration.integration_type.value,
+        )
+    await _check_integration_visibility(db, integration, allowed_projects)
+
+
+@router.get(
+    "/integrations/{integration_id}/tools",
+    dependencies=[Depends(_tool_read_gate), Depends(_require_visible_mcp_server)],
+    operation_id="list_integration_tools",
+)
+async def list_integration_tools(
+    integration_id: UUID,
+    request: Request,
+    service: Annotated[ToolService, Depends(get_tool_service)],
+    params: Annotated[ToolListParams, Query()],
+) -> ToolListResponse:
+    """List tools for an integration with filtering, sorting, and pagination."""
+    query_items = [*request.query_params.items(), ("integration_id", str(integration_id))]
+    return await service.list_tools(
+        limit=params.limit,
+        cursor=params.cursor,
+        sort=params.sort,
+        query_params_items=query_items,
+        include_total=params.include_total,
+    )
+
+
+@router.patch(
+    "/integrations/{integration_id}/tools/bulk_update",
+    dependencies=[Depends(_perm_tool_update), Depends(_require_visible_mcp_server)],
+    operation_id="bulk_update_integration_tools",
+)
+@audit(EventCategory.USER_ACTION, event_action="tool_bulk_update")
+async def bulk_update_integration_tools(
+    integration_id: UUID,
+    data: ToolBulkUpdate,
+    service: Annotated[ToolService, Depends(get_tool_service)],
+) -> dict[str, Any]:
+    """Bulk enable/disable tools for an integration."""
+    return await service.bulk_update_tools_for_integration(integration_id, data.tool_ids, enabled=data.enabled)
+
+
+@router.get(
+    "/integrations/{integration_id}/tools/{tool_id}",
+    dependencies=[Depends(_tool_read_gate), Depends(_require_visible_mcp_server)],
+    operation_id="get_integration_tool",
+)
+async def get_integration_tool(
+    integration_id: UUID,
+    tool_id: UUID,
+    service: Annotated[ToolService, Depends(get_tool_service)],
+) -> ToolWithParameters:
+    """Get a tool by ID, scoped to an integration."""
+    return await service.get_tool_detail_for_integration(integration_id, tool_id)
+
+
+@router.patch(
+    "/integrations/{integration_id}/tools/{tool_id}",
+    dependencies=[Depends(_perm_tool_update), Depends(_require_visible_mcp_server)],
+    operation_id="update_integration_tool",
+)
+@audit(EventCategory.USER_ACTION, event_action="tool_update", capture_args={"tool_id"})
+async def update_integration_tool(
+    integration_id: UUID,
+    tool_id: UUID,
+    data: ToolUpdate,
+    service: Annotated[ToolService, Depends(get_tool_service)],
+) -> ToolWithParameters:
+    """Update a tool (enable/disable), scoped to an integration."""
+    return await service.update_tool_for_integration(integration_id, tool_id, data)

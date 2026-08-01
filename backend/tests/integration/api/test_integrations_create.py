@@ -223,7 +223,7 @@ class TestIntegrationsCreate:
         integration_id = data["id"]
         integration_name = data["name"]
 
-        tools_response = await auth_client.get("/api/v1/tool_manager/tools", params={"integration_id": integration_id})
+        tools_response = await auth_client.get("/api/v1/tools", params={"integration_id": integration_id})
         assert tools_response.status_code == 200
         tools = tools_response.json()["resources"]
         assert len(tools) == 2
@@ -245,7 +245,7 @@ class TestIntegrationsCreate:
         assert response.status_code == 201
         integration_id = response.json()["id"]
 
-        tools_response = await auth_client.get("/api/v1/tool_manager/tools", params={"integration_id": integration_id})
+        tools_response = await auth_client.get("/api/v1/tools", params={"integration_id": integration_id})
         tools = {t["name"]: t for t in tools_response.json()["resources"]}
         assert tools["enabled_tool"]["enabled"] is True
         assert tools["disabled_tool"]["enabled"] is False
@@ -297,7 +297,7 @@ class TestIntegrationsCreate:
         assert response.status_code == 201
         integration_id = response.json()["id"]
 
-        tools_response = await auth_client.get("/api/v1/tool_manager/tools", params={"integration_id": integration_id})
+        tools_response = await auth_client.get("/api/v1/tools", params={"integration_id": integration_id})
         tools = tools_response.json()["resources"]
         assert len(tools) == 1
         assert tools[0]["name"] == "param_tool"

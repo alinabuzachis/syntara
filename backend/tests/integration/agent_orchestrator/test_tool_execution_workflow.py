@@ -190,7 +190,7 @@ class TestToolExecutionWorkflow:
         await _create_mcp_integration_and_refresh(auth_client_with_tool_aware_mocked_llm)
 
         # Verify tools are available before creating invocation
-        tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tool_manager/tools")
+        tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tools")
         assert tools_response.status_code == 200
         tools_data = tools_response.json()
         available_tools = tools_data["resources"]
@@ -255,7 +255,7 @@ class TestToolExecutionWorkflow:
         await _create_mcp_integration_and_refresh(auth_client_with_tool_aware_mocked_llm)
 
         # Verify tools are available
-        tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tool_manager/tools")
+        tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tools")
         assert tools_response.status_code == 200
         tools_data = tools_response.json()
         available_tools = tools_data["resources"]
@@ -344,7 +344,7 @@ class TestToolExecutionWorkflow:
 
         # Get tools and disable them
         tools_response = await auth_client_with_tool_aware_mocked_llm.get(
-            "/api/v1/tool_manager/tools", params={"integration_id[eq]": integration_id}
+            "/api/v1/tools", params={"integration_id[eq]": integration_id}
         )
         assert tools_response.status_code == 200
 
@@ -354,7 +354,7 @@ class TestToolExecutionWorkflow:
         # Disable first tool
         tool_id = tools[0]["id"]
         disable_response = await auth_client_with_tool_aware_mocked_llm.patch(
-            f"/api/v1/tool_manager/tools/{tool_id}", json={"enabled": False}
+            f"/api/v1/tools/{tool_id}", json={"enabled": False}
         )
         assert disable_response.status_code == 200
 
@@ -396,7 +396,7 @@ class TestToolExecutionFailureRetryWorkflow:
         await _create_mcp_integration_and_refresh(auth_client_with_tool_aware_mocked_llm)
 
         # Verify retry tools are available
-        tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tool_manager/tools")
+        tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tools")
         assert tools_response.status_code == 200
         tools_data = tools_response.json()
         available_tools = tools_data["resources"]
@@ -446,7 +446,7 @@ class TestToolExecutionFailureRetryWorkflow:
         await _create_mcp_integration_and_refresh(auth_client_with_tool_aware_mocked_llm)
 
         # Verify network tool is available
-        tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tool_manager/tools")
+        tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tools")
         assert tools_response.status_code == 200
         tools_data = tools_response.json()
         available_tools = tools_data["resources"]
@@ -497,7 +497,7 @@ class TestToolExecutionFailureRetryWorkflow:
 
         # Verify failing tool is available and enabled initially
         tools_response = await auth_client_with_tool_aware_mocked_llm.get(
-            "/api/v1/tool_manager/tools", params={"integration_id[eq]": integration_id}
+            "/api/v1/tools", params={"integration_id[eq]": integration_id}
         )
         assert tools_response.status_code == 200
         tools_data = tools_response.json()
@@ -579,7 +579,7 @@ class TestToolEventWebSocketStreaming:
         await _create_mcp_integration_and_refresh(auth_client_with_tool_aware_mocked_llm)
 
         # Verify tools are available
-        tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tool_manager/tools")
+        tools_response = await auth_client_with_tool_aware_mocked_llm.get("/api/v1/tools")
         assert tools_response.status_code == 200
         tool_names = [t["name"] for t in tools_response.json()["resources"]]
         assert "mock_calculator" in tool_names

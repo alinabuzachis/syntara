@@ -111,9 +111,7 @@ class TestMCPProviderIntegration:
         assert integration.integration_type == IntegrationType.MCP_SERVER
 
         # Verify discovered tools
-        tools_list = nexus_api.tool_manager.get_tools(
-            additional_params={"integration_id[eq]": mcp_integration_id}
-        ).assert_and_get()
+        tools_list = nexus_api.tools.list(additional_params={"integration_id[eq]": mcp_integration_id}).assert_and_get()
         tools = tools_list.resources
         expected_tools = {"calculate_sum", "calculate_product", "get_greeting"}
         discovered_names = {t.name for t in tools}
@@ -129,23 +127,21 @@ class TestMCPProviderIntegration:
 
         # Verify tool detail endpoint
         sum_tool = next(t for t in tools if t.name == "calculate_sum")
-        nexus_api.tool_manager.get_tool(tool_id=sum_tool.id).assert_and_get()
+        nexus_api.tools.get(tool_id=sum_tool.id).assert_and_get()
 
     @pytest.mark.mcp
     def test_tool_parameters_persistence(self, nexus_api: NexusApiRegistry, mcp_integration_id: str) -> None:
         """Test that MCP tool parameters are properly persisted to database."""
         integration_id = UUID(mcp_integration_id)
 
-        tools_list = nexus_api.tool_manager.get_tools(
-            additional_params={"integration_id[eq]": mcp_integration_id}
-        ).assert_and_get()
+        tools_list = nexus_api.tools.list(additional_params={"integration_id[eq]": mcp_integration_id}).assert_and_get()
         tools = tools_list.resources
         assert len(tools) == 3
 
         sum_tool = next((t for t in tools if t.name == "calculate_sum"), None)
         assert sum_tool is not None
 
-        tool_detail = nexus_api.tool_manager.get_tool(tool_id=sum_tool.id).assert_and_get()
+        tool_detail = nexus_api.tools.get(tool_id=sum_tool.id).assert_and_get()
         assert tool_detail.integration_id == integration_id
         assert tool_detail.name == "calculate_sum"
         assert tool_detail.description is not None
@@ -181,7 +177,7 @@ class TestMCPProviderIntegration:
         integration_after = nexus_api.integrations.get(integration_id=integration_id).assert_and_get()
         assert integration_after.validation_error is not None
 
-        tools_list = nexus_api.tool_manager.get_tools(
+        tools_list = nexus_api.tools.list(
             additional_params={"integration_id[eq]": str(integration_id)}
         ).assert_and_get()
         assert len(tools_list.resources) == 0
@@ -219,7 +215,7 @@ class TestMCPProviderIntegration:
 
             _wait_for_provider_status(nexus_api, integration_id, IntegrationStatus.ERROR)
 
-            tools_list = nexus_api.tool_manager.get_tools(
+            tools_list = nexus_api.tools.list(
                 additional_params={"integration_id[eq]": str(integration_id)}
             ).assert_and_get()
             assert len(tools_list.resources) == 0
@@ -256,7 +252,7 @@ class TestMCPProviderIntegration:
 
             _wait_for_provider_status(nexus_api, integration_id, IntegrationStatus.ERROR)
 
-            tools_list = nexus_api.tool_manager.get_tools(
+            tools_list = nexus_api.tools.list(
                 additional_params={"integration_id[eq]": str(integration_id)}
             ).assert_and_get()
             assert len(tools_list.resources) == 0

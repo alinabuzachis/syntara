@@ -9,25 +9,21 @@ servers:
   - url: /api/v1
     description: API server (relative path)
 
-tags:
-  - name: Tool Manager
-    description: Tool discovery and configuration
-
 # Reference shared resource schemas
 x-shared-contracts:
   - path: ../base/shared-resources.openapi.yaml
     namespace: shared
 
 paths:
-  /tool_manager/tools:
+  /tools:
     get:
-      summary: Get tools
+      summary: List Tools
       description: |-
         List tools with filtering, sorting, and pagination.
 
         Tools are filtered by the caller's integration visibility — only tools
         belonging to visible integrations are returned.
-      operationId: get_tools
+      operationId: list_tools
       x-app-permission:
         resource: tool
         action: read
@@ -63,10 +59,10 @@ paths:
       security:
         - bearerAuth: []
       tags:
-        - Tool Manager
-  /tool_manager/tools/{tool_id}:
+        - Tools
+  /tools/{tool_id}:
     get:
-      summary: Get tool
+      summary: Get Tool
       description: Get tool details by ID.
       operationId: get_tool
       x-app-permission:
@@ -103,15 +99,14 @@ paths:
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
         '500':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
-
       security:
         - bearerAuth: []
       tags:
-        - Tool Manager
+        - Tools
     patch:
-      summary: Patch tool
+      summary: Update Tool
       description: Update tool status (enable/disable).
-      operationId: patch_tool
+      operationId: update_tool
       x-app-permission:
         resource: tool
         action: update
@@ -152,55 +147,10 @@ paths:
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
         '500':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
-
       security:
         - bearerAuth: []
       tags:
-        - Tool Manager
-  /tool_manager/tools/bulk_update:
-    patch:
-      summary: Bulk update tools
-      description: Bulk update tool status (enable/disable multiple tools).
-      operationId: bulk_update_tools
-      x-app-permission:
-        resource: tool
-        action: update
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ToolBulkUpdate'
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-                title: Response Bulk Update Tools
-        '400':
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
-        '401':
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
-        '403':
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
-        '404':
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
-        '409':
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
-        '422':
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
-        "429":
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
-        '500':
-          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
-
-      security:
-        - bearerAuth: []
-      tags:
-        - Tool Manager
+        - Tools
 components:
   schemas:
     ToolListResponse:

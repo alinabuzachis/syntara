@@ -336,9 +336,8 @@ const knownFileMetadata: Record<string, { filename: string; size_bytes: number; 
 }
 
 export const handlers = [
-  http.get('/api/v1/tool_manager/tools', ({ request }) => {
+  http.get('/api/v1/tools', ({ request }) => {
     const url = new URL(request.url)
-    const integration_id = url.searchParams.get('integration_id')
     const statusFilter = url.searchParams.get('status')
     const enabledParam = url.searchParams.get('enabled')
     const cursor = url.searchParams.get('cursor')
@@ -346,9 +345,6 @@ export const handlers = [
     const includeTotal = url.searchParams.get('include_total') === 'true'
 
     let filtered = tools
-    if (integration_id) {
-      filtered = filtered.filter((t) => t.integration_id === integration_id)
-    }
     if (statusFilter) filtered = filtered.filter((t) => t.status === statusFilter)
     if (enabledParam !== null) {
       const enabled = enabledParam === 'true'
@@ -358,7 +354,43 @@ export const handlers = [
     return HttpResponse.json(body)
   }),
 
-  http.patch('/api/v1/tool_manager/tools/bulk_update', async (req) => {
+  http.get('/api/v1/integrations/:integration_id/tools', ({ request, params }) => {
+    const integrationId = params.integration_id as string
+    const integration = integrations.find((i) => i.id === integrationId)
+    if (!integration) {
+      return HttpResponse.json(
+        { type: 'https://api.example.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+
+    const url = new URL(request.url)
+    const statusFilter = url.searchParams.get('status')
+    const enabledParam = url.searchParams.get('enabled')
+    const cursor = url.searchParams.get('cursor')
+    const limit = parseInt(url.searchParams.get('limit') || '50', 10)
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+
+    let filtered = tools.filter((t) => t.integration_id === integrationId)
+    if (statusFilter) filtered = filtered.filter((t) => t.status === statusFilter)
+    if (enabledParam !== null) {
+      const enabled = enabledParam === 'true'
+      filtered = filtered.filter((t) => t.enabled === enabled)
+    }
+    const body: ToolsResponse = paginate(filtered, cursor, limit, includeTotal)
+    return HttpResponse.json(body)
+  }),
+
+  http.patch('/api/v1/integrations/:integration_id/tools/bulk_update', async (req) => {
+    const integrationId = req.params.integration_id as string
+    const integration = integrations.find((i) => i.id === integrationId)
+    if (!integration) {
+      return HttpResponse.json(
+        { type: 'https://api.example.com/errors/not-found', title: 'Not Found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+
     const reqData = (await req.request.json()) as { tool_ids?: string[]; enabled?: boolean }
     if (reqData?.tool_ids && reqData.tool_ids.length > 0 && typeof reqData.enabled === 'boolean') {
       const { enabled } = reqData

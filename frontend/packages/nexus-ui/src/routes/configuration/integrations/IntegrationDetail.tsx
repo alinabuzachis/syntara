@@ -25,7 +25,7 @@ import {
   type IntegrationDetailBreadcrumbTab,
 } from '../../../app/breadcrumbBuilders'
 import { useUnsavedChanges } from '../../../app/useUnsavedChanges'
-import { credentialsClient, integrationsClient, toolManagerClient } from '../../../client'
+import { credentialsClient, integrationsClient } from '../../../client'
 import { NxDetail } from '../../../components/details/NxDetail'
 import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { IconLabel } from '../../../components/IconLabel'
@@ -240,7 +240,10 @@ function useResourcesSave(opts: {
   const { showAlert } = useAlerts()
   const queryClient = useQueryClient()
   const { registerDirtyCheck } = useUnsavedChanges()
-  const { mutateAsync: updateTools } = toolManagerClient.useMutation('patch', '/tool_manager/tools/bulk_update')
+  const { mutateAsync: updateTools } = integrationsClient.useMutation(
+    'patch',
+    '/integrations/{integration_id}/tools/bulk_update'
+  )
   const [isSaving, setIsSaving] = useState(false)
 
   const handleSaveRef = useRef<() => Promise<boolean>>(null)
@@ -250,8 +253,16 @@ function useResourcesSave(opts: {
     const toDisable = tools.filter((t) => !enabledToolIds.has(t.id)).map((t) => t.id)
     setIsSaving(true)
     try {
-      if (toEnable.length > 0) await updateTools({ body: { tool_ids: toEnable, enabled: true } })
-      if (toDisable.length > 0) await updateTools({ body: { tool_ids: toDisable, enabled: false } })
+      if (toEnable.length > 0)
+        await updateTools({
+          params: { path: { integration_id: integrationId } },
+          body: { tool_ids: toEnable, enabled: true },
+        })
+      if (toDisable.length > 0)
+        await updateTools({
+          params: { path: { integration_id: integrationId } },
+          body: { tool_ids: toDisable, enabled: false },
+        })
       await queryClient.invalidateQueries({ queryKey: ['all-integration-tools', integrationId] })
       await queryClient.invalidateQueries({ queryKey: ['get', '/integrations/{integration_id}'] })
       showAlert({

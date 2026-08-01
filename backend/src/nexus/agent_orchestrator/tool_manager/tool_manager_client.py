@@ -217,7 +217,7 @@ class ToolManagerClient:
 
         """
         logger.debug("Fetching tools from Tool Manager API", params=params)
-        response = await self.session.get("/tool_manager/tools", params=params)
+        response = await self.session.get("/tools", params=params)
         response.raise_for_status()
         return dict(response.json())
 
@@ -308,7 +308,7 @@ class ToolManagerClient:
         )
 
         # Make API request
-        response = await self.session.patch(f"/tool_manager/tools/{tool_id}", json=update_data)
+        response = await self.session.patch(f"/tools/{tool_id}", json=update_data)
         response.raise_for_status()
 
         logger.info("Updated tool status", tool_id=tool_id, status=status.value)
