@@ -1,5 +1,5 @@
 import globalBreakpointLg from '@patternfly/react-tokens/dist/esm/t_global_breakpoint_lg'
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, use, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 export type DockState = {
   isDockExpanded: boolean
@@ -14,7 +14,7 @@ export type DockState = {
 export const DockStateContext = createContext<DockState | null>(null)
 
 export function useDockState(): DockState {
-  const ctx = useContext(DockStateContext)
+  const ctx = use(DockStateContext)
   if (!ctx) throw new Error('useDockState must be used within AppShell')
   return ctx
 }

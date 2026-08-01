@@ -34,7 +34,7 @@ import {
   RhUiQuestionMarkCircleIcon,
 } from '@patternfly/react-icons'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
-import { useContext, useMemo, useRef, useState } from 'react'
+import { use, useMemo, useRef, useState } from 'react'
 
 import { authClient } from '../client'
 import { useAlerts } from '../providers/alerts'
@@ -95,7 +95,7 @@ function NavDropdownItem({
   requestNavigation: (path: string) => void
 }>) {
   const enabledChildren = item.children ?? []
-  const { setFlyoutRef } = useContext(NavContext)
+  const { setFlyoutRef } = use(NavContext)
 
   const onMenuSelect = (_event: React.MouseEvent | undefined, itemId: string | number | undefined) => {
     const child = enabledChildren.find((c) => c.path === itemId)

@@ -122,7 +122,7 @@ export function NodeComponent(props: {
   /** Optional stable hook for tests (e.g. canvas node root) */
   rootTestId?: string
 }) {
-  const { expandAllEvent, collapseAllEvent } = React.useContext(NodeExpandedAllContext)
+  const { expandAllEvent, collapseAllEvent } = React.use(NodeExpandedAllContext)
   const expandedContext = useState(true)
   const isCollapsible = props.collapsible ?? true
 

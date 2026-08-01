@@ -1,11 +1,11 @@
 import { render, screen } from '@testing-library/react'
-import { useContext } from 'react'
+import { use } from 'react'
 import { describe, expect, it } from 'vitest'
 
 import { NodeExpandedAllContext } from './NodeExpandedAllContext'
 
 function TestConsumer() {
-  const context = useContext(NodeExpandedAllContext)
+  const context = use(NodeExpandedAllContext)
   return (
     <div>
       <div data-testid="expand-event">{context.expandAllEvent instanceof EventTarget ? 'valid' : 'invalid'}</div>

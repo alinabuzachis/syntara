@@ -401,7 +401,7 @@ Before writing any new UI code, follow this checklist:
    - Follow DRY (Don't Repeat Yourself) principles
 
 6. **React Best Practices**
-   - Leverage React 19 features (see §38 for ref-as-prop and ref cleanup functions)
+   - Leverage React 19 features (see §38 for ref-as-prop and ref cleanup functions; §39 for `use(Context)` over `useContext`)
    - Use functional components and hooks
    - Use proper TypeScript typing (avoid `any`)
    - Implement proper error boundaries
@@ -1924,3 +1924,19 @@ const scrollRef = useCallback((node: HTMLElement | null) => {
 Wrap callback refs that return cleanups in `useCallback`. A new function identity each render makes React run the previous cleanup and re-attach listeners even when the DOM node is unchanged.
 
 `useScrollOverflow` is the reference implementation for multi-node setup with stable ref cleanups.
+
+## 39. React 19 Context — Prefer `use(Context)` Over `useContext`
+
+React 19's [`use`](https://react.dev/reference/react/use) reads context (and other reactive values). Prefer `use(Context)` over `useContext(Context)` for all new and migrated code.
+
+```tsx
+// ❌ BAD — legacy useContext
+import { useContext } from 'react'
+const value = useContext(AlertContext)
+
+// ✅ GOOD — React 19 use()
+import { use } from 'react'
+const value = use(AlertContext)
+```
+
+`use(Context)` is the standard for reading React context in this codebase. Keep using domain hooks that wrap it (`useAlerts`, `useBrand`, `useDocLink`, etc.) — migrate the implementation inside those hooks, not every call site that already goes through a hook.

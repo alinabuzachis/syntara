@@ -1,11 +1,11 @@
 import { render, screen } from '@testing-library/react'
-import { useContext, useState } from 'react'
+import { use, useState } from 'react'
 import { describe, expect, it } from 'vitest'
 
 import { NodeExpandedContext } from './NodeExpandedContext'
 
 function TestConsumer() {
-  const context = useContext(NodeExpandedContext)
+  const context = use(NodeExpandedContext)
   return <div data-testid="context-value">{context === null ? 'null' : String(context[0])}</div>
 }
 

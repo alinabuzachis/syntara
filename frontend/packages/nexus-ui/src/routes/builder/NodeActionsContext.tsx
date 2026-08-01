@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react'
+import { createContext, use } from 'react'
 
 /**
  * Context value for step-level actions in the builder (React Flow node IDs identify steps on the canvas).
@@ -37,5 +37,5 @@ export const NodeActionsContext = createContext<NodeActionsContextValue | null>(
  * nodeActions?.onViewDetails(nodeId)
  */
 export function useNodeActions(): NodeActionsContextValue | null {
-  return useContext(NodeActionsContext)
+  return use(NodeActionsContext)
 }

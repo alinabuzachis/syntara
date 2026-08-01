@@ -1,5 +1,5 @@
 import { render, renderHook } from '@testing-library/react'
-import { useContext, type ReactNode } from 'react'
+import { use, type ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
@@ -7,7 +7,7 @@ import { DocLinkContext } from './docLinkContext'
 import { DocLinkProvider } from './DocLinkProvider'
 
 function useDocLinkContext() {
-  return useContext(DocLinkContext)
+  return use(DocLinkContext)
 }
 
 describe('DocLinkProvider', () => {

@@ -1,4 +1,4 @@
-import { useContext } from 'react'
+import { use } from 'react'
 
 import { ColorSchemeContext, type ColorSchemeContextValue } from './colorSchemeReactContext'
 
@@ -7,7 +7,7 @@ import { ColorSchemeContext, type ColorSchemeContextValue } from './colorSchemeR
  * @throws {Error} If used outside {@link ColorSchemeProvider}.
  */
 export function useColorScheme(): ColorSchemeContextValue {
-  const ctx = useContext(ColorSchemeContext)
+  const ctx = use(ColorSchemeContext)
   if (!ctx) {
     throw new Error('useColorScheme must be used within ColorSchemeProvider')
   }

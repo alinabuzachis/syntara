@@ -1,7 +1,7 @@
 import { Skeleton, StackItem } from '@patternfly/react-core'
 import type { TabsProps } from '@patternfly/react-core'
 import { Tbody, Td, Tr } from '@patternfly/react-table'
-import React, { createContext, useContext, useId, useMemo } from 'react'
+import React, { createContext, use, useId, useMemo } from 'react'
 import type { ReactNode } from 'react'
 
 import type { FilterConfig, FilterFieldDefinition } from '../../../types/filters'
@@ -30,7 +30,7 @@ type NxListPanelTabContextValue = {
 const NxListPanelTabContext = createContext<NxListPanelTabContextValue | null>(null)
 
 function useNxListPanelTabContext() {
-  return useContext(NxListPanelTabContext)
+  return use(NxListPanelTabContext)
 }
 
 export type NxListPanelProps = {

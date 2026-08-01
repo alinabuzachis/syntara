@@ -1,5 +1,5 @@
 import { StackItem } from '@patternfly/react-core'
-import { useContext, type ReactNode } from 'react'
+import { use, type ReactNode } from 'react'
 
 import { NodeExpandedContext } from './NodeExpandedContext'
 
@@ -16,7 +16,7 @@ export type NodeBodyProps = {
  * - Uses PatternFly Stack/StackItem components for layout
  */
 export function NodeBody(props: Readonly<NodeBodyProps>) {
-  const expandedState = useContext(NodeExpandedContext)
+  const expandedState = use(NodeExpandedContext)
   const expanded = expandedState === null ? true : expandedState[0]
 
   if (!expanded) {

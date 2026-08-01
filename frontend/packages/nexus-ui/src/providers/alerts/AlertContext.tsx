@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from 'react'
+import { createContext, use, type ReactNode } from 'react'
 
 export type AlertVariant = 'success' | 'danger' | 'warning' | 'info' | 'custom'
 
@@ -41,5 +41,5 @@ const noopAlertContext: AlertContextType = {
 export const AlertContext = createContext<AlertContextType>(noopAlertContext)
 
 export function useAlerts() {
-  return useContext(AlertContext)
+  return use(AlertContext)
 }

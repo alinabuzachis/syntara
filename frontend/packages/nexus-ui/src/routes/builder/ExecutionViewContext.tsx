@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react'
+import { createContext, use } from 'react'
 
 /**
  * Context to track whether we're in execution view mode (read-only)
@@ -24,5 +24,5 @@ export const ExecutionViewContext = createContext<boolean>(false)
  * }
  */
 export function useIsExecutionView(): boolean {
-  return useContext(ExecutionViewContext)
+  return use(ExecutionViewContext)
 }

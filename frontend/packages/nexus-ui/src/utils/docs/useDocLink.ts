@@ -1,4 +1,4 @@
-import { useContext } from 'react'
+import { use } from 'react'
 
 import { isCommunityMode, type AppMode } from '../appMode'
 
@@ -35,7 +35,7 @@ export function resolveDocUrl(
 
 /** Hook wrapper around {@link resolveDocUrl}. */
 export function useDocLink(key: DocKey): string {
-  const { mode, version } = useContext(DocLinkContext)
+  const { mode, version } = use(DocLinkContext)
 
   return resolveDocUrl(key, { mode, version })
 }

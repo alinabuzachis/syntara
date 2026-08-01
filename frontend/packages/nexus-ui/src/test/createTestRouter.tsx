@@ -19,7 +19,7 @@ import { convertWouterPathToTanStack } from '../app/convertParamSyntax'
 const TestChildrenCtx = React.createContext<React.ReactNode>(null)
 
 function TestRouteComponent() {
-  const children = React.useContext(TestChildrenCtx)
+  const children = React.use(TestChildrenCtx)
   return <>{children}</>
 }
 

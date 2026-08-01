@@ -93,7 +93,7 @@ export function CanvasControls(
   props: Readonly<{ onLayout: (options?: { markDirty?: boolean }) => void; hideLayout?: boolean }>
 ) {
   const { fitView, zoomIn, zoomOut } = useReactFlow()
-  const { expandAllEvent, collapseAllEvent } = React.useContext(NodeExpandedAllContext)
+  const { expandAllEvent, collapseAllEvent } = React.use(NodeExpandedAllContext)
 
   return (
     <Panel position="bottom-left">

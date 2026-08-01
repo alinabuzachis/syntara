@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react'
+import { createContext, use } from 'react'
 
 /**
  * Context to track whether there's an active (running) execution.
@@ -25,5 +25,5 @@ export const ActiveExecutionContext = createContext<boolean>(false)
  * }
  */
 export function useIsActiveExecution(): boolean {
-  return useContext(ActiveExecutionContext)
+  return use(ActiveExecutionContext)
 }

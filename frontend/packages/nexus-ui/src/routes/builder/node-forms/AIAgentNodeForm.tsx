@@ -11,7 +11,7 @@ import {
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import type { IntegrationsAPI, ToolManagerAPI } from '@syntara/contracts'
 import type { ReactNode } from 'react'
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { use, useCallback, useEffect, useMemo, useState } from 'react'
 import type { Control, UseFormSetValue } from 'react-hook-form'
 import { Controller, FormProvider, useForm, useFormContext, useFormState, useWatch } from 'react-hook-form'
 
@@ -168,7 +168,7 @@ function AIAgentFormFields({
   const { toolSelection, handleToolSelectionChange } = useToolSelection(control, setValue)
   const { errors } = useFormState({ control })
   const { canCreate: canCreateIntegration } = useIntegrationPermissions()
-  const fileContext = useContext(AIAgentFileContext)
+  const fileContext = use(AIAgentFileContext)
   if (!fileContext) throw new Error('AIAgentFormFields must be used within AIAgentFileContext.Provider')
   const { isFilesError } = fileContext
 
