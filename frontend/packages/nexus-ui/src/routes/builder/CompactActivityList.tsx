@@ -1,36 +1,14 @@
 import { Content, ContentVariants, Stack, StackItem } from '@patternfly/react-core'
 import { Table, Tbody, Td, Tr } from '@patternfly/react-table'
-import type React from 'react'
 
 import { formatTimeRange } from '../../utils/dateUtils'
 import type { ActivityState } from '../workflows/execution/types'
+import { parseCompositeKey } from '../workflows/execution/utils/activityState'
 
+import styles from './CompactActivityList.module.css'
 import type { ActivityOrderItem } from './ExecutionActivityTable'
 import { ActivityStatusLabel } from './ExecutionStatus'
-
-const COMPACT_TABLE_STYLE = {
-  width: '100%',
-} as React.CSSProperties
-
-const SUBTLE_TEXT: React.CSSProperties = {
-  color: 'var(--pf-t--global--text--color--subtle)',
-  margin: 0,
-}
-
-const COMPACT_NAME_CELL: React.CSSProperties = {
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-}
-
-const COMPACT_STATUS_CELL: React.CSSProperties = {
-  verticalAlign: 'top',
-  whiteSpace: 'nowrap',
-  width: 'auto',
-}
-
-const CLICKABLE_ROW_STYLE: React.CSSProperties = {
-  cursor: 'pointer',
-}
+import { ACTIVITY_STATUS } from './utils/executionState/executionHelpers'
 
 export type CompactActivityListProps = {
   activityStates: Map<string, ActivityState>
@@ -46,35 +24,36 @@ export function CompactActivityList({
   selectedNodeId,
 }: Readonly<CompactActivityListProps>) {
   return (
-    <Table aria-label="Activity list" isPlain variant="compact" style={COMPACT_TABLE_STYLE}>
+    <Table aria-label="Activity list" isPlain variant="compact" className={styles.table}>
       <Tbody>
         {activityOrder.map(({ id, name, type }) => {
           const state = activityStates.get(id)
           const timeRange = formatTimeRange(state?.startedAt, state?.completedAt)
+          const { baseId } = parseCompositeKey(id)
           const displayName = name ?? id
-          const isSelected = id === selectedNodeId
+          const isSelected = baseId === selectedNodeId
 
           return (
             <Tr
               key={id}
-              style={CLICKABLE_ROW_STYLE}
+              className={styles.clickableRow}
               onRowClick={onRowClick ? () => onRowClick(id, displayName) : undefined}
               isRowSelected={isSelected}
             >
-              <Td dataLabel="Name" style={COMPACT_NAME_CELL}>
+              <Td dataLabel="Name" className={styles.nameCell}>
                 <Stack>
                   <StackItem>{displayName}</StackItem>
                   {timeRange && (
                     <StackItem>
-                      <Content component={ContentVariants.small} style={SUBTLE_TEXT}>
+                      <Content component={ContentVariants.small} className={styles.subtleText}>
                         {timeRange}
                       </Content>
                     </StackItem>
                   )}
                 </Stack>
               </Td>
-              <Td dataLabel="Status" modifier="nowrap" style={COMPACT_STATUS_CELL}>
-                <ActivityStatusLabel status={state?.status ?? 'pending'} nodeType={type} />
+              <Td dataLabel="Status" modifier="nowrap" className={styles.statusCell}>
+                <ActivityStatusLabel status={state?.status ?? ACTIVITY_STATUS.PENDING} nodeType={type} />
               </Td>
             </Tr>
           )

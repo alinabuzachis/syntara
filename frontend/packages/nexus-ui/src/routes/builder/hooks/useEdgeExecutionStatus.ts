@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import type { WorkflowDefinition } from '../../../stores/workflowStoreTypes'
 import { buildTriggerNodeId } from '../../../utils/triggerNodeIds'
 import type { ActivityState } from '../../workflows/execution/types'
+import type { EdgeConnection } from '../types/edge'
 import { isTerminalState } from '../utils/executionState/executionHelpers'
 import type { EdgeType } from '../utils/workflowToGraph'
 
@@ -14,6 +15,7 @@ type UseEdgeExecutionStatusOptions = {
   isInitialized: boolean
   currentWorkflow: WorkflowDefinition | null
   activityStates: Map<string, ActivityState>
+  storedEdges: EdgeConnection[]
   setEdges: Dispatch<SetStateAction<EdgeType[]>>
   isExecutionDetailView?: boolean
 }
@@ -23,6 +25,7 @@ export function useEdgeExecutionStatus({
   isInitialized,
   currentWorkflow,
   activityStates,
+  storedEdges,
   setEdges,
   isExecutionDetailView = false,
 }: UseEdgeExecutionStatusOptions) {
@@ -61,7 +64,8 @@ export function useEdgeExecutionStatus({
           edge,
           activityStates,
           activities,
-          triggerDisplayToRealId
+          triggerDisplayToRealId,
+          storedEdges
         )
 
         if (edge.data?.executionStatus !== edgeExecutionStatus) {
@@ -77,5 +81,13 @@ export function useEdgeExecutionStatus({
         return edge
       })
     )
-  }, [activityStates, effectiveExecutionStatus, isInitialized, currentWorkflow, setEdges, isExecutionDetailView])
+  }, [
+    activityStates,
+    effectiveExecutionStatus,
+    isInitialized,
+    currentWorkflow,
+    storedEdges,
+    setEdges,
+    isExecutionDetailView,
+  ])
 }

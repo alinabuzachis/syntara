@@ -122,6 +122,18 @@ describe('useLoopIterationCount', () => {
     expect(result.current).toBeNull()
   })
 
+  it('returns 0 for completed loop with zero iterations', () => {
+    const { result } = renderHook(() => useLoopIterationCount('loop-1'))
+
+    setActivityState('loop-1', {
+      activityId: 'loop-1',
+      status: 'completed',
+      outputData: { iteration_count: 0, iteration_results: {} },
+    })
+
+    expect(result.current).toBe(0)
+  })
+
   it('returns null for non-loop activity with no iteration_count', () => {
     const { result } = renderHook(() => useLoopIterationCount('action-1'))
 

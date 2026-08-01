@@ -329,6 +329,11 @@ components:
             - type: string
             - type: 'null'
           title: Error Details
+        iteration:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Iteration
         output_data:
           anyOf:
             - additionalProperties: true

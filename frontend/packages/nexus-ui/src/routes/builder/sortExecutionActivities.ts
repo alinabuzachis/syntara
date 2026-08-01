@@ -2,6 +2,7 @@ import type { SortConfig } from '../../types/sorting'
 import type { ActivityState } from '../workflows/execution/types'
 
 import type { ActivityOrderItem } from './ExecutionActivityTable'
+import { ACTIVITY_STATUS } from './utils/executionState/executionHelpers'
 
 function parseTimeMs(value: string | null | undefined): number | null {
   if (value == null) return null
@@ -20,7 +21,7 @@ export function computeActivityDurationMs(state: ActivityState | undefined, now:
     return Math.max(0, completedAtMs - startedAtMs)
   }
 
-  const isActive = state.status === 'running' || state.status === 'retrying'
+  const isActive = state.status === ACTIVITY_STATUS.RUNNING || state.status === ACTIVITY_STATUS.RETRYING
   if (isActive) {
     return Math.max(0, now - startedAtMs)
   }
@@ -51,7 +52,7 @@ function getSortValue(
     case 'type':
       return item.type ?? ''
     case 'status':
-      return state?.status ?? 'pending'
+      return state?.status ?? ACTIVITY_STATUS.PENDING
     case 'timestamp':
       return parseTimeMs(state?.startedAt)
     case 'duration':

@@ -1,0 +1,23 @@
+.table {
+  width: 100%;
+}
+
+.subtleText {
+  color: var(--pf-t--global--text--color--subtle);
+  margin: 0;
+}
+
+.nameCell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.statusCell {
+  vertical-align: top;
+  white-space: nowrap;
+  width: auto;
+}
+
+.clickableRow {
+  cursor: pointer;
+}

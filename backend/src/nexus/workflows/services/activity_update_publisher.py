@@ -84,6 +84,7 @@ class ActivityUpdatePublisher:
             completed_at=activity.completed_at,
             error_details=activity.error_details,
             output_data=activity.output_data,
+            iteration=activity.iteration,
         ).model_dump(mode="json")
 
     def _serialize_execution_snapshot(self, execution: Execution) -> dict[str, Any]:

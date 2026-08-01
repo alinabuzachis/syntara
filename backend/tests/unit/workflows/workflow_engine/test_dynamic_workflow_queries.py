@@ -20,9 +20,12 @@ import pytest
 
 from nexus.workflows.utils.namespace_resolver import NamespaceResolver
 from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
-from nexus.workflows.workflow_engine.graph import WorkflowGraph
+from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph
 from nexus.workflows.workflow_engine.graph_backend import InMemoryGraphBackend
-from nexus.workflows.workflow_engine.models.workflow_definition import ForEachLoopState
+from nexus.workflows.workflow_engine.models.workflow_definition import (
+    ForEachLoopState,
+    NodeType,
+)
 from nexus.workflows.workflow_engine.utils.credential_scrubber import REDACTED
 from tests.unit.workflows.workflow_engine.conftest import init_workflow_runtime
 
@@ -407,3 +410,19 @@ class TestGetActivityInputCredentialScrubbing:
         }
         wf.get_activity_input("node_a")
         assert wf.node_inputs["node_a"]["bearer_token"] == "sk-secret-123"  # noqa: S105
+
+
+class TestRouteFailedNode:
+    """Tests for _route_failed_node."""
+
+    def test_sets_complete_port_for_loop_node(self) -> None:
+        wf = _make_workflow()
+        node = ActivityNode(node_id="loop-1", node_type=NodeType.LOOP, parameters={})
+        wf._route_failed_node("loop-1", node)
+        assert wf.node_control_data["loop-1"] == {"next_port": "complete"}
+
+    def test_does_nothing_for_non_loop_node(self) -> None:
+        wf = _make_workflow()
+        node = ActivityNode(node_id="script-1", node_type="script", parameters={})
+        wf._route_failed_node("script-1", node)
+        assert "script-1" not in wf.node_control_data

@@ -15,6 +15,7 @@ from uuid import UUID
 
 import structlog
 from jsonpatch import JsonPatch  # type: ignore[import-untyped]
+from sqlalchemy import or_
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from temporalio.api.enums.v1 import EventType, PendingActivityState
@@ -35,7 +36,7 @@ from nexus.workflows.audit.execution_completed import WorkflowCompletedEvent
 from nexus.workflows.audit.execution_error import WorkflowExecutionErrorEvent
 from nexus.workflows.audit.execution_started import WorkflowStartEvent
 from nexus.workflows.models.activity_execution import TERMINAL_ACTIVITY_STATUSES, ActivityExecution, ActivityStatus
-from nexus.workflows.models.execution import Execution, ExecutionStatus
+from nexus.workflows.models.execution import ActivityData, Execution, ExecutionStatus
 from nexus.workflows.models.visualization import JsonPatchOperation
 from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.models.workflow_version import WorkflowVersion
@@ -67,6 +68,11 @@ _DESCRIBE_PROBE_MAX_DELAY_S = 30.0
 _DESCRIBE_PROBE_BACKOFF_FACTOR = 2.0
 _DESCRIBE_PROBE_MAX_TOTAL_S = 600.0  # 10 minutes
 _DESCRIBE_PROBE_MAX_TASKS = 25
+
+_ITER_SUFFIX_RE = re.compile(r"_iter_\d+$")
+_ITER_CAPTURE_RE = re.compile(r"_iter_(\d+)$")
+
+_COMPOSITE_ITER_SEP = "#iter-"
 
 _PENDING_ACTIVITY_STATE_STARTED = PendingActivityState.PENDING_ACTIVITY_STATE_STARTED
 
@@ -129,6 +135,8 @@ class ExecutionMonitorMetadata:
     pending_activity_updates: dict[int, dict[str, Any]]
     pending_sync_event_ids: set[int] = field(default_factory=set)
     terminal_activity_ids: set[str] = field(default_factory=set)
+    iteration_counters: dict[str, int] = field(default_factory=dict)
+    next_activity_index: int = 0
     workflow_id: UUID | None = None
     request_id: UUID | None = None
     workflow_run_timeout_seconds: float | None = None
@@ -527,12 +535,31 @@ class ActivitySyncService:
         # Build activity index map after activities are created (for patch generation)
         activity_index_map = await self._build_activity_index_map(execution_id)
 
+        # Rebuild loop-iteration state from existing DB records so that
+        # monitor restarts mid-loop correctly recognise body children as
+        # iterations and avoid duplicate #iter-N creation.
+        iteration_counters: dict[str, int] = {}
+        for key in activity_index_map:
+            if _COMPOSITE_ITER_SEP in key:
+                base_id, _, num_str = key.rpartition(_COMPOSITE_ITER_SEP)
+                try:
+                    num = int(num_str)
+                except ValueError:
+                    continue
+                if num > iteration_counters.get(base_id, 0):
+                    iteration_counters[base_id] = num
+
+        terminal_activity_ids = await self._load_terminal_activity_ids(execution_id)
+
         return ExecutionMonitorMetadata(
             execution_id=execution_id,
             last_processed_event_id=last_processed_event_id,
             activity_definitions_map=activity_definitions_map,
             activity_index_map=activity_index_map,
+            next_activity_index=len(activity_index_map),
             pending_activity_updates={},
+            terminal_activity_ids=terminal_activity_ids,
+            iteration_counters=iteration_counters,
             workflow_id=workflow_id,
             request_id=request_id,
             workflow_name=workflow_name,
@@ -559,6 +586,18 @@ class ActivitySyncService:
             )
             activities = result.all()
             return {activity.activity_name: idx for idx, activity in enumerate(activities)}
+
+    async def _load_terminal_activity_ids(self, execution_id: UUID) -> set[str]:
+        """Load activity IDs that have reached terminal status from the database."""
+        async with self.session_factory() as session:
+            result = await session.exec(
+                select(ActivityExecution.activity_name).where(
+                    ActivityExecution.execution_id == execution_id,
+                    ActivityExecution.status.in_(TERMINAL_ACTIVITY_STATUSES),  # type: ignore[attr-defined]
+                    ~ActivityExecution.activity_name.contains(_COMPOSITE_ITER_SEP),  # type: ignore[attr-defined]
+                )
+            )
+            return set(result.all())
 
     async def _handle_event_post_processing(
         self,
@@ -605,6 +644,15 @@ class ActivitySyncService:
             metadata.last_processed_event_id = event.event_id
             await self._sync_activities_to_db(metadata, handle)
             return event.event_id
+
+        # Sync SCHEDULED events for loop iterations so per-iteration
+        # records are created as PENDING before the STARTED event arrives
+        if event.event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED:
+            update = metadata.pending_activity_updates.get(event.event_id)
+            if update and update.get("_is_loop_iteration"):
+                metadata.last_processed_event_id = event.event_id
+                await self._sync_activities_to_db(metadata, handle)
+                return event.event_id
 
         return None
 
@@ -865,9 +913,11 @@ class ActivitySyncService:
             # which marks any remaining PENDING activities as SKIPPED. By syncing first,
             # converge nodes that were failed in the workflow (via _fail_converge_node)
             # are already FAILED in the DB, so _finalize_non_terminal_activities skips them.
-            await self._sync_failed_nodes(metadata, handle)
+            failed_node_map = await self._sync_failed_nodes(metadata, handle)
+            if failed_node_map is None:
+                failed_node_map = self._extract_failed_activities_from_event(event)
             await self._sync_skipped_nodes(metadata, handle)
-            await self._update_execution_status_from_event(metadata, event)
+            await self._update_execution_status_from_event(metadata, event, failed_node_map)
             metadata.last_processed_event_id = event.event_id
             return True
 
@@ -888,7 +938,7 @@ class ActivitySyncService:
             if attrs and not attrs.activity_id.startswith("__internal__"):
                 probe_tasks[:] = [t for t in probe_tasks if not t.done()]
                 if len(probe_tasks) < _DESCRIBE_PROBE_MAX_TASKS:
-                    activity_id = re.sub(r"_iter_\d+$", "", attrs.activity_id)
+                    activity_id = _ITER_SUFFIX_RE.sub("", attrs.activity_id)
                     probe_tasks.append(
                         asyncio.create_task(
                             self._schedule_describe_probe(
@@ -1051,8 +1101,15 @@ class ActivitySyncService:
         attrs = event.activity_task_scheduled_event_attributes
         if attrs.activity_id.startswith("__internal__"):
             return
-        base_activity_id = re.sub(r"_iter_\d+$", "", attrs.activity_id)
-        has_iter_suffix = base_activity_id != attrs.activity_id
+        match = _ITER_CAPTURE_RE.search(attrs.activity_id)
+        if match:
+            base_activity_id = attrs.activity_id[: match.start()]
+            iteration_number: int | None = int(match.group(1))
+            has_iter_suffix = True
+        else:
+            base_activity_id = attrs.activity_id
+            iteration_number = None
+            has_iter_suffix = False
         is_loop_iteration = has_iter_suffix or base_activity_id in metadata.terminal_activity_ids
         configured_timeout_seconds: float | None = None
         if attrs.start_to_close_timeout and attrs.start_to_close_timeout.seconds > 0:
@@ -1070,6 +1127,7 @@ class ActivitySyncService:
             "completed_at": None,
             "error_details": None,
             "retry_count": 0,
+            "iteration": iteration_number,
             "scheduled_at": ensure_timezone_aware(event.event_time),
             "configured_timeout_seconds": configured_timeout_seconds,
         }
@@ -1162,20 +1220,24 @@ class ActivitySyncService:
         attrs = event.activity_task_completed_event_attributes
         scheduled_id = attrs.scheduled_event_id
         if scheduled_id in metadata.pending_activity_updates:
-            metadata.pending_activity_updates[scheduled_id]["status"] = ActivityStatus.COMPLETED
-            metadata.pending_activity_updates[scheduled_id]["completed_at"] = ensure_timezone_aware(event.event_time)
+            update = metadata.pending_activity_updates[scheduled_id]
+            update["status"] = ActivityStatus.COMPLETED
+            update["completed_at"] = ensure_timezone_aware(event.event_time)
             metadata.pending_sync_event_ids.add(scheduled_id)
+            metadata.terminal_activity_ids.add(update["activity_id"])
 
     def _process_activity_failed(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
         """Process ACTIVITY_TASK_FAILED event."""
         attrs = event.activity_task_failed_event_attributes
         scheduled_id = attrs.scheduled_event_id
         if scheduled_id in metadata.pending_activity_updates:
-            metadata.pending_activity_updates[scheduled_id]["status"] = ActivityStatus.FAILED
-            metadata.pending_activity_updates[scheduled_id]["completed_at"] = ensure_timezone_aware(event.event_time)
+            update = metadata.pending_activity_updates[scheduled_id]
+            update["status"] = ActivityStatus.FAILED
+            update["completed_at"] = ensure_timezone_aware(event.event_time)
             if attrs.failure:
-                metadata.pending_activity_updates[scheduled_id]["error_details"] = attrs.failure.message
+                update["error_details"] = attrs.failure.message
             metadata.pending_sync_event_ids.add(scheduled_id)
+            metadata.terminal_activity_ids.add(update["activity_id"])
 
     def _process_activity_timed_out(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
         """Process ACTIVITY_TASK_TIMED_OUT event."""
@@ -1196,16 +1258,19 @@ class ActivitySyncService:
                 "retry_count": update.get("retry_count", 0),
             }
             metadata.pending_sync_event_ids.add(scheduled_id)
+            metadata.terminal_activity_ids.add(update["activity_id"])
 
     def _process_activity_canceled(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
         """Process ACTIVITY_TASK_CANCELED event."""
         attrs = event.activity_task_canceled_event_attributes
         scheduled_id = attrs.scheduled_event_id
         if scheduled_id in metadata.pending_activity_updates:
-            metadata.pending_activity_updates[scheduled_id]["status"] = ActivityStatus.CANCELLED
-            metadata.pending_activity_updates[scheduled_id]["completed_at"] = ensure_timezone_aware(event.event_time)
-            metadata.pending_activity_updates[scheduled_id]["error_details"] = "Activity was canceled"
+            update = metadata.pending_activity_updates[scheduled_id]
+            update["status"] = ActivityStatus.CANCELLED
+            update["completed_at"] = ensure_timezone_aware(event.event_time)
+            update["error_details"] = "Activity was canceled"
             metadata.pending_sync_event_ids.add(scheduled_id)
+            metadata.terminal_activity_ids.add(update["activity_id"])
 
     def _extract_execution_status_from_event(self, event: HistoryEvent) -> tuple[ExecutionStatus, datetime, str | None]:  # noqa: C901
         """Extract execution status, completion time, and error from workflow completion event.
@@ -1283,7 +1348,36 @@ class ActivitySyncService:
         return "One or more workflow activities failed"
 
     @staticmethod
-    def _finalize_non_terminal_activities(execution: Execution, execution_id: UUID) -> None:
+    def _extract_failed_activities_from_event(event: HistoryEvent) -> dict[str, str]:
+        """Extract ``failed_activities`` from a workflow completion event result.
+
+        The workflow's ``_build_result`` always includes ``failed_activities``
+        (a dict mapping node-ID → error-message) in the completion payload.
+        This provides a reliable fallback when the ``get_failed_nodes`` Temporal
+        query fails (e.g. due to a timeout or the workflow being closed before
+        the query can execute).
+        """
+        if event.event_type != EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED:
+            return {}
+        completed_attrs = event.workflow_execution_completed_event_attributes
+        if not completed_attrs or not completed_attrs.result or not completed_attrs.result.payloads:
+            return {}
+        try:
+            result_data = json.loads(completed_attrs.result.payloads[0].data)
+            if isinstance(result_data, dict):
+                fa = result_data.get("failed_activities", {})
+                if isinstance(fa, dict):
+                    return fa
+        except Exception:  # noqa: BLE001
+            logger.debug("Could not parse failed_activities from workflow result", exc_info=True)
+        return {}
+
+    @staticmethod
+    def _finalize_non_terminal_activities(
+        execution: Execution,
+        execution_id: UUID,
+        failed_node_map: dict[str, str] | None = None,
+    ) -> None:
         """Mark any non-terminal activities as skipped when a workflow completes.
 
         Safety net: when a workflow finishes, any activity still pending or running
@@ -1291,18 +1385,31 @@ class ActivitySyncService:
         Activities already synced to a terminal status (FAILED, COMPLETED, SKIPPED,
         CANCELLED) by prior ``_sync_failed_nodes`` / ``_sync_skipped_nodes`` calls
         are left untouched.
+
+        When ``failed_node_map`` is provided, activities whose base node ID
+        appears in the map are marked FAILED (with the error message) instead
+        of SKIPPED.  This handles nodes like loops that exceed max_iterations:
+        the failure is recorded in the workflow state but may not have a
+        corresponding Temporal activity event, so the prior DB sync could
+        miss them.
         """
         now = datetime.now(UTC)
         finalized_count = 0
         for activity in execution.activities or []:
             if activity.status not in TERMINAL_ACTIVITY_STATUSES:
-                activity.status = ActivityStatus.SKIPPED
+                base_name = activity.activity_name.split(_COMPOSITE_ITER_SEP)[0]
+                error_msg = failed_node_map.get(base_name) if failed_node_map else None
+                if error_msg is not None:
+                    activity.status = ActivityStatus.FAILED
+                    activity.error_details = error_msg
+                else:
+                    activity.status = ActivityStatus.SKIPPED
                 activity.completed_at = now
                 activity.updated_at = now
                 finalized_count += 1
         if finalized_count:
             logger.info(
-                "Finalized non-terminal activities as skipped",
+                "Finalized non-terminal activities",
                 execution_id=execution_id,
                 count=finalized_count,
             )
@@ -1311,12 +1418,17 @@ class ActivitySyncService:
         self,
         metadata: ExecutionMonitorMetadata,
         event: HistoryEvent,
+        failed_node_map: dict[str, str] | None = None,
     ) -> None:
         """Update execution status to terminal state when workflow completes.
 
         Args:
             metadata: Monitoring metadata containing execution and related data
             event: Temporal workflow completion event
+            failed_node_map: Map of node ID to error message from ``_sync_failed_nodes``.
+                Used as a fallback by ``_finalize_non_terminal_activities`` to mark
+                nodes as FAILED rather than SKIPPED when the prior DB sync didn't
+                persist in time for the fresh session to see it.
 
         """
         async with self.session_factory() as session:
@@ -1379,7 +1491,7 @@ class ActivitySyncService:
                 # Safety net: mid-workflow sync (via _sync_skipped_nodes on converge/condition
                 # completion) handles the fast path. This catches anything still non-terminal
                 # if those earlier syncs missed it (e.g. query failure, race).
-                self._finalize_non_terminal_activities(execution, metadata.execution_id)
+                self._finalize_non_terminal_activities(execution, metadata.execution_id, failed_node_map)
 
                 await session.commit()
 
@@ -1476,6 +1588,8 @@ class ActivitySyncService:
                     "completed_at": activity.completed_at,
                     "error_details": activity.error_details,
                     "retry_count": activity.retry_count,
+                    "output_data": activity.output_data,
+                    "iteration": activity.iteration,
                 }
                 if activity.status == ActivityStatus.PENDING:
                     activity.status = ActivityStatus.SKIPPED
@@ -1694,6 +1808,8 @@ class ActivitySyncService:
         activity_data: dict[str, Any],
         input_data: dict[str, Any] | None,
         output_data: dict[str, Any] | None,
+        *,
+        is_loop_control: bool = False,
     ) -> dict[str, Any]:
         """Update an ActivityExecution record with new data from Temporal events.
 
@@ -1704,6 +1820,7 @@ class ActivitySyncService:
             activity_data: Activity update data from Temporal events
             input_data: Scrubbed input data
             output_data: Scrubbed output data
+            is_loop_control: Whether this is a loop control node
 
         Returns:
             Dictionary of old field values before the update
@@ -1716,15 +1833,18 @@ class ActivitySyncService:
             "error_details": existing.error_details,
             "retry_count": existing.retry_count,
             "output_data": existing.output_data,
+            "iteration": existing.iteration,
         }
 
         existing.status = activity_data["status"]
-        existing.started_at = activity_data["started_at"]
+        existing.started_at = activity_data["started_at"] or (existing.started_at if is_loop_control else None)
         existing.completed_at = activity_data["completed_at"]
         existing.input_data = input_data or {}
         existing.output_data = output_data
         existing.error_details = activity_data["error_details"]
         existing.retry_count = activity_data["retry_count"]
+        if activity_data.get("iteration") is not None and not is_loop_control:
+            existing.iteration = activity_data["iteration"]
         existing.updated_at = datetime.now(UTC)
 
         return old_values
@@ -1732,7 +1852,7 @@ class ActivitySyncService:
     @staticmethod
     def _collect_terminal_activities(
         metadata: ExecutionMonitorMetadata,
-    ) -> tuple[list[int], list[tuple[str, dict[str, Any]]]]:
+    ) -> tuple[list[int], list[tuple[str, dict[str, Any]]], dict[int, dict[str, Any]]]:
         """Collect terminal activity info and remove them from pending updates.
 
         Identifies activities that have reached a terminal status, collects
@@ -1743,11 +1863,13 @@ class ActivitySyncService:
             metadata: Monitoring metadata containing pending activity updates
 
         Returns:
-            Tuple of (terminal_scheduled_ids, timed_out_activities) where
-            timed_out_activities is a list of (activity_id, timeout_info) tuples.
+            Tuple of (terminal_scheduled_ids, timed_out_activities, removed_entries)
+            where timed_out_activities is a list of (activity_id, timeout_info) tuples
+            and removed_entries maps event_id to the data dict for rollback restoration.
 
         """
         timed_out_activities: list[tuple[str, dict[str, Any]]] = []
+        removed_entries: dict[int, dict[str, Any]] = {}
         terminal_scheduled_ids = [
             scheduled_id
             for scheduled_id, data in metadata.pending_activity_updates.items()
@@ -1759,6 +1881,7 @@ class ActivitySyncService:
             timeout_info = data.get("_timeout_info")
             if timeout_info:
                 timed_out_activities.append((data["activity_id"], timeout_info))
+            removed_entries[scheduled_id] = data
             del metadata.pending_activity_updates[scheduled_id]
 
         # Clean up loop control entries whose status was overridden from terminal
@@ -1774,9 +1897,10 @@ class ActivitySyncService:
             if data.get("_is_loop_control") and data.get("_status_overridden")
         ]
         for sid in stale_loop_ids:
+            removed_entries[sid] = metadata.pending_activity_updates[sid]
             del metadata.pending_activity_updates[sid]
 
-        return terminal_scheduled_ids, timed_out_activities
+        return terminal_scheduled_ids, timed_out_activities, removed_entries
 
     def _emit_post_commit_telemetry(
         self,
@@ -1845,19 +1969,24 @@ class ActivitySyncService:
         handle: WorkflowHandle[Any, Any],
         activity_data: dict[str, Any],
         existing_activities: dict[str, ActivityExecution],
-    ) -> tuple[ActivityExecution, dict[str, Any]] | None:
+        session: Any,  # noqa: ANN401
+    ) -> tuple[ActivityExecution, dict[str, Any], bool] | None:
         """Process a single activity update for database sync.
 
         Validates the activity, queries input/output data, and updates the record.
+        For loop body children on subsequent iterations, creates a new per-iteration
+        ActivityExecution record instead of overwriting the existing one.
 
         Args:
             metadata: Monitoring metadata
             handle: Temporal workflow handle for queries
             activity_data: Activity update data from Temporal events
             existing_activities: Map of activity_name to existing ActivityExecution records
+            session: Database session for creating new records
 
         Returns:
-            Tuple of (activity, old_values) if updated, None if skipped
+            Tuple of (activity, old_values, is_new) if updated, None if skipped.
+            is_new is True when a new per-iteration record was created.
 
         """
         activity_id = activity_data["activity_id"]
@@ -1866,12 +1995,21 @@ class ActivitySyncService:
         if activity_id.startswith("__internal__"):
             return None
 
-        # Find existing activity by activity_name
+        # Classify loop flags once — used by multiple guards below
+        is_loop_control = bool(activity_data.get("_is_loop_control"))
+        is_body_iteration = bool(activity_data.get("_is_loop_iteration")) and not is_loop_control
+        is_new = False
+
         existing = existing_activities.get(activity_id)
 
+        # For body children whose original record already reached terminal status,
+        # create a separate per-iteration record instead of overwriting
+        if is_body_iteration and existing and existing.status in TERMINAL_ACTIVITY_STATUSES:
+            existing, is_new = self._get_or_create_iteration_record(activity_id, existing_activities, metadata, session)
+            if existing is None:
+                return None
+
         if not existing:
-            # This shouldn't happen since we created all activities upfront
-            # Log a warning but don't fail
             logger.warning(
                 "Activity not found in database for execution (should have been created upfront)",
                 activity_id=activity_id,
@@ -1882,9 +2020,11 @@ class ActivitySyncService:
         # Don't regress terminal statuses — once skipped/completed/failed/cancelled,
         # later event processing (e.g. ACTIVITY_TASK_CANCELED after _sync_skipped_nodes)
         # must not overwrite. Check before querying to avoid wasted RPCs.
-        # Exception: loop iterations (_iter_N) reuse the same activity record across
-        # iterations, so each new iteration must be allowed to update the record.
-        if existing.status in TERMINAL_ACTIVITY_STATUSES and not activity_data.get("_is_loop_iteration"):
+        # Exception: loop control nodes in COMPLETED status — the next iteration
+        # re-schedules the same activity, so we must allow the update through.
+        # Genuinely FAILED/CANCELLED loop control nodes must stay in that state.
+        loop_control_iterating = is_loop_control and existing.status == ActivityStatus.COMPLETED
+        if existing.status in TERMINAL_ACTIVITY_STATUSES and not loop_control_iterating and not is_new:
             return None
 
         # Query workflow for input/output data.
@@ -1898,21 +2038,113 @@ class ActivitySyncService:
         # Loop control nodes: keep the node "running" between iterations so the UI
         # doesn't flash completed→pending on every cycle.  The final iteration
         # populates iteration_results, so we only override intermediate ones.
-        # Body nodes (_is_loop_control=False) keep their real status per iteration.
+        # Body nodes (is_loop_control=False) keep their real status per iteration.
+        # Only override COMPLETED — real failures must propagate to the UI.
         if (
-            activity_data.get("_is_loop_control")
-            and activity_data.get("status") in TERMINAL_ACTIVITY_STATUSES
+            is_loop_control
+            and activity_data.get("status") == ActivityStatus.COMPLETED
             and isinstance(output_data, dict)
             and output_data.get("iteration_results") is None
         ):
             activity_data["status"] = ActivityStatus.RUNNING
+            activity_data["completed_at"] = None
             activity_data["_status_overridden"] = True
+
+        # For per-iteration records, set the iteration number in activity_data
+        if is_new and existing.iteration is not None:
+            activity_data["iteration"] = existing.iteration
 
         # Update existing activity and track old values for patch generation
         old_values = self._update_activity_record(
-            existing, activity_data, self._scrub_data(input_data), self._scrub_data(output_data)
+            existing,
+            activity_data,
+            self._scrub_data(input_data),
+            self._scrub_data(output_data),
+            is_loop_control=is_loop_control,
         )
-        return existing, old_values
+        return existing, old_values, is_new
+
+    @staticmethod
+    def _get_or_create_iteration_record(
+        activity_id: str,
+        existing_activities: dict[str, ActivityExecution],
+        metadata: ExecutionMonitorMetadata,
+        session: Any,  # noqa: ANN401
+    ) -> tuple[ActivityExecution | None, bool]:
+        """Get or create a per-iteration ActivityExecution record for a loop body child.
+
+        On subsequent loop iterations, body children are re-scheduled with the same
+        activity_id. Instead of overwriting the previous iteration's record, this creates
+        a new record with a composite key: ``{activity_id}#iter-{N}``.
+
+        Args:
+            activity_id: Base activity/node ID
+            existing_activities: Map of activity_name to existing records (mutated on create)
+            metadata: Monitoring metadata (activity_index_map is mutated on create)
+            session: Database session for adding new records
+
+        Returns:
+            Tuple of (activity_record, is_new). is_new is True when a new record was created.
+
+        """
+        original = existing_activities.get(activity_id)
+        if not original:
+            logger.warning(
+                "Original activity not found for loop body iteration",
+                activity_id=activity_id,
+                execution_id=metadata.execution_id,
+            )
+            return None, False
+
+        # Use the per-base-id counter to find the latest iteration record.
+        # Within a single iteration the activity transitions through multiple
+        # states (PENDING → RUNNING → COMPLETED); only the first transition
+        # should create a new record — subsequent transitions update it.
+        latest_num = metadata.iteration_counters.get(activity_id, 0)
+        if latest_num > 0:
+            latest_key = f"{activity_id}{_COMPOSITE_ITER_SEP}{latest_num}"
+            latest = existing_activities.get(latest_key)
+            if latest is not None and latest.status not in TERMINAL_ACTIVITY_STATUSES:
+                return latest, False
+
+        iteration_num = latest_num + 1
+
+        # Set iteration=0 on the original record if not already set
+        if original.iteration is None:
+            original.iteration = 0
+
+        composite_key = f"{activity_id}{_COMPOSITE_ITER_SEP}{iteration_num}"
+
+        new_activity = ActivityExecution(
+            execution_id=metadata.execution_id,
+            activity_name=composite_key,
+            node_type=original.node_type,
+            temporal_activity_id=composite_key,
+            status=ActivityStatus.PENDING,
+            started_at=None,
+            completed_at=None,
+            input_data={},
+            output_data=None,
+            error_details=None,
+            retry_count=0,
+            iteration=iteration_num,
+        )
+        session.add(new_activity)
+        existing_activities[composite_key] = new_activity
+
+        metadata.iteration_counters[activity_id] = iteration_num
+        metadata.activity_index_map[composite_key] = metadata.next_activity_index
+        metadata.next_activity_index += 1
+
+        logger.debug(
+            "Created per-iteration ActivityExecution record",
+            activity_id=activity_id,
+            composite_key=composite_key,
+            iteration=iteration_num,
+            execution_id=metadata.execution_id,
+        )
+
+        return new_activity, True
 
     async def _update_execution_flags(
         self,
@@ -1947,6 +2179,7 @@ class ActivitySyncService:
         new_execution_status: ExecutionStatus | None,
         approval_pending_changed: bool | None,
         execution: Execution | None,
+        new_iteration_activities: list[ActivityExecution] | None = None,
     ) -> None:
         """Publish activity and execution patches after DB commit and emit telemetry.
 
@@ -1957,11 +2190,14 @@ class ActivitySyncService:
             new_execution_status: New execution status if it changed
             approval_pending_changed: New approval_pending value if it changed
             execution: Execution record (for approval_pending patch)
+            new_iteration_activities: Newly created per-iteration records needing "add" ops
 
         """
         # Publish activity patches after commit
-        if updated_activities:
-            await self._publish_activity_patches(metadata, updated_activities)
+        if updated_activities or new_iteration_activities:
+            await self._publish_activity_patches(
+                metadata, updated_activities, new_iteration_activities=new_iteration_activities or []
+            )
 
         # Coalesce execution-level patches into a single message to avoid intermediate render states
         execution_patches: list[JsonPatchOperation] = []
@@ -2008,6 +2244,14 @@ class ActivitySyncService:
 
                 # Track which activities were updated for patch generation
                 updated_activities: list[tuple[ActivityExecution, dict[str, Any]]] = []
+                new_iteration_activities: list[ActivityExecution] = []
+                removed_entries: dict[int, dict[str, Any]] = {}
+
+                # Snapshot mutable counters for rollback restoration
+                saved_iteration_counters = dict(metadata.iteration_counters)
+                saved_next_activity_index = metadata.next_activity_index
+                saved_activity_index_map = dict(metadata.activity_index_map)
+                saved_terminal_activity_ids = set(metadata.terminal_activity_ids)
 
                 # Update activities from events (only those marked for sync)
                 for scheduled_event_id in metadata.pending_sync_event_ids:
@@ -2016,14 +2260,19 @@ class ActivitySyncService:
                         continue
 
                     update_result = await self._process_single_activity_sync(
-                        metadata, handle, activity_data, existing_activities
+                        metadata, handle, activity_data, existing_activities, session
                     )
                     if update_result is not None:
-                        updated_activities.append(update_result)
+                        activity, old_values, is_new = update_result
+                        updated_activities.append((activity, old_values))
+                        if is_new:
+                            new_iteration_activities.append(activity)
 
                 # Clear terminal activities from pending to avoid re-processing.
                 # Collect timeout info before clearing, for post-commit emission.
-                _terminal_scheduled_ids, timed_out_activities = self._collect_terminal_activities(metadata)
+                _terminal_scheduled_ids, timed_out_activities, removed_entries = self._collect_terminal_activities(
+                    metadata
+                )
 
                 # Update execution's last processed event ID
                 result = await session.exec(select(Execution).where(Execution.id == metadata.execution_id))
@@ -2048,10 +2297,16 @@ class ActivitySyncService:
                     new_execution_status=new_execution_status,
                     approval_pending_changed=approval_pending_changed,
                     execution=execution,
+                    new_iteration_activities=new_iteration_activities,
                 )
 
             except Exception:
                 await session.rollback()
+                metadata.pending_activity_updates.update(removed_entries)
+                metadata.iteration_counters = saved_iteration_counters
+                metadata.next_activity_index = saved_next_activity_index
+                metadata.activity_index_map = saved_activity_index_map
+                metadata.terminal_activity_ids = saved_terminal_activity_ids
                 logger.exception(
                     "Error syncing activities to database for execution", execution_id=metadata.execution_id
                 )
@@ -2197,13 +2452,18 @@ class ActivitySyncService:
         self,
         metadata: ExecutionMonitorMetadata,
         handle: WorkflowHandle[Any, Any],
-    ) -> None:
-        """Query workflow for failed nodes and update PENDING ones in database.
+    ) -> dict[str, str] | None:
+        """Query workflow for failed nodes and update them in database.
 
         Nodes that fail before a Temporal activity is scheduled (e.g., expression
         resolution errors) have no Temporal events, so their ActivityExecution
         records remain PENDING. Nodes that already have a non-PENDING status
         (synced via Temporal events) are left untouched.
+
+        Returns:
+            Map of node ID to error message for failed nodes, or ``None`` when
+            the query fails (distinguishes "no failures" from "query error").
+
         """
         try:
             failed_node_map: dict[str, str] = await handle.query("get_failed_nodes")
@@ -2218,6 +2478,9 @@ class ActivitySyncService:
                 "Error syncing failed nodes (activities may remain PENDING)",
                 execution_id=metadata.execution_id,
             )
+            return None
+        else:
+            return failed_node_map
 
     async def _sync_nodes_to_terminal_status(
         self,
@@ -2229,8 +2492,8 @@ class ActivitySyncService:
         """Update ActivityExecution records to a terminal status and publish patches.
 
         Fetches all activities matching node_ids, then skips any that are already
-        in target_status. This keeps the SQL query simple and the skip logic
-        uniform regardless of the target status.
+        in a terminal status. This prevents overwriting one terminal state with
+        another (e.g. a COMPLETED activity should not be changed to SKIPPED).
 
         Args:
             metadata: Monitoring metadata containing execution and activity index map
@@ -2251,10 +2514,15 @@ class ActivitySyncService:
         )
 
         async with self.session_factory() as session:
+            # Match base activity names and any per-iteration composite keys (#iter-N)
+            name_conditions = [
+                ActivityExecution.activity_name.in_(node_ids),  # type: ignore[attr-defined]
+                *[ActivityExecution.activity_name.startswith(f"{nid}{_COMPOSITE_ITER_SEP}") for nid in node_ids],
+            ]
             result = await session.exec(
                 select(ActivityExecution).where(
                     ActivityExecution.execution_id == execution_id,
-                    ActivityExecution.activity_name.in_(node_ids),  # type: ignore[attr-defined]
+                    or_(*name_conditions),
                 )
             )
             activities = result.all()
@@ -2265,18 +2533,21 @@ class ActivitySyncService:
             updated_activities: list[tuple[ActivityExecution, dict[str, Any]]] = []
             now = datetime.now(UTC)
             for activity in activities:
-                if activity.status == target_status:
+                if activity.status in TERMINAL_ACTIVITY_STATUSES:
                     continue
                 old_values = {
                     "status": activity.status,
                     "started_at": activity.started_at,
                     "completed_at": activity.completed_at,
                     "error_details": activity.error_details,
+                    "output_data": activity.output_data,
+                    "iteration": activity.iteration,
                 }
                 activity.status = target_status
                 activity.completed_at = now
                 if error_map is not None:
-                    activity.error_details = error_map.get(activity.activity_name)
+                    base_name = activity.activity_name.split(_COMPOSITE_ITER_SEP)[0]
+                    activity.error_details = error_map.get(base_name)
                 activity.updated_at = now
                 updated_activities.append((activity, old_values))
 
@@ -2382,28 +2653,99 @@ class ActivitySyncService:
                 logger.exception("Error creating activities upfront for execution", execution_id=execution_id)
                 raise
 
+    @staticmethod
+    def _build_field_patch_ops(
+        activity: ActivityExecution,
+        old_values: dict[str, Any],
+        activity_idx: int,
+    ) -> list[dict[str, Any]]:
+        """Build JSON Patch "replace" ops for changed fields on a single activity."""
+        ops: list[dict[str, Any]] = []
+        fields_to_check = [
+            ("status", activity.status.value if activity.status else None),
+            ("started_at", activity.started_at.isoformat() if activity.started_at else None),
+            ("completed_at", activity.completed_at.isoformat() if activity.completed_at else None),
+            ("error_details", activity.error_details),
+            ("output_data", activity.output_data),
+            ("iteration", activity.iteration),
+        ]
+
+        for field_name, new_value in fields_to_check:
+            old_value = old_values.get(field_name)
+            if field_name == "status" and old_value is not None:
+                old_value = old_value.value
+            elif field_name in ("started_at", "completed_at") and old_value is not None:
+                old_value = old_value.isoformat()
+            if old_value != new_value:
+                ops.append({"op": "replace", "path": f"/activities/{activity_idx}/{field_name}", "value": new_value})
+
+        return ops
+
+    @staticmethod
+    def _build_iteration_patch_ops(
+        new_iteration_activities: list[ActivityExecution],
+        activity_index_map: dict[str, int],
+    ) -> list[dict[str, Any]]:
+        """Build JSON Patch ops for newly created per-iteration activity records.
+
+        Generates "add" ops to append new records to the activities array, plus
+        "replace" ops to set ``iteration=0`` on original records.
+
+        """
+        ops: list[dict[str, Any]] = []
+        patched_originals: set[str] = set()
+
+        for activity in new_iteration_activities:
+            data = ActivityData(
+                activity_id=activity.activity_name,
+                status=activity.status.value if activity.status else "pending",
+                started_at=activity.started_at,
+                completed_at=activity.completed_at,
+                error_details=activity.error_details,
+                output_data=activity.output_data,
+                iteration=activity.iteration,
+            )
+            ops.append({"op": "add", "path": "/activities/-", "value": data.model_dump(mode="json")})
+
+            base_id = activity.activity_name.split(_COMPOSITE_ITER_SEP)[0]
+            if base_id not in patched_originals:
+                original_idx = activity_index_map.get(base_id)
+                if original_idx is not None:
+                    ops.append({"op": "replace", "path": f"/activities/{original_idx}/iteration", "value": 0})
+                    patched_originals.add(base_id)
+
+        return ops
+
     async def _publish_activity_patches(
         self,
         metadata: ExecutionMonitorMetadata,
         updated_activities: list[tuple[ActivityExecution, dict[str, Any]]],
+        *,
+        new_iteration_activities: list[ActivityExecution] | None = None,
     ) -> None:
         """Publish activity patches for incremental updates.
 
         Creates JSON Patch operations manually without costly DB reads by directly
-        constructing patch operations for each changed field.
+        constructing patch operations for each changed field. For newly created
+        per-iteration records, publishes "add" ops to append to the activities array.
 
         Args:
             metadata: Monitoring metadata containing execution and activity index map
             updated_activities: List of (activity, old_values) tuples for activities that were updated
+            new_iteration_activities: Newly created per-iteration records needing "add" ops
 
         """
         execution_id = metadata.execution_id
+        new_activity_names = {a.activity_name for a in (new_iteration_activities or [])}
         try:
             # Create patch operations for each updated activity
             patch_ops: list[dict[str, Any]] = []
 
             for activity, old_values in updated_activities:
-                # Find the index of this activity in the activities list
+                # New per-iteration records get "add" ops (appended below), not "replace"
+                if activity.activity_name in new_activity_names:
+                    continue
+
                 activity_idx = metadata.activity_index_map.get(activity.activity_name)
                 if activity_idx is None:
                     logger.warning(
@@ -2413,34 +2755,11 @@ class ActivitySyncService:
                     )
                     continue
 
-                # Create patch operations for each changed field
-                # Only include fields that are part of ActivityData schema
-                fields_to_check = [
-                    ("status", activity.status.value if activity.status else None),
-                    ("started_at", activity.started_at.isoformat() if activity.started_at else None),
-                    ("completed_at", activity.completed_at.isoformat() if activity.completed_at else None),
-                    ("error_details", activity.error_details),
-                    ("output_data", activity.output_data),
-                ]
+                patch_ops.extend(self._build_field_patch_ops(activity, old_values, activity_idx))
 
-                for field_name, new_value in fields_to_check:
-                    old_value = old_values.get(field_name)
-
-                    # Convert old value to comparable format
-                    if field_name == "status" and old_value is not None:
-                        old_value = old_value.value
-                    elif field_name in ("started_at", "completed_at") and old_value is not None:
-                        old_value = old_value.isoformat()
-
-                    # Only create patch if value actually changed
-                    if old_value != new_value:
-                        patch_ops.append(
-                            {
-                                "op": "replace",
-                                "path": f"/activities/{activity_idx}/{field_name}",
-                                "value": new_value,
-                            }
-                        )
+            # Append "add" ops for new per-iteration records and iteration=0 patches for originals
+            if new_iteration_activities:
+                patch_ops.extend(self._build_iteration_patch_ops(new_iteration_activities, metadata.activity_index_map))
 
             # Publish patches if there are any operations
             if patch_ops:
@@ -2453,6 +2772,7 @@ class ActivitySyncService:
                     operation_count=len(patch_ops),
                     execution_id=execution_id,
                     updated_activity_count=len(updated_activities),
+                    new_iteration_count=len(new_iteration_activities or []),
                 )
 
         except Exception:

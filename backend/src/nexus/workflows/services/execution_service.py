@@ -138,6 +138,7 @@ class ExecutionsConvertResourceMixin(ConvertResourceMixin):
                         output_data=activity.output_data,
                         started_at=activity.started_at,
                         completed_at=activity.completed_at,
+                        iteration=activity.iteration,
                     )
                     for activity in resource.activities
                 ]

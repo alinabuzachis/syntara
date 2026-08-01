@@ -369,6 +369,76 @@ describe('ExecutionStateEnricher', () => {
       expect(result.__executionState).toBeUndefined()
     })
 
+    it('preserves failed status for loop node when body has back-edges', () => {
+      const activity: Activity = {
+        id: 'loop-1',
+        name: 'Loop',
+        type: 'loop',
+        parameters: { type: 'for_each', items: '[1,2,3]' },
+      }
+      const edges: EdgeConnection[] = [
+        { id: '1', source: 'loop-1', target: 'body-1', sourceHandle: 'loop', targetHandle: 'target' },
+        { id: '2', source: 'body-1', target: 'body-2', sourceHandle: 'source', targetHandle: 'target' },
+        { id: '3', source: 'body-2', target: 'loop-1', sourceHandle: 'source', targetHandle: 'end' },
+        { id: '4', source: 'loop-1', target: 'task-after', sourceHandle: 'done', targetHandle: 'target' },
+      ]
+      const activityStates = new Map<string, ActivityState>([
+        [
+          'loop-1',
+          {
+            activityId: 'loop-1',
+            status: 'failed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:05:00Z',
+            errorDetails: 'max_iterations exceeded',
+          },
+        ],
+        [
+          'body-1',
+          {
+            activityId: 'body-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:01Z',
+            completedAt: '2024-01-01T00:00:02Z',
+          },
+        ],
+        [
+          'body-1#iter-1',
+          {
+            activityId: 'body-1#iter-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:01:00Z',
+            completedAt: '2024-01-01T00:01:01Z',
+            iteration: 1,
+          },
+        ],
+        [
+          'body-2',
+          {
+            activityId: 'body-2',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:02Z',
+            completedAt: '2024-01-01T00:00:03Z',
+          },
+        ],
+        [
+          'body-2#iter-1',
+          {
+            activityId: 'body-2#iter-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:01:01Z',
+            completedAt: '2024-01-01T00:01:02Z',
+            iteration: 1,
+          },
+        ],
+      ])
+
+      const result = enricher.enrichActivity(activity, 'failed', activityStates, edges)
+
+      expect(result.__executionState?.status).toBe('failed')
+      expect(result.__executionState?.error_details).toBe('max_iterations exceeded')
+    })
+
     it('does not set pending state for regular task nodes', () => {
       const activity: Activity = {
         id: 'task-1',
@@ -535,7 +605,7 @@ describe('ExecutionStateEnricher', () => {
         ['task-1', { activityId: 'task-1', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
       ])
 
-      const result = enricher.determineEdgeStatus(edge, activityStates)
+      const result = enricher.determineEdgeStatus(edge, activityStates, undefined, undefined, [])
 
       expect(result).toBe('pending')
     })
@@ -555,7 +625,7 @@ describe('ExecutionStateEnricher', () => {
         ['task-2', { activityId: 'task-2', status: 'running', startedAt: '2024-01-01T00:01:00Z', completedAt: null }],
       ])
 
-      const result = enricher.determineEdgeStatus(edge, activityStates)
+      const result = enricher.determineEdgeStatus(edge, activityStates, undefined, undefined, [])
 
       expect(result).toBe('passed')
     })
@@ -575,7 +645,7 @@ describe('ExecutionStateEnricher', () => {
         ['task-2', { activityId: 'task-2', status: 'skipped', startedAt: null, completedAt: null }],
       ])
 
-      const result = enricher.determineEdgeStatus(edge, activityStates)
+      const result = enricher.determineEdgeStatus(edge, activityStates, undefined, undefined, [])
 
       expect(result).toBe('pending')
     })
@@ -586,7 +656,7 @@ describe('ExecutionStateEnricher', () => {
         ['task-1', { activityId: 'task-1', status: 'pending', startedAt: null, completedAt: null }],
       ])
 
-      const result = enricher.determineEdgeStatus(edge, activityStates)
+      const result = enricher.determineEdgeStatus(edge, activityStates, undefined, undefined, [])
 
       expect(result).toBe('pending')
     })
@@ -595,7 +665,7 @@ describe('ExecutionStateEnricher', () => {
       const edge = { source: 'task-1', target: 'task-2' }
       const activityStates = new Map<string, ActivityState>()
 
-      const result = enricher.determineEdgeStatus(edge, activityStates)
+      const result = enricher.determineEdgeStatus(edge, activityStates, undefined, undefined, [])
 
       expect(result).toBe('pending')
     })
@@ -618,7 +688,7 @@ describe('ExecutionStateEnricher', () => {
         ],
       ])
 
-      const result = enricher.determineEdgeStatus(edge, activityStates)
+      const result = enricher.determineEdgeStatus(edge, activityStates, undefined, undefined, [])
 
       expect(result).toBe('passed')
     })
@@ -638,7 +708,7 @@ describe('ExecutionStateEnricher', () => {
         ['task-true', { activityId: 'task-true', status: 'pending', startedAt: null, completedAt: null }],
       ])
 
-      const result = enricher.determineEdgeStatus(edge, activityStates)
+      const result = enricher.determineEdgeStatus(edge, activityStates, undefined, undefined, [])
 
       expect(result).toBe('pending')
     })
@@ -658,7 +728,7 @@ describe('ExecutionStateEnricher', () => {
         ['task-false', { activityId: 'task-false', status: 'skipped', startedAt: null, completedAt: null }],
       ])
 
-      const result = enricher.determineEdgeStatus(edge, activityStates)
+      const result = enricher.determineEdgeStatus(edge, activityStates, undefined, undefined, [])
 
       expect(result).toBe('pending')
     })
@@ -679,7 +749,7 @@ describe('ExecutionStateEnricher', () => {
         ['task-1', { activityId: 'task-1', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
       ])
 
-      const result = enricher.determineEdgeStatus(edge, activityStates, undefined, triggerMap)
+      const result = enricher.determineEdgeStatus(edge, activityStates, undefined, triggerMap, [])
 
       expect(result).toBe('passed')
     })
@@ -690,7 +760,7 @@ describe('ExecutionStateEnricher', () => {
         ['task-1', { activityId: 'task-1', status: 'pending', startedAt: null, completedAt: null }],
       ])
 
-      const result = enricher.determineEdgeStatus(edge, activityStates)
+      const result = enricher.determineEdgeStatus(edge, activityStates, undefined, undefined, [])
 
       expect(result).toBe('pending')
     })
@@ -699,7 +769,7 @@ describe('ExecutionStateEnricher', () => {
       const edge = { source: 'trigger-0', target: 'task-1', sourceHandle: null }
       const activityStates = new Map<string, ActivityState>()
 
-      const result = enricher.determineEdgeStatus(edge, activityStates)
+      const result = enricher.determineEdgeStatus(edge, activityStates, undefined, undefined, [])
 
       expect(result).toBe('pending')
     })
@@ -713,7 +783,7 @@ describe('ExecutionStateEnricher', () => {
         ],
       ])
 
-      const result = enricher.determineEdgeStatus(edge, activityStates)
+      const result = enricher.determineEdgeStatus(edge, activityStates, undefined, undefined, [])
 
       expect(result).toBe('passed')
     })
@@ -724,7 +794,7 @@ describe('ExecutionStateEnricher', () => {
         ['task-after', { activityId: 'task-after', status: 'pending', startedAt: null, completedAt: null }],
       ])
 
-      const result = enricher.determineEdgeStatus(edge, activityStates)
+      const result = enricher.determineEdgeStatus(edge, activityStates, undefined, undefined, [])
 
       expect(result).toBe('pending')
     })
@@ -739,7 +809,7 @@ describe('ExecutionStateEnricher', () => {
       ])
       const activities: Activity[] = []
 
-      const result = enricher.determineEdgeStatus(edge, activityStates, activities)
+      const result = enricher.determineEdgeStatus(edge, activityStates, activities, undefined, [])
 
       expect(result).toBe('passed')
     })

@@ -49,6 +49,7 @@ describe('useEdgeExecutionStatus', () => {
           isInitialized: false,
           currentWorkflow: emptyWorkflow,
           activityStates: defaultActivity,
+          storedEdges: [],
           setEdges,
         })
       )
@@ -64,6 +65,7 @@ describe('useEdgeExecutionStatus', () => {
             isInitialized: false,
             currentWorkflow: emptyWorkflow,
             activityStates: defaultActivity,
+            storedEdges: [],
             setEdges,
           }),
         { initialProps: { status: 'running' as string | null } }
@@ -85,6 +87,7 @@ describe('useEdgeExecutionStatus', () => {
             isInitialized: true,
             currentWorkflow: emptyWorkflow,
             activityStates: defaultActivity,
+            storedEdges: [],
             setEdges,
           }),
         { initialProps: { status: 'running' as string | null } }
@@ -110,6 +113,7 @@ describe('useEdgeExecutionStatus', () => {
             isInitialized: true,
             currentWorkflow: emptyWorkflow,
             activityStates: defaultActivity,
+            storedEdges: [],
             setEdges,
           }),
         { initialProps: { status: 'running' as string | null } }
@@ -132,6 +136,7 @@ describe('useEdgeExecutionStatus', () => {
           isInitialized: true,
           currentWorkflow: emptyWorkflow,
           activityStates: defaultActivity,
+          storedEdges: [],
           setEdges,
         })
       )
@@ -158,6 +163,7 @@ describe('useEdgeExecutionStatus', () => {
           isInitialized: true,
           currentWorkflow: workflow,
           activityStates: defaultActivity,
+          storedEdges: [],
           setEdges,
         })
       )
@@ -173,7 +179,8 @@ describe('useEdgeExecutionStatus', () => {
         new Map([
           ['trigger-display-0', 'real-trigger-1'],
           ['trigger-display-1', 'real-trigger-2'],
-        ])
+        ]),
+        []
       )
     })
   })
@@ -190,6 +197,7 @@ describe('useEdgeExecutionStatus', () => {
           isInitialized: true,
           currentWorkflow: emptyWorkflow,
           activityStates: defaultActivity,
+          storedEdges: [],
           setEdges,
         })
       )
@@ -210,6 +218,7 @@ describe('useEdgeExecutionStatus', () => {
           isInitialized: true,
           currentWorkflow: emptyWorkflow,
           activityStates: defaultActivity,
+          storedEdges: [],
           setEdges,
         })
       )
@@ -232,6 +241,7 @@ describe('useEdgeExecutionStatus', () => {
             isInitialized: true,
             currentWorkflow: emptyWorkflow,
             activityStates: defaultActivity,
+            storedEdges: [],
             setEdges,
           }),
         { initialProps: { status: 'running' as string | null } }
@@ -257,6 +267,7 @@ describe('useEdgeExecutionStatus', () => {
             isInitialized: true,
             currentWorkflow: emptyWorkflow,
             activityStates: defaultActivity,
+            storedEdges: [],
             setEdges,
           }),
         { initialProps: { status: 'running' as string | null } }
@@ -282,6 +293,7 @@ describe('useEdgeExecutionStatus', () => {
             isInitialized: true,
             currentWorkflow: emptyWorkflow,
             activityStates: defaultActivity,
+            storedEdges: [],
             setEdges,
           }),
         { initialProps: { status: 'running' as string | null } }
@@ -308,6 +320,7 @@ describe('useEdgeExecutionStatus', () => {
             isInitialized: true,
             currentWorkflow: emptyWorkflow,
             activityStates: defaultActivity,
+            storedEdges: [],
             setEdges,
           }),
         { initialProps: { status: 'running' as string | null } }
@@ -335,6 +348,7 @@ describe('useEdgeExecutionStatus', () => {
             isInitialized: true,
             currentWorkflow: emptyWorkflow,
             activityStates: defaultActivity,
+            storedEdges: [],
             setEdges,
           }),
         { initialProps: { status: 'completed' as string | null } }

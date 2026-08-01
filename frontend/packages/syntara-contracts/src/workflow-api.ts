@@ -2307,6 +2307,8 @@ export interface components {
       status: string
       /** Error Details */
       error_details?: string | null
+      /** Iteration */
+      iteration?: number | null
       /** Output Data */
       output_data?: {
         [key: string]: unknown

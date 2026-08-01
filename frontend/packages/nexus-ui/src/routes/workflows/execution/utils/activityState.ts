@@ -5,6 +5,7 @@
  * Implements RFC 6902 JSON Patch operations (add, replace, remove).
  */
 
+import { ACTIVITY_STATUS } from '../../../builder/utils/executionState/executionHelpers'
 import type { ActivityStatus, JsonPatchOperation, ActivityState } from '../types'
 
 // ============================================================================
@@ -84,6 +85,9 @@ function applyFieldUpdate(activity: ActivityState, field: string, value: unknown
       break
     case 'output_data':
       updated.outputData = value as Record<string, unknown> | null
+      break
+    case 'iteration':
+      updated.iteration = value as number | null
       break
     default:
       throw new Error(`Unsupported field for activity update: ${field}`)
@@ -174,12 +178,46 @@ function applyRemoveOperation(
   activities.set(resolvedId, { ...existing, errorDetails: null })
 }
 
+/**
+ * Handle "add" op with path "/activities/-" — append a full activity record.
+ * The value is a complete ActivityData object from the backend.
+ */
+function applyAppendOperation(activities: Map<string, ActivityState>, value: unknown): void {
+  if (!value || typeof value !== 'object') {
+    throw new Error(`Operation 'add' at /activities/- requires an activity object as value`)
+  }
+  const data = value as Record<string, unknown>
+  const activityId = data.activity_id
+  if (typeof activityId !== 'string' || !activityId) {
+    throw new Error(`Activity object missing activity_id`)
+  }
+  activities.set(activityId, {
+    activityId,
+    status: typeof data.status === 'string' ? (data.status as ActivityStatus) : ACTIVITY_STATUS.PENDING,
+    errorDetails: typeof data.error_details === 'string' ? data.error_details : null,
+    outputData:
+      data.output_data != null && typeof data.output_data === 'object'
+        ? (data.output_data as Record<string, unknown>)
+        : null,
+    startedAt: typeof data.started_at === 'string' ? data.started_at : null,
+    completedAt: typeof data.completed_at === 'string' ? data.completed_at : null,
+    iteration: typeof data.iteration === 'number' ? data.iteration : null,
+  })
+}
+
 export function applyOperation(
   activities: Map<string, ActivityState>,
   operation: JsonPatchOperation,
   activityArray?: ActivityState[]
 ): void {
   const { op, path, value } = operation
+
+  // Handle append-to-array: "add" with path "/activities/-"
+  if (op === 'add' && path === '/activities/-') {
+    applyAppendOperation(activities, value)
+    return
+  }
+
   const { activityId, field, arrayIndex } = parseActivityPath(path)
   const resolvedId = resolveActivityId(activityId, arrayIndex, activityArray)
   const existing = activities.get(resolvedId)
@@ -287,6 +325,7 @@ export function buildActivityStateMap(
     output_data?: Record<string, unknown> | null
     started_at?: string | null
     completed_at?: string | null
+    iteration?: number | null
   }>
 ): Map<string, ActivityState> {
   const map = new Map<string, ActivityState>()
@@ -299,10 +338,162 @@ export function buildActivityStateMap(
       outputData: activity.output_data,
       startedAt: activity.started_at,
       completedAt: activity.completed_at,
+      iteration: activity.iteration,
     })
   }
 
   return map
+}
+
+/**
+ * Parse a composite activity key into base node ID and iteration number.
+ *
+ * Composite keys use the format ``{nodeId}#iter-{N}`` for per-iteration records.
+ * Non-composite keys return the original ID with ``iteration: undefined``.
+ */
+export function parseCompositeKey(activityId: string): { baseId: string; iteration?: number } {
+  const hashIdx = activityId.indexOf('#iter-')
+  if (hashIdx === -1) return { baseId: activityId }
+  const parsed = Number(activityId.slice(hashIdx + 6))
+  return {
+    baseId: activityId.slice(0, hashIdx),
+    iteration: Number.isFinite(parsed) ? parsed : undefined,
+  }
+}
+
+const TERMINAL_STATUSES: Set<string> = new Set([
+  ACTIVITY_STATUS.COMPLETED,
+  ACTIVITY_STATUS.FAILED,
+  ACTIVITY_STATUS.CANCELLED,
+  ACTIVITY_STATUS.SKIPPED,
+])
+
+function makePendingState(nodeId: string, iteration: number): ActivityState {
+  return {
+    activityId: nodeId,
+    status: ACTIVITY_STATUS.PENDING,
+    startedAt: null,
+    completedAt: null,
+    errorDetails: null,
+    iteration,
+  }
+}
+
+/**
+ * Scan composite keys to find each base ID's highest-iteration record.
+ */
+function collectLatestIterations(activityStates: Map<string, ActivityState>) {
+  const latest = new Map<string, { iteration: number; state: ActivityState }>()
+  for (const [key, state] of activityStates) {
+    const { baseId, iteration } = parseCompositeKey(key)
+    if (iteration === undefined) continue
+    const prev = latest.get(baseId)
+    if (!prev || iteration > prev.iteration) {
+      latest.set(baseId, { iteration, state })
+    }
+  }
+  return latest
+}
+
+function buildNodeToLoopLookup(loopBodyGroups: ReadonlyMap<string, ReadonlySet<string>>): Map<string, string> {
+  const nodeToLoop = new Map<string, string>()
+  for (const [loopId, bodyIds] of loopBodyGroups) {
+    for (const nodeId of bodyIds) {
+      nodeToLoop.set(nodeId, loopId)
+    }
+  }
+  return nodeToLoop
+}
+
+function computeMaxIterations(
+  latest: Map<string, { iteration: number; state: ActivityState }>,
+  nodeToLoop: Map<string, string>
+) {
+  const perLoop = new Map<string, number>()
+  let global = 0
+  for (const [baseId, { iteration }] of latest) {
+    if (iteration > global) global = iteration
+    const loopId = nodeToLoop.get(baseId)
+    if (loopId === undefined) continue
+    const current = perLoop.get(loopId) ?? 0
+    if (iteration > current) perLoop.set(loopId, iteration)
+  }
+  return { perLoop, global }
+}
+
+function getEffectiveMax(
+  loopId: string | undefined,
+  iteration: number,
+  maxIter: { perLoop: Map<string, number>; global: number },
+  hasGroups: boolean
+): number {
+  if (loopId !== undefined) return maxIter.perLoop.get(loopId) ?? 0
+  if (hasGroups) return iteration
+  return maxIter.global
+}
+
+function resetStaleBaseRecords(
+  result: Map<string, ActivityState>,
+  activityStates: Map<string, ActivityState>,
+  loopBodyGroups: ReadonlyMap<string, ReadonlySet<string>>,
+  maxIterPerLoop: Map<string, number>
+): void {
+  for (const [loopId, bodyIds] of loopBodyGroups) {
+    const groupMax = maxIterPerLoop.get(loopId) ?? 0
+    if (groupMax <= 0) continue
+    for (const nodeId of bodyIds) {
+      if (result.has(nodeId)) continue
+      const base = activityStates.get(nodeId)
+      if (base && TERMINAL_STATUSES.has(base.status)) {
+        result.set(nodeId, makePendingState(nodeId, groupMax))
+      }
+    }
+  }
+}
+
+/**
+ * Build a map from base node ID → latest iteration's {@link ActivityState}.
+ *
+ * Used by the canvas enricher so that nodes display the most recent
+ * iteration's lifecycle (pending → running → completed) rather than the
+ * frozen iteration-0 base record.  Only entries with composite keys
+ * (``{nodeId}#iter-{N}``) contribute; activities without iterations are
+ * ignored.
+ *
+ * When a new iteration begins, body nodes are scheduled sequentially — the
+ * first node gets its ``#iter-N`` record before siblings do.  To avoid
+ * showing stale terminal status for siblings that haven't been scheduled yet,
+ * any node whose latest iteration is behind the max iteration across all
+ * body nodes *within the same loop* is returned as PENDING.
+ *
+ * For the first → second iteration transition, body nodes that ran only in
+ * iteration 0 have no composite keys (the backend uses the base record for
+ * iter-0).  Pass ``loopBodyGroups`` so these nodes are also reset to PENDING
+ * when a sibling has advanced to a higher iteration.
+ *
+ * @param loopBodyGroups - Map from loop node ID to the set of body node IDs
+ *   belonging to that loop.  When provided, max iteration is computed
+ *   per-loop so independent loops don't interfere with each other.
+ */
+export function buildLatestIterationMap(
+  activityStates: Map<string, ActivityState>,
+  loopBodyGroups?: ReadonlyMap<string, ReadonlySet<string>>
+): Map<string, ActivityState> {
+  const latest = collectLatestIterations(activityStates)
+  const nodeToLoop = loopBodyGroups ? buildNodeToLoopLookup(loopBodyGroups) : new Map<string, string>()
+  const maxIter = computeMaxIterations(latest, nodeToLoop)
+
+  const result = new Map<string, ActivityState>()
+  for (const [baseId, { iteration, state }] of latest) {
+    const effectiveMax = getEffectiveMax(nodeToLoop.get(baseId), iteration, maxIter, !!loopBodyGroups)
+    result.set(baseId, iteration < effectiveMax ? makePendingState(baseId, effectiveMax) : state)
+  }
+
+  if (loopBodyGroups) {
+    resetStaleBaseRecords(result, activityStates, loopBodyGroups, maxIter.perLoop)
+  }
+
+  return result
 }
 
 /**

@@ -8,6 +8,7 @@ import { Fragment, useMemo } from 'react'
 import { extractAAPJobUrl, isAAPNodeType } from '../../utils/aapJobUrl'
 import { formatExecutionDateTime, formatElapsedTime } from '../../utils/dateUtils'
 import type { ActivityState } from '../workflows/execution/types'
+import { parseCompositeKey } from '../workflows/execution/utils/activityState'
 
 import { ActivityStatusLabel } from './ExecutionStatus'
 import { computeActivityDurationMs } from './sortExecutionActivities'
@@ -168,7 +169,7 @@ export function ExecutionActivityTable({
             now={now}
             executionError={executionError}
             onRowClick={onRowClick}
-            isSelected={id === selectedNodeId}
+            isSelected={parseCompositeKey(id).baseId === selectedNodeId}
             hasAAPColumn={hasAAPColumn}
           />
         ))}

@@ -34,16 +34,21 @@ def create_test_metadata(
     activity_index_map: dict[str, int] | None = None,
     pending_activity_updates: dict[int, dict[str, Any]] | None = None,
     pending_sync_event_ids: set[int] | None = None,
+    iteration_counters: dict[str, int] | None = None,
+    next_activity_index: int | None = None,
 ) -> ExecutionMonitorMetadata:
     """Create ExecutionMonitorMetadata for testing with sensible defaults."""
     updates = pending_activity_updates or {}
+    index_map = activity_index_map or {}
     return ExecutionMonitorMetadata(
         execution_id=execution_id or uuid4(),
         last_processed_event_id=last_processed_event_id,
         activity_definitions_map=activity_definitions_map or {},
-        activity_index_map=activity_index_map or {},
+        activity_index_map=index_map,
+        next_activity_index=next_activity_index if next_activity_index is not None else len(index_map),
         pending_activity_updates=updates,
         pending_sync_event_ids=pending_sync_event_ids if pending_sync_event_ids is not None else set(updates.keys()),
+        iteration_counters=iteration_counters or {},
     )
 
 
@@ -406,6 +411,20 @@ class TestActivityEventProcessing:
         assert update["activity_id"] == "loop-node"
         assert update["_is_loop_iteration"] is True
         assert update["_is_loop_control"] is True
+        assert update["iteration"] == 0
+
+    def test_process_activity_scheduled_extracts_iteration_number(self) -> None:
+        """The iteration number is extracted from the _iter_N suffix."""
+        event = self._create_mock_event(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+            event_id=5,
+            activity_id="loop-node_iter_3",
+        )
+
+        self.service._process_activity_scheduled(event, self.metadata)
+
+        update = self.metadata.pending_activity_updates[5]
+        assert update["iteration"] == 3
 
     def test_process_activity_scheduled_no_loop_flags_for_plain_activity(self) -> None:
         """A plain activity without iter suffix and not in terminal_activity_ids gets no loop flags."""
@@ -421,6 +440,7 @@ class TestActivityEventProcessing:
         assert update["activity_id"] == "action-1"
         assert update["_is_loop_iteration"] is False
         assert update["_is_loop_control"] is False
+        assert update["iteration"] is None
 
     def test_process_activity_scheduled_loop_iteration_for_re_executed_body_node(self) -> None:
         """A body node re-scheduled after terminal is a loop iteration but not a control node."""
@@ -742,6 +762,48 @@ class TestHandleEventPostProcessing:
             )
 
             # Should NOT sync just because event_id is 10
+            mock_sync.assert_not_called()
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_sync_triggered_for_scheduled_loop_iteration(self) -> None:
+        """SCHEDULED events flagged as loop iterations should trigger sync."""
+        event = self._create_mock_event(EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED, event_id=7)
+
+        self.metadata.pending_activity_updates[7] = {
+            "activity_id": "script-1",
+            "status": ActivityStatus.PENDING,
+            "_is_loop_iteration": True,
+        }
+
+        with patch.object(self.service, "_sync_activities_to_db", new_callable=AsyncMock) as mock_sync:
+            result = await self.service._handle_event_post_processing(
+                event,
+                self.metadata,
+                self.mock_handle,
+            )
+
+            mock_sync.assert_called_once_with(self.metadata, self.mock_handle)
+            assert self.metadata.last_processed_event_id == 7
+            assert result == 7
+
+    @pytest.mark.asyncio
+    async def test_sync_not_triggered_for_scheduled_non_loop_iteration(self) -> None:
+        """SCHEDULED events without _is_loop_iteration flag should not trigger sync."""
+        event = self._create_mock_event(EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED, event_id=7)
+
+        self.metadata.pending_activity_updates[7] = {
+            "activity_id": "script-1",
+            "status": ActivityStatus.PENDING,
+        }
+
+        with patch.object(self.service, "_sync_activities_to_db", new_callable=AsyncMock) as mock_sync:
+            result = await self.service._handle_event_post_processing(
+                event,
+                self.metadata,
+                self.mock_handle,
+            )
+
             mock_sync.assert_not_called()
             assert result is None
 
@@ -1619,6 +1681,8 @@ class TestLoopIterationSync:
         activity.input_data = {}
         activity.output_data = None
         activity.updated_at = None
+        activity.iteration = None
+        activity.node_type = NodeType.SCRIPT
         return activity
 
     def _mock_session_with_activities(self, activities: list[Mock]) -> Mock:
@@ -1688,10 +1752,10 @@ class TestLoopIterationSync:
         assert activity.status == ActivityStatus.COMPLETED
 
     @pytest.mark.asyncio
-    async def test_terminal_status_allows_loop_iteration_update(self) -> None:
-        """A completed activity with _is_loop_iteration should be updated on re-execution."""
+    async def test_terminal_body_child_creates_per_iteration_record(self) -> None:
+        """A completed body child with _is_loop_iteration creates a new per-iteration record."""
         activity = self._create_mock_activity_execution(activity_name="body-node", status=ActivityStatus.COMPLETED)
-        self._mock_session_with_activities([activity])
+        mock_session = self._mock_session_with_activities([activity])
         handle = self._create_mock_handle(output_data={"result": "iteration-2"})
 
         metadata = create_test_metadata(
@@ -1714,7 +1778,15 @@ class TestLoopIterationSync:
 
         await self.service._sync_activities_to_db(metadata, handle)
 
-        assert activity.status == ActivityStatus.RUNNING
+        # Original record stays COMPLETED and gets iteration=0
+        assert activity.status == ActivityStatus.COMPLETED
+        assert activity.iteration == 0
+
+        # A new record was added to the session
+        mock_session.add.assert_called_once()
+        new_record = mock_session.add.call_args[0][0]
+        assert new_record.activity_name == "body-node#iter-1"
+        assert new_record.iteration == 1
 
     @pytest.mark.asyncio
     async def test_loop_control_node_stays_running_between_iterations(self) -> None:
@@ -1805,6 +1877,48 @@ class TestLoopIterationSync:
 
         assert activity.status == ActivityStatus.COMPLETED
 
+    @pytest.mark.asyncio
+    async def test_commit_failure_restores_all_metadata_fields(self) -> None:
+        """All mutable metadata fields must be restored when commit fails."""
+        activity = self._create_mock_activity_execution(activity_name="body-node", status=ActivityStatus.COMPLETED)
+        mock_session = self._mock_session_with_activities([activity])
+        mock_session.commit = AsyncMock(side_effect=RuntimeError("db error"))
+        handle = self._create_mock_handle(output_data={"result": "done"})
+
+        metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            activity_index_map={"body-node": 0},
+            iteration_counters={"body-node": 1},
+            next_activity_index=1,
+            pending_activity_updates={
+                10: {
+                    "activity_id": "body-node",
+                    "activity_name": "body-node",
+                    "_is_loop_iteration": True,
+                    "_is_loop_control": False,
+                    "status": ActivityStatus.RUNNING,
+                    "started_at": datetime.now(UTC),
+                    "completed_at": None,
+                    "error_details": None,
+                    "retry_count": 0,
+                },
+            },
+        )
+        metadata.terminal_activity_ids.add("previously-done")
+
+        saved_counters = dict(metadata.iteration_counters)
+        saved_index = metadata.next_activity_index
+        saved_map = dict(metadata.activity_index_map)
+        saved_terminal = set(metadata.terminal_activity_ids)
+
+        with pytest.raises(RuntimeError, match="db error"):
+            await self.service._sync_activities_to_db(metadata, handle)
+
+        assert metadata.iteration_counters == saved_counters
+        assert metadata.next_activity_index == saved_index
+        assert metadata.activity_index_map == saved_map
+        assert metadata.terminal_activity_ids == saved_terminal
+
 
 class TestCollectTerminalActivitiesTracking:
     """Test that _collect_terminal_activities populates terminal_activity_ids."""
@@ -1886,6 +2000,141 @@ class TestCollectTerminalActivitiesTracking:
 
         assert 10 in metadata.pending_activity_updates
 
+    def test_removed_entries_returned_for_rollback(self) -> None:
+        """removed_entries should contain both terminal and stale loop control entries."""
+        metadata = create_test_metadata(
+            pending_activity_updates={
+                10: {
+                    "activity_id": "node-a",
+                    "activity_name": "node-a",
+                    "status": ActivityStatus.COMPLETED,
+                },
+                20: {
+                    "activity_id": "loop-ctl",
+                    "activity_name": "loop-ctl",
+                    "_is_loop_control": True,
+                    "_status_overridden": True,
+                    "status": ActivityStatus.RUNNING,
+                },
+                30: {
+                    "activity_id": "node-b",
+                    "activity_name": "node-b",
+                    "status": ActivityStatus.RUNNING,
+                },
+            },
+        )
+
+        _terminal_ids, _timed_out, removed_entries = ActivitySyncService._collect_terminal_activities(metadata)
+
+        assert 10 in removed_entries
+        assert removed_entries[10]["activity_id"] == "node-a"
+        assert 20 in removed_entries
+        assert removed_entries[20]["activity_id"] == "loop-ctl"
+        assert 30 not in removed_entries
+        assert 30 in metadata.pending_activity_updates
+
+
+class TestGetOrCreateIterationRecord:
+    """Test _get_or_create_iteration_record static method."""
+
+    def _create_mock_activity(
+        self,
+        activity_name: str = "body-node",
+        status: ActivityStatus = ActivityStatus.COMPLETED,
+        iteration: int | None = None,
+    ) -> Mock:
+        """Create a mock ActivityExecution for iteration record tests."""
+        activity = Mock(spec=ActivityExecution)
+        activity.activity_name = activity_name
+        activity.status = status
+        activity.iteration = iteration
+        activity.node_type = NodeType.SCRIPT
+        return activity
+
+    def test_returns_none_when_original_not_found(self) -> None:
+        """Returns (None, False) when the original activity is not in existing_activities."""
+        metadata = create_test_metadata(execution_id=uuid4())
+        existing_activities: dict[str, ActivityExecution] = {}
+        session = Mock()
+
+        result, is_new = ActivitySyncService._get_or_create_iteration_record(
+            "missing-node", existing_activities, metadata, session
+        )
+
+        assert result is None
+        assert is_new is False
+        session.add.assert_not_called()
+
+    def test_creates_new_record_when_no_iterations_exist(self) -> None:
+        """Creates a new iteration record when only the original exists."""
+        metadata = create_test_metadata(execution_id=uuid4(), activity_index_map={"body-node": 0})
+        original = self._create_mock_activity()
+        existing_activities: dict[str, ActivityExecution] = {"body-node": original}
+        session = Mock()
+
+        result, is_new = ActivitySyncService._get_or_create_iteration_record(
+            "body-node", existing_activities, metadata, session
+        )
+
+        assert is_new is True
+        assert result is not None
+        assert result.activity_name == "body-node#iter-1"
+        assert result.iteration == 1
+        assert original.iteration == 0
+        session.add.assert_called_once()
+
+    def test_reuses_non_terminal_iteration_record(self) -> None:
+        """Returns existing non-terminal iteration record instead of creating a new one."""
+        metadata = create_test_metadata(
+            execution_id=uuid4(),
+            activity_index_map={"body-node": 0, "body-node#iter-1": 1},
+            iteration_counters={"body-node": 1},
+        )
+        original = self._create_mock_activity(iteration=0)
+        running_iter = self._create_mock_activity(
+            activity_name="body-node#iter-1", status=ActivityStatus.RUNNING, iteration=1
+        )
+        existing_activities: dict[str, ActivityExecution] = {
+            "body-node": original,
+            "body-node#iter-1": running_iter,
+        }
+        session = Mock()
+
+        result, is_new = ActivitySyncService._get_or_create_iteration_record(
+            "body-node", existing_activities, metadata, session
+        )
+
+        assert is_new is False
+        assert result is running_iter
+        session.add.assert_not_called()
+
+    def test_creates_new_record_when_latest_iteration_is_terminal(self) -> None:
+        """Creates a new record when the latest iteration has reached terminal status."""
+        metadata = create_test_metadata(
+            execution_id=uuid4(),
+            activity_index_map={"body-node": 0, "body-node#iter-1": 1},
+            iteration_counters={"body-node": 1},
+        )
+        original = self._create_mock_activity(iteration=0)
+        completed_iter = self._create_mock_activity(
+            activity_name="body-node#iter-1", status=ActivityStatus.COMPLETED, iteration=1
+        )
+        existing_activities: dict[str, ActivityExecution] = {
+            "body-node": original,
+            "body-node#iter-1": completed_iter,
+        }
+        session = Mock()
+
+        result, is_new = ActivitySyncService._get_or_create_iteration_record(
+            "body-node", existing_activities, metadata, session
+        )
+
+        assert is_new is True
+        assert result is not None
+        assert result.activity_name == "body-node#iter-2"
+        assert result.iteration == 2
+        session.add.assert_called_once()
+
 
 class TestExtractFailedActivityErrors:
     """Test _extract_failed_activity_errors static method."""
@@ -1907,6 +2156,63 @@ class TestExtractFailedActivityErrors:
         """Test fallback when no failed_activities key."""
         result = ActivitySyncService._extract_failed_activity_errors({})
         assert result == "One or more workflow activities failed"
+
+
+class TestExtractFailedActivitiesFromEvent:
+    """Test _extract_failed_activities_from_event static method."""
+
+    def setup_method(self) -> None:
+        self.service = ActivitySyncService(
+            temporal_client=AsyncMock(),
+            session_factory=AsyncMock(),
+        )
+
+    def _make_completed_event(self, result_data: dict[str, object]) -> Mock:
+        import json
+
+        event = Mock()
+        event.event_type = EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
+        payload = Mock()
+        payload.data = json.dumps(result_data).encode()
+        event.workflow_execution_completed_event_attributes.result.payloads = [payload]
+        return event
+
+    def test_extracts_failed_activities(self) -> None:
+        event = self._make_completed_event(
+            {
+                "status": "failed",
+                "failed_activities": {"loop-1": "exceeded max_iterations", "loop-2": "exceeded max_iterations"},
+            }
+        )
+        result = self.service._extract_failed_activities_from_event(event)
+        assert result == {"loop-1": "exceeded max_iterations", "loop-2": "exceeded max_iterations"}
+
+    def test_returns_empty_for_non_completed_event(self) -> None:
+        event = Mock()
+        event.event_type = EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED
+        result = self.service._extract_failed_activities_from_event(event)
+        assert result == {}
+
+    def test_returns_empty_when_no_failed_activities(self) -> None:
+        event = self._make_completed_event({"status": "completed", "failed_activities": {}})
+        result = self.service._extract_failed_activities_from_event(event)
+        assert result == {}
+
+    def test_returns_empty_when_no_payloads(self) -> None:
+        event = Mock()
+        event.event_type = EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
+        event.workflow_execution_completed_event_attributes.result.payloads = []
+        result = self.service._extract_failed_activities_from_event(event)
+        assert result == {}
+
+    def test_returns_empty_on_malformed_payload(self) -> None:
+        event = Mock()
+        event.event_type = EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
+        payload = Mock()
+        payload.data = b"not valid json"
+        event.workflow_execution_completed_event_attributes.result.payloads = [payload]
+        result = self.service._extract_failed_activities_from_event(event)
+        assert result == {}
 
 
 class TestSyncNodesToTerminalStatus:
@@ -1983,12 +2289,13 @@ class TestSyncNodesToTerminalStatus:
         handle = AsyncMock()
         handle.query = AsyncMock(return_value={"node-A": "Key 'output' not found in namespace path"})
 
-        await self.service._sync_failed_nodes(metadata, handle)
+        result = await self.service._sync_failed_nodes(metadata, handle)
 
         handle.query.assert_awaited_once_with("get_failed_nodes")
         assert activity.status == ActivityStatus.FAILED
         assert activity.completed_at is not None
         assert activity.error_details == "Key 'output' not found in namespace path"
+        assert result == {"node-A": "Key 'output' not found in namespace path"}
 
     @pytest.mark.asyncio
     async def test_multiple_failed_nodes_all_marked(self) -> None:
@@ -2085,12 +2392,14 @@ class TestSyncNodesToTerminalStatus:
 
     @pytest.mark.asyncio
     async def test_failed_sync_query_error_does_not_propagate(self) -> None:
-        """Errors during failed node sync should be logged, not raised."""
+        """Errors during failed node sync should be logged, not raised, and return None."""
         metadata = self._create_metadata()
         handle = AsyncMock()
         handle.query = AsyncMock(side_effect=RuntimeError("workflow not reachable"))
 
-        await self.service._sync_failed_nodes(metadata, handle)
+        result = await self.service._sync_failed_nodes(metadata, handle)
+
+        assert result is None
 
     # -- _sync_skipped_nodes tests --
 
@@ -2873,8 +3182,9 @@ class TestProcessHistoryEvent:
 
         call_order: list[str] = []
 
-        async def track_failed(*_args: object, **_kwargs: object) -> None:
+        async def track_failed(*_args: object, **_kwargs: object) -> dict[str, str]:
             call_order.append("failed")
+            return {}
 
         async def track_skipped(*_args: object, **_kwargs: object) -> None:
             call_order.append("skipped")
@@ -2901,6 +3211,34 @@ class TestProcessHistoryEvent:
         mock_failed.assert_called_once()
         assert call_order == ["failed", "skipped", "status"]
         assert self.metadata.last_processed_event_id == 20
+
+    @pytest.mark.asyncio
+    async def test_sync_failed_nodes_none_falls_back_to_event_extraction(self) -> None:
+        """When _sync_failed_nodes returns None, _extract_failed_activities_from_event is used."""
+        event = self._create_event(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED, event_id=20)
+        fallback_map = {"node-X": "expression error"}
+
+        with (
+            patch.object(self.service, "_sync_failed_nodes", new_callable=AsyncMock, return_value=None),
+            patch.object(
+                self.service, "_extract_failed_activities_from_event", return_value=fallback_map
+            ) as mock_extract,
+            patch.object(self.service, "_sync_skipped_nodes", new_callable=AsyncMock),
+            patch.object(self.service, "_update_execution_status_from_event", new_callable=AsyncMock) as mock_update,
+        ):
+            result = await self.service._process_history_event(
+                event,
+                self.metadata,
+                self.mock_handle,
+                self.queue,
+                self.probe_tasks,
+            )
+
+        assert result is True
+        mock_extract.assert_called_once_with(event)
+        mock_update.assert_called_once()
+        passed_failed_map = mock_update.call_args[0][2]
+        assert passed_failed_map == fallback_map
 
     @pytest.mark.asyncio
     async def test_processes_activity_events(self) -> None:
@@ -3421,6 +3759,7 @@ class TestFinalizeNonTerminalActivities:
         execution = Mock(spec=Execution)
         pending_activity = Mock()
         pending_activity.status = ActivityStatus.PENDING
+        pending_activity.activity_name = "task-1"
         completed_activity = Mock()
         completed_activity.status = ActivityStatus.COMPLETED
         execution.activities = [pending_activity, completed_activity]
@@ -3435,6 +3774,7 @@ class TestFinalizeNonTerminalActivities:
         execution = Mock(spec=Execution)
         running_activity = Mock()
         running_activity.status = ActivityStatus.RUNNING
+        running_activity.activity_name = "task-1"
         execution.activities = [running_activity]
 
         ActivitySyncService._finalize_non_terminal_activities(execution, uuid4())
@@ -3458,6 +3798,39 @@ class TestFinalizeNonTerminalActivities:
         execution = Mock(spec=Execution)
         execution.activities = None
         ActivitySyncService._finalize_non_terminal_activities(execution, uuid4())
+
+    def test_marks_failed_nodes_as_failed_not_skipped(self) -> None:
+        """Running activities whose node is in failed_node_map should be FAILED."""
+        execution = Mock(spec=Execution)
+        loop_activity = Mock()
+        loop_activity.status = ActivityStatus.RUNNING
+        loop_activity.activity_name = "loop-1"
+        pending_activity = Mock()
+        pending_activity.status = ActivityStatus.PENDING
+        pending_activity.activity_name = "task-2"
+        execution.activities = [loop_activity, pending_activity]
+
+        failed_node_map = {"loop-1": "Loop loop-1 exceeded max_iterations (3)"}
+        ActivitySyncService._finalize_non_terminal_activities(execution, uuid4(), failed_node_map)
+
+        assert loop_activity.status == ActivityStatus.FAILED
+        assert loop_activity.error_details == "Loop loop-1 exceeded max_iterations (3)"
+        assert loop_activity.completed_at is not None
+        assert pending_activity.status == ActivityStatus.SKIPPED
+
+    def test_failed_node_map_matches_iteration_records(self) -> None:
+        """Iteration records whose base ID is in failed_node_map should be FAILED."""
+        execution = Mock(spec=Execution)
+        iter_activity = Mock()
+        iter_activity.status = ActivityStatus.RUNNING
+        iter_activity.activity_name = "loop-1#iter-2"
+        execution.activities = [iter_activity]
+
+        failed_node_map = {"loop-1": "Loop loop-1 exceeded max_iterations (3)"}
+        ActivitySyncService._finalize_non_terminal_activities(execution, uuid4(), failed_node_map)
+
+        assert iter_activity.status == ActivityStatus.FAILED
+        assert iter_activity.error_details == "Loop loop-1 exceeded max_iterations (3)"
 
 
 class TestInitializeMonitoringWorkflowLookup:
@@ -3513,9 +3886,14 @@ class TestInitializeMonitoringWorkflowLookup:
         activity_result = Mock()
         activity_result.all.return_value = []
 
+        # Mock terminal activity IDs query result (for _load_terminal_activity_ids)
+        terminal_result = Mock()
+        terminal_result.all.return_value = []
+
         mock_session = AsyncMock()
         # Order: execution query, workflow query, workflow_version query,
-        # activity creation check query, activity index map query
+        # activity creation check query, activity index map query,
+        # terminal activity IDs query
         mock_session.exec = AsyncMock(
             side_effect=[
                 exec_result,
@@ -3523,6 +3901,7 @@ class TestInitializeMonitoringWorkflowLookup:
                 wf_version_result,
                 Mock(one_or_none=Mock(return_value=None)),
                 activity_result,
+                terminal_result,
             ]
         )
         mock_session.commit = AsyncMock()
@@ -3574,6 +3953,71 @@ class TestInitializeMonitoringWorkflowLookup:
         metadata = await self.service._initialize_monitoring(self.execution_id, request_id=request_id)
 
         assert metadata.request_id == request_id
+
+    @pytest.mark.asyncio
+    async def test_iteration_counters_rebuilt_from_composite_keys(self) -> None:
+        """When activity_index_map contains #iter-N keys, iteration_counters should be rebuilt."""
+        execution = self._create_mock_execution()
+        workflow = self._create_mock_workflow()
+        self._create_mock_session(execution, workflow)
+
+        index_map = {
+            "script-1": 0,
+            "script-1#iter-1": 1,
+            "script-1#iter-2": 2,
+            "script-2": 3,
+            "script-2#iter-1": 4,
+        }
+        terminal_ids = {"script-1", "script-2"}
+
+        with (
+            patch.object(self.service, "_build_activity_index_map", new_callable=AsyncMock, return_value=index_map),
+            patch.object(
+                self.service, "_load_terminal_activity_ids", new_callable=AsyncMock, return_value=terminal_ids
+            ),
+        ):
+            metadata = await self.service._initialize_monitoring(self.execution_id)
+
+        assert metadata.iteration_counters == {"script-1": 2, "script-2": 1}
+        assert metadata.terminal_activity_ids == terminal_ids
+        assert metadata.next_activity_index == len(index_map)
+
+    @pytest.mark.asyncio
+    async def test_iteration_counters_empty_when_no_composite_keys(self) -> None:
+        """When no #iter-N keys exist, iteration_counters should be empty."""
+        execution = self._create_mock_execution()
+        workflow = self._create_mock_workflow()
+        self._create_mock_session(execution, workflow)
+
+        index_map = {"script-1": 0, "script-2": 1, "condition-1": 2}
+
+        with patch.object(self.service, "_build_activity_index_map", new_callable=AsyncMock, return_value=index_map):
+            metadata = await self.service._initialize_monitoring(self.execution_id)
+
+        assert metadata.iteration_counters == {}
+
+    @pytest.mark.asyncio
+    async def test_non_contiguous_iteration_counter_uses_max(self) -> None:
+        """When only #iter-3 exists (gaps), the counter should be set to 3."""
+        execution = self._create_mock_execution()
+        workflow = self._create_mock_workflow()
+        self._create_mock_session(execution, workflow)
+
+        index_map = {
+            "script-1": 0,
+            "script-1#iter-3": 1,
+        }
+        terminal_ids = {"script-1"}
+
+        with (
+            patch.object(self.service, "_build_activity_index_map", new_callable=AsyncMock, return_value=index_map),
+            patch.object(
+                self.service, "_load_terminal_activity_ids", new_callable=AsyncMock, return_value=terminal_ids
+            ),
+        ):
+            metadata = await self.service._initialize_monitoring(self.execution_id)
+
+        assert metadata.iteration_counters == {"script-1": 3}
 
 
 class TestUpdateApprovalPendingFlag:

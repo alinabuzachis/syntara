@@ -10,9 +10,11 @@ import type { ActivityState, JsonPatchOperation } from '../types'
 
 import {
   parseActivityPath,
+  parseCompositeKey,
   applyOperation,
   applyJsonPatch,
   buildActivityStateMap,
+  buildLatestIterationMap,
   extractActivityMaps,
   extractApprovalAudit,
 } from './activityState'
@@ -638,5 +640,296 @@ describe('extractApprovalAudit', () => {
         decided_at: '2026-06-15T08:00:01.000Z',
       })
     ).toBeNull()
+  })
+})
+
+describe('parseCompositeKey', () => {
+  it('returns base ID for non-composite key', () => {
+    expect(parseCompositeKey('action-node')).toEqual({ baseId: 'action-node' })
+  })
+
+  it('returns base ID without iteration for plain node IDs', () => {
+    const result = parseCompositeKey('fetch_data')
+    expect(result.baseId).toBe('fetch_data')
+    expect(result.iteration).toBeUndefined()
+  })
+
+  it('parses composite key with iteration number', () => {
+    expect(parseCompositeKey('body-node#iter-0')).toEqual({ baseId: 'body-node', iteration: 0 })
+  })
+
+  it('parses composite key with higher iteration', () => {
+    expect(parseCompositeKey('body-node#iter-5')).toEqual({ baseId: 'body-node', iteration: 5 })
+  })
+
+  it('handles node IDs containing hyphens', () => {
+    expect(parseCompositeKey('my-complex-node-id#iter-2')).toEqual({
+      baseId: 'my-complex-node-id',
+      iteration: 2,
+    })
+  })
+
+  it('does not split on hash without iter- prefix', () => {
+    expect(parseCompositeKey('node#other')).toEqual({ baseId: 'node#other' })
+  })
+})
+
+describe('applyOperation — append', () => {
+  it('appends a full activity record via /activities/- path', () => {
+    const activities = new Map<string, ActivityState>()
+    const operation: JsonPatchOperation = {
+      op: 'add',
+      path: '/activities/-',
+      value: {
+        activity_id: 'body-node#iter-1',
+        status: 'running',
+        error_details: null,
+        output_data: null,
+        started_at: '2026-07-01T10:00:00Z',
+        completed_at: null,
+        iteration: 1,
+      },
+    }
+
+    applyOperation(activities, operation)
+
+    expect(activities.get('body-node#iter-1')).toEqual({
+      activityId: 'body-node#iter-1',
+      status: 'running',
+      errorDetails: null,
+      outputData: null,
+      startedAt: '2026-07-01T10:00:00Z',
+      completedAt: null,
+      iteration: 1,
+    })
+  })
+
+  it('defaults missing fields to null/pending', () => {
+    const activities = new Map<string, ActivityState>()
+    const operation: JsonPatchOperation = {
+      op: 'add',
+      path: '/activities/-',
+      value: { activity_id: 'minimal-node' },
+    }
+
+    applyOperation(activities, operation)
+
+    const state = activities.get('minimal-node')
+    expect(state?.status).toBe('pending')
+    expect(state?.errorDetails).toBeNull()
+    expect(state?.outputData).toBeNull()
+    expect(state?.startedAt).toBeNull()
+    expect(state?.completedAt).toBeNull()
+    expect(state?.iteration).toBeNull()
+  })
+
+  it('throws when value is not an object', () => {
+    const activities = new Map<string, ActivityState>()
+    const operation: JsonPatchOperation = {
+      op: 'add',
+      path: '/activities/-',
+      value: 'not-an-object',
+    }
+
+    expect(() => applyOperation(activities, operation)).toThrow('requires an activity object')
+  })
+
+  it('throws when value is null', () => {
+    const activities = new Map<string, ActivityState>()
+    const operation: JsonPatchOperation = {
+      op: 'add',
+      path: '/activities/-',
+      value: null,
+    }
+
+    expect(() => applyOperation(activities, operation)).toThrow('requires an activity object')
+  })
+
+  it('throws when activity_id is missing', () => {
+    const activities = new Map<string, ActivityState>()
+    const operation: JsonPatchOperation = {
+      op: 'add',
+      path: '/activities/-',
+      value: { status: 'running' },
+    }
+
+    expect(() => applyOperation(activities, operation)).toThrow('missing activity_id')
+  })
+})
+
+describe('iteration field handling', () => {
+  it('applyOperation replaces iteration field', () => {
+    const activities = new Map<string, ActivityState>([
+      ['loop-body', { activityId: 'loop-body', status: 'running', iteration: 0 }],
+    ])
+    const operation: JsonPatchOperation = {
+      op: 'replace',
+      path: '/activities/loop-body/iteration',
+      value: 2,
+    }
+
+    applyOperation(activities, operation)
+
+    expect(activities.get('loop-body')?.iteration).toBe(2)
+  })
+
+  it('buildActivityStateMap includes iteration field', () => {
+    const apiActivities = [
+      {
+        activity_id: 'body-node#iter-0',
+        status: 'completed' as const,
+        error_details: null,
+        started_at: '2026-07-01T10:00:00Z',
+        completed_at: '2026-07-01T10:00:05Z',
+        iteration: 0,
+      },
+      {
+        activity_id: 'body-node#iter-1',
+        status: 'running' as const,
+        error_details: null,
+        started_at: '2026-07-01T10:00:06Z',
+        completed_at: null,
+        iteration: 1,
+      },
+    ]
+
+    const map = buildActivityStateMap(apiActivities)
+
+    expect(map.get('body-node#iter-0')?.iteration).toBe(0)
+    expect(map.get('body-node#iter-1')?.iteration).toBe(1)
+  })
+
+  it('buildActivityStateMap defaults iteration to undefined when absent', () => {
+    const apiActivities = [
+      {
+        activity_id: 'plain-node',
+        status: 'completed' as const,
+        error_details: null,
+        started_at: null,
+        completed_at: null,
+      },
+    ]
+
+    const map = buildActivityStateMap(apiActivities)
+
+    expect(map.get('plain-node')?.iteration).toBeUndefined()
+  })
+})
+
+describe('buildLatestIterationMap', () => {
+  it('returns empty map when no composite keys exist', () => {
+    const states = new Map<string, ActivityState>([['nodeA', { activityId: 'nodeA', status: 'completed' }]])
+    expect(buildLatestIterationMap(states).size).toBe(0)
+  })
+
+  it('returns latest iteration state per base ID', () => {
+    const states = new Map<string, ActivityState>([
+      ['nodeA#iter-0', { activityId: 'nodeA#iter-0', status: 'completed', iteration: 0 }],
+      ['nodeA#iter-1', { activityId: 'nodeA#iter-1', status: 'running', iteration: 1 }],
+    ])
+    const result = buildLatestIterationMap(states)
+    expect(result.get('nodeA')?.status).toBe('running')
+    expect(result.get('nodeA')?.iteration).toBe(1)
+  })
+
+  it('resets behind-iteration siblings to pending', () => {
+    const states = new Map<string, ActivityState>([
+      ['Script2#iter-0', { activityId: 'Script2#iter-0', status: 'completed', iteration: 0 }],
+      ['Script2#iter-1', { activityId: 'Script2#iter-1', status: 'running', iteration: 1 }],
+      ['Script4#iter-0', { activityId: 'Script4#iter-0', status: 'completed', iteration: 0 }],
+    ])
+    const result = buildLatestIterationMap(states)
+
+    expect(result.get('Script2')?.status).toBe('running')
+    expect(result.get('Script4')?.status).toBe('pending')
+    expect(result.get('Script4')?.iteration).toBe(1)
+  })
+
+  it('does not reset when all nodes are on the same iteration', () => {
+    const states = new Map<string, ActivityState>([
+      ['Script2#iter-1', { activityId: 'Script2#iter-1', status: 'running', iteration: 1 }],
+      ['Script4#iter-1', { activityId: 'Script4#iter-1', status: 'pending', iteration: 1 }],
+    ])
+    const result = buildLatestIterationMap(states)
+
+    expect(result.get('Script2')?.status).toBe('running')
+    expect(result.get('Script4')?.status).toBe('pending')
+  })
+
+  it('ignores non-composite keys', () => {
+    const states = new Map<string, ActivityState>([
+      ['nodeA', { activityId: 'nodeA', status: 'completed' }],
+      ['nodeA#iter-0', { activityId: 'nodeA#iter-0', status: 'running', iteration: 0 }],
+    ])
+    const result = buildLatestIterationMap(states)
+
+    expect(result.size).toBe(1)
+    expect(result.get('nodeA')?.status).toBe('running')
+  })
+
+  it('resets loop body nodes with only base records when sibling has higher iteration', () => {
+    const loopBodyGroups = new Map([['loop-1', new Set(['Script2', 'Script4'])]])
+    const states = new Map<string, ActivityState>([
+      ['Script2', { activityId: 'Script2', status: 'completed' }],
+      ['Script4', { activityId: 'Script4', status: 'completed' }],
+      ['Script2#iter-1', { activityId: 'Script2#iter-1', status: 'running', iteration: 1 }],
+    ])
+    const result = buildLatestIterationMap(states, loopBodyGroups)
+
+    expect(result.get('Script2')?.status).toBe('running')
+    expect(result.get('Script4')?.status).toBe('pending')
+    expect(result.get('Script4')?.iteration).toBe(1)
+  })
+
+  it('does not reset non-loop nodes even when loop iteration is active', () => {
+    const loopBodyGroups = new Map([['loop-1', new Set(['Script2', 'Script4'])]])
+    const states = new Map<string, ActivityState>([
+      ['pre-loop-task', { activityId: 'pre-loop-task', status: 'completed' }],
+      ['Script2', { activityId: 'Script2', status: 'completed' }],
+      ['Script4', { activityId: 'Script4', status: 'completed' }],
+      ['Script2#iter-1', { activityId: 'Script2#iter-1', status: 'running', iteration: 1 }],
+    ])
+    const result = buildLatestIterationMap(states, loopBodyGroups)
+
+    expect(result.has('pre-loop-task')).toBe(false)
+    expect(result.get('Script4')?.status).toBe('pending')
+  })
+
+  it('does not reset loop body nodes when no composite keys exist (first iteration)', () => {
+    const loopBodyGroups = new Map([['loop-1', new Set(['Script2', 'Script4'])]])
+    const states = new Map<string, ActivityState>([
+      ['Script2', { activityId: 'Script2', status: 'running' }],
+      ['Script4', { activityId: 'Script4', status: 'pending' }],
+    ])
+    const result = buildLatestIterationMap(states, loopBodyGroups)
+
+    expect(result.size).toBe(0)
+  })
+
+  it('does not cross-contaminate iterations between independent loops', () => {
+    const loopBodyGroups = new Map([
+      ['loopA', new Set(['A1', 'A2'])],
+      ['loopB', new Set(['B1', 'B2'])],
+    ])
+    const states = new Map<string, ActivityState>([
+      ['A1#iter-1', { activityId: 'A1#iter-1', status: 'completed', iteration: 1 }],
+      ['A1#iter-2', { activityId: 'A1#iter-2', status: 'completed', iteration: 2 }],
+      ['A1#iter-3', { activityId: 'A1#iter-3', status: 'running', iteration: 3 }],
+      ['A2#iter-1', { activityId: 'A2#iter-1', status: 'completed', iteration: 1 }],
+      ['A2#iter-2', { activityId: 'A2#iter-2', status: 'completed', iteration: 2 }],
+      ['B1#iter-1', { activityId: 'B1#iter-1', status: 'completed', iteration: 1 }],
+      ['B2#iter-1', { activityId: 'B2#iter-1', status: 'running', iteration: 1 }],
+    ])
+    const result = buildLatestIterationMap(states, loopBodyGroups)
+
+    // Loop A at iteration 3: A2 behind → PENDING
+    expect(result.get('A1')?.status).toBe('running')
+    expect(result.get('A1')?.iteration).toBe(3)
+    expect(result.get('A2')?.status).toBe('pending')
+    expect(result.get('A2')?.iteration).toBe(3)
+
+    // Loop B at iteration 1: both at max → keep real status
+    expect(result.get('B1')?.status).toBe('completed')
+    expect(result.get('B2')?.status).toBe('running')
   })
 })

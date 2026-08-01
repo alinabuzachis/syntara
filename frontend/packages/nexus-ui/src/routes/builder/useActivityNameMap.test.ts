@@ -150,6 +150,41 @@ describe('useActivityNameMap', () => {
     expect(result.current.activityOrder).toEqual([])
   })
 
+  describe('loop iteration display names', () => {
+    it('labels composite key iterations as 1-based', () => {
+      vi.mocked(useActivities).mockReturnValue(undefined)
+      vi.mocked(useTriggers).mockReturnValue(undefined)
+
+      const wfDef: WorkflowDefShape = {
+        workflow: { activities: [{ id: 'script-1', name: 'Script', type: 'script' }] },
+      }
+      const states = new Map<string, ActivityState>([
+        ['script-1', { activityId: 'script-1', status: 'completed', iteration: 0 }],
+        ['script-1#iter-1', { activityId: 'script-1#iter-1', status: 'completed', iteration: 1 }],
+        ['script-1#iter-2', { activityId: 'script-1#iter-2', status: 'running', iteration: 2 }],
+      ])
+
+      const { result } = renderHook(() => useActivityNameMap(wfDef, states))
+
+      const names = result.current.activityOrder.map((a) => a.name)
+      expect(names).toEqual(['Script (Iteration 1)', 'Script (Iteration 2)', 'Script (Iteration 3)'])
+    })
+
+    it('does not label non-iteration activities', () => {
+      vi.mocked(useActivities).mockReturnValue(undefined)
+      vi.mocked(useTriggers).mockReturnValue(undefined)
+
+      const wfDef: WorkflowDefShape = {
+        workflow: { activities: [{ id: 'plain', name: 'Plain Node' }] },
+      }
+      const states = new Map<string, ActivityState>([['plain', { activityId: 'plain', status: 'completed' }]])
+
+      const { result } = renderHook(() => useActivityNameMap(wfDef, states))
+
+      expect(result.current.activityOrder[0].name).toBe('Plain Node')
+    })
+  })
+
   describe('v2 workflow definition (nodes[])', () => {
     it('builds name map from top-level nodes array', () => {
       vi.mocked(useActivities).mockReturnValue(undefined)

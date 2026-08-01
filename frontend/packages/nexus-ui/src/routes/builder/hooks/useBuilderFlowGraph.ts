@@ -140,7 +140,13 @@ export function useBuilderFlowGraph({
 
         let edgeExecutionStatus: 'passed' | 'pending' | undefined
         if (executionStatus) {
-          edgeExecutionStatus = executionStateEnricher.determineEdgeStatus(edge, activityStates, activities)
+          edgeExecutionStatus = executionStateEnricher.determineEdgeStatus(
+            edge,
+            activityStates,
+            activities,
+            undefined,
+            storedEdges
+          )
         }
 
         // Transform trigger real IDs to display IDs for React Flow

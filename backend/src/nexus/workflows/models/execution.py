@@ -416,6 +416,7 @@ class ActivityData(SQLModel):
     output_data: dict[str, Any] | None = None
     started_at: datetime | None = None
     completed_at: datetime | None = None
+    iteration: int | None = None
 
 
 class ExecutionRead(SQLModel):

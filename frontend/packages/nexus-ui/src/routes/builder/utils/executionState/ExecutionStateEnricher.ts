@@ -1,6 +1,7 @@
-import { ActivityTypeEnum, type Activity } from '@syntara/contracts'
+import { ActivityTypeEnum, EdgeHandleEnum, type Activity } from '@syntara/contracts'
 
 import type { ActivityState } from '../../../workflows/execution/types'
+import { buildLatestIterationMap } from '../../../workflows/execution/utils/activityState'
 import type { EdgeConnection } from '../../types/edge'
 
 import { ACTIVITY_STATUS, TERMINAL_ACTIVITY_STATUSES, isBranchHandle } from './executionHelpers'
@@ -14,20 +15,6 @@ export type ExecutionState = {
   started_at?: string
   completed_at?: string
   error_details?: string
-}
-
-function edgePassedWhenTargetStarted(
-  activityStates: Map<string, ActivityState>,
-  targetId: string
-): 'passed' | 'pending' {
-  const targetState = activityStates.get(targetId)
-  if (!targetState) {
-    return 'pending'
-  }
-  if (targetState.status === ACTIVITY_STATUS.PENDING || targetState.status === ACTIVITY_STATUS.SKIPPED) {
-    return 'pending'
-  }
-  return 'passed'
 }
 
 function isConvergeSource(edge: { source: string }, activities?: Activity[]): boolean {
@@ -79,7 +66,81 @@ export type EnrichActivityOptions = {
  *   activityStates
  * )
  */
+function reachableNodes(entryId: string, adjacency: Map<string, string[]>, stopAt?: string): Set<string> {
+  const visited = new Set<string>()
+  const stack = [entryId]
+  while (stack.length > 0) {
+    const nodeId = stack.pop()!
+    if (visited.has(nodeId) || nodeId.startsWith('converge-') || nodeId === stopAt) continue
+    visited.add(nodeId)
+    for (const child of adjacency.get(nodeId) ?? []) {
+      if (!visited.has(child)) stack.push(child)
+    }
+  }
+  return visited
+}
+
+function collectLoopBodyGroups(edges: EdgeConnection[]): Map<string, Set<string>> {
+  const adjacency = new Map<string, string[]>()
+  const loopEntries: Array<{ loopId: string; entryId: string }> = []
+  for (const edge of edges) {
+    if (edge.sourceHandle === EdgeHandleEnum.LOOP) {
+      loopEntries.push({ loopId: edge.source, entryId: edge.target })
+    }
+    let targets = adjacency.get(edge.source)
+    if (!targets) {
+      targets = []
+      adjacency.set(edge.source, targets)
+    }
+    targets.push(edge.target)
+  }
+  const result = new Map<string, Set<string>>()
+  for (const { loopId, entryId } of loopEntries) {
+    const body = reachableNodes(entryId, adjacency, loopId)
+    result.set(loopId, body)
+  }
+  return result
+}
+
 export class ExecutionStateEnricher {
+  private cachedIterationMap: Map<string, ActivityState> | null = null
+  private cachedIterationMapSource: Map<string, ActivityState> | null = null
+  private cachedLoopBodyGroups: ReadonlyMap<string, ReadonlySet<string>> | null = null
+  private cachedEdgesSource: EdgeConnection[] | null = null
+
+  private getLoopBodyGroups(edges: EdgeConnection[]): ReadonlyMap<string, ReadonlySet<string>> {
+    if (this.cachedEdgesSource === edges && this.cachedLoopBodyGroups) {
+      return this.cachedLoopBodyGroups
+    }
+    this.cachedLoopBodyGroups = collectLoopBodyGroups(edges)
+    this.cachedEdgesSource = edges
+    return this.cachedLoopBodyGroups
+  }
+
+  private getLatestIterationMap(
+    activityStates: Map<string, ActivityState>,
+    edges: EdgeConnection[]
+  ): Map<string, ActivityState> {
+    if (
+      this.cachedIterationMapSource === activityStates &&
+      this.cachedEdgesSource === edges &&
+      this.cachedIterationMap
+    ) {
+      return this.cachedIterationMap
+    }
+    this.cachedIterationMap = buildLatestIterationMap(activityStates, this.getLoopBodyGroups(edges))
+    this.cachedIterationMapSource = activityStates
+    return this.cachedIterationMap
+  }
+
+  private resolveActivityState(
+    activityId: string,
+    activityStates: Map<string, ActivityState>,
+    edges: EdgeConnection[]
+  ): ActivityState | undefined {
+    return this.getLatestIterationMap(activityStates, edges).get(activityId) ?? activityStates.get(activityId)
+  }
+
   /**
    * Enrich an activity with execution state for visualization.
    *
@@ -113,8 +174,11 @@ export class ExecutionStateEnricher {
       return activity as ActivityWithMetadata
     }
 
-    // Step 1: Add direct backend state if available
-    const activityState = activityStates.get(activity.id)
+    // Step 1: Add direct backend state if available.
+    // For loop body nodes, resolveActivityState prefers the latest iteration's
+    // state so the canvas shows each iteration's lifecycle rather than the
+    // frozen iteration-0 base record.
+    const activityState = this.resolveActivityState(activity.id, activityStates, edges)
 
     // Nodes added after copy-to-editor were never part of the run — no status indicators
     if (!activityState && skipInferenceActivityIds && !skipInferenceActivityIds.has(activity.id)) {
@@ -252,37 +316,48 @@ export class ExecutionStateEnricher {
    * @param activities - Optional list of activities to check source node type
    * @returns 'passed' if edge was traversed, 'pending' otherwise
    */
+  private targetHasStarted(
+    targetId: string,
+    activityStates: Map<string, ActivityState>,
+    edges: EdgeConnection[]
+  ): boolean {
+    const state = this.resolveActivityState(targetId, activityStates, edges)
+    return !!state && state.status !== ACTIVITY_STATUS.PENDING && state.status !== ACTIVITY_STATUS.SKIPPED
+  }
+
+  private sourceIsTerminal(
+    sourceId: string,
+    activityStates: Map<string, ActivityState>,
+    edges: EdgeConnection[]
+  ): boolean {
+    const state = this.resolveActivityState(sourceId, activityStates, edges)
+    return !!state && TERMINAL_ACTIVITY_STATUSES.includes(state.status)
+  }
+
   determineEdgeStatus(
     edge: { source: string; target: string; sourceHandle?: string | null },
     activityStates: Map<string, ActivityState>,
-    activities?: Activity[],
-    triggerDisplayToRealId?: Map<string, string>
+    activities: Activity[] | undefined,
+    triggerDisplayToRealId: Map<string, string> | undefined,
+    edges: EdgeConnection[]
   ): 'passed' | 'pending' {
+    const resolvedEdges = edges
+    const targetStarted = this.targetHasStarted(edge.target, activityStates, resolvedEdges)
+
     if (edge.source.startsWith('trigger-')) {
       const triggerRealId = triggerDisplayToRealId?.get(edge.source)
-      const sourceState = triggerRealId ? activityStates.get(triggerRealId) : undefined
-      const sourceCompleted = sourceState ? TERMINAL_ACTIVITY_STATUSES.includes(sourceState.status) : false
-      const targetStarted = edgePassedWhenTargetStarted(activityStates, edge.target) === 'passed'
+      const sourceCompleted = triggerRealId
+        ? this.sourceIsTerminal(triggerRealId, activityStates, resolvedEdges)
+        : false
       return sourceCompleted && targetStarted ? 'passed' : 'pending'
     }
 
-    // For branching nodes (conditional, approval, or loop), check if target has started
-    // This determines which branch was actually taken
-    if (isBranchHandle(edge.sourceHandle)) {
-      return edgePassedWhenTargetStarted(activityStates, edge.target)
+    if (isBranchHandle(edge.sourceHandle) || isConvergeSource(edge, activities)) {
+      return targetStarted ? 'passed' : 'pending'
     }
 
-    // For converge nodes, check if target has started (not source)
-    // This shows when execution has actually moved past the converge point
-    if (isConvergeSource(edge, activities)) {
-      return edgePassedWhenTargetStarted(activityStates, edge.target)
-    }
-
-    // For regular edges, edge is "passed" only when source reached terminal state
-    // AND target has actually started (not pending/skipped)
-    const sourceState = activityStates.get(edge.source)
-    if (sourceState && TERMINAL_ACTIVITY_STATUSES.includes(sourceState.status)) {
-      return edgePassedWhenTargetStarted(activityStates, edge.target)
+    if (this.sourceIsTerminal(edge.source, activityStates, resolvedEdges)) {
+      return targetStarted ? 'passed' : 'pending'
     }
 
     return 'pending'

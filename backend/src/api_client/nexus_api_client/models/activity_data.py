@@ -25,6 +25,7 @@ class ActivityData:
         activity_id (str):
         status (str):
         error_details (None | str | Unset):
+        iteration (int | None | Unset):
         output_data (ActivityDataOutputDataType0 | None | Unset):
         started_at (datetime.datetime | None | Unset):
         completed_at (datetime.datetime | None | Unset):
@@ -33,6 +34,7 @@ class ActivityData:
     activity_id: str
     status: str
     error_details: None | str | Unset = UNSET
+    iteration: int | None | Unset = UNSET
     output_data: ActivityDataOutputDataType0 | None | Unset = UNSET
     started_at: datetime.datetime | None | Unset = UNSET
     completed_at: datetime.datetime | None | Unset = UNSET
@@ -50,6 +52,12 @@ class ActivityData:
             error_details = UNSET
         else:
             error_details = self.error_details
+
+        iteration: int | None | Unset
+        if isinstance(self.iteration, Unset):
+            iteration = UNSET
+        else:
+            iteration = self.iteration
 
         output_data: dict[str, Any] | None | Unset
         if isinstance(self.output_data, Unset):
@@ -85,6 +93,8 @@ class ActivityData:
         )
         if error_details is not UNSET:
             field_dict["error_details"] = error_details
+        if iteration is not UNSET:
+            field_dict["iteration"] = iteration
         if output_data is not UNSET:
             field_dict["output_data"] = output_data
         if started_at is not UNSET:
@@ -111,6 +121,15 @@ class ActivityData:
             return cast(None | str | Unset, data)
 
         error_details = _parse_error_details(d.pop("error_details", UNSET))
+
+        def _parse_iteration(data: object) -> int | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(int | None | Unset, data)
+
+        iteration = _parse_iteration(d.pop("iteration", UNSET))
 
         def _parse_output_data(data: object) -> ActivityDataOutputDataType0 | None | Unset:
             if data is None:
@@ -167,6 +186,7 @@ class ActivityData:
             activity_id=activity_id,
             status=status,
             error_details=error_details,
+            iteration=iteration,
             output_data=output_data,
             started_at=started_at,
             completed_at=completed_at,

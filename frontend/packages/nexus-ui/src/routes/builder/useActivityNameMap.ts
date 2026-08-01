@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 
 import { useActivities, useTriggers } from '../../stores/workflowStoreSelectors'
 import type { ActivityState } from '../workflows/execution/types'
+import { parseCompositeKey } from '../workflows/execution/utils/activityState'
 
 import type { ActivityOrderItem } from './ExecutionActivityTable'
 
@@ -125,7 +126,19 @@ export function useActivityNameMap(
   }, [storeActivities, storeTriggers, workflowDefinition])
 
   const activityOrder = useMemo<ActivityOrderItem[]>(
-    () => Array.from(activityStates.keys()).map((id) => ({ id, name: nameMap.get(id), type: typeMap.get(id) })),
+    () =>
+      Array.from(activityStates.keys()).map((id) => {
+        const { baseId, iteration } = parseCompositeKey(id)
+        const baseName = nameMap.get(baseId)
+        const effectiveIteration = iteration ?? activityStates.get(id)?.iteration
+        let name: string | undefined
+        if (effectiveIteration != null && baseName) {
+          name = `${baseName} (Iteration ${effectiveIteration + 1})`
+        } else {
+          name = nameMap.get(id)
+        }
+        return { id, name, type: typeMap.get(baseId) ?? typeMap.get(id) }
+      }),
     [activityStates, nameMap, typeMap]
   )
 

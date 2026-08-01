@@ -548,6 +548,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     isInitialized,
     currentWorkflow,
     activityStates,
+    storedEdges,
     setEdges,
     isExecutionDetailView: isExecutionView,
   })

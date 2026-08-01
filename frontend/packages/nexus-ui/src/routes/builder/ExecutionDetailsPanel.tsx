@@ -33,9 +33,10 @@ import {
 } from './executionActivityTableColumns'
 import styles from './ExecutionDetailsPanel.module.css'
 import { HeaderMetadata, LoadingErrorState, NoSelectionState, type ViewMode } from './ExecutionDetailsPanelHeader'
+import { useSelectedActivity } from './hooks/useSelectedActivity'
 import { sortExecutionActivities } from './sortExecutionActivities'
 import { useActivityFilters } from './useActivityFilters'
-import { useActivityNameMap, resolveNodeName, type WorkflowDefShape } from './useActivityNameMap'
+import { useActivityNameMap, type WorkflowDefShape } from './useActivityNameMap'
 
 export type { WorkflowDefShape } from './useActivityNameMap'
 
@@ -69,6 +70,7 @@ type ThreePanelLayoutProps = {
   filters: FilterConfig[]
   onFilterChange: (filters: FilterConfig[]) => void
   selectedNodeId: string | null
+  detailNodeId: string | null
   displayNodeName: string | null
   executionId: string
   selectedNodeState?: ActivityState
@@ -91,6 +93,7 @@ function ThreePanelLayout({
   filters,
   onFilterChange,
   selectedNodeId,
+  detailNodeId,
   displayNodeName,
   executionId,
   selectedNodeState,
@@ -158,9 +161,9 @@ function ThreePanelLayout({
         <Divider orientation={{ default: 'vertical' }} />
 
         <FlexItem flex={{ default: 'flex_1' }} className={styles.nodeDetailsPane}>
-          {selectedNodeId && displayNodeName ? (
+          {detailNodeId && displayNodeName ? (
             <NodeExecutionDetailsPanel
-              nodeId={selectedNodeId}
+              nodeId={detailNodeId}
               nodeName={displayNodeName}
               executionId={executionId}
               nodeState={selectedNodeState}
@@ -374,14 +377,15 @@ export function ExecutionDetailsPanel({
   const hasFilteredOutActivities = hasActiveFilters && activityOrder.length > 0
   const showFilters = activityOrder.length > 0 || hasActiveFilters
 
-  const resolvedNodeId = selectedNodeId ?? null
-  const displayNodeName = selectedNodeNameProp ?? resolveNodeName(nameMap, selectedNodeId) ?? null
-  const selectedNodeState = selectedNodeId ? activityStates.get(selectedNodeId) : undefined
-  const selectedNodeType = selectedNodeId ? activityOrder.find((a) => a.id === selectedNodeId)?.type : undefined
-
-  const handleRowClick = (nodeId: string, nodeName: string) => {
-    onNodeSelect?.(nodeId, nodeName)
-  }
+  const { resolvedNodeId, effectiveKey, displayNodeName, selectedNodeState, selectedNodeType, handleRowClick } =
+    useSelectedActivity({
+      selectedNodeId,
+      selectedNodeNameProp,
+      activityStates,
+      activityOrder,
+      nameMap,
+      onNodeSelect,
+    })
 
   const queryState = useQueryState(executionQuery, {
     title: 'Error loading execution',
@@ -405,6 +409,7 @@ export function ExecutionDetailsPanel({
         filters={filters}
         onFilterChange={handleFilterChange}
         selectedNodeId={resolvedNodeId}
+        detailNodeId={effectiveKey}
         displayNodeName={displayNodeName}
         executionId={executionId}
         selectedNodeState={selectedNodeState}
