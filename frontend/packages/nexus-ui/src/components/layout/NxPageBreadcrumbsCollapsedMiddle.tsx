@@ -14,8 +14,8 @@ type BreadcrumbDropdownToggleProps = Readonly<{
   isOpen: boolean
   /** Number of collapsed middle segments, shown in the badge and announced to screen readers. */
   middleCount: number
-  /** PF6 Dropdown injects its open/close handler here via cloneElement — must be forwarded to the underlying MenuToggle. */
-  onClick?: (e: MouseEvent<HTMLElement>) => void
+  /** Opens/closes the dropdown. PF6 Dropdown does not wire this — the toggle must call it. */
+  onClick: () => void
 }>
 
 /** Plain-text menu toggle displaying a badge with the count of hidden breadcrumb segments. */
@@ -38,9 +38,10 @@ function BreadcrumbDropdownToggle(props: BreadcrumbDropdownToggleProps) {
 function renderBreadcrumbDropdownToggle(
   toggleRef: Ref<MenuToggleElement | null>,
   isOpen: boolean,
-  middleCount: number
+  middleCount: number,
+  onClick: () => void
 ) {
-  return <BreadcrumbDropdownToggle toggleRef={toggleRef} isOpen={isOpen} middleCount={middleCount} />
+  return <BreadcrumbDropdownToggle toggleRef={toggleRef} isOpen={isOpen} middleCount={middleCount} onClick={onClick} />
 }
 
 export type NxPageBreadcrumbsCollapsedMiddleProps = Readonly<{
@@ -57,7 +58,8 @@ export function NxPageBreadcrumbsCollapsedMiddle(props: NxPageBreadcrumbsCollaps
   const middleCount = middleItems.length
 
   const renderToggle = useMemo(
-    () => (toggleRef: Ref<MenuToggleElement | null>) => renderBreadcrumbDropdownToggle(toggleRef, isOpen, middleCount),
+    () => (toggleRef: Ref<MenuToggleElement | null>) =>
+      renderBreadcrumbDropdownToggle(toggleRef, isOpen, middleCount, () => setIsOpen((open) => !open)),
     [isOpen, middleCount]
   )
 

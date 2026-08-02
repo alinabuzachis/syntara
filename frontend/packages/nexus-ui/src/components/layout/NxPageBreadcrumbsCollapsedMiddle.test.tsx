@@ -1,43 +1,10 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import React, { type ReactElement } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AppBreadcrumbItem } from '../../app/breadcrumbs/appBreadcrumbItem'
 
 import { NxPageBreadcrumbsCollapsedMiddle } from './NxPageBreadcrumbsCollapsedMiddle'
-
-vi.mock('@patternfly/react-core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@patternfly/react-core')>()
-  type DropdownProps = {
-    isOpen: boolean
-    onOpenChange: (next: boolean) => void
-    toggle: (toggleRef: React.Ref<unknown>) => React.ReactNode
-    children?: React.ReactNode
-  }
-  function DropdownWithJsdomToggle(props: DropdownProps) {
-    const { isOpen, onOpenChange, toggle, children } = props
-    const toggleEl = toggle(null)
-    const mergedToggle = React.isValidElement(toggleEl)
-      ? React.cloneElement(toggleEl as ReactElement<{ onClick?: (e: React.MouseEvent) => void }>, {
-          onClick: (e: React.MouseEvent) => {
-            ;(toggleEl.props as { onClick?: (ev: React.MouseEvent) => void }).onClick?.(e)
-            onOpenChange(!isOpen)
-          },
-        })
-      : toggleEl
-    return (
-      <>
-        {mergedToggle}
-        {isOpen ? children : null}
-      </>
-    )
-  }
-  return {
-    ...actual,
-    Dropdown: DropdownWithJsdomToggle,
-  }
-})
 
 const MIDDLE_ITEMS: readonly AppBreadcrumbItem[] = [
   { label: 'Mid A', href: '/a' },
