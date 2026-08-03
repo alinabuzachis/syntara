@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from nexus_api_client.models.workflow_definition import WorkflowDefinition
+from syntara_api_client.models.workflow_definition import WorkflowDefinition
 
 if TYPE_CHECKING:
     from collections.abc import Callable

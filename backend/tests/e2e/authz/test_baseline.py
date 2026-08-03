@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING
 import pytest
 
 if TYPE_CHECKING:
-    from nexus_api_client.api import NexusApiRegistry
     from orchestrator_test_sdk.factories import (
         AssignProjectRoleFactory,
         CredentialFactory,
@@ -17,13 +16,14 @@ if TYPE_CHECKING:
         UserFactory,
         WorkflowFactory,
     )
+    from syntara_api_client.api import SyntaraApiRegistry
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
 
-from nexus_api_client.models.execution_create import ExecutionCreate
-from nexus_api_client.models.user_update import UserUpdate
 from orchestrator_test_sdk.e2e.auth import api_for
+from syntara_api_client.models.execution_create import ExecutionCreate
+from syntara_api_client.models.user_update import UserUpdate
 
 pytestmark = [pytest.mark.e2e]
 
@@ -38,7 +38,7 @@ class TestZeroRoleBaseline:
     def test_list_workflows_returns_empty(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
         create_workflow: WorkflowFactory,
         create_user: UserFactory,
@@ -54,7 +54,7 @@ class TestZeroRoleBaseline:
     def test_list_credentials_returns_empty(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
         create_credential: CredentialFactory,
         create_user: UserFactory,
@@ -70,7 +70,7 @@ class TestZeroRoleBaseline:
     def test_list_executions_returns_empty(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
         create_workflow: WorkflowFactory,
         create_user: UserFactory,
@@ -87,7 +87,11 @@ class TestZeroRoleBaseline:
         assert exec_id not in resource_ids, f"No-role user should not see execution {exec_id}"
 
     def test_list_projects_returns_empty(
-        self, nexus_base_url: str, admin_api: NexusApiRegistry, create_project: ProjectFactory, create_user: UserFactory
+        self,
+        nexus_base_url: str,
+        admin_api: SyntaraApiRegistry,
+        create_project: ProjectFactory,
+        create_user: UserFactory,
     ) -> None:
         _, proj_name = create_project(admin_api, "norole-hidden")
         _, username, password = create_user(admin_api, "norole-proj")
@@ -99,7 +103,7 @@ class TestZeroRoleBaseline:
     def test_cannot_access_specific_project_workflows(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
         create_workflow: WorkflowFactory,
         create_user: UserFactory,
@@ -116,14 +120,14 @@ class TestSelfScopePolicies:
     """Verify self-scoped policies granted to all authenticated users."""
 
     def test_can_read_own_profile(
-        self, nexus_base_url: str, admin_api: NexusApiRegistry, create_user: UserFactory
+        self, nexus_base_url: str, admin_api: SyntaraApiRegistry, create_user: UserFactory
     ) -> None:
         _, username, password = create_user(admin_api, "self-read")
         user_api = api_for(nexus_base_url, username, password)
         user_api.authentication.get_current_user().assert_and_get()
 
     def test_cannot_read_other_user_profile(
-        self, nexus_base_url: str, admin_api: NexusApiRegistry, create_user: UserFactory
+        self, nexus_base_url: str, admin_api: SyntaraApiRegistry, create_user: UserFactory
     ) -> None:
         _, u1_name, u1_pass = create_user(admin_api, "self-r1")
         u2_id, _, _ = create_user(admin_api, "self-r2")
@@ -132,7 +136,7 @@ class TestSelfScopePolicies:
         assert resp.status_code == HTTPStatus.FORBIDDEN
 
     def test_can_read_own_role_assignments(
-        self, nexus_base_url: str, admin_api: NexusApiRegistry, create_user: UserFactory
+        self, nexus_base_url: str, admin_api: SyntaraApiRegistry, create_user: UserFactory
     ) -> None:
         user_id, username, password = create_user(admin_api, "self-ra")
         user_api = api_for(nexus_base_url, username, password)
@@ -141,7 +145,7 @@ class TestSelfScopePolicies:
     def test_cannot_read_other_role_assignments(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
         assign_project_role_to_user: AssignProjectRoleFactory,
         create_user: UserFactory,
@@ -162,7 +166,7 @@ class TestSelfScopePolicies:
             assert resp.status_code == HTTPStatus.FORBIDDEN
 
     def test_can_update_own_profile(
-        self, nexus_base_url: str, admin_api: NexusApiRegistry, create_user: UserFactory
+        self, nexus_base_url: str, admin_api: SyntaraApiRegistry, create_user: UserFactory
     ) -> None:
         user_id, username, password = create_user(admin_api, "self-upd")
         user_api = api_for(nexus_base_url, username, password)
@@ -170,7 +174,7 @@ class TestSelfScopePolicies:
         assert resp.status_code in (HTTPStatus.OK, HTTPStatus.FORBIDDEN)
 
     def test_cannot_update_other_profile(
-        self, nexus_base_url: str, admin_api: NexusApiRegistry, create_user: UserFactory
+        self, nexus_base_url: str, admin_api: SyntaraApiRegistry, create_user: UserFactory
     ) -> None:
         _, u1_name, u1_pass = create_user(admin_api, "self-up1")
         u2_id, _, _ = create_user(admin_api, "self-up2")

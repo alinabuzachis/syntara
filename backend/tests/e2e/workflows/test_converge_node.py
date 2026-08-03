@@ -11,11 +11,11 @@ Run with:
 from http import HTTPStatus
 
 import pytest
-from nexus_api_client.api import NexusApiRegistry
-from nexus_api_client.models import WorkflowDefinition
-from nexus_api_client.models.execution_status import ExecutionStatus
-from nexus_api_client.models.workflow_validate_request import WorkflowValidateRequest
 from orchestrator_test_sdk.e2e.helpers import create_and_run_workflow
+from syntara_api_client.api import SyntaraApiRegistry
+from syntara_api_client.models import WorkflowDefinition
+from syntara_api_client.models.execution_status import ExecutionStatus
+from syntara_api_client.models.workflow_validate_request import WorkflowValidateRequest
 
 # ---------------------------------------------------------------------------
 # Converge validation
@@ -23,7 +23,7 @@ from orchestrator_test_sdk.e2e.helpers import create_and_run_workflow
 
 
 @pytest.mark.e2e
-def test_converge_with_single_branch_rejected(nexus_api: NexusApiRegistry) -> None:
+def test_converge_with_single_branch_rejected(nexus_api: SyntaraApiRegistry) -> None:
     """A converge node with only one incoming branch produces a validation error."""
     definition = WorkflowDefinition.from_dict(
         {
@@ -72,7 +72,7 @@ def test_converge_with_single_branch_rejected(nexus_api: NexusApiRegistry) -> No
 
 
 @pytest.mark.e2e
-def test_converge_any_2_of_3_strategy(nexus_api: NexusApiRegistry):
+def test_converge_any_2_of_3_strategy(nexus_api: SyntaraApiRegistry):
     """Test any-2-of-3 converge strategy where one branch fails.
 
     Branches A and B succeed, meeting the any-2-of-3 threshold. Branch C
@@ -147,7 +147,7 @@ def test_converge_any_2_of_3_strategy(nexus_api: NexusApiRegistry):
 
 
 @pytest.mark.e2e
-def test_converge_timeout_continue_on_failure(nexus_api: NexusApiRegistry):
+def test_converge_timeout_continue_on_failure(nexus_api: SyntaraApiRegistry):
     """Test converge timeout with continue_on_failure=true.
 
     The slow branch (sleep 2) feeds through slow_intermediate before
@@ -224,7 +224,7 @@ def test_converge_timeout_continue_on_failure(nexus_api: NexusApiRegistry):
 
 
 @pytest.mark.e2e
-def test_converge_all_strategy(nexus_api: NexusApiRegistry):
+def test_converge_all_strategy(nexus_api: SyntaraApiRegistry):
     """Test converge 'all' strategy (regression test).
 
     Verifies existing 'wait for all' behavior is not regressed.
@@ -302,7 +302,7 @@ def test_converge_all_strategy(nexus_api: NexusApiRegistry):
 
 
 @pytest.mark.e2e
-def test_converge_timeout_fail_and_skip_downstream(nexus_api: NexusApiRegistry):
+def test_converge_timeout_fail_and_skip_downstream(nexus_api: SyntaraApiRegistry):
     """Test converge timeout marks node as failed and skips downstream.
 
     A fast branch completes instantly, triggering the converge to start
@@ -378,7 +378,7 @@ def test_converge_timeout_fail_and_skip_downstream(nexus_api: NexusApiRegistry):
 
 
 @pytest.mark.e2e
-def test_converge_cof_any_strategy_threshold_not_met(nexus_api: NexusApiRegistry):
+def test_converge_cof_any_strategy_threshold_not_met(nexus_api: SyntaraApiRegistry):
     """Test converge CoF with ANY strategy when n_required threshold is not met.
 
     With any-2-of-3 and continue_on_failure=true, 2 branches fail and only
@@ -455,7 +455,7 @@ def test_converge_cof_any_strategy_threshold_not_met(nexus_api: NexusApiRegistry
 
 
 @pytest.mark.e2e
-def test_converge_no_timeout_when_all_complete(nexus_api: NexusApiRegistry):
+def test_converge_no_timeout_when_all_complete(nexus_api: SyntaraApiRegistry):
     """Test converge timeout doesn't fire when all branches complete in time.
 
     Verifies that if all branches complete before the timeout, the timeout
@@ -519,7 +519,7 @@ def test_converge_no_timeout_when_all_complete(nexus_api: NexusApiRegistry):
 
 
 @pytest.mark.e2e
-def test_converge_timeout_multihop_starts_at_fork(nexus_api: NexusApiRegistry):
+def test_converge_timeout_multihop_starts_at_fork(nexus_api: SyntaraApiRegistry):
     """Test timeout starts at fork completion when ALL branches are multi-hop.
 
     Both branches have intermediate nodes. The 1s timeout must start when
@@ -611,7 +611,7 @@ def test_converge_timeout_multihop_starts_at_fork(nexus_api: NexusApiRegistry):
 
 
 @pytest.mark.e2e
-def test_converge_one_branch_fails_all_strategy(nexus_api: NexusApiRegistry):
+def test_converge_one_branch_fails_all_strategy(nexus_api: SyntaraApiRegistry):
     """Test converge behavior when one branch fails with 'all' strategy.
 
     The success branches sleep briefly so the failure is processed first.
@@ -684,7 +684,7 @@ def test_converge_one_branch_fails_all_strategy(nexus_api: NexusApiRegistry):
 
 
 @pytest.mark.e2e
-def test_converge_branch_failure_any_strategy(nexus_api: NexusApiRegistry):
+def test_converge_branch_failure_any_strategy(nexus_api: SyntaraApiRegistry):
     """Test converge 'any' strategy with branch failures.
 
     With any-2-of-3 strategy, 2 branches fail and only 1 succeeds.
@@ -758,7 +758,7 @@ def test_converge_branch_failure_any_strategy(nexus_api: NexusApiRegistry):
 
 
 @pytest.mark.e2e
-def test_converge_all_branches_fail(nexus_api: NexusApiRegistry):
+def test_converge_all_branches_fail(nexus_api: SyntaraApiRegistry):
     """Test converge when all branches fail.
 
     Verifies that if all branches fail, the converge node is marked

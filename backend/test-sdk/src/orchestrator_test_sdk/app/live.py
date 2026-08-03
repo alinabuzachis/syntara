@@ -14,8 +14,8 @@ import pytest
 from orchestrator_test_sdk.e2e.tls import e2e_ssl_context
 
 if TYPE_CHECKING:
-    from nexus_api_client import AuthenticatedClient
-    from nexus_api_client.api import NexusApiRegistry
+    from syntara_api_client import AuthenticatedClient
+    from syntara_api_client.api import SyntaraApiRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -104,8 +104,8 @@ def auth_headers(nexus_base_url: str) -> dict[str, str]:
 
 @pytest.fixture(scope="session")
 def nexus_client(nexus_base_url: str) -> AuthenticatedClient:
-    """Return an authenticated Nexus API client for the target deployment."""
-    from nexus_api_client import AuthenticatedClient
+    """Return an authenticated Syntara API client for the target deployment."""
+    from syntara_api_client import AuthenticatedClient
 
     ssl_ctx = e2e_ssl_context()
     last_exc: Exception | None = None
@@ -147,13 +147,13 @@ def nexus_client(nexus_base_url: str) -> AuthenticatedClient:
 
 
 @pytest.fixture(scope="session")
-def nexus_api(nexus_base_url: str, nexus_client: AuthenticatedClient) -> NexusApiRegistry:
-    """Return a NexusApiRegistry with internal_metrics wired to the root URL."""
-    from nexus_api_client import AuthenticatedClient
-    from nexus_api_client.api import NexusApiRegistry
-    from nexus_api_client.api.internal_metrics import InternalMetricsApi
+def nexus_api(nexus_base_url: str, nexus_client: AuthenticatedClient) -> SyntaraApiRegistry:
+    """Return a SyntaraApiRegistry with internal_metrics wired to the root URL."""
+    from syntara_api_client import AuthenticatedClient
+    from syntara_api_client.api import SyntaraApiRegistry
+    from syntara_api_client.api.internal_metrics import InternalMetricsApi
 
-    registry = NexusApiRegistry(nexus_client)
+    registry = SyntaraApiRegistry(nexus_client)
 
     root_client = AuthenticatedClient(
         base_url=nexus_base_url,

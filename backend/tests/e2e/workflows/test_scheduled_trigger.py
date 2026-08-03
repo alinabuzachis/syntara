@@ -21,10 +21,10 @@ from http import HTTPStatus
 from uuid import UUID
 
 import pytest
-from nexus_api_client.api import NexusApiRegistry
-from nexus_api_client.models import WorkflowCreate, WorkflowDefinition, WorkflowRead
-from nexus_api_client.models.publish_version_request import PublishVersionRequest
 from orchestrator_test_sdk.e2e import unique_name
+from syntara_api_client.api import SyntaraApiRegistry
+from syntara_api_client.models import WorkflowCreate, WorkflowDefinition, WorkflowRead
+from syntara_api_client.models.publish_version_request import PublishVersionRequest
 
 pytestmark = [pytest.mark.e2e]
 
@@ -34,7 +34,7 @@ class TestScheduledTrigger:
 
     def test_scheduled_trigger_workflow_publishes_successfully(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ):
@@ -95,7 +95,7 @@ class TestScheduledTrigger:
 
     def test_scheduled_trigger_workflow_with_interval(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ):

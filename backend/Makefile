@@ -579,18 +579,18 @@ api-spec-bundle: ## Bundle all domain sub-specs into a single merged openapi.yam
 # Tools
 # ========================================================
 .PHONY: generate-api-client
-generate-api-client: ## Generate the Nexus Python API client from the OpenAPI spec
+generate-api-client: ## Generate the Syntara Python API client from the OpenAPI spec
 	@echo "Generating client from $(OPENAPI_SPEC)..."
 	$(eval TMPDIR := $(shell mktemp -d))
 	$(eval BACKEND_DIR := $(shell pwd))
 	BACKEND_DIR=$(BACKEND_DIR) uv run openapi-python-client generate \
 		--path $(OPENAPI_SPEC) \
-		--output-path $(TMPDIR)/nexus_api_client \
+		--output-path $(TMPDIR)/syntara_api_client \
 		--custom-template-path tools/api_custom_templates \
 		--config tools/openapi-python-client.yaml \
 		--meta uv
 	@rm -rf src/api_client
-	@mv $(TMPDIR)/nexus_api_client src/api_client
+	@mv $(TMPDIR)/syntara_api_client src/api_client
 	@rm -rf $(TMPDIR)
 	@# Cleanup: remove trailing whitespace and ensure newline at EOF
 	@find src/api_client -type f \( -name '*.py' -o -name '*.md' -o -name '*.toml' -o -name '*.typed' -o -name '*.txt' \) -exec $(SED_INPLACE) 's/[[:space:]]*$$//' {} +

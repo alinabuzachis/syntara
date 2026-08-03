@@ -7,9 +7,9 @@ from collections.abc import Callable
 from uuid import UUID
 
 import pytest
-from nexus_api_client.api import NexusApiRegistry
-from nexus_api_client.models import WorkflowCreate, WorkflowDefinition, WorkflowRead, WorkflowUpdate
 from orchestrator_test_sdk.e2e import unique_name
+from syntara_api_client.api import SyntaraApiRegistry
+from syntara_api_client.models import WorkflowCreate, WorkflowDefinition, WorkflowRead, WorkflowUpdate
 
 pytestmark = [pytest.mark.e2e]
 
@@ -32,7 +32,7 @@ class TestWorkflowDefinitionUpdates:
 
     def test_add_node_to_workflow(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ):
@@ -81,7 +81,7 @@ class TestWorkflowDefinitionUpdates:
 
     def test_update_node_configuration(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ):
@@ -163,7 +163,7 @@ class TestWorkflowDefinitionUpdates:
 
     def test_delete_node_from_workflow(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ):
@@ -270,7 +270,7 @@ class TestWorkflowDefinitionUpdates:
 
     def test_add_and_delete_edges(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ):

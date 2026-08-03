@@ -10,20 +10,20 @@ from uuid import UUID
 import pytest
 
 if TYPE_CHECKING:
-    from nexus_api_client.api import NexusApiRegistry
     from orchestrator_test_sdk.factories import RoleFactory, UserFactory, UserRoleAssignmentFactory
+    from syntara_api_client.api import SyntaraApiRegistry
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set -- full stack required", allow_module_level=True)
 
-from nexus_api_client.models.project_create import ProjectCreate
-from nexus_api_client.models.role_create import RoleCreate
-from nexus_api_client.models.user_create import UserCreate
 from orchestrator_test_sdk.e2e import (
     generate_test_password,
     unique_name,
 )
 from orchestrator_test_sdk.e2e.auth import api_for
+from syntara_api_client.models.project_create import ProjectCreate
+from syntara_api_client.models.role_create import RoleCreate
+from syntara_api_client.models.user_create import UserCreate
 
 pytestmark = [pytest.mark.e2e]
 
@@ -35,12 +35,12 @@ _POLICIES = [
 
 @pytest.fixture(scope="module")
 def project_manager_env(
-    admin_api: NexusApiRegistry,
+    admin_api: SyntaraApiRegistry,
     create_role: RoleFactory,
     create_user: UserFactory,
     assign_system_role: UserRoleAssignmentFactory,
     nexus_base_url: str,
-) -> tuple[NexusApiRegistry, UUID]:
+) -> tuple[SyntaraApiRegistry, UUID]:
     """Create user with system-level project manager role."""
     user_id, name, password = create_user(admin_api, "projmgr")
 

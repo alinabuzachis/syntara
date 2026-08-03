@@ -10,12 +10,12 @@ from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import pytest
-from nexus_api_client.models.project_create import ProjectCreate
-from nexus_api_client.models.workflow_create import WorkflowCreate
-from nexus_api_client.models.workflow_definition import WorkflowDefinition
-from nexus_api_client.models.workflow_update import WorkflowUpdate
-from nexus_api_client.models.workflow_update_labels_type_0 import WorkflowUpdateLabelsType0
 from orchestrator_test_sdk.e2e import unique_name
+from syntara_api_client.models.project_create import ProjectCreate
+from syntara_api_client.models.workflow_create import WorkflowCreate
+from syntara_api_client.models.workflow_definition import WorkflowDefinition
+from syntara_api_client.models.workflow_update import WorkflowUpdate
+from syntara_api_client.models.workflow_update_labels_type_0 import WorkflowUpdateLabelsType0
 
 from tests.helpers.workflow import (
     create_minimal_workflow_definition,
@@ -25,8 +25,8 @@ from tests.helpers.workflow import (
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from nexus_api_client.api import NexusApiRegistry
-    from nexus_api_client.models.workflow_read import WorkflowRead
+    from syntara_api_client.api import SyntaraApiRegistry
+    from syntara_api_client.models.workflow_read import WorkflowRead
 
     WorkflowFactory = Callable[[WorkflowCreate], WorkflowRead]
 
@@ -38,7 +38,7 @@ class TestWorkflowUpdate:
 
     def test_update_workflow_labels(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: WorkflowFactory,
         first_project_id: UUID,
     ) -> None:
@@ -47,7 +47,7 @@ class TestWorkflowUpdate:
         Expected: 200 OK with updated labels
         """
         # Create workflow with labels
-        from nexus_api_client.models.workflow_create_labels import WorkflowCreateLabels
+        from syntara_api_client.models.workflow_create_labels import WorkflowCreateLabels
 
         workflow_name = unique_name("labeled-workflow")
         workflow = workflow_factory(
@@ -75,7 +75,7 @@ class TestWorkflowUpdate:
         assert updated.labels["env"] == "prod"
         assert updated.labels["team"] == "engineering"
 
-    def test_update_nonexistent_workflow(self, nexus_api: NexusApiRegistry) -> None:
+    def test_update_nonexistent_workflow(self, nexus_api: SyntaraApiRegistry) -> None:
         """Test updating a non-existent workflow.
 
         Expected: 404 Not Found
@@ -89,7 +89,7 @@ class TestWorkflowUpdate:
         assert response.status_code == HTTPStatus.NOT_FOUND
 
     def test_update_workflow_validation_errors(
-        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory, first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, workflow_factory: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """Test validation errors on invalid update data.
 
@@ -122,7 +122,7 @@ class TestWorkflowUpdate:
 
     def test_update_metadata_only_does_not_create_version(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: WorkflowFactory,
         first_project_id: UUID,
     ) -> None:
@@ -163,7 +163,7 @@ class TestWorkflowUpdate:
 
     def test_update_workflow_returns_version_data(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: WorkflowFactory,
         first_project_id: UUID,
     ) -> None:
@@ -198,7 +198,7 @@ class TestWorkflowUpdate:
         assert updated.version.workflow_id == workflow.id
 
     def test_update_with_unchanged_yaml_skips_version(
-        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory, first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, workflow_factory: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """Test that PATCH with identical definition does NOT create new version.
 
@@ -281,7 +281,7 @@ class TestWorkflowUpdate:
         assert updated2.current_version == 2  # Version incremented due to content change
 
     def test_update_workflow_duplicate_name_error(
-        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory, first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, workflow_factory: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """Test that renaming to an existing workflow name returns conflict error.
 
@@ -335,7 +335,7 @@ class TestWorkflowUpdate:
         assert workflow1_data.name == workflow1_name
 
     def test_update_workflow_preserves_project_id(
-        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory
+        self, nexus_api: SyntaraApiRegistry, workflow_factory: WorkflowFactory
     ) -> None:
         """Test that PATCH response includes the correct project_id."""
         # Create project via API
@@ -372,7 +372,7 @@ class TestWorkflowUpdate:
         assert updated.project_id == project_id
 
     def test_update_workflow_rejects_project_id_change(
-        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory
+        self, nexus_api: SyntaraApiRegistry, workflow_factory: WorkflowFactory
     ) -> None:
         """Test that PATCH rejects changing project_id with 422."""
         project1 = nexus_api.projects.create(
@@ -414,7 +414,7 @@ class TestWorkflowUpdate:
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
     def test_update_workflow_accepts_same_project_id(
-        self, nexus_api: NexusApiRegistry, workflow_factory: WorkflowFactory
+        self, nexus_api: SyntaraApiRegistry, workflow_factory: WorkflowFactory
     ) -> None:
         """Test that PATCH accepts the same project_id (no-op)."""
         project = nexus_api.projects.create(

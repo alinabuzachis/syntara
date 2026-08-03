@@ -49,28 +49,28 @@ jobs:
           fi
 
           # Detect overall backend changes (for jobs that need any backend change)
-          if echo "$FILES" | grep -qE '^(backend/|\.github/)'; then
+          if grep -qE '^(backend/|\.github/)' <<< "$FILES"; then
             echo "backend=true" >> "$GITHUB_OUTPUT"
           else
             echo "backend=false" >> "$GITHUB_OUTPUT"
           fi
 
           # Detect Python file changes
-          if echo "$FILES" | grep -qE '^backend/.*\.py$'; then
+          if grep -qE '^backend/.*\.py$' <<< "$FILES"; then
             echo "backend_py=true" >> "$GITHUB_OUTPUT"
           else
             echo "backend_py=false" >> "$GITHUB_OUTPUT"
           fi
 
           # Detect YAML file changes
-          if echo "$FILES" | grep -qE '^backend/.*\.(yaml|yml)$'; then
+          if grep -qE '^backend/.*\.(yaml|yml)$' <<< "$FILES"; then
             echo "backend_yaml=true" >> "$GITHUB_OUTPUT"
           else
             echo "backend_yaml=false" >> "$GITHUB_OUTPUT"
           fi
 
           # Detect schema changes
-          if echo "$FILES" | grep -qE '^backend/src/nexus/schemas/'; then
+          if grep -qE '^backend/src/nexus/schemas/' <<< "$FILES"; then
             echo "backend_schema=true" >> "$GITHUB_OUTPUT"
           else
             echo "backend_schema=false" >> "$GITHUB_OUTPUT"

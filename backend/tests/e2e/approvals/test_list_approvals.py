@@ -1,7 +1,7 @@
 """E2E tests for approval list endpoint."""
 
 import pytest
-from nexus_api_client.api import NexusApiRegistry
+from syntara_api_client.api import SyntaraApiRegistry
 
 pytestmark = [pytest.mark.e2e]
 
@@ -9,6 +9,6 @@ pytestmark = [pytest.mark.e2e]
 class TestApprovals:
     """E2E tests for approval GET endpoints."""
 
-    def test_list_approvals(self, nexus_api: NexusApiRegistry) -> None:
+    def test_list_approvals(self, nexus_api: SyntaraApiRegistry) -> None:
         approvals = nexus_api.approvals.list().assert_and_get()
         assert isinstance(approvals.resources, list)

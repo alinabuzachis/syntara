@@ -20,7 +20,7 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from nexus_api_client.api import NexusApiRegistry
+from syntara_api_client.api import SyntaraApiRegistry
 
 from orchestrator_test_sdk.e2e.auth import _login, _make_client, admin_password
 from orchestrator_test_sdk.e2e.helpers import get_first_non_builtin_project_id
@@ -29,9 +29,9 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Generator
     from uuid import UUID
 
-    from nexus_api_client.models.integration_create import IntegrationCreate
-    from nexus_api_client.models.workflow_create import WorkflowCreate
-    from nexus_api_client.models.workflow_read import WorkflowRead
+    from syntara_api_client.models.integration_create import IntegrationCreate
+    from syntara_api_client.models.workflow_create import WorkflowCreate
+    from syntara_api_client.models.workflow_read import WorkflowRead
 
 # ---------------------------------------------------------------------------
 # Module-scoped admin fixture (fresh token per module — avoids 15-min expiry)
@@ -41,7 +41,7 @@ _ADMIN_TOKEN_READY_TIMEOUT = 20.0
 
 
 @pytest.fixture(scope="module")
-def admin_api(nexus_base_url: str) -> NexusApiRegistry:
+def admin_api(nexus_base_url: str) -> SyntaraApiRegistry:
     """Admin API registry with a fresh JWT per test module.
 
     Retries login until the issued token is accepted by the API. This guards
@@ -58,7 +58,7 @@ def admin_api(nexus_base_url: str) -> NexusApiRegistry:
         try:
             token = _login(nexus_base_url, "admin", password)
             client = _make_client(nexus_base_url, token)
-            api = NexusApiRegistry(client)
+            api = SyntaraApiRegistry(client)
             resp = api.settings.list(limit=1)
             if resp.status_code == HTTPStatus.OK:
                 return api
@@ -82,7 +82,7 @@ def admin_api(nexus_base_url: str) -> NexusApiRegistry:
 
 
 @pytest.fixture(scope="session")
-def first_project_id(nexus_api: NexusApiRegistry) -> UUID:
+def first_project_id(nexus_api: SyntaraApiRegistry) -> UUID:
     """Return the first available non-builtin project ID.
 
     Tests that need a valid project ID can use this fixture.
@@ -93,7 +93,7 @@ def first_project_id(nexus_api: NexusApiRegistry) -> UUID:
 
 @pytest.fixture
 def integration_factory(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
 ) -> Generator[Callable[[IntegrationCreate], dict[str, Any]], None, None]:
     """Factory that creates integrations via the API with automatic cleanup."""
     created_ids: list[UUID] = []
@@ -114,7 +114,7 @@ def integration_factory(
 
 
 @pytest.fixture
-def workflow_factory(nexus_api: NexusApiRegistry) -> Generator[Callable[[WorkflowCreate], WorkflowRead], None, None]:
+def workflow_factory(nexus_api: SyntaraApiRegistry) -> Generator[Callable[[WorkflowCreate], WorkflowRead], None, None]:
     """Factory that creates workflows via the API with automatic cleanup."""
     created_workflow_ids: list[UUID] = []
 

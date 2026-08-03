@@ -10,16 +10,16 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from nexus_api_client.models.workflow_create import WorkflowCreate
-from nexus_api_client.models.workflow_create_labels import WorkflowCreateLabels
-from nexus_api_client.models.workflow_definition import WorkflowDefinition
+from syntara_api_client.models.workflow_create import WorkflowCreate
+from syntara_api_client.models.workflow_create_labels import WorkflowCreateLabels
+from syntara_api_client.models.workflow_definition import WorkflowDefinition
 
 from tests.helpers.workflow import create_minimal_workflow_definition
 
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from nexus_api_client.api import NexusApiRegistry
+    from syntara_api_client.api import SyntaraApiRegistry
 
 pytestmark = [pytest.mark.e2e]
 
@@ -32,7 +32,7 @@ class TestWorkflowCreation:
     """
 
     def test_create_workflow_with_labels(
-        self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
     ) -> None:
         """Test creating a workflow with labels.
 
@@ -65,7 +65,7 @@ class TestWorkflowCreation:
         assert workflow.labels["environment"] == "test"
         assert workflow.labels["team"] == "engineering"
 
-    def test_create_workflow_with_long_description(self, nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
+    def test_create_workflow_with_long_description(self, nexus_api: SyntaraApiRegistry, first_project_id: UUID) -> None:
         """Test creating a workflow with a long description. The field limit is 2,000 characters.
 
         Expected: 422 Unprocessable

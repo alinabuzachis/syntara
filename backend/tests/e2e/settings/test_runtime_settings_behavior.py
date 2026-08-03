@@ -14,16 +14,16 @@ from typing import Any
 from uuid import UUID
 
 import pytest
-from nexus_api_client.api import NexusApiRegistry
-from nexus_api_client.models import (
+from syntara_api_client.api import SyntaraApiRegistry
+from syntara_api_client.models import (
     ExecutionCreate,
     ExecutionRead,
     SettingUpdate,
     WorkflowCreate,
     WorkflowUpdate,
 )
-from nexus_api_client.models.execution_status import ExecutionStatus
-from nexus_api_client.models.workflow_definition import WorkflowDefinition
+from syntara_api_client.models.execution_status import ExecutionStatus
+from syntara_api_client.models.workflow_definition import WorkflowDefinition
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
@@ -34,7 +34,7 @@ POLL_TIMEOUT = 30
 _TERMINAL = {ExecutionStatus.COMPLETED, ExecutionStatus.FAILED, ExecutionStatus.CANCELLED}
 
 
-def _poll(api: NexusApiRegistry, exec_id: str, timeout: int = POLL_TIMEOUT) -> ExecutionRead:
+def _poll(api: SyntaraApiRegistry, exec_id: str, timeout: int = POLL_TIMEOUT) -> ExecutionRead:
     elapsed = 0
     while elapsed < timeout:
         time.sleep(POLL_INTERVAL)
@@ -46,7 +46,7 @@ def _poll(api: NexusApiRegistry, exec_id: str, timeout: int = POLL_TIMEOUT) -> E
 
 
 def _run_workflow(
-    api: NexusApiRegistry,
+    api: SyntaraApiRegistry,
     name: str,
     definition: dict[str, Any],
     timeout: int = POLL_TIMEOUT,
@@ -80,7 +80,7 @@ def _run_workflow(
     return _poll(api, str(execution.id), timeout=timeout)
 
 
-def _patch_setting(api: NexusApiRegistry, key: str, *, value: int | bool) -> None:
+def _patch_setting(api: SyntaraApiRegistry, key: str, *, value: int | bool) -> None:
     """Update a setting."""
     api.settings.update(key=key, body=SettingUpdate(value=value)).assert_and_get()
 
@@ -92,7 +92,7 @@ def _patch_setting(api: NexusApiRegistry, key: str, *, value: int | bool) -> Non
 
 @pytest.mark.e2e
 def test_script_timeout_setting_affects_execution(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
     first_project_id: UUID,
 ) -> None:
     """Changing script_timeout_seconds causes a slow script to time out."""
@@ -136,7 +136,7 @@ def test_script_timeout_setting_affects_execution(
 
 @pytest.mark.e2e
 def test_max_loop_iterations_setting_affects_execution(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
     first_project_id: UUID,
 ) -> None:
     """Changing max_loop_iterations causes an infinite loop to fail with MaxIterationsError."""

@@ -28,17 +28,17 @@ from typing import Any
 from uuid import UUID
 
 import pytest
-from nexus_api_client.api import NexusApiRegistry
-from nexus_api_client.models import (
+from orchestrator_test_sdk.e2e import unique_name
+from orchestrator_test_sdk.e2e.helpers import poll_execution_until_complete
+from orchestrator_test_sdk.factories.workflows import WorkflowFactory
+from syntara_api_client.api import SyntaraApiRegistry
+from syntara_api_client.models import (
     ExecutionCreate,
     ExecutionCreateInputData,
     WorkflowDefinition,
 )
-from nexus_api_client.models.activity_status import ActivityStatus
-from nexus_api_client.models.execution_status import ExecutionStatus
-from orchestrator_test_sdk.e2e import unique_name
-from orchestrator_test_sdk.e2e.helpers import poll_execution_until_complete
-from orchestrator_test_sdk.factories.workflows import WorkflowFactory
+from syntara_api_client.models.activity_status import ActivityStatus
+from syntara_api_client.models.execution_status import ExecutionStatus
 
 pytestmark = [pytest.mark.e2e]
 
@@ -65,7 +65,7 @@ class TestExpressionResolution:
 
     def test_node_output_reference_resolution(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         create_workflow: WorkflowFactory,
         first_project_id: UUID,
     ):
@@ -192,7 +192,7 @@ class TestExpressionResolution:
 
     def test_multiple_expression_references(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         create_workflow: WorkflowFactory,
         first_project_id: UUID,
     ):
@@ -317,7 +317,7 @@ class TestExpressionResolution:
 
     def test_trigger_input_reference_resolution(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         create_workflow: WorkflowFactory,
         first_project_id: UUID,
     ):
@@ -422,7 +422,7 @@ class TestExpressionResolution:
 
     def test_workflow_context_execution_id_resolves(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         create_workflow: WorkflowFactory,
         first_project_id: UUID,
     ):
@@ -512,7 +512,7 @@ class TestUnresolvableExpressionError:
 
     def test_unresolvable_field_reference_fails_execution(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         create_workflow: WorkflowFactory,
         first_project_id: UUID,
     ):
@@ -600,7 +600,7 @@ class TestUnresolvableExpressionError:
 
     def test_unresolvable_expression_with_continue_on_failure(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         create_workflow: WorkflowFactory,
         first_project_id: UUID,
     ):
@@ -706,7 +706,7 @@ class TestUnresolvableExpressionError:
 
     def test_completely_nonexistent_node_namespace_fails_execution(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         create_workflow: WorkflowFactory,
         first_project_id: UUID,
     ):

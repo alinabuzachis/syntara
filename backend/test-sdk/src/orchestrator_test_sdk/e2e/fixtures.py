@@ -15,21 +15,21 @@ from uuid import UUID
 
 import httpx
 import pytest
-from nexus_api_client import AuthenticatedClient
-from nexus_api_client.api import NexusApiRegistry
-from nexus_api_client.models.credential_create import CredentialCreate
-from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
-from nexus_api_client.models.initial_model_selection import InitialModelSelection
-from nexus_api_client.models.integration_create import IntegrationCreate
-from nexus_api_client.models.integration_patch import IntegrationPatch
-from nexus_api_client.models.integration_refresh_status import IntegrationRefreshStatus
-from nexus_api_client.models.integration_type import IntegrationType
-from nexus_api_client.models.llm_provider_configuration import LLMProviderConfiguration
-from nexus_api_client.models.llm_provider_hint import LLMProviderHint
-from nexus_api_client.models.mcp_server_configuration_input import MCPServerConfigurationInput
-from nexus_api_client.models.sub_resource_role_assignment_create import SubResourceRoleAssignmentCreate
-from nexus_api_client.models.user_create import UserCreate
-from nexus_api_client.types import UNSET, Unset
+from syntara_api_client import AuthenticatedClient
+from syntara_api_client.api import SyntaraApiRegistry
+from syntara_api_client.models.credential_create import CredentialCreate
+from syntara_api_client.models.credential_create_inputs import CredentialCreateInputs
+from syntara_api_client.models.initial_model_selection import InitialModelSelection
+from syntara_api_client.models.integration_create import IntegrationCreate
+from syntara_api_client.models.integration_patch import IntegrationPatch
+from syntara_api_client.models.integration_refresh_status import IntegrationRefreshStatus
+from syntara_api_client.models.integration_type import IntegrationType
+from syntara_api_client.models.llm_provider_configuration import LLMProviderConfiguration
+from syntara_api_client.models.llm_provider_hint import LLMProviderHint
+from syntara_api_client.models.mcp_server_configuration_input import MCPServerConfigurationInput
+from syntara_api_client.models.sub_resource_role_assignment_create import SubResourceRoleAssignmentCreate
+from syntara_api_client.models.user_create import UserCreate
+from syntara_api_client.types import UNSET, Unset
 from typer.testing import CliRunner
 
 from orchestrator_test_sdk.e2e import generate_test_password, unique_name
@@ -47,12 +47,12 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Generator
 
     from click.testing import Result
-    from nexus_api_client.models import (
+    from syntara_api_client.models import (
         WorkflowCreate,
         WorkflowRead,
     )
-    from nexus_api_client.models.user_info import UserInfo
-    from nexus_api_client.models.user_read import UserRead
+    from syntara_api_client.models.user_info import UserInfo
+    from syntara_api_client.models.user_read import UserRead
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +85,7 @@ def auth_headers(nexus_base_url: str) -> dict[str, str]:
 
 @pytest.fixture(scope="session")
 def nexus_client(nexus_base_url: str) -> AuthenticatedClient:
-    """Return an authenticated Nexus API client connected to the test environment."""
+    """Return an authenticated Syntara API client connected to the test environment."""
     base_url = nexus_base_url
 
     try:
@@ -110,20 +110,20 @@ def nexus_client(nexus_base_url: str) -> AuthenticatedClient:
 
 
 @pytest.fixture(scope="session")
-def nexus_api(nexus_client: AuthenticatedClient) -> NexusApiRegistry:
-    """Return a NexusApiRegistry bound to the session-scoped authenticated client.
+def nexus_api(nexus_client: AuthenticatedClient) -> SyntaraApiRegistry:
+    """Return a SyntaraApiRegistry bound to the session-scoped authenticated client.
 
     Uses ``nexus_client``, which refreshes the admin JWT via ``_AutoRefreshAuth`` on
     expiry or 401. Authentication E2E tests that revoke user/IdP sessions should use
     this fixture for admin API calls; those revocations do not invalidate unrelated
     admin tokens.
     """
-    return NexusApiRegistry(nexus_client)
+    return SyntaraApiRegistry(nexus_client)
 
 
 @pytest.fixture(scope="session")
 def unauthenticated_client(nexus_base_url: str) -> AuthenticatedClient:
-    """Return an unauthenticated Nexus API client for login flows and public endpoints.
+    """Return an unauthenticated Syntara API client for login flows and public endpoints.
 
     Uses an invalid token so requests are rejected with 401 by protected endpoints.
     SSL verification is disabled for E2E tests (localhost/test environment with
@@ -138,15 +138,15 @@ def unauthenticated_client(nexus_base_url: str) -> AuthenticatedClient:
 
 
 @pytest.fixture
-def unauth_api(nexus_base_url: str, unauthenticated_client: AuthenticatedClient) -> NexusApiRegistry:
-    """NexusApiRegistry backed by a client with no valid auth token.
+def unauth_api(nexus_base_url: str, unauthenticated_client: AuthenticatedClient) -> SyntaraApiRegistry:
+    """SyntaraApiRegistry backed by a client with no valid auth token.
 
     Used to verify that unauthenticated requests are rejected with 401.
     SSL verification is disabled for E2E tests (localhost/test environment with
     self-signed certs). This is acceptable for test code but should NEVER be
     used in production.
     """
-    return NexusApiRegistry(unauthenticated_client)
+    return SyntaraApiRegistry(unauthenticated_client)
 
 
 @pytest.fixture(autouse=True)
@@ -162,7 +162,7 @@ def reset_async_client(nexus_client: AuthenticatedClient) -> Generator[None, Non
 
 
 @pytest.fixture(autouse=True)
-def _wait_for_api(nexus_api: NexusApiRegistry) -> None:
+def _wait_for_api(nexus_api: SyntaraApiRegistry) -> None:
     """Wait for the API to be healthy before each test.
 
     The database can become temporarily unreachable in the KinD CI cluster,
@@ -188,7 +188,7 @@ def _wait_for_api(nexus_api: NexusApiRegistry) -> None:
 
 
 @pytest.fixture(scope="session")
-def viewer_client(nexus_base_url: str, nexus_api: NexusApiRegistry) -> AuthenticatedClient:
+def viewer_client(nexus_base_url: str, nexus_api: SyntaraApiRegistry) -> AuthenticatedClient:
     """Return an authenticated client for a non-admin (viewer) user.
 
     Creates the user via the admin client on first use.  The user has no
@@ -219,13 +219,13 @@ def viewer_client(nexus_base_url: str, nexus_api: NexusApiRegistry) -> Authentic
 
 
 @pytest.fixture(scope="session")
-def viewer_api(viewer_client: AuthenticatedClient) -> NexusApiRegistry:
-    """Return a NexusApiRegistry bound to the non-admin viewer client."""
-    return NexusApiRegistry(viewer_client)
+def viewer_api(viewer_client: AuthenticatedClient) -> SyntaraApiRegistry:
+    """Return a SyntaraApiRegistry bound to the non-admin viewer client."""
+    return SyntaraApiRegistry(viewer_client)
 
 
 @pytest.fixture(scope="session")
-def auditor_client(nexus_base_url: str, nexus_api: NexusApiRegistry) -> AuthenticatedClient:
+def auditor_client(nexus_base_url: str, nexus_api: SyntaraApiRegistry) -> AuthenticatedClient:
     """Return an authenticated client for a user with the auditor role.
 
     Creates the user and assigns the auditor role via the generated API
@@ -275,9 +275,9 @@ def auditor_client(nexus_base_url: str, nexus_api: NexusApiRegistry) -> Authenti
 
 
 @pytest.fixture(scope="session")
-def auditor_api(auditor_client: AuthenticatedClient) -> NexusApiRegistry:
-    """Return a NexusApiRegistry bound to the auditor client."""
-    return NexusApiRegistry(auditor_client)
+def auditor_api(auditor_client: AuthenticatedClient) -> SyntaraApiRegistry:
+    """Return a SyntaraApiRegistry bound to the auditor client."""
+    return SyntaraApiRegistry(auditor_client)
 
 
 # ---------------------------------------------------------------------------
@@ -303,7 +303,7 @@ def worker_base_url() -> str:
 
 
 @pytest.fixture(scope="session")
-def nexus_api_admin_group_id(nexus_api: NexusApiRegistry) -> UUID:
+def nexus_api_admin_group_id(nexus_api: SyntaraApiRegistry) -> UUID:
     """Get admin role group ID for Nexus API."""
     groups_resp = nexus_api.groups.list(additional_params={"name": "admins"}, limit=100)
     if groups_resp.parsed is None or len(groups_resp.parsed.resources) == 0:
@@ -318,7 +318,7 @@ def nexus_api_admin_group_id(nexus_api: NexusApiRegistry) -> UUID:
 
 
 @pytest.fixture(scope="session")
-def mcp_integration_id(nexus_api: NexusApiRegistry) -> str:
+def mcp_integration_id(nexus_api: SyntaraApiRegistry) -> str:
     """Return the ID of the shared MCP server Integration used by E2E tests.
 
     Checks that the MCP server is reachable, then either finds an existing
@@ -373,7 +373,7 @@ def mcp_integration_id(nexus_api: NexusApiRegistry) -> str:
 
 
 @pytest.fixture(scope="session")
-def nexus_admin_user(nexus_api: NexusApiRegistry) -> UserInfo:
+def nexus_admin_user(nexus_api: SyntaraApiRegistry) -> UserInfo:
     """Get admin user ID for Nexus API."""
     return cast("UserInfo", nexus_api.authentication.get_current_user().assert_and_get())
 
@@ -384,7 +384,7 @@ def nexus_admin_user(nexus_api: NexusApiRegistry) -> UserInfo:
 
 
 @pytest.fixture
-def workflow_factory(nexus_api: NexusApiRegistry) -> Generator[Callable[[WorkflowCreate], WorkflowRead], None, None]:
+def workflow_factory(nexus_api: SyntaraApiRegistry) -> Generator[Callable[[WorkflowCreate], WorkflowRead], None, None]:
     """Factory that creates workflows with automatic cleanup."""
     created_workflow_ids: list[UUID] = []
 
@@ -403,7 +403,7 @@ def workflow_factory(nexus_api: NexusApiRegistry) -> Generator[Callable[[Workflo
 
 
 @pytest.fixture
-def cleanup_workflows(nexus_api: NexusApiRegistry) -> Generator[list[UUID], None, None]:
+def cleanup_workflows(nexus_api: SyntaraApiRegistry) -> Generator[list[UUID], None, None]:
     """List to register workflow IDs for cleanup after test.
 
     Use when tests need to call nexus_api.workflows.create() directly
@@ -443,7 +443,7 @@ def llm_model() -> str:
 
 @pytest.fixture(scope="session")
 def llm_credential_id(
-    nexus_api: NexusApiRegistry, worker_id: str, first_project_id: UUID
+    nexus_api: SyntaraApiRegistry, worker_id: str, first_project_id: UUID
 ) -> Generator[str, None, None]:
     """Create an LLM Provider credential for e2e tests and yield its UUID.
 
@@ -487,7 +487,7 @@ def llm_credential_id(
 
 @pytest.fixture(scope="session")
 def llm_model_id(
-    nexus_api: NexusApiRegistry, llm_credential_id: str, llm_model: str, worker_id: str
+    nexus_api: SyntaraApiRegistry, llm_credential_id: str, llm_model: str, worker_id: str
 ) -> Generator[str, None, None]:
     """Create an LLM provider integration with a model and yield the LLMModel UUID.
 
@@ -537,7 +537,7 @@ def llm_model_id(
 
 
 @pytest.fixture(scope="session")
-def first_project_id(nexus_api: NexusApiRegistry) -> UUID:
+def first_project_id(nexus_api: SyntaraApiRegistry) -> UUID:
     """Return the first available non-builtin project ID.
 
     Tests that need a valid project ID can use this fixture.
@@ -553,7 +553,7 @@ def first_project_id(nexus_api: NexusApiRegistry) -> UUID:
 
 @pytest.fixture
 def local_user_factory(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
 ) -> Generator[Callable[..., tuple[UserRead, str]], None, None]:
     """Factory that creates a local user and cleans up after the test.
 
@@ -601,7 +601,7 @@ def local_user_factory(
 
 @pytest.fixture
 def integration_factory(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
 ) -> Generator[Callable[[IntegrationCreate], dict[str, Any]], None, None]:
     """Factory that creates integrations with automatic cleanup.
 

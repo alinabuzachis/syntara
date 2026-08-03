@@ -10,21 +10,21 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from nexus_api_client.models.activity_signal_payload import ActivitySignalPayload
-from nexus_api_client.models.activity_signal_payload_signal_data import ActivitySignalPayloadSignalData
-from nexus_api_client.models.execution_create import ExecutionCreate
-from nexus_api_client.models.execution_status import ExecutionStatus
-from nexus_api_client.models.workflow_create import WorkflowCreate
-from nexus_api_client.models.workflow_definition import WorkflowDefinition
 from orchestrator_test_sdk.e2e import unique_name
 from orchestrator_test_sdk.e2e.helpers import poll_execution_until_complete, wait_for_agentic_activity
+from syntara_api_client.models.activity_signal_payload import ActivitySignalPayload
+from syntara_api_client.models.activity_signal_payload_signal_data import ActivitySignalPayloadSignalData
+from syntara_api_client.models.execution_create import ExecutionCreate
+from syntara_api_client.models.execution_status import ExecutionStatus
+from syntara_api_client.models.workflow_create import WorkflowCreate
+from syntara_api_client.models.workflow_definition import WorkflowDefinition
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from uuid import UUID
 
-    from nexus_api_client.api import NexusApiRegistry
-    from nexus_api_client.models.workflow_read import WorkflowRead
+    from syntara_api_client.api import SyntaraApiRegistry
+    from syntara_api_client.models.workflow_read import WorkflowRead
 
     WorkflowFactory = Callable[[WorkflowCreate], WorkflowRead]
 
@@ -44,7 +44,7 @@ class TestWorkflowAgenticSignal:
 
     def test_agentic_signal_completion(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: WorkflowFactory,
         first_project_id: UUID,
         llm_credential_id: str,

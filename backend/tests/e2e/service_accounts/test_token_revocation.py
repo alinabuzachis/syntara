@@ -15,8 +15,8 @@ from typing import TYPE_CHECKING
 
 import httpx
 import pytest
-from nexus_api_client.models.sa_credential_create import SACredentialCreate
-from nexus_api_client.models.service_account_credential_type import ServiceAccountCredentialType
+from syntara_api_client.models.sa_credential_create import SACredentialCreate
+from syntara_api_client.models.service_account_credential_type import ServiceAccountCredentialType
 
 from tests.e2e.service_accounts import (
     create_sa_with_credential,
@@ -27,7 +27,7 @@ from tests.e2e.service_accounts import (
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from nexus_api_client.api import NexusApiRegistry
+    from syntara_api_client.api import SyntaraApiRegistry
 from orchestrator_test_sdk.e2e.tls import e2e_ssl_context
 
 if not os.environ.get("APP_BASE_URL"):
@@ -40,7 +40,7 @@ class TestDisableTokenInvalidation:
     """API-21: Disable — immediate token invalidation (outstanding tokens rejected)."""
 
     def test_disable_invalidates_outstanding_tokens(
-        self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
+        self, nexus_api: SyntaraApiRegistry, first_project_id: UUID, nexus_base_url: str
     ) -> None:
         """Outstanding Bearer tokens are rejected after the SA is disabled."""
         sa, client_id, client_secret = create_sa_with_credential(nexus_api, first_project_id)
@@ -75,7 +75,7 @@ class TestDeleteTokenInvalidation:
     """API-22: Delete — immediate token invalidation (outstanding tokens rejected)."""
 
     def test_delete_invalidates_outstanding_tokens(
-        self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
+        self, nexus_api: SyntaraApiRegistry, first_project_id: UUID, nexus_base_url: str
     ) -> None:
         """Outstanding Bearer tokens are rejected after the SA is deleted."""
         sa, client_id, client_secret = create_sa_with_credential(nexus_api, first_project_id)
@@ -103,7 +103,7 @@ class TestReEnableRestoresAuth:
     """API-23: Re-enable disabled service account (authentication restored)."""
 
     def test_re_enable_restores_authentication(
-        self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
+        self, nexus_api: SyntaraApiRegistry, first_project_id: UUID, nexus_base_url: str
     ) -> None:
         """After re-enabling a disabled SA, a fresh token grants access again.
 
@@ -147,7 +147,7 @@ class TestCredentialDisableTokenInvalidation:
     """Disabling a credential invalidates only that credential's tokens."""
 
     def test_disable_credential_invalidates_its_tokens_only(
-        self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
+        self, nexus_api: SyntaraApiRegistry, first_project_id: UUID, nexus_base_url: str
     ) -> None:
         """Token from credential A is rejected after disable; token from credential B still works."""
         sa, client_id_a, client_secret_a = create_sa_with_credential(nexus_api, first_project_id)
@@ -191,7 +191,7 @@ class TestCredentialDisableTokenInvalidation:
             nexus_api.service_accounts.delete(service_account_id=sa.id)
 
     def test_delete_credential_invalidates_its_tokens(
-        self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
+        self, nexus_api: SyntaraApiRegistry, first_project_id: UUID, nexus_base_url: str
     ) -> None:
         """Token from a deleted credential is rejected."""
         sa, client_id, client_secret = create_sa_with_credential(nexus_api, first_project_id)

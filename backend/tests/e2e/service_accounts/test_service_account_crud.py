@@ -15,16 +15,16 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 import pytest
-from nexus_api_client.models.sa_credential_create import SACredentialCreate
-from nexus_api_client.models.service_account_credential_type import ServiceAccountCredentialType
-from nexus_api_client.models.service_account_status import ServiceAccountStatus
-from nexus_api_client.models.service_account_update import ServiceAccountUpdate
 from orchestrator_test_sdk.e2e import unique_name
+from syntara_api_client.models.sa_credential_create import SACredentialCreate
+from syntara_api_client.models.service_account_credential_type import ServiceAccountCredentialType
+from syntara_api_client.models.service_account_status import ServiceAccountStatus
+from syntara_api_client.models.service_account_update import ServiceAccountUpdate
 
 from tests.e2e.service_accounts import create_sa
 
 if TYPE_CHECKING:
-    from nexus_api_client.api import NexusApiRegistry
+    from syntara_api_client.api import SyntaraApiRegistry
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
@@ -37,7 +37,9 @@ _MIN_SECRET_LENGTH = 48
 class TestCreateServiceAccount:
     """API-1: Create service account."""
 
-    def test_create_returns_201_with_expected_fields(self, nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
+    def test_create_returns_201_with_expected_fields(
+        self, nexus_api: SyntaraApiRegistry, first_project_id: UUID
+    ) -> None:
         """POST /service_accounts returns 201 with required fields populated."""
         sa = create_sa(nexus_api, first_project_id, description="E2E test account")
 
@@ -54,7 +56,7 @@ class TestCreateServiceAccount:
             nexus_api.service_accounts.delete(service_account_id=sa.id)
 
     def test_create_credential_returns_client_id_and_secret(
-        self, nexus_api: NexusApiRegistry, first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, first_project_id: UUID
     ) -> None:
         """POST /service_accounts/{id}/credentials returns identifier (nx_sa_ prefixed) and high-entropy secret."""
         sa = create_sa(nexus_api, first_project_id)
@@ -85,7 +87,7 @@ class TestCreateServiceAccount:
 class TestReadServiceAccount:
     """API-2: Read service account — secret not exposed."""
 
-    def test_get_detail_omits_secret(self, nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
+    def test_get_detail_omits_secret(self, nexus_api: SyntaraApiRegistry, first_project_id: UUID) -> None:
         """GET /service_accounts/{id} response has no client_secret field."""
         sa = create_sa(nexus_api, first_project_id)
 
@@ -102,7 +104,7 @@ class TestReadServiceAccount:
         finally:
             nexus_api.service_accounts.delete(service_account_id=sa.id)
 
-    def test_list_omits_secret(self, nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
+    def test_list_omits_secret(self, nexus_api: SyntaraApiRegistry, first_project_id: UUID) -> None:
         """GET /service_accounts list entries have no client_secret field."""
         sa = create_sa(nexus_api, first_project_id)
 
@@ -121,7 +123,7 @@ class TestReadServiceAccount:
         finally:
             nexus_api.service_accounts.delete(service_account_id=sa.id)
 
-    def test_get_credential_omits_secret(self, nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
+    def test_get_credential_omits_secret(self, nexus_api: SyntaraApiRegistry, first_project_id: UUID) -> None:
         """GET /service_accounts/{id}/credentials/{cred_id} omits client_secret."""
         sa = create_sa(nexus_api, first_project_id)
 
@@ -146,7 +148,7 @@ class TestReadServiceAccount:
 class TestUpdateServiceAccount:
     """API-3: Update service account (name/description update, credentials unchanged)."""
 
-    def test_update_name_and_description(self, nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
+    def test_update_name_and_description(self, nexus_api: SyntaraApiRegistry, first_project_id: UUID) -> None:
         """PATCH /service_accounts/{id} updates name and description."""
         sa = create_sa(nexus_api, first_project_id, description="original")
 
@@ -168,7 +170,7 @@ class TestUpdateServiceAccount:
         finally:
             nexus_api.service_accounts.delete(service_account_id=sa.id)
 
-    def test_update_preserves_credentials(self, nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
+    def test_update_preserves_credentials(self, nexus_api: SyntaraApiRegistry, first_project_id: UUID) -> None:
         """PATCH does not alter existing credentials."""
         sa = create_sa(nexus_api, first_project_id)
 
@@ -199,14 +201,14 @@ class TestUpdateServiceAccount:
 class TestDeleteServiceAccount:
     """API-4: Delete service account — soft delete."""
 
-    def test_delete_returns_204(self, nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
+    def test_delete_returns_204(self, nexus_api: SyntaraApiRegistry, first_project_id: UUID) -> None:
         """DELETE /service_accounts/{id} returns 204."""
         sa = create_sa(nexus_api, first_project_id)
 
         resp = nexus_api.service_accounts.delete(service_account_id=sa.id)
         assert resp.status_code == HTTPStatus.NO_CONTENT
 
-    def test_get_after_delete_returns_404(self, nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
+    def test_get_after_delete_returns_404(self, nexus_api: SyntaraApiRegistry, first_project_id: UUID) -> None:
         """GET /service_accounts/{id} returns 404 after soft-delete."""
         sa = create_sa(nexus_api, first_project_id)
         nexus_api.service_accounts.delete(service_account_id=sa.id)
@@ -214,7 +216,7 @@ class TestDeleteServiceAccount:
         resp = nexus_api.service_accounts.get(service_account_id=sa.id)
         assert resp.status_code == HTTPStatus.NOT_FOUND
 
-    def test_deleted_excluded_from_list(self, nexus_api: NexusApiRegistry, first_project_id: UUID) -> None:
+    def test_deleted_excluded_from_list(self, nexus_api: SyntaraApiRegistry, first_project_id: UUID) -> None:
         """Soft-deleted service accounts do not appear in list results."""
         sa = create_sa(nexus_api, first_project_id)
         nexus_api.service_accounts.delete(service_account_id=sa.id)

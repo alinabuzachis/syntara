@@ -15,32 +15,32 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from nexus_api_client.models.credential_create import CredentialCreate
-from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
-from nexus_api_client.models.credential_update import CredentialUpdate
-from nexus_api_client.models.execution_create import ExecutionCreate
-from nexus_api_client.models.policy_create import PolicyCreate
-from nexus_api_client.models.policy_statement_schema import PolicyStatementSchema
-from nexus_api_client.models.project_create import ProjectCreate
-from nexus_api_client.models.project_role_create import ProjectRoleCreate
-from nexus_api_client.models.project_update import ProjectUpdate
-from nexus_api_client.models.role_assignment_create import RoleAssignmentCreate
-from nexus_api_client.models.upload_files_body import UploadFilesBody
-from nexus_api_client.models.workflow_create import WorkflowCreate
-from nexus_api_client.models.workflow_update import WorkflowUpdate
 from orchestrator_test_sdk.e2e import (
     generate_test_password,
     unique_name,
 )
 from orchestrator_test_sdk.e2e.constants import MINIMAL_WORKFLOW_DEFINITION
 from orchestrator_test_sdk.factories import get_bearer_token_type_id
+from syntara_api_client.models.credential_create import CredentialCreate
+from syntara_api_client.models.credential_create_inputs import CredentialCreateInputs
+from syntara_api_client.models.credential_update import CredentialUpdate
+from syntara_api_client.models.execution_create import ExecutionCreate
+from syntara_api_client.models.policy_create import PolicyCreate
+from syntara_api_client.models.policy_statement_schema import PolicyStatementSchema
+from syntara_api_client.models.project_create import ProjectCreate
+from syntara_api_client.models.project_role_create import ProjectRoleCreate
+from syntara_api_client.models.project_update import ProjectUpdate
+from syntara_api_client.models.role_assignment_create import RoleAssignmentCreate
+from syntara_api_client.models.upload_files_body import UploadFilesBody
+from syntara_api_client.models.workflow_create import WorkflowCreate
+from syntara_api_client.models.workflow_update import WorkflowUpdate
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from uuid import UUID
 
-    from nexus_api_client.api import NexusApiRegistry
-    from nexus_api_client.types import Response
+    from syntara_api_client.api import SyntaraApiRegistry
+    from syntara_api_client.types import Response
 
 
 @dataclass
@@ -64,7 +64,7 @@ class PolicyTestCase:
 # ---------------------------------------------------------------------------
 
 
-def _wf_create(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+def _wf_create(api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
     return api.workflows.create(
         body=WorkflowCreate(
             name=unique_name("pol-wf"),
@@ -74,19 +74,19 @@ def _wf_create(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Respons
     )
 
 
-def _wf_list(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+def _wf_list(api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
     return api.projects.list_workflows(project_id=pid)
 
 
-def _wf_update(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+def _wf_update(api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
     return api.workflows.update(workflow_id=ctx["workflow_id"], body=WorkflowUpdate(name=unique_name("upd")))
 
 
-def _wf_delete(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+def _wf_delete(api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
     return api.workflows.delete(workflow_id=ctx["workflow_id"])
 
 
-def _cred_create(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+def _cred_create(api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
     return api.credentials.create(
         body=CredentialCreate(
             name=unique_name("pol-cred"),
@@ -97,54 +97,54 @@ def _cred_create(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Respo
     )
 
 
-def _cred_list(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+def _cred_list(api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
     return api.credentials.list()
 
 
-def _cred_update(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+def _cred_update(api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
     return api.credentials.update(credential_id=ctx["cred_id"], body=CredentialUpdate(description="updated"))
 
 
-def _cred_delete(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+def _cred_delete(api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
     return api.credentials.delete(credential_id=ctx["cred_id"])
 
 
-def _exec_run(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+def _exec_run(api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
     return api.executions.create(body=ExecutionCreate(workflow_id=ctx["workflow_id"], trigger_node_id="trigger"))
 
 
-def _exec_list(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+def _exec_list(api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
     return api.executions.list()
 
 
-def _approval_list(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+def _approval_list(api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
     return api.approvals.list()
 
 
-def _project_read(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+def _project_read(api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
     return api.projects.get(project_id=pid)
 
 
-def _project_update(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+def _project_update(api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
     return api.projects.update(project_id=pid, body=ProjectUpdate(description=unique_name("upd")))
 
 
-def _project_delete(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+def _project_delete(api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
     return api.projects.delete(project_id=pid)
 
 
-def _role_create_proj(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+def _role_create_proj(api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
     return api.projects.create_role(
         project_id=pid,
         body=ProjectRoleCreate(name=unique_name("pol-role"), policies=["workflow:read:project"]),
     )
 
 
-def _role_list_proj(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+def _role_list_proj(api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
     return api.roles.list(project_id=pid)
 
 
-def _role_assignment_assign_proj(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+def _role_assignment_assign_proj(api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
     return api.projects.create_role_assignment(
         project_id=pid,
         body=RoleAssignmentCreate(
@@ -154,11 +154,11 @@ def _role_assignment_assign_proj(api: NexusApiRegistry, pid: UUID, ctx: dict[str
     )
 
 
-def _role_assignment_list_proj(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+def _role_assignment_list_proj(api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
     return api.projects.list_role_assignments(project_id=pid)
 
 
-def _policy_create_proj(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+def _policy_create_proj(api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
     return api.projects.create_policy(
         project_id=pid,
         body=PolicyCreate(
@@ -174,7 +174,7 @@ def _policy_create_proj(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -
     )
 
 
-def _policy_list_proj(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+def _policy_list_proj(api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
     return api.policies.list(project_id=pid)
 
 
@@ -184,7 +184,7 @@ def _policy_list_proj(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> 
 # ---------------------------------------------------------------------------
 
 
-def _setup_workflow(admin_api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> None:
+def _setup_workflow(admin_api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> None:
     name = unique_name("pol-wf")
     resp = admin_api.workflows.create(
         body=WorkflowCreate(
@@ -197,7 +197,7 @@ def _setup_workflow(admin_api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any])
     ctx["workflow_id"] = wf.id
 
 
-def _setup_credential(admin_api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> None:
+def _setup_credential(admin_api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> None:
     ctx["cred_type_id"] = get_bearer_token_type_id(admin_api)
     name = unique_name("pol-cred")
     resp = admin_api.credentials.create(
@@ -212,12 +212,12 @@ def _setup_credential(admin_api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any
     ctx["cred_id"] = cred.id
 
 
-def _setup_cred_type(admin_api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> None:
+def _setup_cred_type(admin_api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> None:
     ctx["cred_type_id"] = get_bearer_token_type_id(admin_api)
 
 
-def _setup_target_user(admin_api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> None:
-    from nexus_api_client.models.user_create import UserCreate as _UserCreate
+def _setup_target_user(admin_api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> None:
+    from syntara_api_client.models.user_create import UserCreate as _UserCreate
 
     name = unique_name("pol-target")
     resp = admin_api.users.create(
@@ -232,10 +232,10 @@ def _setup_target_user(admin_api: NexusApiRegistry, pid: UUID, ctx: dict[str, An
     ctx["target_user_id"] = user.id
 
 
-def _file_upload(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+def _file_upload(api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
     from io import BytesIO
 
-    from nexus_api_client.types import File
+    from syntara_api_client.types import File
 
     body = UploadFilesBody(
         files=[File(payload=BytesIO(b"test content"), file_name="policy-test.txt", mime_type="text/plain")],
@@ -244,15 +244,15 @@ def _file_upload(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Respo
     return api.files.upload(body=body)
 
 
-def _file_download(api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
+def _file_download(api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> Response[Any]:
     file_id = ctx["file_id"]
     return api.files.download(file_id=file_id)
 
 
-def _setup_file(admin_api: NexusApiRegistry, pid: UUID, ctx: dict[str, Any]) -> None:
+def _setup_file(admin_api: SyntaraApiRegistry, pid: UUID, ctx: dict[str, Any]) -> None:
     from io import BytesIO
 
-    from nexus_api_client.types import File
+    from syntara_api_client.types import File
 
     body = UploadFilesBody(
         files=[File(payload=BytesIO(b"setup content"), file_name="setup-test.txt", mime_type="text/plain")],

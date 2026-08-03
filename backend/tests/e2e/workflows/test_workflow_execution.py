@@ -19,18 +19,18 @@ from typing import Any
 from uuid import UUID
 
 import pytest
-from nexus_api_client.api import NexusApiRegistry
-from nexus_api_client.models import (
+from orchestrator_test_sdk.e2e import unique_name
+from orchestrator_test_sdk.e2e.helpers import create_and_run_workflow, poll_for_pending_approval
+from syntara_api_client.api import SyntaraApiRegistry
+from syntara_api_client.models import (
     ExecutionCreate,
     WorkflowCreate,
     WorkflowDefinition,
     WorkflowRead,
     WorkflowUpdate,
 )
-from nexus_api_client.models.approval_request_status import ApprovalRequestStatus
-from nexus_api_client.models.execution_status import ExecutionStatus
-from orchestrator_test_sdk.e2e import unique_name
-from orchestrator_test_sdk.e2e.helpers import create_and_run_workflow, poll_for_pending_approval
+from syntara_api_client.models.approval_request_status import ApprovalRequestStatus
+from syntara_api_client.models.execution_status import ExecutionStatus
 
 pytestmark = [pytest.mark.e2e]
 
@@ -57,7 +57,7 @@ class TestWorkflowExecution:
 
     def test_execute_workflow_with_script_node(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ):
@@ -161,7 +161,7 @@ class TestWorkflowExecution:
 
     def test_get_execution_status_with_per_node_details(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ):
@@ -298,7 +298,7 @@ class TestWorkflowExecution:
 
     def test_list_executions_with_filtering(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ):
@@ -460,7 +460,7 @@ class TestWorkflowExecution:
 
     def test_cancel_execution_with_pending_approval(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ):
@@ -591,7 +591,7 @@ class TestParallelBranches:
     - Output from both branches is available downstream via expressions
     """
 
-    def test_two_parallel_wait_branches_run_concurrently(self, nexus_api: NexusApiRegistry) -> None:
+    def test_two_parallel_wait_branches_run_concurrently(self, nexus_api: SyntaraApiRegistry) -> None:
         """Two parallel wait nodes complete in ~branch_duration, not ~2x."""
         branch_duration = 4  # seconds per branch
         # Sequential worst-case would be 2 * branch_duration = 8s.
@@ -675,7 +675,7 @@ class TestParallelBranches:
             f"Each branch waits {branch_duration}s; sequential total would be ~{2 * branch_duration}s."
         )
 
-    def test_three_parallel_branches_all_complete(self, nexus_api: NexusApiRegistry) -> None:
+    def test_three_parallel_branches_all_complete(self, nexus_api: SyntaraApiRegistry) -> None:
         """Three parallel script branches all complete before the converge node runs."""
         result = create_and_run_workflow(
             nexus_api,
@@ -763,7 +763,7 @@ class TestNodeFailurePropagation:
     - Overall execution status is "failed"
     """
 
-    def test_failed_node_stops_downstream_execution(self, nexus_api: NexusApiRegistry) -> None:
+    def test_failed_node_stops_downstream_execution(self, nexus_api: SyntaraApiRegistry) -> None:
         """A failing middle node prevents downstream nodes from executing."""
         result = create_and_run_workflow(
             nexus_api,
@@ -823,7 +823,7 @@ class TestNodeFailurePropagation:
                 f"node_c should NOT have completed after node_b failed, got {activities['node_c'].status}"
             )
 
-    def test_failure_at_first_node_skips_all_downstream(self, nexus_api: NexusApiRegistry) -> None:
+    def test_failure_at_first_node_skips_all_downstream(self, nexus_api: SyntaraApiRegistry) -> None:
         """A failure in the very first node prevents every downstream node from running."""
         result = create_and_run_workflow(
             nexus_api,
@@ -874,7 +874,7 @@ class TestNodeFailurePropagation:
                     f"{downstream} should NOT be completed after upstream failure, got {activities[downstream].status}"
                 )
 
-    def test_failure_does_not_affect_independent_branch(self, nexus_api: NexusApiRegistry) -> None:
+    def test_failure_does_not_affect_independent_branch(self, nexus_api: SyntaraApiRegistry) -> None:
         """A failure in one fork branch does not prevent the sibling branch from executing.
 
         Topology: trigger → [branch_ok, branch_fail] → converge

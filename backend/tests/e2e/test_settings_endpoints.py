@@ -6,15 +6,15 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import pytest
-from nexus_api_client.models.error_data import ErrorData
-from nexus_api_client.models.runtime_setting_read import RuntimeSettingRead
-from nexus_api_client.models.setting_bulk_update_item import SettingBulkUpdateItem
-from nexus_api_client.models.setting_bulk_update_request import SettingBulkUpdateRequest
-from nexus_api_client.models.setting_update import SettingUpdate
 from orchestrator_test_sdk.e2e.helpers import _retry_api_call
+from syntara_api_client.models.error_data import ErrorData
+from syntara_api_client.models.runtime_setting_read import RuntimeSettingRead
+from syntara_api_client.models.setting_bulk_update_item import SettingBulkUpdateItem
+from syntara_api_client.models.setting_bulk_update_request import SettingBulkUpdateRequest
+from syntara_api_client.models.setting_update import SettingUpdate
 
 if TYPE_CHECKING:
-    from nexus_api_client.api import NexusApiRegistry
+    from syntara_api_client.api import SyntaraApiRegistry
 
 pytestmark = [pytest.mark.e2e]
 
@@ -28,7 +28,7 @@ _SCRIPT_TIMEOUT_KEY = "workflow_engine.script_timeout_seconds"
 _OVERWRITE_KEY = "document_conversion.overwrite_existing"
 
 
-def _get_setting(api: NexusApiRegistry, key: str) -> RuntimeSettingRead:
+def _get_setting(api: SyntaraApiRegistry, key: str) -> RuntimeSettingRead:
     """Get a single setting, asserting success."""
     setting = _retry_api_call(lambda: api.settings.get(key=key)).assert_and_get()
     assert isinstance(setting, RuntimeSettingRead)
@@ -36,7 +36,7 @@ def _get_setting(api: NexusApiRegistry, key: str) -> RuntimeSettingRead:
 
 
 def _update_setting(
-    api: NexusApiRegistry,
+    api: SyntaraApiRegistry,
     key: str,
     value: object,
     *,
@@ -51,7 +51,7 @@ def _update_setting(
     return setting
 
 
-def _restore_setting(api: NexusApiRegistry, key: str, value: object) -> None:
+def _restore_setting(api: SyntaraApiRegistry, key: str, value: object) -> None:
     """Restore a setting to a previous value (best-effort, no assertions)."""
     api.settings.update(key=key, body=SettingUpdate(value=value))
 
@@ -60,7 +60,7 @@ def _restore_setting(api: NexusApiRegistry, key: str, value: object) -> None:
 class TestSettings:
     """E2E tests for settings GET and PATCH endpoints."""
 
-    def test_list_settings(self, nexus_api: NexusApiRegistry) -> None:
+    def test_list_settings(self, nexus_api: SyntaraApiRegistry) -> None:
         """GET /settings returns 200 with resources containing required fields."""
         settings_list = nexus_api.settings.list().assert_and_get()
         settings = settings_list.resources
@@ -72,7 +72,7 @@ class TestSettings:
             assert setting.category
             assert setting.version is not None
 
-    def test_list_categories(self, nexus_api: NexusApiRegistry) -> None:
+    def test_list_categories(self, nexus_api: SyntaraApiRegistry) -> None:
         """GET /settings/categories returns 200 with all expected categories."""
         categories_response = nexus_api.settings.list_categories().assert_and_get()
         categories = categories_response.resources
@@ -85,7 +85,7 @@ class TestSettings:
             assert cat.name
             assert cat.group_names is not None
 
-    def test_get_setting(self, nexus_api: NexusApiRegistry) -> None:
+    def test_get_setting(self, nexus_api: SyntaraApiRegistry) -> None:
         """GET /settings/{key} returns a specific setting with full metadata."""
         setting = _get_setting(nexus_api, _MAX_TOKENS_KEY)
 
@@ -97,7 +97,7 @@ class TestSettings:
         assert setting.version is not None
         assert setting.validation_schema is not None
 
-    def test_update_setting(self, nexus_api: NexusApiRegistry) -> None:
+    def test_update_setting(self, nexus_api: SyntaraApiRegistry) -> None:
         """PATCH /settings/{key} updates a setting and persists on re-read."""
         original_value = _get_setting(nexus_api, _MAX_TOKENS_KEY).effective_value
 
@@ -115,7 +115,7 @@ class TestSettings:
 class TestLogLevelSetting:
     """E2E tests for the logging.log_level runtime setting."""
 
-    def test_get_log_level(self, nexus_api: NexusApiRegistry) -> None:
+    def test_get_log_level(self, nexus_api: SyntaraApiRegistry) -> None:
         """Admin can read the log level setting with expected metadata."""
         setting = _get_setting(nexus_api, _LOG_LEVEL_KEY)
 
@@ -123,7 +123,7 @@ class TestLogLevelSetting:
         assert setting.requires_restart is False
         assert setting.effective_value in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 
-    def test_update_log_level(self, nexus_api: NexusApiRegistry) -> None:
+    def test_update_log_level(self, nexus_api: SyntaraApiRegistry) -> None:
         """Admin can change the log level and the update persists on re-read."""
         original_value = _get_setting(nexus_api, _LOG_LEVEL_KEY).effective_value
 
@@ -136,7 +136,7 @@ class TestLogLevelSetting:
         finally:
             _restore_setting(nexus_api, _LOG_LEVEL_KEY, original_value)
 
-    def test_update_log_level_rejects_invalid(self, nexus_api: NexusApiRegistry) -> None:
+    def test_update_log_level_rejects_invalid(self, nexus_api: SyntaraApiRegistry) -> None:
         """Updating log level with an invalid value returns 422."""
         resp = nexus_api.settings.update(key=_LOG_LEVEL_KEY, body=SettingUpdate(value="INVALID"))
 
@@ -146,7 +146,7 @@ class TestLogLevelSetting:
 class TestNewSettings:
     """E2E tests for runtime settings catalog entries."""
 
-    def test_new_categories_appear(self, nexus_api: NexusApiRegistry) -> None:
+    def test_new_categories_appear(self, nexus_api: SyntaraApiRegistry) -> None:
         """GET /settings/categories includes ai_llm, workflow_execution, application."""
         categories_response = nexus_api.settings.list_categories().assert_and_get()
         slugs = [cat.slug for cat in categories_response.resources]
@@ -154,7 +154,7 @@ class TestNewSettings:
         assert "workflow_execution" in slugs
         assert "application" in slugs
 
-    def test_workflow_setting_exists(self, nexus_api: NexusApiRegistry) -> None:
+    def test_workflow_setting_exists(self, nexus_api: SyntaraApiRegistry) -> None:
         """GET /settings/{key} returns a workflow execution setting."""
         setting = _get_setting(nexus_api, _SCRIPT_TIMEOUT_KEY)
 
@@ -163,13 +163,13 @@ class TestNewSettings:
         assert setting.value_type.value == "integer"
         assert setting.default_value == 300
 
-    def test_all_settings_have_requires_restart(self, nexus_api: NexusApiRegistry) -> None:
+    def test_all_settings_have_requires_restart(self, nexus_api: SyntaraApiRegistry) -> None:
         """Every setting in the list response includes a requires_restart boolean."""
         settings_list = nexus_api.settings.list().assert_and_get()
         for setting in settings_list.resources:
             assert isinstance(setting.requires_restart, bool)
 
-    def test_constraint_validation_rejects_invalid(self, nexus_api: NexusApiRegistry) -> None:
+    def test_constraint_validation_rejects_invalid(self, nexus_api: SyntaraApiRegistry) -> None:
         """PATCH with out-of-range value returns 422."""
         resp = nexus_api.settings.update(key=_TIMEOUT_SECONDS_KEY, body=SettingUpdate(value=999))
 
@@ -179,29 +179,29 @@ class TestNewSettings:
 class TestAuditorSettingsAccess:
     """E2E tests verifying auditor users have read-only access to settings."""
 
-    def test_auditor_can_list_settings(self, auditor_api: NexusApiRegistry) -> None:
+    def test_auditor_can_list_settings(self, auditor_api: SyntaraApiRegistry) -> None:
         """Auditor can list all settings."""
         settings_list = auditor_api.settings.list().assert_and_get()
         assert len(settings_list.resources) > 0
 
-    def test_auditor_can_get_setting(self, auditor_api: NexusApiRegistry) -> None:
+    def test_auditor_can_get_setting(self, auditor_api: SyntaraApiRegistry) -> None:
         """Auditor can read a specific setting."""
         setting = auditor_api.settings.get(key=_MAX_TOKENS_KEY).assert_and_get()
         assert isinstance(setting, RuntimeSettingRead)
         assert setting.key == _MAX_TOKENS_KEY
 
-    def test_auditor_can_list_categories(self, auditor_api: NexusApiRegistry) -> None:
+    def test_auditor_can_list_categories(self, auditor_api: SyntaraApiRegistry) -> None:
         """Auditor can list setting categories."""
         categories_response = auditor_api.settings.list_categories().assert_and_get()
         assert len(categories_response.resources) > 0
 
-    def test_auditor_cannot_update_setting(self, auditor_api: NexusApiRegistry) -> None:
+    def test_auditor_cannot_update_setting(self, auditor_api: SyntaraApiRegistry) -> None:
         """Auditor is denied access to update a setting."""
         resp = auditor_api.settings.update(key=_LOG_LEVEL_KEY, body=SettingUpdate(value="DEBUG"))
 
         assert resp.status_code == HTTPStatus.FORBIDDEN
 
-    def test_auditor_cannot_bulk_update(self, auditor_api: NexusApiRegistry) -> None:
+    def test_auditor_cannot_bulk_update(self, auditor_api: SyntaraApiRegistry) -> None:
         """Auditor is denied access to bulk update settings."""
         resp = auditor_api.settings.bulk_update(
             body=SettingBulkUpdateRequest(updates=[SettingBulkUpdateItem(key=_LOG_LEVEL_KEY, value="DEBUG")])
@@ -213,29 +213,29 @@ class TestAuditorSettingsAccess:
 class TestSettingsAuthorization:
     """E2E tests verifying non-admin users cannot access settings."""
 
-    def test_viewer_cannot_list_settings(self, viewer_api: NexusApiRegistry) -> None:
+    def test_viewer_cannot_list_settings(self, viewer_api: SyntaraApiRegistry) -> None:
         """Non-admin user is denied access to list settings."""
         resp = viewer_api.settings.list()
         assert resp.status_code == HTTPStatus.FORBIDDEN
 
-    def test_viewer_cannot_get_setting(self, viewer_api: NexusApiRegistry) -> None:
+    def test_viewer_cannot_get_setting(self, viewer_api: SyntaraApiRegistry) -> None:
         """Non-admin user is denied access to read a specific setting."""
         resp = viewer_api.settings.get(key=_LOG_LEVEL_KEY)
         assert resp.status_code == HTTPStatus.FORBIDDEN
 
-    def test_viewer_cannot_update_setting(self, viewer_api: NexusApiRegistry) -> None:
+    def test_viewer_cannot_update_setting(self, viewer_api: SyntaraApiRegistry) -> None:
         """Non-admin user is denied access to update a setting."""
         resp = viewer_api.settings.update(key=_LOG_LEVEL_KEY, body=SettingUpdate(value="DEBUG"))
         assert resp.status_code == HTTPStatus.FORBIDDEN
 
-    def test_viewer_cannot_bulk_update(self, viewer_api: NexusApiRegistry) -> None:
+    def test_viewer_cannot_bulk_update(self, viewer_api: SyntaraApiRegistry) -> None:
         """Non-admin user is denied access to bulk update settings."""
         resp = viewer_api.settings.bulk_update(
             body=SettingBulkUpdateRequest(updates=[SettingBulkUpdateItem(key=_LOG_LEVEL_KEY, value="DEBUG")])
         )
         assert resp.status_code == HTTPStatus.FORBIDDEN
 
-    def test_viewer_cannot_list_categories(self, viewer_api: NexusApiRegistry) -> None:
+    def test_viewer_cannot_list_categories(self, viewer_api: SyntaraApiRegistry) -> None:
         """Non-admin user is denied access to list setting categories."""
         resp = viewer_api.settings.list_categories()
         assert resp.status_code == HTTPStatus.FORBIDDEN
@@ -244,7 +244,7 @@ class TestSettingsAuthorization:
 class TestSettingsFiltering:
     """E2E tests for filtering settings by category and group."""
 
-    def test_filter_by_category(self, nexus_api: NexusApiRegistry) -> None:
+    def test_filter_by_category(self, nexus_api: SyntaraApiRegistry) -> None:
         """GET /settings?category= returns only settings in that category."""
         settings_list = nexus_api.settings.list(category="context_manager").assert_and_get()
         settings = settings_list.resources
@@ -252,7 +252,7 @@ class TestSettingsFiltering:
         for setting in settings:
             assert setting.category == "context_manager"
 
-    def test_filter_by_category_and_group(self, nexus_api: NexusApiRegistry) -> None:
+    def test_filter_by_category_and_group(self, nexus_api: SyntaraApiRegistry) -> None:
         """GET /settings?category=&group= returns only matching settings."""
         settings_list = nexus_api.settings.list(category="context_manager", group="Compression").assert_and_get()
         settings = settings_list.resources
@@ -265,7 +265,7 @@ class TestSettingsFiltering:
 class TestSettingsPagination:
     """E2E tests for cursor-based pagination of settings."""
 
-    def test_pagination_no_overlap(self, nexus_api: NexusApiRegistry) -> None:
+    def test_pagination_no_overlap(self, nexus_api: SyntaraApiRegistry) -> None:
         """Paginated pages do not contain overlapping settings."""
         # sort by -created_at to align with the cursor's (created_at, id) keyset
         page1_response = nexus_api.settings.list(limit=5, sort="-created_at").assert_and_get()
@@ -285,12 +285,12 @@ class TestSettingsPagination:
 class TestSettingsGetErrors:
     """E2E tests for error responses on GET /settings/{key}."""
 
-    def test_get_nonexistent_setting_404(self, nexus_api: NexusApiRegistry) -> None:
+    def test_get_nonexistent_setting_404(self, nexus_api: SyntaraApiRegistry) -> None:
         """Requesting a nonexistent setting key returns 404."""
         resp = nexus_api.settings.get(key="nonexistent.setting.key")
         assert resp.status_code == HTTPStatus.NOT_FOUND
 
-    def test_get_invalid_key_format_400(self, nexus_api: NexusApiRegistry) -> None:
+    def test_get_invalid_key_format_400(self, nexus_api: SyntaraApiRegistry) -> None:
         """Requesting a setting with an invalid key format returns 400."""
         resp = nexus_api.settings.get(key="INVALID")
         assert resp.status_code == HTTPStatus.BAD_REQUEST
@@ -299,27 +299,27 @@ class TestSettingsGetErrors:
 class TestSettingsValidation:
     """E2E tests for setting value validation on PATCH."""
 
-    def test_float_above_max(self, nexus_api: NexusApiRegistry) -> None:
+    def test_float_above_max(self, nexus_api: SyntaraApiRegistry) -> None:
         """Float value above max constraint returns 422."""
         resp = nexus_api.settings.update(key=_GROUNDING_SCORE_KEY, body=SettingUpdate(value=1.5))
         assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
-    def test_float_below_min(self, nexus_api: NexusApiRegistry) -> None:
+    def test_float_below_min(self, nexus_api: SyntaraApiRegistry) -> None:
         """Float value below min constraint returns 422."""
         resp = nexus_api.settings.update(key=_GROUNDING_SCORE_KEY, body=SettingUpdate(value=-0.1))
         assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
-    def test_wrong_type_string_for_boolean(self, nexus_api: NexusApiRegistry) -> None:
+    def test_wrong_type_string_for_boolean(self, nexus_api: SyntaraApiRegistry) -> None:
         """String value for a boolean setting returns 422."""
         resp = nexus_api.settings.update(key=_ENABLE_HYBRID_KEY, body=SettingUpdate(value="yes"))
         assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
-    def test_boolean_for_integer(self, nexus_api: NexusApiRegistry) -> None:
+    def test_boolean_for_integer(self, nexus_api: SyntaraApiRegistry) -> None:
         """Boolean value for an integer setting returns 422."""
         resp = nexus_api.settings.update(key=_MAX_TOKENS_KEY, body=SettingUpdate(value=True))
         assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
-    def test_integer_below_min(self, nexus_api: NexusApiRegistry) -> None:
+    def test_integer_below_min(self, nexus_api: SyntaraApiRegistry) -> None:
         """Integer value below min constraint returns 422 with descriptive message."""
         resp = nexus_api.settings.update(key=_MAX_TOKENS_KEY, body=SettingUpdate(value=0))
 
@@ -327,7 +327,7 @@ class TestSettingsValidation:
         assert isinstance(resp.parsed, ErrorData)
         assert "must be >= 1" in resp.parsed.detail
 
-    def test_null_value_rejected(self, nexus_api: NexusApiRegistry) -> None:
+    def test_null_value_rejected(self, nexus_api: SyntaraApiRegistry) -> None:
         """Null value returns 422 with guidance to use default_value."""
         resp = nexus_api.settings.update(key=_LOG_LEVEL_KEY, body=SettingUpdate(value=None))
 
@@ -335,12 +335,12 @@ class TestSettingsValidation:
         assert isinstance(resp.parsed, ErrorData)
         assert "default_value" in resp.parsed.detail
 
-    def test_nonexistent_key_on_update(self, nexus_api: NexusApiRegistry) -> None:
+    def test_nonexistent_key_on_update(self, nexus_api: SyntaraApiRegistry) -> None:
         """Updating a nonexistent setting key returns 404."""
         resp = nexus_api.settings.update(key="nonexistent.setting.key", body=SettingUpdate(value=42))
         assert resp.status_code == HTTPStatus.NOT_FOUND
 
-    def test_oversized_value(self, nexus_api: NexusApiRegistry) -> None:
+    def test_oversized_value(self, nexus_api: SyntaraApiRegistry) -> None:
         """Value exceeding 64KB returns 422."""
         resp = nexus_api.settings.update(key="telemetry.segment_endpoint", body=SettingUpdate(value="x" * 70_000))
         assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
@@ -350,7 +350,7 @@ class TestSettingsValidation:
 class TestSettingsResetToDefault:
     """E2E tests for resetting a setting to its default value."""
 
-    def test_reset_to_default(self, nexus_api: NexusApiRegistry) -> None:
+    def test_reset_to_default(self, nexus_api: SyntaraApiRegistry) -> None:
         """Setting can be reset by PATCHing with its default_value."""
         original_value = _get_setting(nexus_api, _MAX_TOKENS_KEY).effective_value
 
@@ -369,7 +369,7 @@ class TestSettingsResetToDefault:
 class TestSettingsBulkUpdate:
     """E2E tests for the bulk update endpoint PATCH /settings."""
 
-    def test_bulk_update_happy_path(self, nexus_api: NexusApiRegistry) -> None:
+    def test_bulk_update_happy_path(self, nexus_api: SyntaraApiRegistry) -> None:
         """Bulk update across categories succeeds and persists."""
         keys = [_MAX_TOKENS_KEY, _SCRIPT_TIMEOUT_KEY, _TIMEOUT_SECONDS_KEY]
         originals = {k: _get_setting(nexus_api, k).effective_value for k in keys}
@@ -397,7 +397,7 @@ class TestSettingsBulkUpdate:
             for k, v in originals.items():
                 _restore_setting(nexus_api, k, v)
 
-    def test_bulk_update_all_or_nothing(self, nexus_api: NexusApiRegistry) -> None:
+    def test_bulk_update_all_or_nothing(self, nexus_api: SyntaraApiRegistry) -> None:
         """If any item in a bulk update fails validation, no settings change."""
         original_tokens = _get_setting(nexus_api, _MAX_TOKENS_KEY).effective_value
         original_grounding = _get_setting(nexus_api, _GROUNDING_SCORE_KEY).effective_value
@@ -419,7 +419,7 @@ class TestSettingsBulkUpdate:
             _restore_setting(nexus_api, _MAX_TOKENS_KEY, original_tokens)
             _restore_setting(nexus_api, _GROUNDING_SCORE_KEY, original_grounding)
 
-    def test_bulk_update_duplicate_keys(self, nexus_api: NexusApiRegistry) -> None:
+    def test_bulk_update_duplicate_keys(self, nexus_api: SyntaraApiRegistry) -> None:
         """Bulk update with duplicate keys returns 400 with message."""
         resp = nexus_api.settings.bulk_update(
             body=SettingBulkUpdateRequest(
@@ -434,19 +434,19 @@ class TestSettingsBulkUpdate:
         assert isinstance(resp.parsed, ErrorData)
         assert "duplicate" in resp.parsed.detail.lower()
 
-    def test_bulk_update_empty_list(self, nexus_api: NexusApiRegistry) -> None:
+    def test_bulk_update_empty_list(self, nexus_api: SyntaraApiRegistry) -> None:
         """Bulk update with empty updates list returns 200."""
         updated_settings = nexus_api.settings.bulk_update(body=SettingBulkUpdateRequest(updates=[])).assert_and_get()
         assert updated_settings.resources == []
 
-    def test_bulk_update_exceeds_limit(self, nexus_api: NexusApiRegistry) -> None:
+    def test_bulk_update_exceeds_limit(self, nexus_api: SyntaraApiRegistry) -> None:
         """Bulk update with more than 500 items returns 422."""
         updates = [SettingBulkUpdateItem(key=f"fake.key_{i}", value=i) for i in range(501)]
         resp = nexus_api.settings.bulk_update(body=SettingBulkUpdateRequest(updates=updates))
 
         assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
-    def test_bulk_update_version_conflict(self, nexus_api: NexusApiRegistry) -> None:
+    def test_bulk_update_version_conflict(self, nexus_api: SyntaraApiRegistry) -> None:
         """Bulk update with a stale version returns 409 and no settings change."""
         setting_a = _get_setting(nexus_api, _MAX_TOKENS_KEY)
         setting_b = _get_setting(nexus_api, _COMPRESSION_TEMP_KEY)
@@ -482,7 +482,7 @@ class TestSettingsBulkUpdate:
 class TestSettingsOptimisticLocking:
     """E2E tests for optimistic locking via expected_version."""
 
-    def test_correct_version(self, nexus_api: NexusApiRegistry) -> None:
+    def test_correct_version(self, nexus_api: SyntaraApiRegistry) -> None:
         """Update with correct expected_version succeeds and increments version."""
         setting = _get_setting(nexus_api, _COMPRESSION_TEMP_KEY)
         original_value = setting.effective_value
@@ -494,7 +494,7 @@ class TestSettingsOptimisticLocking:
         finally:
             _restore_setting(nexus_api, _COMPRESSION_TEMP_KEY, original_value)
 
-    def test_stale_version(self, nexus_api: NexusApiRegistry) -> None:
+    def test_stale_version(self, nexus_api: SyntaraApiRegistry) -> None:
         """Update with stale expected_version returns 409."""
         setting = _get_setting(nexus_api, _COMPRESSION_TEMP_KEY)
         original_value = setting.effective_value
@@ -513,7 +513,7 @@ class TestSettingsOptimisticLocking:
         finally:
             _restore_setting(nexus_api, _COMPRESSION_TEMP_KEY, original_value)
 
-    def test_without_expected_version(self, nexus_api: NexusApiRegistry) -> None:
+    def test_without_expected_version(self, nexus_api: SyntaraApiRegistry) -> None:
         """Update without expected_version succeeds and increments version."""
         setting = _get_setting(nexus_api, _COMPRESSION_TEMP_KEY)
         original_value = setting.effective_value
@@ -530,7 +530,7 @@ class TestSettingsOptimisticLocking:
 class TestAdminSettingsAccess:
     """E2E test verifying admin has full CRUD access to all settings endpoints."""
 
-    def test_admin_full_access(self, nexus_api: NexusApiRegistry) -> None:
+    def test_admin_full_access(self, nexus_api: SyntaraApiRegistry) -> None:
         """Admin can list, get, list categories, update, and bulk update settings."""
         assert nexus_api.settings.list().status_code == HTTPStatus.OK
         assert nexus_api.settings.list_categories().status_code == HTTPStatus.OK
@@ -556,7 +556,7 @@ class TestAdminSettingsAccess:
 class TestWorkflowExecutionSetting:
     """E2E tests for workflow execution settings."""
 
-    def test_update_workflow_setting(self, nexus_api: NexusApiRegistry) -> None:
+    def test_update_workflow_setting(self, nexus_api: SyntaraApiRegistry) -> None:
         """Update a workflow execution setting with full GET-PATCH-GET-restore flow."""
         original = _get_setting(nexus_api, _SCRIPT_TIMEOUT_KEY)
         original_value = original.effective_value
@@ -578,7 +578,7 @@ class TestWorkflowExecutionSetting:
 class TestApplicationSetting:
     """E2E tests for application category settings."""
 
-    def test_update_application_setting(self, nexus_api: NexusApiRegistry) -> None:
+    def test_update_application_setting(self, nexus_api: SyntaraApiRegistry) -> None:
         """Update an application setting and verify persistence."""
         original = _get_setting(nexus_api, _OVERWRITE_KEY)
         original_value = original.effective_value

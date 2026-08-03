@@ -10,19 +10,19 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import pytest
-from nexus_api_client.models.test_execution_create import TestExecutionCreate
-from nexus_api_client.models.***REMOVED*** import TestExecutionCreatePreResolvedNodes
-from nexus_api_client.models.workflow_create import WorkflowCreate
-from nexus_api_client.models.workflow_definition import WorkflowDefinition
 from orchestrator_test_sdk.e2e import unique_name
 from orchestrator_test_sdk.e2e.helpers import create_and_run_workflow, poll_execution_until_complete
+from syntara_api_client.models.test_execution_create import TestExecutionCreate
+from syntara_api_client.models.***REMOVED*** import TestExecutionCreatePreResolvedNodes
+from syntara_api_client.models.workflow_create import WorkflowCreate
+from syntara_api_client.models.workflow_definition import WorkflowDefinition
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from uuid import UUID
 
-    from nexus_api_client.api import NexusApiRegistry
-    from nexus_api_client.models.workflow_read import WorkflowRead
+    from syntara_api_client.api import SyntaraApiRegistry
+    from syntara_api_client.models.workflow_read import WorkflowRead
 
     WorkflowFactory = Callable[[WorkflowCreate], WorkflowRead]
 
@@ -51,7 +51,7 @@ class TestRetryExecution:
 
     def test_retry_completed_execution(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         first_project_id: UUID,
     ) -> None:
         """Retry a successfully completed execution creates a new execution with same version and inputs."""
@@ -76,7 +76,7 @@ class TestRetryExecution:
 
     def test_retry_failed_execution(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         first_project_id: UUID,
     ) -> None:
         """Retry a failed execution creates a new execution that also runs (and fails with same script)."""
@@ -99,7 +99,7 @@ class TestRetryExecution:
 
     def test_retry_test_execution_returns_409(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: WorkflowFactory,
         first_project_id: UUID,
     ) -> None:

@@ -1,4 +1,4 @@
-"""Nexus API Registry - auto-generated from OpenAPI spec."""
+"""Syntara API Registry - auto-generated from OpenAPI spec."""
 
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from .workflows import WorkflowsApi
 
 
-class NexusApiRegistry:
+class SyntaraApiRegistry:
     """Top-level registry providing access to all API endpoint groups."""
 
     def __init__(self, client: AuthenticatedClient) -> None:

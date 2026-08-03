@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 if TYPE_CHECKING:
-    from nexus_api_client.api import NexusApiRegistry
+    from syntara_api_client.api import SyntaraApiRegistry
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set -- full stack required", allow_module_level=True)
@@ -32,7 +32,7 @@ class TestProjectListNoRoles:
     def test_sees_no_projects(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
         create_user: UserFactory,
     ) -> None:
@@ -52,7 +52,7 @@ class TestProjectListWithRoles:
     def test_sees_assigned_projects(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
         create_user: UserFactory,
         assign_project_role_to_user: AssignProjectRoleFactory,
@@ -81,7 +81,7 @@ class TestSystemAuditorSeesAll:
     def test_auditor_sees_all_projects(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
         create_user: UserFactory,
         assign_system_role: UserRoleAssignmentFactory,
@@ -107,7 +107,7 @@ class TestNoDuplicateProjects:
     def test_no_duplicate_entries(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
         create_group: GroupFactory,
         create_user: UserFactory,

@@ -6,15 +6,15 @@ from typing import TYPE_CHECKING, Any, Protocol
 from uuid import UUID
 
 import pytest
-from nexus_api_client.models.workflow_create import WorkflowCreate
-from nexus_api_client.models.workflow_definition import WorkflowDefinition
+from syntara_api_client.models.workflow_create import WorkflowCreate
+from syntara_api_client.models.workflow_definition import WorkflowDefinition
 
 from orchestrator_test_sdk.e2e import MINIMAL_WORKFLOW_DEFINITION, unique_name
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from nexus_api_client.api import NexusApiRegistry
+    from syntara_api_client.api import SyntaraApiRegistry
 
 
 class WorkflowFactory(Protocol):
@@ -22,7 +22,7 @@ class WorkflowFactory(Protocol):
 
     def __call__(
         self,
-        api: NexusApiRegistry,
+        api: SyntaraApiRegistry,
         project_id: UUID,
         prefix: str | None = None,
         name: str | None = None,
@@ -33,10 +33,10 @@ class WorkflowFactory(Protocol):
 @pytest.fixture(scope="module")
 def create_workflow() -> Generator[WorkflowFactory, None, None]:
     """Create test workflows. Returns ``(workflow_id, workflow_name)``."""
-    created: list[tuple[UUID, NexusApiRegistry]] = []
+    created: list[tuple[UUID, SyntaraApiRegistry]] = []
 
     def _create_workflow(
-        api: NexusApiRegistry,
+        api: SyntaraApiRegistry,
         project_id: UUID,
         prefix: str | None = None,
         name: str | None = None,

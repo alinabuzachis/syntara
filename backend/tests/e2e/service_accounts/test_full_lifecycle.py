@@ -19,16 +19,16 @@ from typing import TYPE_CHECKING
 
 import httpx
 import pytest
-from nexus_api_client.models.role_assignment_create import RoleAssignmentCreate
-from nexus_api_client.models.sa_credential_create import SACredentialCreate
-from nexus_api_client.models.service_account_credential_type import ServiceAccountCredentialType
 from orchestrator_test_sdk.e2e.tls import e2e_ssl_context
+from syntara_api_client.models.role_assignment_create import RoleAssignmentCreate
+from syntara_api_client.models.sa_credential_create import SACredentialCreate
+from syntara_api_client.models.service_account_credential_type import ServiceAccountCredentialType
 
 from tests.e2e.service_accounts import create_sa, create_sa_with_credential, poll_until_status, token_request
 
 if TYPE_CHECKING:
-    from nexus_api_client.api import NexusApiRegistry
     from orchestrator_test_sdk.factories import ProjectFactory
+    from syntara_api_client.api import SyntaraApiRegistry
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
@@ -46,7 +46,7 @@ class TestCrossProjectDelegation:
     def test_cross_project_delegation_full_flow(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
     ) -> None:
         proj_a_id, _ = create_project(admin_api, "xproj-a")
@@ -125,7 +125,7 @@ class TestFullLifecycle:
     def test_full_sa_lifecycle(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
     ) -> None:
         project_id, _ = create_project(admin_api, "lifecycle")

@@ -14,17 +14,17 @@ from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import pytest
-from nexus_api_client.models.publish_version_request import PublishVersionRequest
-from nexus_api_client.models.workflow_create import WorkflowCreate
-from nexus_api_client.models.workflow_definition import WorkflowDefinition
-from nexus_api_client.models.workflow_update import WorkflowUpdate
 from orchestrator_test_sdk.e2e import unique_name
+from syntara_api_client.models.publish_version_request import PublishVersionRequest
+from syntara_api_client.models.workflow_create import WorkflowCreate
+from syntara_api_client.models.workflow_definition import WorkflowDefinition
+from syntara_api_client.models.workflow_update import WorkflowUpdate
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from nexus_api_client.api import NexusApiRegistry
-    from nexus_api_client.models.workflow_read import WorkflowRead
+    from syntara_api_client.api import SyntaraApiRegistry
+    from syntara_api_client.models.workflow_read import WorkflowRead
 
     WorkflowFactory = Callable[[WorkflowCreate], WorkflowRead]
 
@@ -55,7 +55,7 @@ class TestWorkflowVersionRestore:
     """E2E tests for workflow version restore."""
 
     def test_restore_creates_new_draft_with_original_definition(
-        self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
     ) -> None:
         """Restoring v1 after updating to v2 creates v3 as a draft with v1's definition."""
         defn_v1 = _simple_definition(activity_id="task1", description="v1")
@@ -99,7 +99,7 @@ class TestWorkflowVersionRestore:
         assert by_ver[3].status == "draft"
 
     def test_restore_published_version_keeps_publish_status(
-        self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
     ) -> None:
         """Restoring a published version creates a draft; published pointer stays.
 
@@ -147,7 +147,7 @@ class TestWorkflowVersionRestore:
         assert by_ver[3].status == "draft"
 
     def ***REMOVED***(
-        self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
     ) -> None:
         """After publishing a different version, the pointer switches.
 
@@ -193,7 +193,7 @@ class TestPublishWithUnsavedChanges:
     """E2E tests for publishing with unsaved canvas changes (dirty-publish)."""
 
     def test_publish_with_workflow_definition_uses_provided_definition(
-        self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
     ) -> None:
         """Publishing with workflow_definition in request uses that definition, not the saved draft's.
 
@@ -239,7 +239,7 @@ class TestPublishWithUnsavedChanges:
         assert v1_resp.parsed.status == "draft"
 
     def test_publish_without_workflow_definition_uses_saved_definition(
-        self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
     ) -> None:
         """Normal publish (no workflow_definition) uses the saved draft's definition.
 
@@ -275,7 +275,7 @@ class TestPublishWithUnsavedChanges:
         assert published_defn["nodes"][0]["id"] == "original_task"
 
     def test_publish_with_invalid_workflow_definition_returns_error(
-        self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
     ) -> None:
         """Publishing with an invalid workflow_definition rejects the request.
 
@@ -315,7 +315,7 @@ class TestPublishWithUnsavedChanges:
         assert wf_resp.parsed.published_version_id is None
 
     def test_incremental_build_publish_includes_unsaved_step(
-        self, nexus_api: NexusApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
     ) -> None:
         """Simulates the real user flow: build incrementally, publish with unsaved changes.
 
@@ -424,7 +424,7 @@ class TestWorkflowVersionExport:
 
     def test_export_workflow_version_as_json(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ) -> None:

@@ -23,8 +23,6 @@ from __future__ import annotations
 from http import HTTPStatus
 
 import pytest
-from nexus_api_client import AuthenticatedClient
-from nexus_api_client.api.authentication.get_current_user import sync_detailed as get_user_sync
 from orchestrator_test_sdk.e2e.auth import (
     admin_password,
     assert_refresh_succeeds,
@@ -33,6 +31,8 @@ from orchestrator_test_sdk.e2e.auth import (
     logout_with_session,
 )
 from orchestrator_test_sdk.e2e.tls import e2e_ssl_context
+from syntara_api_client import AuthenticatedClient
+from syntara_api_client.api.authentication.get_current_user import sync_detailed as get_user_sync
 
 pytestmark = [pytest.mark.e2e]
 

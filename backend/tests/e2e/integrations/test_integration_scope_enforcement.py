@@ -8,29 +8,29 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
-from nexus_api_client.models import (
+from orchestrator_test_sdk.e2e import unique_name
+from orchestrator_test_sdk.e2e.helpers import poll_execution_until_complete
+from orchestrator_test_sdk.factories.credentials import get_bearer_token_type_id
+from syntara_api_client.models import (
     ExecutionCreate,
     WorkflowCreate,
     WorkflowDefinition,
 )
-from nexus_api_client.models.credential_create import CredentialCreate
-from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
-from nexus_api_client.models.execution_status import ExecutionStatus
-from nexus_api_client.models.integration_create import IntegrationCreate
-from nexus_api_client.models.integration_patch import IntegrationPatch
-from nexus_api_client.models.integration_scope import IntegrationScope
-from nexus_api_client.models.integration_type import IntegrationType
-from nexus_api_client.models.mcp_server_configuration_input import MCPServerConfigurationInput
-from nexus_api_client.models.project_create import ProjectCreate
-from orchestrator_test_sdk.e2e import unique_name
-from orchestrator_test_sdk.e2e.helpers import poll_execution_until_complete
-from orchestrator_test_sdk.factories.credentials import get_bearer_token_type_id
+from syntara_api_client.models.credential_create import CredentialCreate
+from syntara_api_client.models.credential_create_inputs import CredentialCreateInputs
+from syntara_api_client.models.execution_status import ExecutionStatus
+from syntara_api_client.models.integration_create import IntegrationCreate
+from syntara_api_client.models.integration_patch import IntegrationPatch
+from syntara_api_client.models.integration_scope import IntegrationScope
+from syntara_api_client.models.integration_type import IntegrationType
+from syntara_api_client.models.mcp_server_configuration_input import MCPServerConfigurationInput
+from syntara_api_client.models.project_create import ProjectCreate
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from nexus_api_client.api import NexusApiRegistry
-    from nexus_api_client.models import WorkflowRead
+    from syntara_api_client.api import SyntaraApiRegistry
+    from syntara_api_client.models import WorkflowRead
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
@@ -38,7 +38,7 @@ if not os.environ.get("APP_BASE_URL"):
 pytestmark = [pytest.mark.e2e]
 
 
-def _create_credential(nexus_api: NexusApiRegistry, project_id: UUID) -> UUID:
+def _create_credential(nexus_api: SyntaraApiRegistry, project_id: UUID) -> UUID:
     """Create a bearer-token credential in the given project, return its UUID."""
     type_id = get_bearer_token_type_id(nexus_api)
     cred = nexus_api.credentials.create(
@@ -92,7 +92,7 @@ class TestExecutionTimeScopeViolation:
 
     def test_unassigned_integration_causes_execution_failure(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         integration_factory: Callable[..., dict[str, Any]],
         first_project_id: UUID,
@@ -174,7 +174,7 @@ class TestNarrowGlobalToProjectScoped:
 
     def test_narrowing_global_removes_from_excluded_project_and_fails_execution(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         integration_factory: Callable[..., dict[str, Any]],
         first_project_id: UUID,
@@ -298,7 +298,7 @@ class TestExecutionTimeIntegrationStateErrors:
 
     def test_disabled_integration_produces_disabled_error(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         integration_factory: Callable[..., dict[str, Any]],
         first_project_id: UUID,
@@ -377,7 +377,7 @@ class TestExecutionTimeIntegrationStateErrors:
 
     def test_deleted_integration_produces_not_found_error(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ) -> None:

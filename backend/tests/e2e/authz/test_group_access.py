@@ -9,12 +9,11 @@ from typing import TYPE_CHECKING
 import pytest
 
 if TYPE_CHECKING:
-    from nexus_api_client.api import NexusApiRegistry
+    from syntara_api_client.api import SyntaraApiRegistry
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
 
-from nexus_api_client.models.workflow_create import WorkflowCreate
 from orchestrator_test_sdk.e2e import unique_name
 from orchestrator_test_sdk.e2e.auth import api_for
 from orchestrator_test_sdk.e2e.constants import MINIMAL_WORKFLOW_DEFINITION
@@ -27,6 +26,7 @@ from orchestrator_test_sdk.factories import (
     WorkflowFactory,
     add_to_group,
 )
+from syntara_api_client.models.workflow_create import WorkflowCreate
 
 pytestmark = [pytest.mark.e2e]
 
@@ -43,7 +43,7 @@ WRITE_POLICIES = [
 
 @pytest.fixture(scope="module")
 def group_access_env(
-    admin_api: NexusApiRegistry,
+    admin_api: SyntaraApiRegistry,
     assign_project_role_to_group: AssignProjectRoleFactory,
     assign_project_role_to_user: AssignProjectRoleFactory,
     create_group: GroupFactory,

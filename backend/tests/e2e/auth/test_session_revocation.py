@@ -1,6 +1,6 @@
 """E2E tests for user-scoped session revocation (ANSTRAT-1844, API-37).
 
-All assertions use public REST APIs (``nexus_api_client`` and ``/api/v1/auth/*``).
+All assertions use public REST APIs (``syntara_api_client`` and ``/api/v1/auth/*``).
 No admin CLI, subprocess, or direct calls into application Python modules.
 
 API mapping:
@@ -13,19 +13,19 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-from nexus_api_client.models.user_update import UserUpdate
 from orchestrator_test_sdk.e2e import generate_test_password
 from orchestrator_test_sdk.e2e.auth import (
     assert_refresh_succeeds,
     assert_refresh_unauthorized,
     local_login_session,
 )
+from syntara_api_client.models.user_update import UserUpdate
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from nexus_api_client.api import NexusApiRegistry
-    from nexus_api_client.models.user_read import UserRead
+    from syntara_api_client.api import SyntaraApiRegistry
+    from syntara_api_client.models.user_read import UserRead
 
 pytestmark = [pytest.mark.e2e]
 
@@ -35,7 +35,7 @@ class TestAPIUserScopedSessionRevocation:
 
     def test_disable_user_revokes_all_sessions(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         nexus_base_url: str,
         local_user_factory: Callable[..., tuple[UserRead, str]],
     ) -> None:
@@ -61,7 +61,7 @@ class TestAPIUserScopedSessionRevocation:
 
     def test_password_change_revokes_all_sessions(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         nexus_base_url: str,
         local_user_factory: Callable[..., tuple[UserRead, str]],
     ) -> None:

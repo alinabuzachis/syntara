@@ -17,19 +17,19 @@ from typing import Any
 from uuid import UUID
 
 import pytest
-from nexus_api_client.api import NexusApiRegistry
-from nexus_api_client.models import (
+from orchestrator_test_sdk.e2e import unique_name
+from orchestrator_test_sdk.e2e.helpers import poll_execution, poll_for_pending_approval
+from syntara_api_client.api import SyntaraApiRegistry
+from syntara_api_client.models import (
     ExecutionCreate,
     WorkflowCreate,
     WorkflowDefinition,
     WorkflowRead,
 )
-from nexus_api_client.models.approval_decision_request import ApprovalDecisionRequest
-from nexus_api_client.models.approval_decision_status import ApprovalDecisionStatus
-from nexus_api_client.models.approval_request_status import ApprovalRequestStatus
-from nexus_api_client.models.execution_status import ExecutionStatus
-from orchestrator_test_sdk.e2e import unique_name
-from orchestrator_test_sdk.e2e.helpers import poll_execution, poll_for_pending_approval
+from syntara_api_client.models.approval_decision_request import ApprovalDecisionRequest
+from syntara_api_client.models.approval_decision_status import ApprovalDecisionStatus
+from syntara_api_client.models.approval_request_status import ApprovalRequestStatus
+from syntara_api_client.models.execution_status import ExecutionStatus
 
 pytestmark = [pytest.mark.e2e]
 
@@ -75,7 +75,7 @@ class TestApproveSignal:
 
     def test_approve_resumes_execution_to_completed(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ) -> None:
@@ -123,7 +123,7 @@ class TestApproveSignal:
 
     def test_approve_executes_downstream_node_on_approved_path(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ) -> None:
@@ -173,7 +173,7 @@ class TestApproveSignal:
 
     def test_approve_output_contains_required_fields(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ) -> None:

@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING
 import pytest
 
 if TYPE_CHECKING:
-    from nexus_api_client.api import NexusApiRegistry
     from orchestrator_test_sdk.factories import (
         AssignProjectRoleFactory,
         ProjectFactory,
@@ -17,14 +16,15 @@ if TYPE_CHECKING:
         UserFactory,
         WorkflowFactory,
     )
+    from syntara_api_client.api import SyntaraApiRegistry
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
 
-from nexus_api_client.models.workflow_create import WorkflowCreate
 from orchestrator_test_sdk.e2e import unique_name
 from orchestrator_test_sdk.e2e.auth import api_for
 from orchestrator_test_sdk.e2e.constants import MINIMAL_WORKFLOW_DEFINITION
+from syntara_api_client.models.workflow_create import WorkflowCreate
 
 pytestmark = [pytest.mark.e2e]
 
@@ -35,7 +35,7 @@ class TestCrossProjectIsolation:
     def test_writer_on_alpha_reader_on_beta(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
         create_project_role: ProjectRoleFactory,
         create_user: UserFactory,

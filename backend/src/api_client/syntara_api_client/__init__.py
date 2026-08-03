@@ -1,4 +1,4 @@
-"""A client library for accessing Nexus API"""
+"""A client library for accessing Syntara API"""
 
 from .client import AuthenticatedClient, Client
 from .filters import OPERATORS, FilterError, build_filters

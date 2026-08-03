@@ -19,22 +19,22 @@ import pytest
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
 
-    from nexus_api_client.api import NexusApiRegistry
+    from syntara_api_client.api import SyntaraApiRegistry
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
 
-from nexus_api_client.models.aap_configuration import AAPConfiguration
-from nexus_api_client.models.credential_create import CredentialCreate
-from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
-from nexus_api_client.models.integration_create import IntegrationCreate
-from nexus_api_client.models.integration_patch import IntegrationPatch
-from nexus_api_client.models.integration_type import IntegrationType
-from nexus_api_client.models.llm_provider_configuration import LLMProviderConfiguration
-from nexus_api_client.models.llm_provider_hint import LLMProviderHint
-from nexus_api_client.models.mcp_server_configuration_input import MCPServerConfigurationInput
 from orchestrator_test_sdk.e2e import unique_name
 from orchestrator_test_sdk.e2e.fixtures import MCP_PROVIDER_URL
+from syntara_api_client.models.aap_configuration import AAPConfiguration
+from syntara_api_client.models.credential_create import CredentialCreate
+from syntara_api_client.models.credential_create_inputs import CredentialCreateInputs
+from syntara_api_client.models.integration_create import IntegrationCreate
+from syntara_api_client.models.integration_patch import IntegrationPatch
+from syntara_api_client.models.integration_type import IntegrationType
+from syntara_api_client.models.llm_provider_configuration import LLMProviderConfiguration
+from syntara_api_client.models.llm_provider_hint import LLMProviderHint
+from syntara_api_client.models.mcp_server_configuration_input import MCPServerConfigurationInput
 
 pytestmark = [pytest.mark.e2e]
 
@@ -44,7 +44,7 @@ pytestmark = [pytest.mark.e2e]
 # ---------------------------------------------------------------------------
 
 
-def _find_credential_type_id(nexus_api: NexusApiRegistry, name_fragment: str) -> UUID:
+def _find_credential_type_id(nexus_api: SyntaraApiRegistry, name_fragment: str) -> UUID:
     """Find a credential type ID by partial name match."""
     types_list = nexus_api.credentials.list_types().assert_and_get()
     for ct in types_list.resources:
@@ -55,7 +55,7 @@ def _find_credential_type_id(nexus_api: NexusApiRegistry, name_fragment: str) ->
 
 
 def _create_credential(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
     type_name_fragment: str,
     project_id: UUID,
     inputs: dict[str, str],
@@ -74,7 +74,7 @@ def _create_credential(
 
 
 @pytest.fixture
-def e2e_llm_credential_id(nexus_api: NexusApiRegistry, first_project_id: UUID) -> Generator[UUID, None, None]:
+def e2e_llm_credential_id(nexus_api: SyntaraApiRegistry, first_project_id: UUID) -> Generator[UUID, None, None]:
     """Create an LLM Provider credential for integration e2e tests."""
     cred_id = _create_credential(nexus_api, "LLM Provider", first_project_id, {"api_key": "test-key"})
     yield cred_id
@@ -85,7 +85,7 @@ def e2e_llm_credential_id(nexus_api: NexusApiRegistry, first_project_id: UUID) -
 
 
 @pytest.fixture
-def e2e_aap_credential_id(nexus_api: NexusApiRegistry, first_project_id: UUID) -> Generator[UUID, None, None]:
+def e2e_aap_credential_id(nexus_api: SyntaraApiRegistry, first_project_id: UUID) -> Generator[UUID, None, None]:
     """Create an AAP credential for integration e2e tests."""
     cred_id = _create_credential(
         nexus_api,
@@ -160,16 +160,16 @@ class TestCreateIntegration:
         assert result["integration_type"] == "ansible_automation_platform"
         assert result["configuration"]["insecure_skip_tls_verify"] is False
 
-    def test_create_llm_without_credential_returns_422(self, nexus_api: NexusApiRegistry) -> None:
+    def test_create_llm_without_credential_returns_422(self, nexus_api: SyntaraApiRegistry) -> None:
         resp = nexus_api.integrations.create(body=_llm_create())
         assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
-    def test_create_aap_without_credential_returns_422(self, nexus_api: NexusApiRegistry) -> None:
+    def test_create_aap_without_credential_returns_422(self, nexus_api: SyntaraApiRegistry) -> None:
         resp = nexus_api.integrations.create(body=_aap_create())
         assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
     def test_create_duplicate_name_returns_409(
-        self, nexus_api: NexusApiRegistry, integration_factory: Callable[..., dict[str, Any]]
+        self, nexus_api: SyntaraApiRegistry, integration_factory: Callable[..., dict[str, Any]]
     ) -> None:
         name = unique_name("e2e-dup")
         integration_factory(_mcp_create(name=name))
@@ -181,13 +181,13 @@ class TestGetIntegration:
     """GET /api/v1/integrations/{integration_id}."""
 
     def test_get_returns_200(
-        self, nexus_api: NexusApiRegistry, integration_factory: Callable[..., dict[str, Any]]
+        self, nexus_api: SyntaraApiRegistry, integration_factory: Callable[..., dict[str, Any]]
     ) -> None:
         created = integration_factory(_mcp_create())
         integration = nexus_api.integrations.get(integration_id=UUID(created["id"])).assert_and_get()
         assert str(integration.id) == created["id"]
 
-    def test_get_not_found_returns_404(self, nexus_api: NexusApiRegistry) -> None:
+    def test_get_not_found_returns_404(self, nexus_api: SyntaraApiRegistry) -> None:
         resp = nexus_api.integrations.get(integration_id=uuid4())
         assert resp.status_code == HTTPStatus.NOT_FOUND
 
@@ -196,7 +196,7 @@ class TestListIntegrations:
     """GET /api/v1/integrations."""
 
     def test_list_returns_created(
-        self, nexus_api: NexusApiRegistry, integration_factory: Callable[..., dict[str, Any]]
+        self, nexus_api: SyntaraApiRegistry, integration_factory: Callable[..., dict[str, Any]]
     ) -> None:
         created = integration_factory(_mcp_create())
         result = nexus_api.integrations.list().assert_and_get()
@@ -205,7 +205,7 @@ class TestListIntegrations:
 
     def test_list_filter_by_type(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         integration_factory: Callable[..., dict[str, Any]],
         e2e_llm_credential_id: UUID,
     ) -> None:
@@ -216,7 +216,7 @@ class TestListIntegrations:
             assert r.integration_type == IntegrationType.MCP_SERVER
 
     def test_list_filter_by_enabled(
-        self, nexus_api: NexusApiRegistry, integration_factory: Callable[..., dict[str, Any]]
+        self, nexus_api: SyntaraApiRegistry, integration_factory: Callable[..., dict[str, Any]]
     ) -> None:
         integration_factory(
             IntegrationCreate(
@@ -231,7 +231,7 @@ class TestListIntegrations:
             assert r.enabled is False
 
     def test_list_pagination(
-        self, nexus_api: NexusApiRegistry, integration_factory: Callable[..., dict[str, Any]]
+        self, nexus_api: SyntaraApiRegistry, integration_factory: Callable[..., dict[str, Any]]
     ) -> None:
         for _ in range(3):
             integration_factory(_mcp_create())
@@ -243,7 +243,9 @@ class TestListIntegrations:
 class TestPatchIntegration:
     """PATCH /api/v1/integrations/{integration_id}."""
 
-    def test_patch_name(self, nexus_api: NexusApiRegistry, integration_factory: Callable[..., dict[str, Any]]) -> None:
+    def test_patch_name(
+        self, nexus_api: SyntaraApiRegistry, integration_factory: Callable[..., dict[str, Any]]
+    ) -> None:
         created = integration_factory(_mcp_create())
         new_name = unique_name("e2e-renamed")
         updated = nexus_api.integrations.update(
@@ -253,7 +255,7 @@ class TestPatchIntegration:
         assert updated.name == new_name
 
     def test_patch_enabled(
-        self, nexus_api: NexusApiRegistry, integration_factory: Callable[..., dict[str, Any]]
+        self, nexus_api: SyntaraApiRegistry, integration_factory: Callable[..., dict[str, Any]]
     ) -> None:
         created = integration_factory(_mcp_create())
         updated = nexus_api.integrations.update(
@@ -263,7 +265,7 @@ class TestPatchIntegration:
         assert updated.enabled is False
 
     def test_patch_name_conflict_returns_409(
-        self, nexus_api: NexusApiRegistry, integration_factory: Callable[..., dict[str, Any]]
+        self, nexus_api: SyntaraApiRegistry, integration_factory: Callable[..., dict[str, Any]]
     ) -> None:
         taken_name = unique_name("e2e-taken")
         integration_factory(_mcp_create(name=taken_name))
@@ -275,7 +277,7 @@ class TestPatchIntegration:
         assert resp.status_code == HTTPStatus.CONFLICT
 
     def test_patch_config_type_mismatch_returns_422(
-        self, nexus_api: NexusApiRegistry, integration_factory: Callable[..., dict[str, Any]]
+        self, nexus_api: SyntaraApiRegistry, integration_factory: Callable[..., dict[str, Any]]
     ) -> None:
         created = integration_factory(_mcp_create())
         resp = nexus_api.integrations.update(
@@ -293,19 +295,19 @@ class TestDeleteIntegration:
     """DELETE /api/v1/integrations/{integration_id}."""
 
     def test_delete_returns_204(
-        self, nexus_api: NexusApiRegistry, integration_factory: Callable[..., dict[str, Any]]
+        self, nexus_api: SyntaraApiRegistry, integration_factory: Callable[..., dict[str, Any]]
     ) -> None:
         created = integration_factory(_mcp_create())
         integration_id = UUID(created["id"])
         resp = nexus_api.integrations.delete(integration_id=integration_id)
         assert resp.status_code == HTTPStatus.NO_CONTENT
 
-    def test_delete_not_found_returns_404(self, nexus_api: NexusApiRegistry) -> None:
+    def test_delete_not_found_returns_404(self, nexus_api: SyntaraApiRegistry) -> None:
         resp = nexus_api.integrations.delete(integration_id=uuid4())
         assert resp.status_code == HTTPStatus.NOT_FOUND
 
     def test_deleted_not_gettable(
-        self, nexus_api: NexusApiRegistry, integration_factory: Callable[..., dict[str, Any]]
+        self, nexus_api: SyntaraApiRegistry, integration_factory: Callable[..., dict[str, Any]]
     ) -> None:
         created = integration_factory(_mcp_create())
         integration_id = UUID(created["id"])
@@ -317,12 +319,12 @@ class TestDeleteIntegration:
 class TestValidateIntegration:
     """Tests for POST /integrations/{id}/validate."""
 
-    def test_validate_nonexistent_returns_404(self, nexus_api: NexusApiRegistry) -> None:
+    def test_validate_nonexistent_returns_404(self, nexus_api: SyntaraApiRegistry) -> None:
         resp = nexus_api.integrations.validate(integration_id=uuid4())
         assert resp.status_code == HTTPStatus.NOT_FOUND
 
     def test_validate_unreachable_server_returns_200_with_connection_error(
-        self, nexus_api: NexusApiRegistry, integration_factory: Callable[..., dict[str, Any]]
+        self, nexus_api: SyntaraApiRegistry, integration_factory: Callable[..., dict[str, Any]]
     ) -> None:
         """Validate returns 200 OK with success=False and connection_error/timeout when MCP server is unreachable.
 
@@ -345,7 +347,7 @@ class TestValidateIntegration:
         assert result.error_type in ["connection_error", "timeout"]
 
     def test_validate_success_against_real_mcp_server(
-        self, nexus_api: NexusApiRegistry, integration_factory: Callable[..., dict[str, Any]]
+        self, nexus_api: SyntaraApiRegistry, integration_factory: Callable[..., dict[str, Any]]
     ) -> None:
         """Validate performs real MCP ping against test server — succeeds and returns success=True."""
         created = integration_factory(

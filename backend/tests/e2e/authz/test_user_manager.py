@@ -11,18 +11,18 @@ import pytest
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from nexus_api_client.api import NexusApiRegistry
     from orchestrator_test_sdk.factories import RoleFactory, UserFactory, UserRoleAssignmentFactory
+    from syntara_api_client.api import SyntaraApiRegistry
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
 
-from nexus_api_client.models.role_create import RoleCreate
-from nexus_api_client.models.sub_resource_role_assignment_create import SubResourceRoleAssignmentCreate
-from nexus_api_client.models.user_create import UserCreate
-from nexus_api_client.models.user_update import UserUpdate
 from orchestrator_test_sdk.e2e import generate_test_password
 from orchestrator_test_sdk.e2e.auth import api_for
+from syntara_api_client.models.role_create import RoleCreate
+from syntara_api_client.models.sub_resource_role_assignment_create import SubResourceRoleAssignmentCreate
+from syntara_api_client.models.user_create import UserCreate
+from syntara_api_client.models.user_update import UserUpdate
 
 pytestmark = [pytest.mark.e2e]
 
@@ -35,12 +35,12 @@ _POLICIES = [
 
 @pytest.fixture(scope="module")
 def user_manager_env(
-    admin_api: NexusApiRegistry,
+    admin_api: SyntaraApiRegistry,
     create_role: RoleFactory,
     assign_system_role: UserRoleAssignmentFactory,
     create_user: UserFactory,
     nexus_base_url: str,
-) -> tuple[NexusApiRegistry, UUID]:
+) -> tuple[SyntaraApiRegistry, UUID]:
     """Create user with system-level user manager role."""
     user_id, name, password = create_user(admin_api, "usermgr")
 

@@ -17,27 +17,27 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
-from nexus_api_client.models.credential_create import CredentialCreate
-from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
-from nexus_api_client.models.credential_update import CredentialUpdate
-from nexus_api_client.models.execution_create import ExecutionCreate
-from nexus_api_client.models.execution_status import ExecutionStatus
-from nexus_api_client.models.initial_model_selection import InitialModelSelection
-from nexus_api_client.models.integration_create import IntegrationCreate
-from nexus_api_client.models.integration_type import IntegrationType
-from nexus_api_client.models.llm_model_update import LLMModelUpdate
-from nexus_api_client.models.llm_provider_configuration import LLMProviderConfiguration
-from nexus_api_client.models.llm_provider_hint import LLMProviderHint
-from nexus_api_client.models.workflow_create import WorkflowCreate
-from nexus_api_client.models.workflow_definition import WorkflowDefinition
 from orchestrator_test_sdk.e2e import unique_name
 from orchestrator_test_sdk.e2e.helpers import create_and_run_workflow, poll_execution_until_complete
+from syntara_api_client.models.credential_create import CredentialCreate
+from syntara_api_client.models.credential_create_inputs import CredentialCreateInputs
+from syntara_api_client.models.credential_update import CredentialUpdate
+from syntara_api_client.models.execution_create import ExecutionCreate
+from syntara_api_client.models.execution_status import ExecutionStatus
+from syntara_api_client.models.initial_model_selection import InitialModelSelection
+from syntara_api_client.models.integration_create import IntegrationCreate
+from syntara_api_client.models.integration_type import IntegrationType
+from syntara_api_client.models.llm_model_update import LLMModelUpdate
+from syntara_api_client.models.llm_provider_configuration import LLMProviderConfiguration
+from syntara_api_client.models.llm_provider_hint import LLMProviderHint
+from syntara_api_client.models.workflow_create import WorkflowCreate
+from syntara_api_client.models.workflow_definition import WorkflowDefinition
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from nexus_api_client.api import NexusApiRegistry
-    from nexus_api_client.models import ExecutionRead, WorkflowRead
+    from syntara_api_client.api import SyntaraApiRegistry
+    from syntara_api_client.models import ExecutionRead, WorkflowRead
 
 pytestmark = [
     pytest.mark.e2e,
@@ -89,7 +89,7 @@ def _agentic_node(
 
 
 def test_basic_prompt_completion(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
     llm_credential_id: str,
     llm_model_id: str,
     first_project_id: UUID,
@@ -132,7 +132,7 @@ def test_basic_prompt_completion(
 
 @pytest.mark.xfail(strict=False, reason="LLM output non-determinism")
 def test_agentic_output_contains_expected_content(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
     llm_credential_id: str,
     llm_model_id: str,
     first_project_id: UUID,
@@ -176,7 +176,7 @@ def test_agentic_output_contains_expected_content(
 
 @pytest.mark.xfail(strict=False, reason="LLM non-determinism: model may skip tool call")
 def test_agentic_with_mcp_tool_call(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
     mcp_integration_id: str,  # side-effect: ensures MCP integration is validated so agent discovers tools
     llm_credential_id: str,
     llm_model_id: str,
@@ -235,7 +235,7 @@ def test_agentic_with_mcp_tool_call(
 
 @pytest.mark.xfail(strict=False, reason="LLM output non-determinism")
 def test_agentic_with_response_schema(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
     llm_credential_id: str,
     llm_model_id: str,
     first_project_id: UUID,
@@ -293,7 +293,7 @@ def test_agentic_with_response_schema(
 
 @pytest.mark.xfail(strict=False, reason="LLM output non-determinism")
 def test_agentic_with_tool_selection_and_response_schema(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
     llm_credential_id: str,
     llm_model_id: str,
     first_project_id: UUID,
@@ -352,7 +352,7 @@ def test_agentic_with_tool_selection_and_response_schema(
 
 @pytest.mark.xfail(strict=False, reason="LLM output non-determinism")
 def test_agentic_input_from_upstream_node(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
     llm_credential_id: str,
     llm_model_id: str,
     first_project_id: UUID,
@@ -409,7 +409,7 @@ def test_agentic_input_from_upstream_node(
 
 
 def test_agentic_output_consumed_by_downstream(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
     llm_credential_id: str,
     llm_model_id: str,
     first_project_id: UUID,
@@ -465,7 +465,7 @@ def test_agentic_output_consumed_by_downstream(
 
 
 def test_agentic_with_tool_selection_none(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
     llm_credential_id: str,
     llm_model_id: str,
     first_project_id: UUID,
@@ -505,7 +505,7 @@ def test_agentic_with_tool_selection_none(
 
 
 def test_agentic_invalid_credential_fails(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
     first_project_id: UUID,
     llm_model: str,
     worker_id: str,
@@ -609,7 +609,7 @@ def test_agentic_invalid_credential_fails(
 
 
 def test_agentic_short_timeout_reaches_terminal_state(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
     llm_credential_id: str,
     llm_model_id: str,
     first_project_id: UUID,
@@ -657,7 +657,7 @@ def test_agentic_short_timeout_reaches_terminal_state(
 
 
 def test_agentic_in_loop(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
     llm_credential_id: str,
     llm_model_id: str,
     first_project_id: UUID,
@@ -710,7 +710,7 @@ def test_agentic_in_loop(
 
 
 def test_agentic_in_condition_true_branch(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
     llm_credential_id: str,
     llm_model_id: str,
     first_project_id: UUID,
@@ -771,7 +771,7 @@ def test_agentic_in_condition_true_branch(
 
 @pytest.mark.xfail(strict=False, reason="Parallel LLM calls may exceed poll timeout on rate-limited APIs")
 def test_agentic_parallel_paths_converge(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
     llm_credential_id: str,
     llm_model_id: str,
     first_project_id: UUID,
@@ -838,7 +838,7 @@ def test_agentic_parallel_paths_converge(
 
 
 def test_agentic_disabled_mcp_credential_fails_eagerly(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
     llm_credential_id: str,
     llm_model_id: str,
     mcp_integration_id: str,
@@ -918,7 +918,7 @@ def test_agentic_disabled_mcp_credential_fails_eagerly(
 
 
 def test_unreachable_llm_endpoint_produces_identifiable_error(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
     first_project_id: UUID,
     llm_model: str,
     worker_id: str,
@@ -1025,7 +1025,7 @@ def test_unreachable_llm_endpoint_produces_identifiable_error(
 
 
 def test_model_disabled_after_workflow_saved_fails_execution(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
     workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
     first_project_id: UUID,
     llm_model: str,

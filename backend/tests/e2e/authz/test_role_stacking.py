@@ -9,12 +9,11 @@ from typing import TYPE_CHECKING
 import pytest
 
 if TYPE_CHECKING:
-    from nexus_api_client.api import NexusApiRegistry
+    from syntara_api_client.api import SyntaraApiRegistry
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set -- full stack required", allow_module_level=True)
 
-from nexus_api_client.models.workflow_create import WorkflowCreate
 from orchestrator_test_sdk.e2e import unique_name
 from orchestrator_test_sdk.e2e.auth import api_for
 from orchestrator_test_sdk.e2e.constants import MINIMAL_WORKFLOW_DEFINITION
@@ -28,6 +27,7 @@ from orchestrator_test_sdk.factories import (
     WorkflowFactory,
     add_to_group,
 )
+from syntara_api_client.models.workflow_create import WorkflowCreate
 
 pytestmark = [pytest.mark.e2e]
 
@@ -41,7 +41,7 @@ class TestRoleStacking:
     def test_group_plus_direct_role_union(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
         create_group: GroupFactory,
         create_workflow: WorkflowFactory,
@@ -100,7 +100,7 @@ class TestRoleStacking:
     def test_group_role_alone_insufficient(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
         create_group: GroupFactory,
         create_credential: CredentialFactory,
@@ -146,7 +146,7 @@ class TestRoleStacking:
     def test_direct_role_alone_insufficient(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
         create_project_role: ProjectRoleFactory,
         create_user: UserFactory,

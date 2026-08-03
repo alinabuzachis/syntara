@@ -12,19 +12,19 @@ from uuid import UUID
 
 import httpx
 import pytest
-from nexus_api_client.models import (
+from syntara_api_client.models import (
     ExecutionCreate,
     ExecutionRead,
     WorkflowCreate,
     WorkflowUpdate,
 )
-from nexus_api_client.models.approval_request_status import ApprovalRequestStatus
-from nexus_api_client.models.execution_status import ExecutionStatus
-from nexus_api_client.models.workflow_definition import WorkflowDefinition
+from syntara_api_client.models.approval_request_status import ApprovalRequestStatus
+from syntara_api_client.models.execution_status import ExecutionStatus
+from syntara_api_client.models.workflow_definition import WorkflowDefinition
 
 if TYPE_CHECKING:
-    from nexus_api_client.api import NexusApiRegistry
-    from nexus_api_client.models.approval_request_read import ApprovalRequestRead
+    from syntara_api_client.api import SyntaraApiRegistry
+    from syntara_api_client.models.approval_request_read import ApprovalRequestRead
 
 POLL_INTERVAL = 1
 POLL_TIMEOUT = 20
@@ -35,7 +35,7 @@ API_RETRY_DELAY = 2
 TERMINAL_EXECUTION_STATUSES: frozenset[str] = frozenset({"completed", "completed_with_errors", "failed", "cancelled"})
 
 
-def get_first_non_builtin_project_id(api: NexusApiRegistry) -> UUID:
+def get_first_non_builtin_project_id(api: SyntaraApiRegistry) -> UUID:
     """Return the ID of the first available non-builtin project.
 
     Raises AssertionError if no non-builtin projects exist.
@@ -76,7 +76,7 @@ def _retry_api_call(fn, *, retries: int = API_RETRIES, delay: float = API_RETRY_
 
 
 def poll_execution(
-    api: NexusApiRegistry, exec_id: str, timeout: int = POLL_TIMEOUT, interval: int = POLL_INTERVAL
+    api: SyntaraApiRegistry, exec_id: str, timeout: int = POLL_TIMEOUT, interval: int = POLL_INTERVAL
 ) -> ExecutionRead:
     """Poll until execution reaches a terminal state, returning the final ExecutionRead."""
     elapsed = 0
@@ -91,7 +91,7 @@ def poll_execution(
 
 
 def poll_for_pending_approval(
-    api: NexusApiRegistry,
+    api: SyntaraApiRegistry,
     execution_id: UUID,
     timeout: int = 30,
     interval: int = 1,
@@ -118,7 +118,7 @@ def poll_for_pending_approval(
 
 
 def wait_for_agentic_activity(
-    api: NexusApiRegistry,
+    api: SyntaraApiRegistry,
     execution_id: UUID,
     activity_id: str,
     *,
@@ -147,7 +147,7 @@ def wait_for_agentic_activity(
 
 
 def create_and_run_workflow(
-    api: NexusApiRegistry,
+    api: SyntaraApiRegistry,
     name: str,
     definition: dict[str, Any],
     timeout: int = POLL_TIMEOUT,
@@ -278,7 +278,7 @@ def extended_definition() -> dict[str, Any]:
 
 
 def poll_execution_until_complete(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
     execution_id: UUID,
     max_polls: int = 30,
     poll_interval: int = 2,

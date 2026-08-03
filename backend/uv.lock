@@ -2078,7 +2078,6 @@ dev = [
     { name = "moto", extra = ["s3"] },
     { name = "msgraph-sdk" },
     { name = "mypy" },
-    { name = "nexus-api-client" },
     { name = "openapi-python-client" },
     { name = "orchestrator-cli" },
     { name = "orchestrator-test-sdk" },
@@ -2094,6 +2093,7 @@ dev = [
     { name = "ruamel-yaml" },
     { name = "ruff" },
     { name = "scikit-learn-stubs" },
+    { name = "syntara-api-client" },
     { name = "testcontainers", extra = ["redis"] },
     { name = "types-cachetools" },
     { name = "types-jsonschema" },
@@ -2148,7 +2148,6 @@ requires-dist = [
     { name = "moto", extras = ["s3"], marker = "extra == 'dev'", specifier = ">=5.0.0" },
     { name = "msgraph-sdk", marker = "extra == 'dev'", specifier = ">=1.0.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.6.0,<1.19" },
-    { name = "nexus-api-client", marker = "extra == 'dev'", editable = "src/api_client" },
     { name = "openapi-python-client", marker = "extra == 'dev'", specifier = ">=0.28.3,<0.29.0" },
     { name = "opentelemetry-api", specifier = ">=1.39.1" },
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.39.1" },
@@ -2185,6 +2184,7 @@ requires-dist = [
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.0,<2.0.45" },
     { name = "sqlmodel", specifier = ">=0.0.14,<0.0.28" },
     { name = "structlog", specifier = ">=25.5.0" },
+    { name = "syntara-api-client", marker = "extra == 'dev'", editable = "src/api_client" },
     { name = "temporalio", specifier = ">=1.5.0" },
     { name = "testcontainers", extras = ["postgres", "redis"], marker = "extra == 'dev'", specifier = ">=4.14.0" },
     { name = "tiktoken", specifier = ">=0.5.0" },
@@ -2209,23 +2209,6 @@ dev = [
     { name = "pypandoc-binary", specifier = ">=1.16.2" },
     { name = "pytest-order", specifier = ">=1.5.0" },
     { name = "respx", specifier = ">=0.22.0" },
-]
-
-[[package]]
-name = "nexus-api-client"
-version = "0.1.0"
-source = { editable = "src/api_client" }
-dependencies = [
-    { name = "attrs" },
-    { name = "httpx" },
-    { name = "python-dateutil" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "attrs", specifier = ">=22.2.0" },
-    { name = "httpx", specifier = ">=0.23.0,<0.29.0" },
-    { name = "python-dateutil", specifier = ">=2.8.0,<3" },
 ]
 
 [[package]]
@@ -2428,15 +2411,15 @@ name = "orchestrator-cli"
 version = "0.1.0"
 source = { editable = "src/cli" }
 dependencies = [
-    { name = "nexus-api-client" },
     { name = "pyyaml" },
+    { name = "syntara-api-client" },
     { name = "typer" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "nexus-api-client", editable = "src/api_client" },
     { name = "pyyaml", specifier = ">=6.0" },
+    { name = "syntara-api-client", editable = "src/api_client" },
     { name = "typer", specifier = ">=0.9.0" },
 ]
 
@@ -2445,14 +2428,14 @@ name = "orchestrator-test-sdk"
 version = "0.1.0"
 source = { editable = "test-sdk" }
 dependencies = [
-    { name = "nexus-api-client" },
     { name = "pytest" },
+    { name = "syntara-api-client" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "nexus-api-client", editable = "src/api_client" },
     { name = "pytest", specifier = ">=7.0" },
+    { name = "syntara-api-client", editable = "src/api_client" },
 ]
 
 [[package]]
@@ -3771,6 +3754,23 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/ef/52/9ba0f43b686e7f3ddfeaa78ac3af750292662284b3661e91ad5494f21dbc/structlog-25.5.0.tar.gz", hash = "sha256:098522a3bebed9153d4570c6d0288abf80a031dfdb2048d59a49e9dc2190fc98", size = 1460830, upload-time = "2025-10-27T08:28:23.028Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a8/45/a132b9074aa18e799b891b91ad72133c98d8042c70f6240e4c5f9dabee2f/structlog-25.5.0-py3-none-any.whl", hash = "sha256:a8453e9b9e636ec59bd9e79bbd4a72f025981b3ba0f5837aebf48f02f37a7f9f", size = 72510, upload-time = "2025-10-27T08:28:21.535Z" },
+]
+
+[[package]]
+name = "syntara-api-client"
+version = "0.1.0"
+source = { editable = "src/api_client" }
+dependencies = [
+    { name = "attrs" },
+    { name = "httpx" },
+    { name = "python-dateutil" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "attrs", specifier = ">=22.2.0" },
+    { name = "httpx", specifier = ">=0.23.0,<0.29.0" },
+    { name = "python-dateutil", specifier = ">=2.8.0,<3" },
 ]
 
 [[package]]

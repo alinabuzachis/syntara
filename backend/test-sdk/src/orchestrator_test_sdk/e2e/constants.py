@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from nexus_api_client.models.workflow_definition import WorkflowDefinition
+from syntara_api_client.models.workflow_definition import WorkflowDefinition
 
 MINIMAL_WORKFLOW_DEFINITION: WorkflowDefinition = WorkflowDefinition.from_dict(
     {

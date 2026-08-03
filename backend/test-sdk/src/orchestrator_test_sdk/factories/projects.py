@@ -6,23 +6,23 @@ from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
 import pytest
-from nexus_api_client.models.project_create import ProjectCreate
-from nexus_api_client.models.project_role_create import ProjectRoleCreate
-from nexus_api_client.models.role_assignment_create import RoleAssignmentCreate
+from syntara_api_client.models.project_create import ProjectCreate
+from syntara_api_client.models.project_role_create import ProjectRoleCreate
+from syntara_api_client.models.role_assignment_create import RoleAssignmentCreate
 
 from orchestrator_test_sdk.e2e import unique_name
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from nexus_api_client.api import NexusApiRegistry
+    from syntara_api_client.api import SyntaraApiRegistry
 
 
 class ProjectFactory(Protocol):
     """Protocol ensuring type safety for optional and keyword arguments on the factory."""
 
     def __call__(
-        self, api: NexusApiRegistry, prefix: str | None = None, name: str | None = None
+        self, api: SyntaraApiRegistry, prefix: str | None = None, name: str | None = None
     ) -> tuple[UUID, str]: ...
 
 
@@ -33,9 +33,11 @@ def create_project() -> Generator[ProjectFactory, None, None]:
     Tracks every project created during the module and deletes them all on teardown.
     Project deletion cascades to roles, role-assignments, and other child resources.
     """
-    created: list[tuple[NexusApiRegistry, UUID]] = []
+    created: list[tuple[SyntaraApiRegistry, UUID]] = []
 
-    def _create_project(api: NexusApiRegistry, prefix: str | None = None, name: str | None = None) -> tuple[UUID, str]:
+    def _create_project(
+        api: SyntaraApiRegistry, prefix: str | None = None, name: str | None = None
+    ) -> tuple[UUID, str]:
         name = name or unique_name(f"e2e-rbac-{prefix or 'test'}")
         resp = api.projects.create(body=ProjectCreate(name=name))
         project = resp.assert_and_get()
@@ -57,7 +59,7 @@ class ProjectRoleFactory(Protocol):
 
     def __call__(
         self,
-        api: NexusApiRegistry,
+        api: SyntaraApiRegistry,
         project_id: UUID,
         prefix: str,
         policies: list[str],
@@ -67,9 +69,9 @@ class ProjectRoleFactory(Protocol):
 @pytest.fixture(scope="module")
 def create_project_role() -> Generator[ProjectRoleFactory, None, None]:
     """Create a project-scoped role. Returns the generated role name."""
-    created: list[tuple[NexusApiRegistry, UUID, UUID]] = []
+    created: list[tuple[SyntaraApiRegistry, UUID, UUID]] = []
 
-    def _create_project_role(api: NexusApiRegistry, project_id: UUID, prefix: str, policies: list[str]) -> str:
+    def _create_project_role(api: SyntaraApiRegistry, project_id: UUID, prefix: str, policies: list[str]) -> str:
         name = unique_name(f"e2e-{prefix}")
         resp = api.projects.create_role(
             project_id=project_id,
@@ -93,7 +95,7 @@ class AssignProjectRoleFactory(Protocol):
 
     def __call__(
         self,
-        api: NexusApiRegistry,
+        api: SyntaraApiRegistry,
         project_id: UUID,
         user_or_group_id: UUID,
         role_name: str,
@@ -103,9 +105,9 @@ class AssignProjectRoleFactory(Protocol):
 @pytest.fixture(scope="module")
 def assign_project_role_to_user() -> Generator[AssignProjectRoleFactory, None, None]:
     """Assign a project-scoped role to a user. Returns the assignment id."""
-    created: list[tuple[NexusApiRegistry, UUID, UUID]] = []
+    created: list[tuple[SyntaraApiRegistry, UUID, UUID]] = []
 
-    def _assign(api: NexusApiRegistry, project_id: UUID, user_or_group_id: UUID, role_name: str) -> UUID:
+    def _assign(api: SyntaraApiRegistry, project_id: UUID, user_or_group_id: UUID, role_name: str) -> UUID:
         resp = api.projects.create_role_assignment(
             project_id=project_id,
             body=RoleAssignmentCreate(
@@ -130,9 +132,9 @@ def assign_project_role_to_user() -> Generator[AssignProjectRoleFactory, None, N
 @pytest.fixture(scope="module")
 def assign_project_role_to_group() -> Generator[AssignProjectRoleFactory, None, None]:
     """Assign a project-scoped role to a group. Returns the assignment id."""
-    created: list[tuple[NexusApiRegistry, UUID, UUID]] = []
+    created: list[tuple[SyntaraApiRegistry, UUID, UUID]] = []
 
-    def _assign(api: NexusApiRegistry, project_id: UUID, user_or_group_id: UUID, role_name: str) -> UUID:
+    def _assign(api: SyntaraApiRegistry, project_id: UUID, user_or_group_id: UUID, role_name: str) -> UUID:
         resp = api.projects.create_role_assignment(
             project_id=project_id,
             body=RoleAssignmentCreate(

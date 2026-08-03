@@ -78,7 +78,7 @@ def _operationid_to_command(operation_id: str, tag_module: str) -> str:
 def _discover_endpoint_modules() -> dict[str, list[str]]:
     """Return {tag_module: [module_name, ...]} by scanning the generated client package."""
     with phase("startup.discover_endpoint_modules"):
-        package_spec = importlib.util.find_spec("nexus_api_client")
+        package_spec = importlib.util.find_spec("syntara_api_client")
         if not package_spec or not package_spec.submodule_search_locations:
             note("endpoint_discovery", "package_missing")
             return {}
@@ -250,7 +250,7 @@ def _parse_endpoints(spec: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
 def _create_client(base_url: str, token: str | None, *, needs_auth: bool) -> object:
     """Instantiate the appropriate API client."""
     with phase("request.create_client.import_client_module"):
-        client_mod = importlib.import_module("nexus_api_client.client")
+        client_mod = importlib.import_module("syntara_api_client.client")
     with phase("request.create_client.instantiate"):
         api_url = f"{base_url}/api/v1"
         if needs_auth:
@@ -383,7 +383,7 @@ def _make_command_callback(
                         path_param_set,
                     )
                 with phase("request.import_model_module"):
-                    mod = importlib.import_module(f"nexus_api_client.models.{model_module_name}")
+                    mod = importlib.import_module(f"syntara_api_client.models.{model_module_name}")
                 with phase("request.model_from_dict"):
                     model_cls = getattr(mod, model_class_name)
                     api_kwargs["body"] = model_cls.from_dict(body_data)
@@ -395,7 +395,7 @@ def _make_command_callback(
                         api_kwargs[qp] = val
 
             with phase("request.import_endpoint_module"):
-                ep_mod = importlib.import_module(f"nexus_api_client.api.{tag_module}.{endpoint_module}")
+                ep_mod = importlib.import_module(f"syntara_api_client.api.{tag_module}.{endpoint_module}")
 
             response = _call_with_rate_limit_retry(ep_mod, client, api_kwargs)
 

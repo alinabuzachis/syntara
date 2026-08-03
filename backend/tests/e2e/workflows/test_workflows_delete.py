@@ -10,17 +10,17 @@ from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import pytest
-from nexus_api_client.models.workflow_create import WorkflowCreate
-from nexus_api_client.models.workflow_definition import WorkflowDefinition
 from orchestrator_test_sdk.e2e import unique_name
+from syntara_api_client.models.workflow_create import WorkflowCreate
+from syntara_api_client.models.workflow_definition import WorkflowDefinition
 
 from tests.helpers.workflow import create_minimal_workflow_definition
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from nexus_api_client.api import NexusApiRegistry
-    from nexus_api_client.models.workflow_read import WorkflowRead
+    from syntara_api_client.api import SyntaraApiRegistry
+    from syntara_api_client.models.workflow_read import WorkflowRead
 
     WorkflowFactory = Callable[[WorkflowCreate], WorkflowRead]
 
@@ -36,7 +36,7 @@ class TestWorkflowDeletion:
     These tests focus on edge cases not covered elsewhere.
     """
 
-    def test_delete_nonexistent_workflow(self, nexus_api: NexusApiRegistry) -> None:
+    def test_delete_nonexistent_workflow(self, nexus_api: SyntaraApiRegistry) -> None:
         """Test deleting a non-existent workflow.
 
         Expected: 404 Not Found
@@ -48,7 +48,7 @@ class TestWorkflowDeletion:
 
     def test_delete_already_deleted_workflow(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: WorkflowFactory,
         first_project_id: UUID,
     ) -> None:

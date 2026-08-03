@@ -172,7 +172,7 @@ The Nexus Python API client (generated from the OpenAPI spec) provides type-safe
 ### Quick Start
 
 ```python
-from nexus_api_client import build_filters
+from syntara_api_client import build_filters
 
 # Instead of manual dictionary construction:
 workflows = nexus_api.workflows.list(
@@ -255,7 +255,7 @@ workflows = nexus_api.workflows.list(additional_params=filters)
 ### Error Handling
 
 ```python
-from nexus_api_client import FilterError, OPERATORS
+from syntara_api_client import FilterError, OPERATORS
 
 try:
     filters = build_filters(name__invalid_op="test")

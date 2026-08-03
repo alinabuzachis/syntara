@@ -6,18 +6,18 @@ from typing import TYPE_CHECKING, Any, Protocol
 from uuid import UUID
 
 import pytest
-from nexus_api_client.models.credential_create import CredentialCreate
-from nexus_api_client.models.credential_create_inputs import CredentialCreateInputs
+from syntara_api_client.models.credential_create import CredentialCreate
+from syntara_api_client.models.credential_create_inputs import CredentialCreateInputs
 
 from orchestrator_test_sdk.e2e import unique_name
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from nexus_api_client.api import NexusApiRegistry
+    from syntara_api_client.api import SyntaraApiRegistry
 
 
-def _get_credential_type_id(api: NexusApiRegistry, name: str) -> UUID:
+def _get_credential_type_id(api: SyntaraApiRegistry, name: str) -> UUID:
     """Retrieve credential type id by name."""
     resp = api.credentials.list_types()
     assert resp.is_success
@@ -28,12 +28,12 @@ def _get_credential_type_id(api: NexusApiRegistry, name: str) -> UUID:
     pytest.fail(f"Preseeded '{name}' credential type not found")
 
 
-def get_bearer_token_type_id(api: NexusApiRegistry) -> UUID:
+def get_bearer_token_type_id(api: SyntaraApiRegistry) -> UUID:
     """Retrieve bearer token credential type id."""
     return _get_credential_type_id(api, "HTTP Bearer Token")
 
 
-def get_basic_auth_type_id(api: NexusApiRegistry) -> UUID:
+def get_basic_auth_type_id(api: SyntaraApiRegistry) -> UUID:
     """Retrieve basic auth credential type id."""
     return _get_credential_type_id(api, "HTTP Basic Auth")
 
@@ -43,7 +43,7 @@ class CredentialFactory(Protocol):
 
     def __call__(
         self,
-        api: NexusApiRegistry,
+        api: SyntaraApiRegistry,
         project_id: UUID,
         prefix: str | None = None,
         name: str | None = None,
@@ -55,10 +55,10 @@ class CredentialFactory(Protocol):
 @pytest.fixture(scope="module")
 def create_credential() -> Generator[CredentialFactory, None, None]:
     """Create test credential. Returns ``(credential_id, credential_name, credential_dict, plaintext_secret)``."""
-    created: list[tuple[NexusApiRegistry, UUID]] = []
+    created: list[tuple[SyntaraApiRegistry, UUID]] = []
 
     def _create_credential(
-        api: NexusApiRegistry,
+        api: SyntaraApiRegistry,
         project_id: UUID,
         prefix: str | None = None,
         name: str | None = None,

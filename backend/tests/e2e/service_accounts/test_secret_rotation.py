@@ -14,20 +14,20 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from nexus_api_client import Client
-from nexus_api_client.api.authentication.token import sync_detailed
-from nexus_api_client.models.body_token import BodyToken
-from nexus_api_client.models.sa_credential_create import SACredentialCreate
-from nexus_api_client.models.sa_credential_rotate_request import SACredentialRotateRequest
-from nexus_api_client.models.service_account_create import ServiceAccountCreate
-from nexus_api_client.models.service_account_credential_type import ServiceAccountCredentialType
 from orchestrator_test_sdk.e2e import unique_name
 from orchestrator_test_sdk.e2e.tls import e2e_ssl_context
+from syntara_api_client import Client
+from syntara_api_client.api.authentication.token import sync_detailed
+from syntara_api_client.models.body_token import BodyToken
+from syntara_api_client.models.sa_credential_create import SACredentialCreate
+from syntara_api_client.models.sa_credential_rotate_request import SACredentialRotateRequest
+from syntara_api_client.models.service_account_create import ServiceAccountCreate
+from syntara_api_client.models.service_account_credential_type import ServiceAccountCredentialType
 
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from nexus_api_client.api import NexusApiRegistry
+    from syntara_api_client.api import SyntaraApiRegistry
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
@@ -48,7 +48,7 @@ class TestSecretRotationGracePeriod:
     """API-19: Secret rotation — grace period."""
 
     def test_grace_period_both_secrets_valid(
-        self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
+        self, nexus_api: SyntaraApiRegistry, first_project_id: UUID, nexus_base_url: str
     ) -> None:
         """During the grace period, both old and new secrets are accepted."""
         sa = nexus_api.service_accounts.create(
@@ -92,7 +92,7 @@ class TestSecretRotationGraceExpiry:
     POLL_INTERVAL_SECONDS = 0.5
 
     def test_old_secret_rejected_after_grace(
-        self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
+        self, nexus_api: SyntaraApiRegistry, first_project_id: UUID, nexus_base_url: str
     ) -> None:
         """After the grace period, only the new secret works."""
         sa = nexus_api.service_accounts.create(

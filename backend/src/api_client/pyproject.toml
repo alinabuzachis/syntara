@@ -1,7 +1,7 @@
 [project]
-name = "nexus-api-client"
+name = "syntara-api-client"
 version = "0.1.0"
-description = "A client library for accessing Nexus API"
+description = "A client library for accessing Syntara API"
 license = "Apache-2.0"
 authors = []
 requires-python = ">=3.10"
@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [tool.uv.build-backend]
-module-name = "nexus_api_client"
+module-name = "syntara_api_client"
 module-root = ""
 
 [build-system]

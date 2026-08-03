@@ -15,14 +15,14 @@ from uuid import UUID
 
 import httpx
 import pytest
-from nexus_api_client.api import NexusApiRegistry
-from nexus_api_client.models import IntegrationCreate, IntegrationStatus, IntegrationType
-from nexus_api_client.models.mcp_server_configuration_input import MCPServerConfigurationInput
-from nexus_api_client.models.tool_status import ToolStatus
-from nexus_api_client.models.validate_result import ValidateResult
-from nexus_api_client.types import Response
 from orchestrator_test_sdk.e2e import unique_name
 from orchestrator_test_sdk.e2e.helpers import _retry_api_call
+from syntara_api_client.api import SyntaraApiRegistry
+from syntara_api_client.models import IntegrationCreate, IntegrationStatus, IntegrationType
+from syntara_api_client.models.mcp_server_configuration_input import MCPServerConfigurationInput
+from syntara_api_client.models.tool_status import ToolStatus
+from syntara_api_client.models.validate_result import ValidateResult
+from syntara_api_client.types import Response
 
 pytestmark = [pytest.mark.e2e]
 
@@ -34,7 +34,7 @@ TRANSIENT_STATUSES = {HTTPStatus.INTERNAL_SERVER_ERROR, HTTPStatus.BAD_GATEWAY, 
 
 
 def _validate_provider(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
     provider_id: UUID,
     *,
     timeout: float = 10.0,
@@ -59,7 +59,7 @@ def _validate_provider(
 
 
 def _wait_for_provider_status(
-    nexus_api: NexusApiRegistry,
+    nexus_api: SyntaraApiRegistry,
     provider_id: UUID,
     expected: IntegrationStatus,
     *,
@@ -98,7 +98,7 @@ class TestMCPProviderIntegration:
     """E2E tests for MCP integration with the running MCP server."""
 
     @pytest.mark.mcp
-    def test_provider_status_and_tools(self, nexus_api: NexusApiRegistry, mcp_integration_id: str) -> None:
+    def test_provider_status_and_tools(self, nexus_api: SyntaraApiRegistry, mcp_integration_id: str) -> None:
         """Test that the shared MCP integration is available with discovered tools."""
         integration_id = UUID(mcp_integration_id)
 
@@ -130,7 +130,7 @@ class TestMCPProviderIntegration:
         nexus_api.tools.get(tool_id=sum_tool.id).assert_and_get()
 
     @pytest.mark.mcp
-    def test_tool_parameters_persistence(self, nexus_api: NexusApiRegistry, mcp_integration_id: str) -> None:
+    def test_tool_parameters_persistence(self, nexus_api: SyntaraApiRegistry, mcp_integration_id: str) -> None:
         """Test that MCP tool parameters are properly persisted to database."""
         integration_id = UUID(mcp_integration_id)
 
@@ -148,7 +148,7 @@ class TestMCPProviderIntegration:
 
     @pytest.mark.mcp
     @pytest.mark.skip(reason="Validate is a no-op pending MCP ping implementation")
-    def test_mcp_provider_connection_failure_handling(self, nexus_api: NexusApiRegistry) -> None:
+    def test_mcp_provider_connection_failure_handling(self, nexus_api: SyntaraApiRegistry) -> None:
         """Test MCP integration creation with unreachable server."""
         create_resp = _retry_api_call(
             lambda: nexus_api.integrations.create(
@@ -185,7 +185,7 @@ class TestMCPProviderIntegration:
     @pytest.mark.mcp
     @pytest.mark.asyncio
     @pytest.mark.skip(reason="Validate is a no-op pending MCP ping implementation")
-    async def test_mcp_provider_connection_failure_unauthorized(self, nexus_api: NexusApiRegistry) -> None:
+    async def test_mcp_provider_connection_failure_unauthorized(self, nexus_api: SyntaraApiRegistry) -> None:
         """Test MCP integration validation fails when the server requires auth."""
         from fastmcp.server.auth import StaticTokenVerifier
         from orchestrator_test_sdk.app.mcp_servers import ExampleMCPServer
@@ -223,7 +223,7 @@ class TestMCPProviderIntegration:
     @pytest.mark.mcp
     @pytest.mark.asyncio
     @pytest.mark.skip(reason="Validate is a no-op pending MCP ping implementation")
-    async def test_mcp_provider_connection_failure_forbidden(self, nexus_api: NexusApiRegistry) -> None:
+    async def test_mcp_provider_connection_failure_forbidden(self, nexus_api: SyntaraApiRegistry) -> None:
         """Test MCP integration validation fails when the server returns 403."""
         from orchestrator_test_sdk.app.mcp_servers import ForbiddenMCPServer
 

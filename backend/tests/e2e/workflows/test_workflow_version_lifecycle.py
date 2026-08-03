@@ -16,18 +16,18 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import pytest
-from nexus_api_client.models.execution_create import ExecutionCreate
-from nexus_api_client.models.execution_status import ExecutionStatus
-from nexus_api_client.models.publish_version_request import PublishVersionRequest
-from nexus_api_client.models.workflow_definition import WorkflowDefinition
-from nexus_api_client.models.workflow_update import WorkflowUpdate
 from orchestrator_test_sdk.e2e.helpers import poll_execution
+from syntara_api_client.models.execution_create import ExecutionCreate
+from syntara_api_client.models.execution_status import ExecutionStatus
+from syntara_api_client.models.publish_version_request import PublishVersionRequest
+from syntara_api_client.models.workflow_definition import WorkflowDefinition
+from syntara_api_client.models.workflow_update import WorkflowUpdate
 
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from nexus_api_client.api import NexusApiRegistry
     from orchestrator_test_sdk.factories.workflows import WorkflowFactory
+    from syntara_api_client.api import SyntaraApiRegistry
 
 pytestmark = [pytest.mark.e2e]
 
@@ -56,7 +56,7 @@ class TestPublishLifecycle:
     """E2E tests for publish/unpublish lifecycle (API-4 through API-8)."""
 
     def test_republish_previously_published_version(
-        self, nexus_api: NexusApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """API-4: Publish v1 -> publish v2 -> re-publish v1. v1 becomes published again."""
         wf_id = create_workflow(nexus_api, first_project_id, definition=_simple_definition(), prefix="e2e-republish")[0]
@@ -84,7 +84,7 @@ class TestPublishLifecycle:
         assert wf_resp.parsed.published_version_id is not None
 
     def test_idempotent_republish_updates_metadata(
-        self, nexus_api: NexusApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """API-5: Re-publishing the same version updates name and change_description."""
         wf_id = create_workflow(nexus_api, first_project_id, definition=_simple_definition(), prefix="e2e-idempotent")[
@@ -110,7 +110,7 @@ class TestPublishLifecycle:
         assert republish_resp.parsed.version.status == "published"
 
     def test_unpublish_workflow(
-        self, nexus_api: NexusApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """API-6: Unpublish sets published_version_id to null and is_enabled to false."""
         wf_id = create_workflow(nexus_api, first_project_id, definition=_simple_definition(), prefix="e2e-unpublish")[0]
@@ -128,7 +128,7 @@ class TestPublishLifecycle:
         assert versions_resp.parsed.resources[0].status == "previously_published"
 
     def test_unpublish_when_not_published_returns_400(
-        self, nexus_api: NexusApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """API-7: Unpublishing a workflow that is not published returns 400."""
         wf_id = create_workflow(nexus_api, first_project_id, definition=_simple_definition(), prefix="e2e-unpub-400")[0]
@@ -137,7 +137,7 @@ class TestPublishLifecycle:
         assert resp.status_code == HTTPStatus.BAD_REQUEST
 
     def test_publish_nonexistent_version_returns_404(
-        self, nexus_api: NexusApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """API-8: Publishing a version that doesn't exist returns 404."""
         wf_id = create_workflow(nexus_api, first_project_id, definition=_simple_definition(), prefix="e2e-pub-404")[0]
@@ -150,7 +150,7 @@ class TestExecutionRouting:
     """E2E tests for execution version routing (API-11)."""
 
     def test_manual_run_on_unpublished_workflow(
-        self, nexus_api: NexusApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """API-11: Manual execution on an unpublished workflow uses current version."""
         wf_id = create_workflow(nexus_api, first_project_id, definition=_simple_definition(), prefix="e2e-manual-run")[
@@ -173,7 +173,7 @@ class TestRestoreEdgeCases:
     """E2E tests for restore edge cases (API-13, API-14)."""
 
     def test_restore_current_version_is_noop(
-        self, nexus_api: NexusApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """API-13: Restoring the current (latest) version creates no new version."""
         wf_id = create_workflow(
@@ -190,7 +190,7 @@ class TestRestoreEdgeCases:
         assert len(versions_resp.parsed.resources) == 1
 
     def test_restore_nonexistent_version_returns_404(
-        self, nexus_api: NexusApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """API-14: Restoring a version that doesn't exist returns 404."""
         wf_id = create_workflow(nexus_api, first_project_id, definition=_simple_definition(), prefix="e2e-restore-404")[
@@ -205,7 +205,7 @@ class TestExportEdgeCases:
     """E2E tests for export edge cases (API-16)."""
 
     def test_export_nonexistent_version_returns_404(
-        self, nexus_api: NexusApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """API-16: Exporting a version that doesn't exist returns 404."""
         wf_id = create_workflow(nexus_api, first_project_id, definition=_simple_definition(), prefix="e2e-export-404")[
@@ -220,7 +220,7 @@ class TestVersionNameEdgeCases:
     """E2E tests for version name edge cases (API-17)."""
 
     def test_publish_with_empty_name(
-        self, nexus_api: NexusApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """API-17: Empty string name is accepted (version name is optional, UI shows date instead)."""
         wf_id = create_workflow(nexus_api, first_project_id, definition=_simple_definition(), prefix="e2e-name-empty")[
@@ -236,7 +236,7 @@ class TestVersionNameEdgeCases:
         assert resp.parsed.version.name == ""
 
     def test_publish_with_max_length_name(
-        self, nexus_api: NexusApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """API-17: Name at max length (255 characters) is accepted."""
         wf_id = create_workflow(nexus_api, first_project_id, definition=_simple_definition(), prefix="e2e-name-long")[0]
@@ -251,7 +251,7 @@ class TestVersionNameEdgeCases:
         assert resp.parsed.version.name == long_name
 
     def test_publish_with_special_characters(
-        self, nexus_api: NexusApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """API-17: Backend stores names verbatim; frontend escapes on render (React auto-escapes)."""
         wf_id = create_workflow(
@@ -272,7 +272,7 @@ class TestConflictDetection:
     """E2E tests for optimistic concurrency conflict detection (API-19)."""
 
     def test_stale_save_returns_409(
-        self, nexus_api: NexusApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """API-19: Saving with a stale expected_version returns 409 Conflict."""
         wf_id = create_workflow(
@@ -296,7 +296,7 @@ class TestConflictDetection:
         assert resp.status_code == HTTPStatus.CONFLICT
 
     def test_correct_expected_version_succeeds(
-        self, nexus_api: NexusApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """API-19: Saving with the correct expected_version succeeds."""
         wf_id = create_workflow(nexus_api, first_project_id, definition=_simple_definition(), prefix="e2e-conflict-ok")[
@@ -340,7 +340,7 @@ class TestInFlightExecution:
     """E2E test for in-flight execution version binding (API-23)."""
 
     def test_inflight_execution_continues_on_original_version(
-        self, nexus_api: NexusApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
+        self, nexus_api: SyntaraApiRegistry, create_workflow: WorkflowFactory, first_project_id: UUID
     ) -> None:
         """API-23: Publishing a new version does not affect an in-flight execution.
 

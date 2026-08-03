@@ -6,19 +6,19 @@ from typing import TYPE_CHECKING, Any, Protocol
 from uuid import UUID
 
 import pytest
-from nexus_api_client.models.identity_provider_create import IdentityProviderCreate
+from syntara_api_client.models.identity_provider_create import IdentityProviderCreate
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from nexus_api_client.api import NexusApiRegistry
-    from nexus_api_client.models.oidc_configuration import OIDCConfiguration
+    from syntara_api_client.api import SyntaraApiRegistry
+    from syntara_api_client.models.oidc_configuration import OIDCConfiguration
 
 
 class IdentityProviderFactory(Protocol):
     """Protocol ensuring type safety for optional and keyword arguments on the factory."""
 
-    def __call__(self, api: NexusApiRegistry, name: str, configuration: OIDCConfiguration) -> Any: ...  # noqa: ANN401
+    def __call__(self, api: SyntaraApiRegistry, name: str, configuration: OIDCConfiguration) -> Any: ...  # noqa: ANN401
 
 
 @pytest.fixture(scope="module")
@@ -27,7 +27,7 @@ def identity_provider_factory() -> Generator[IdentityProviderFactory, None, None
     created_provider_ids: list[UUID] = []
     test_api = None
 
-    def _create(api: NexusApiRegistry, name: str, configuration: OIDCConfiguration) -> Any:  # noqa: ANN401
+    def _create(api: SyntaraApiRegistry, name: str, configuration: OIDCConfiguration) -> Any:  # noqa: ANN401
         provider = api.identity_providers.create(
             body=IdentityProviderCreate(name=name, configuration=configuration)
         ).assert_and_get()

@@ -20,19 +20,19 @@ from typing import TYPE_CHECKING, Any
 import httpx
 import jwt as pyjwt
 import pytest
-from nexus_api_client.models.role_assignment_create import RoleAssignmentCreate
-from nexus_api_client.models.sa_credential_create import SACredentialCreate
-from nexus_api_client.models.service_account_credential_type import ServiceAccountCredentialType
 from orchestrator_test_sdk.e2e import unique_name
 from orchestrator_test_sdk.e2e.tls import e2e_ssl_context
+from syntara_api_client.models.role_assignment_create import RoleAssignmentCreate
+from syntara_api_client.models.sa_credential_create import SACredentialCreate
+from syntara_api_client.models.service_account_credential_type import ServiceAccountCredentialType
 
 from tests.e2e.service_accounts import create_sa, create_sa_with_credential, token_request
 
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from nexus_api_client.api import NexusApiRegistry
     from orchestrator_test_sdk.factories import ProjectFactory
+    from syntara_api_client.api import SyntaraApiRegistry
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
@@ -44,7 +44,7 @@ class TestTokenValidationAuthorized:
     """API-16: Token validation — authorized API access (Bearer token grants access)."""
 
     def test_bearer_token_grants_api_access(
-        self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
+        self, nexus_api: SyntaraApiRegistry, first_project_id: UUID, nexus_base_url: str
     ) -> None:
         """SA Bearer token is accepted by protected endpoints and returns SA identity."""
         sa, client_id, client_secret = create_sa_with_credential(nexus_api, first_project_id)
@@ -73,7 +73,7 @@ class TestTokenValidationUnauthorized:
     def test_insufficient_permissions_returns_403(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
     ) -> None:
         """SA token without permissions on another project gets 403."""
@@ -102,7 +102,7 @@ class TestExpiredTokenRejected:
     """API-18: Token validation — expired token rejected, no refresh flow."""
 
     def test_token_has_correct_expiry_and_no_refresh(
-        self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
+        self, nexus_api: SyntaraApiRegistry, first_project_id: UUID, nexus_base_url: str
     ) -> None:
         """SA token has 15-min lifetime, and there is no refresh endpoint for SAs.
 
@@ -143,7 +143,7 @@ class TestProjectRoleAssignment:
     def test_sa_with_project_admin_role_accesses_project_resources(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
     ) -> None:
         """SA assigned project-admin on its own project can manage SAs in that project."""
@@ -187,7 +187,7 @@ class TestConcurrentServiceAccounts:
     CONCURRENT_SA_COUNT = 100
 
     def test_100_concurrent_sa_auth(
-        self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
+        self, nexus_api: SyntaraApiRegistry, first_project_id: UUID, nexus_base_url: str
     ) -> None:
         """100 concurrent SAs can all authenticate and access the API simultaneously."""
         sa_data: list[tuple[Any, str]] = []
@@ -228,7 +228,7 @@ class TestLastAuthenticatedTimestamp:
     """API-38: Last authenticated timestamp updated on successful auth."""
 
     def test_last_authenticated_updated_on_auth(
-        self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
+        self, nexus_api: SyntaraApiRegistry, first_project_id: UUID, nexus_base_url: str
     ) -> None:
         """last_authenticated_at is null before first auth, then set after token issuance."""
         sa, client_id, client_secret = create_sa_with_credential(nexus_api, first_project_id)

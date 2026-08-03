@@ -4,8 +4,8 @@ from datetime import UTC, date, datetime
 from uuid import uuid4
 
 import pytest
-from nexus_api_client import OPERATORS as OPERATORS_FROM_PACKAGE
-from nexus_api_client.filters import OPERATORS, FilterError, build_filters
+from syntara_api_client import OPERATORS as OPERATORS_FROM_PACKAGE
+from syntara_api_client.filters import OPERATORS, FilterError, build_filters
 
 
 class TestPublicAPI:

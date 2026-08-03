@@ -10,7 +10,7 @@ pytest_plugins = [
     "orchestrator_test_sdk.e2e.hooks",
     "orchestrator_test_sdk.e2e.factories",
     # Factory fixtures (create_workflow, create_user, etc.) — these only import
-    # from nexus_api_client, not nexus.*, so they're safe in the entry point.
+    # from syntara_api_client, not nexus.*, so they're safe in the entry point.
     "orchestrator_test_sdk.factories.credentials",
     "orchestrator_test_sdk.factories.groups",
     "orchestrator_test_sdk.factories.identity_providers",

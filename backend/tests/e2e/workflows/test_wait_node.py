@@ -11,9 +11,9 @@ from datetime import datetime
 from typing import Any
 
 import pytest
-from nexus_api_client.api import NexusApiRegistry
-from nexus_api_client.models.execution_status import ExecutionStatus
 from orchestrator_test_sdk.e2e.helpers import create_and_run_workflow
+from syntara_api_client.api import SyntaraApiRegistry
+from syntara_api_client.models.execution_status import ExecutionStatus
 
 WAIT_POLL_TIMEOUT = 30
 
@@ -37,7 +37,7 @@ def _wait_definition(nodes: list[dict[str, Any]], edges: list[dict[str, Any]]) -
 
 
 @pytest.mark.e2e
-def test_wait_node_completes_after_duration(nexus_api: NexusApiRegistry) -> None:
+def test_wait_node_completes_after_duration(nexus_api: SyntaraApiRegistry) -> None:
     """A wait node with a short duration completes successfully."""
     result = create_and_run_workflow(
         nexus_api,
@@ -63,7 +63,7 @@ def test_wait_node_completes_after_duration(nexus_api: NexusApiRegistry) -> None
 
 
 @pytest.mark.e2e
-def test_wait_node_downstream_executes_after_wait(nexus_api: NexusApiRegistry) -> None:
+def test_wait_node_downstream_executes_after_wait(nexus_api: SyntaraApiRegistry) -> None:
     """Nodes after a wait execute only after the wait completes."""
     result = create_and_run_workflow(
         nexus_api,
@@ -101,7 +101,7 @@ def test_wait_node_downstream_executes_after_wait(nexus_api: NexusApiRegistry) -
 
 
 @pytest.mark.e2e
-def test_wait_node_multiple_in_sequence(nexus_api: NexusApiRegistry) -> None:
+def test_wait_node_multiple_in_sequence(nexus_api: SyntaraApiRegistry) -> None:
     """Multiple wait nodes in sequence both complete."""
     result = create_and_run_workflow(
         nexus_api,
@@ -141,7 +141,7 @@ def test_wait_node_multiple_in_sequence(nexus_api: NexusApiRegistry) -> None:
 
 
 @pytest.mark.e2e
-def test_wait_node_timestamps_correct(nexus_api: NexusApiRegistry) -> None:
+def test_wait_node_timestamps_correct(nexus_api: SyntaraApiRegistry) -> None:
     """Wait activity has correct started_at and completed_at with expected duration."""
     result = create_and_run_workflow(
         nexus_api,
@@ -180,7 +180,7 @@ def test_wait_node_timestamps_correct(nexus_api: NexusApiRegistry) -> None:
 
 
 @pytest.mark.e2e
-def test_wait_node_in_conditional_branch(nexus_api: NexusApiRegistry) -> None:
+def test_wait_node_in_conditional_branch(nexus_api: SyntaraApiRegistry) -> None:
     """Only the wait node on the taken branch executes."""
     result = create_and_run_workflow(
         nexus_api,
@@ -232,7 +232,7 @@ def test_wait_node_in_conditional_branch(nexus_api: NexusApiRegistry) -> None:
     reason="orchestration bug: _process_node_result swallows failed-status dicts",
     strict=False,
 )
-def test_wait_node_zero_duration_fails(nexus_api: NexusApiRegistry) -> None:
+def test_wait_node_zero_duration_fails(nexus_api: SyntaraApiRegistry) -> None:
     """A wait node with duration 0 fails validation."""
     result = create_and_run_workflow(
         nexus_api,
@@ -260,7 +260,7 @@ def test_wait_node_zero_duration_fails(nexus_api: NexusApiRegistry) -> None:
     reason="orchestration bug: _process_node_result swallows failed-status dicts",
     strict=False,
 )
-def test_wait_node_negative_duration_fails(nexus_api: NexusApiRegistry) -> None:
+def test_wait_node_negative_duration_fails(nexus_api: SyntaraApiRegistry) -> None:
     """A wait node with negative duration fails validation."""
     result = create_and_run_workflow(
         nexus_api,

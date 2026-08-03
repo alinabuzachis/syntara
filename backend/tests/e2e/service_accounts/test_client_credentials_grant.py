@@ -30,7 +30,7 @@ from tests.e2e.service_accounts import create_sa_with_credential, token_request
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from nexus_api_client.api import NexusApiRegistry
+    from syntara_api_client.api import SyntaraApiRegistry
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
@@ -42,7 +42,7 @@ class TestClientCredentialsGrant:
     """API-9: Client credentials grant — happy path."""
 
     def test_happy_path_jwt_issuance(
-        self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
+        self, nexus_api: SyntaraApiRegistry, first_project_id: UUID, nexus_base_url: str
     ) -> None:
         """POST /auth/token returns 200 with valid ES256 JWT and correct claims."""
         sa, client_id, client_secret = create_sa_with_credential(nexus_api, first_project_id)
@@ -71,7 +71,7 @@ class TestClientCredentialsGrant:
             nexus_api.service_accounts.delete(service_account_id=sa.id)
 
     def test_tampered_token_rejected(
-        self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
+        self, nexus_api: SyntaraApiRegistry, first_project_id: UUID, nexus_base_url: str
     ) -> None:
         """A token with a tampered payload is rejected by protected endpoints."""
         sa, client_id, client_secret = create_sa_with_credential(nexus_api, first_project_id)
@@ -114,7 +114,7 @@ class TestClientCredentialsGrant:
 class TestClientCredentialsBasicAuth:
     """API-10: Client credentials grant — HTTP Basic auth header."""
 
-    def test_http_basic_auth(self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str) -> None:
+    def test_http_basic_auth(self, nexus_api: SyntaraApiRegistry, first_project_id: UUID, nexus_base_url: str) -> None:
         """Credentials via Authorization: Basic header returns a valid token."""
         sa, client_id, client_secret = create_sa_with_credential(nexus_api, first_project_id)
 
@@ -133,7 +133,7 @@ class TestClientCredentialsInvalidSecret:
     """API-11: Client credentials grant — invalid secret."""
 
     def test_invalid_secret_returns_401(
-        self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
+        self, nexus_api: SyntaraApiRegistry, first_project_id: UUID, nexus_base_url: str
     ) -> None:
         """Correct client_id with wrong secret returns 401."""
         sa, client_id, _ = create_sa_with_credential(nexus_api, first_project_id)
@@ -158,7 +158,7 @@ class TestClientCredentialsDisabledSA:
     """API-13: Client credentials grant — disabled service account."""
 
     def test_disabled_sa_returns_401(
-        self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
+        self, nexus_api: SyntaraApiRegistry, first_project_id: UUID, nexus_base_url: str
     ) -> None:
         """Disabled SA cannot obtain a token."""
         sa, client_id, client_secret = create_sa_with_credential(nexus_api, first_project_id)
@@ -176,7 +176,7 @@ class TestClientCredentialsDeletedSA:
     """API-14: Client credentials grant — deleted service account."""
 
     def test_deleted_sa_returns_401(
-        self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
+        self, nexus_api: SyntaraApiRegistry, first_project_id: UUID, nexus_base_url: str
     ) -> None:
         """Deleted SA cannot obtain a token."""
         sa, client_id, client_secret = create_sa_with_credential(nexus_api, first_project_id)
@@ -207,7 +207,7 @@ class TestSATokenLifetime:
     EXPECTED_SA_LIFETIME_SECONDS = 15 * 60  # 900
 
     def test_sa_specific_token_lifetime(
-        self, nexus_api: NexusApiRegistry, first_project_id: UUID, nexus_base_url: str
+        self, nexus_api: SyntaraApiRegistry, first_project_id: UUID, nexus_base_url: str
     ) -> None:
         """SA access token exp - iat matches the configured SA-specific lifetime."""
         sa, client_id, client_secret = create_sa_with_credential(nexus_api, first_project_id)

@@ -11,12 +11,11 @@ import pytest
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from nexus_api_client.api import NexusApiRegistry
+    from syntara_api_client.api import SyntaraApiRegistry
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
 
-from nexus_api_client.models.workflow_create import WorkflowCreate
 from orchestrator_test_sdk.e2e import unique_name
 from orchestrator_test_sdk.e2e.auth import api_for
 from orchestrator_test_sdk.e2e.constants import MINIMAL_WORKFLOW_DEFINITION
@@ -28,6 +27,7 @@ from orchestrator_test_sdk.factories import (
     UserFactory,
     get_bearer_token_type_id,
 )
+from syntara_api_client.models.workflow_create import WorkflowCreate
 
 pytestmark = [pytest.mark.e2e]
 
@@ -42,13 +42,13 @@ _POLICIES = [
 
 @pytest.fixture(scope="module")
 def credentials_manager_env(
-    admin_api: NexusApiRegistry,
+    admin_api: SyntaraApiRegistry,
     create_user: UserFactory,
     create_project_role: ProjectRoleFactory,
     create_project: ProjectFactory,
     assign_project_role_to_user: AssignProjectRoleFactory,
     nexus_base_url: str,
-) -> tuple[NexusApiRegistry, UUID]:
+) -> tuple[SyntaraApiRegistry, UUID]:
     """Create project, user, role, assignment and return the user's API."""
     user_id, name, password = create_user(admin_api, "credmgr")
     project_id, _ = create_project(admin_api, "credmgr")
@@ -64,7 +64,7 @@ class TestCredentialsManagerAllowed:
     """Positive: credential CRUD within the project."""
 
     def test_create_and_list_credential(
-        self, credentials_manager_env, admin_api: NexusApiRegistry, create_credential: CredentialFactory
+        self, credentials_manager_env, admin_api: SyntaraApiRegistry, create_credential: CredentialFactory
     ):
         user_api, project_id = credentials_manager_env
         cred_name = unique_name("e2e-rbac-cred-credmgr")

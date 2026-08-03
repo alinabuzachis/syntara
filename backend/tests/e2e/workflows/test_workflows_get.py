@@ -10,17 +10,17 @@ from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import pytest
-from nexus_api_client.models.workflow_create import WorkflowCreate
-from nexus_api_client.models.workflow_definition import WorkflowDefinition
 from orchestrator_test_sdk.e2e import unique_name
+from syntara_api_client.models.workflow_create import WorkflowCreate
+from syntara_api_client.models.workflow_definition import WorkflowDefinition
 
 from tests.helpers.workflow import create_minimal_workflow_definition
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from nexus_api_client.api import NexusApiRegistry
-    from nexus_api_client.models.workflow_read import WorkflowRead
+    from syntara_api_client.api import SyntaraApiRegistry
+    from syntara_api_client.models.workflow_read import WorkflowRead
 
     WorkflowFactory = Callable[[WorkflowCreate], WorkflowRead]
 
@@ -30,7 +30,7 @@ pytestmark = [pytest.mark.e2e]
 class TestWorkflowListing:
     """E2E tests for listing workflows."""
 
-    def test_list_workflows_empty(self, nexus_api: NexusApiRegistry) -> None:
+    def test_list_workflows_empty(self, nexus_api: SyntaraApiRegistry) -> None:
         """Test listing workflows with filter that matches nothing.
 
         Uses a unique name filter that won't match any workflow to guarantee
@@ -47,7 +47,7 @@ class TestWorkflowListing:
 
     def test_list_all_workflows(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: WorkflowFactory,
         first_project_id: UUID,
     ) -> None:
@@ -88,7 +88,7 @@ class TestWorkflowListing:
 
     def test_filter_workflows_by_created_by(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: WorkflowFactory,
         first_project_id: UUID,
     ) -> None:
@@ -144,7 +144,7 @@ class TestWorkflowListing:
         # Can't assert exact total in E2E as other tests may have created workflows by same user
         assert result.total >= 2
 
-    def test_filter_workflows_by_enabled_status(self, nexus_api: NexusApiRegistry) -> None:
+    def test_filter_workflows_by_enabled_status(self, nexus_api: SyntaraApiRegistry) -> None:
         """Test filtering workflows by enabled status.
 
         Note: Uses additional_params to pass is_enabled filter since it's not
@@ -160,7 +160,7 @@ class TestWorkflowListing:
 
     def test_workflows_pagination(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: WorkflowFactory,
         first_project_id: UUID,
     ) -> None:
@@ -209,7 +209,7 @@ class TestWorkflowListing:
 
     def test_list_excludes_soft_deleted_workflows(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: WorkflowFactory,
         first_project_id: UUID,
     ) -> None:
@@ -247,7 +247,7 @@ class TestWorkflowListing:
 
     def test_filter_workflows_by_labels(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: WorkflowFactory,
         first_project_id: UUID,
     ) -> None:
@@ -263,7 +263,7 @@ class TestWorkflowListing:
         dev_label_value = f"development-{uuid4().hex[:8]}"
 
         # Create workflows with different labels
-        from nexus_api_client.models.workflow_create_labels import WorkflowCreateLabels
+        from syntara_api_client.models.workflow_create_labels import WorkflowCreateLabels
 
         prod_workflow_name = unique_name("prod-workflow")
         prod_workflow = workflow_factory(
@@ -307,7 +307,7 @@ class TestWorkflowListing:
 
     def test_list_default_page_size(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: WorkflowFactory,
         first_project_id: UUID,
     ) -> None:

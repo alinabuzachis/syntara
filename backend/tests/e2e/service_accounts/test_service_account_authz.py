@@ -17,19 +17,19 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import pytest
-from nexus_api_client.models.group_member_add import GroupMemberAdd
-from nexus_api_client.models.role_assignment_create import RoleAssignmentCreate
-from nexus_api_client.models.service_account_create import ServiceAccountCreate
-from nexus_api_client.models.service_account_update import ServiceAccountUpdate
+from syntara_api_client.models.group_member_add import GroupMemberAdd
+from syntara_api_client.models.role_assignment_create import RoleAssignmentCreate
+from syntara_api_client.models.service_account_create import ServiceAccountCreate
+from syntara_api_client.models.service_account_update import ServiceAccountUpdate
 
 if TYPE_CHECKING:
-    from nexus_api_client.api import NexusApiRegistry
     from orchestrator_test_sdk.factories import (
         AssignProjectRoleFactory,
         GroupFactory,
         ProjectFactory,
         UserFactory,
     )
+    from syntara_api_client.api import SyntaraApiRegistry
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
@@ -48,7 +48,7 @@ class TestProjectAdminCRUD:
     def test_project_admin_full_crud_lifecycle(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
         create_user: UserFactory,
         assign_project_role_to_user: AssignProjectRoleFactory,
@@ -94,7 +94,7 @@ class TestCrossProjectDenied:
     def test_project_admin_cannot_access_other_project_sas(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
         create_user: UserFactory,
         assign_project_role_to_user: AssignProjectRoleFactory,
@@ -138,7 +138,7 @@ class TestPlatformAdminSeesAll:
 
     def test_admin_sees_sas_in_all_projects(
         self,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
     ) -> None:
         proj_a_id, _ = create_project(admin_api, "vis-a")
@@ -168,7 +168,7 @@ class TestCRUDPolicyEnforcement:
     def test_auditor_can_read_but_not_write(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
         create_user: UserFactory,
         assign_project_role_to_user: AssignProjectRoleFactory,
@@ -215,7 +215,7 @@ class TestRoleAssignmentToServiceAccount:
 
     def test_direct_role_assignment_to_service_account(
         self,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
     ) -> None:
         """Assign a project role directly to a service account."""
@@ -236,7 +236,7 @@ class TestRoleAssignmentToServiceAccount:
 
     def test_service_account_cannot_be_group_member(
         self,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
         create_group: GroupFactory,
     ) -> None:
@@ -263,7 +263,7 @@ class TestCrossProjectVisibility:
     def test_sa_visible_only_after_role_grant(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
         create_user: UserFactory,
         assign_project_role_to_user: AssignProjectRoleFactory,

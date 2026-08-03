@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 import pytest
 
 if TYPE_CHECKING:
-    from nexus_api_client.api import NexusApiRegistry
     from orchestrator_test_sdk.factories import (
         CredentialFactory,
         ProjectFactory,
@@ -17,6 +16,7 @@ if TYPE_CHECKING:
         UserRoleAssignmentFactory,
         WorkflowFactory,
     )
+    from syntara_api_client.api import SyntaraApiRegistry
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
@@ -34,7 +34,7 @@ GLOBAL_READ_POLICIES = [
 
 @pytest.fixture(scope="module")
 def global_roles_env(
-    admin_api: NexusApiRegistry,
+    admin_api: SyntaraApiRegistry,
     create_project: ProjectFactory,
     create_workflow: WorkflowFactory,
     create_credential: CredentialFactory,

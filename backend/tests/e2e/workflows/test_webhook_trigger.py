@@ -11,16 +11,16 @@ from uuid import UUID
 
 import httpx
 import pytest
-from nexus_api_client.api import NexusApiRegistry
-from nexus_api_client.models import (
+from orchestrator_test_sdk.e2e import unique_name
+from orchestrator_test_sdk.e2e.helpers import poll_execution_until_complete
+from orchestrator_test_sdk.e2e.tls import e2e_ssl_context
+from syntara_api_client.api import SyntaraApiRegistry
+from syntara_api_client.models import (
     WorkflowCreate,
     WorkflowDefinition,
     WorkflowRead,
 )
-from nexus_api_client.models.publish_version_request import PublishVersionRequest
-from orchestrator_test_sdk.e2e import unique_name
-from orchestrator_test_sdk.e2e.helpers import poll_execution_until_complete
-from orchestrator_test_sdk.e2e.tls import e2e_ssl_context
+from syntara_api_client.models.publish_version_request import PublishVersionRequest
 
 from tests.e2e.service_accounts import create_sa_with_credential, token_request
 
@@ -39,7 +39,7 @@ class TestWebhookTrigger:
 
     def test_webhook_trigger_full_flow(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         nexus_base_url: str,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
@@ -152,7 +152,7 @@ class TestWebhookTrigger:
 
     def test_webhook_trigger_404_for_unknown_path(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         nexus_base_url: str,
         first_project_id: UUID,
     ):
@@ -173,7 +173,7 @@ class TestWebhookTrigger:
 
     def test_webhook_trigger_requires_published_workflow(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         nexus_base_url: str,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,

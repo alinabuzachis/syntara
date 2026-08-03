@@ -6,15 +6,15 @@ from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
 import pytest
-from nexus_api_client.models.policy_create import PolicyCreate
-from nexus_api_client.models.policy_statement_schema import PolicyStatementSchema
+from syntara_api_client.models.policy_create import PolicyCreate
+from syntara_api_client.models.policy_statement_schema import PolicyStatementSchema
 
 from orchestrator_test_sdk.e2e import unique_name
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from nexus_api_client.api import NexusApiRegistry
+    from syntara_api_client.api import SyntaraApiRegistry
 
 
 class PolicyFactory(Protocol):
@@ -22,7 +22,7 @@ class PolicyFactory(Protocol):
 
     def __call__(
         self,
-        api: NexusApiRegistry,
+        api: SyntaraApiRegistry,
         project_id: UUID,
         prefix: str,
         actions: list[str],
@@ -32,10 +32,10 @@ class PolicyFactory(Protocol):
 @pytest.fixture(scope="module")
 def create_policy() -> Generator[PolicyFactory, None, None]:
     """Create test policy. Returns the policy name."""
-    created: list[tuple[NexusApiRegistry, UUID]] = []
+    created: list[tuple[SyntaraApiRegistry, UUID]] = []
 
     def _create_policy(
-        api: NexusApiRegistry,
+        api: SyntaraApiRegistry,
         project_id: UUID,
         prefix: str,
         actions: list[str],

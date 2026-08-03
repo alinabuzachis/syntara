@@ -32,8 +32,8 @@ from orchestrator_test_sdk.e2e.auth import (
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
 
-    from nexus_api_client.api import NexusApiRegistry
-    from nexus_api_client.models.user_read import UserRead
+    from syntara_api_client.api import SyntaraApiRegistry
+    from syntara_api_client.models.user_read import UserRead
 
 pytestmark = [pytest.mark.e2e, pytest.mark.global_revocation]
 
@@ -59,7 +59,7 @@ def _drain_revocation_window_after_module() -> Generator[None, None, None]:
     _wait_for_cache_expiry()
 
 
-def _revoke_all(nexus_api: NexusApiRegistry) -> None:
+def _revoke_all(nexus_api: SyntaraApiRegistry) -> None:
     """Revoke all sessions via the generated API client.
 
     ``_AutoRefreshAuth`` on the underlying ``nexus_client`` automatically
@@ -109,7 +109,7 @@ class TestGlobalRevocation:
 
     def test_global_revocation_invalidates_all_sessions(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         nexus_base_url: str,
         local_user_factory: Callable[..., tuple[UserRead, str]],
     ) -> None:
@@ -134,7 +134,7 @@ class TestGlobalRevocation:
 
     def test_sessions_created_after_revocation_are_valid(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         nexus_base_url: str,
         local_user_factory: Callable[..., tuple[UserRead, str]],
     ) -> None:
@@ -153,7 +153,7 @@ class TestGlobalRevocation:
 
     def test_tokens_issued_during_ttl_window_are_rejected(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         nexus_base_url: str,
         local_user_factory: Callable[..., tuple[UserRead, str]],
     ) -> None:
@@ -179,7 +179,7 @@ class TestGlobalRevocation:
 
     def test_bruteforce_refresh_during_ttl_window_yields_unusable_token(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         nexus_base_url: str,
         local_user_factory: Callable[..., tuple[UserRead, str]],
     ) -> None:
@@ -195,7 +195,7 @@ class TestGlobalRevocation:
         whose caches expire independently.  Either way, after the TTL
         elapses all tokens must be rejected.
         """
-        from nexus_api_client.models.access_token_response import AccessTokenResponse
+        from syntara_api_client.models.access_token_response import AccessTokenResponse
 
         user, pw = local_user_factory(first_name="GlobalRev", last_name="BruteForce")
 
@@ -225,7 +225,7 @@ class TestGlobalRevocation:
 
     def test_revocation_timestamp_readable_after_set(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
     ) -> None:
         """GET /admin/revocation must return a non-null timestamp after POST."""
         _revoke_all(nexus_api)

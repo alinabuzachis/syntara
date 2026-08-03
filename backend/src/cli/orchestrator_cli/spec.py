@@ -232,9 +232,9 @@ def load_spec() -> dict[str, Any]:
         if cached_fallback is not None:
             return cached_fallback
 
-        import nexus_api_client
+        import syntara_api_client
 
-        fallback = Path(nexus_api_client.__file__).resolve().parent / "openapi.yaml"
+        fallback = Path(syntara_api_client.__file__).resolve().parent / "openapi.yaml"
         if fallback.exists():
             note("spec_source", "package_openapi_yaml")
             with phase("spec.load_package_fallback"), fallback.open("rb") as f:

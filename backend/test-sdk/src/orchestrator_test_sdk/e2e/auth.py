@@ -14,24 +14,24 @@ from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
 import httpx
-from nexus_api_client import AuthenticatedClient, Client
-from nexus_api_client.api import NexusApiRegistry
-from nexus_api_client.api.authentication.get_csrf_token import sync_detailed as csrf_token_sync
-from nexus_api_client.api.authentication.get_current_user import sync_detailed as get_user_sync
-from nexus_api_client.api.authentication.login import sync_detailed as login_sync
-from nexus_api_client.api.authentication.refresh_token import sync_detailed as refresh_sync
-from nexus_api_client.models.access_token_response import AccessTokenResponse
-from nexus_api_client.models.csrf_token_response import CsrfTokenResponse
-from nexus_api_client.models.login_request import LoginRequest
+from syntara_api_client import AuthenticatedClient, Client
+from syntara_api_client.api import SyntaraApiRegistry
+from syntara_api_client.api.authentication.get_csrf_token import sync_detailed as csrf_token_sync
+from syntara_api_client.api.authentication.get_current_user import sync_detailed as get_user_sync
+from syntara_api_client.api.authentication.login import sync_detailed as login_sync
+from syntara_api_client.api.authentication.refresh_token import sync_detailed as refresh_sync
+from syntara_api_client.models.access_token_response import AccessTokenResponse
+from syntara_api_client.models.csrf_token_response import CsrfTokenResponse
+from syntara_api_client.models.login_request import LoginRequest
 
 from orchestrator_test_sdk.e2e.tls import e2e_ssl_context
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from nexus_api_client.models.error_data import ErrorData
-    from nexus_api_client.models.user_info import UserInfo
-    from nexus_api_client.types import Response
+    from syntara_api_client.models.error_data import ErrorData
+    from syntara_api_client.models.user_info import UserInfo
+    from syntara_api_client.types import Response
 
 # ---------------------------------------------------------------------------
 # Cookie / header name constants
@@ -282,10 +282,10 @@ def _make_client(base_url: str, token: str) -> AuthenticatedClient:
     )
 
 
-def api_for(base_url: str, username: str, password: str) -> NexusApiRegistry:
-    """Return a ``NexusApiRegistry`` authenticated as the given user."""
+def api_for(base_url: str, username: str, password: str) -> SyntaraApiRegistry:
+    """Return a ``SyntaraApiRegistry`` authenticated as the given user."""
     token = _login(base_url, username, password)
-    return NexusApiRegistry(_make_client(base_url, token))
+    return SyntaraApiRegistry(_make_client(base_url, token))
 
 
 def _generate_e2e_token(base_url: str) -> str:
@@ -322,9 +322,9 @@ def client_with_request_id(client: Client, request_id: str) -> Client:
     return client.with_headers({REQUEST_ID_HEADER: request_id})
 
 
-def api_with_request_id(api: NexusApiRegistry, request_id: str) -> NexusApiRegistry:
+def api_with_request_id(api: SyntaraApiRegistry, request_id: str) -> SyntaraApiRegistry:
     """Return an API registry whose client sends the given X-Request-Id header."""
-    return NexusApiRegistry(api._client.with_headers({REQUEST_ID_HEADER: request_id}))  # noqa: SLF001
+    return SyntaraApiRegistry(api._client.with_headers({REQUEST_ID_HEADER: request_id}))  # noqa: SLF001
 
 
 def login_with_request_id(

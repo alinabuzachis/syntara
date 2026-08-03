@@ -6,13 +6,13 @@ license = "Apache-2.0"
 authors = []
 requires-python = ">=3.10"
 dependencies = [
-    "nexus-api-client",
+    "syntara-api-client",
     "typer>=0.9.0",
     "pyyaml>=6.0",
 ]
 
 [tool.uv.sources]
-nexus-api-client = { path = "../api_client", editable = true }
+syntara-api-client = { path = "../api_client", editable = true }
 
 [tool.uv.build-backend]
 module-name = "orchestrator_cli"

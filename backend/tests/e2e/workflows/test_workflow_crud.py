@@ -9,9 +9,9 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
-from nexus_api_client.api import NexusApiRegistry
-from nexus_api_client.models import WorkflowCreate, WorkflowDefinition, WorkflowRead, WorkflowUpdate
 from orchestrator_test_sdk.e2e import unique_name
+from syntara_api_client.api import SyntaraApiRegistry
+from syntara_api_client.models import WorkflowCreate, WorkflowDefinition, WorkflowRead, WorkflowUpdate
 
 pytestmark = [pytest.mark.e2e]
 
@@ -51,7 +51,7 @@ class TestWorkflowAPI:
 
     def test_create_workflow_minimal(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ):
@@ -88,7 +88,7 @@ class TestWorkflowAPI:
 
     def test_get_workflow_with_nodes_and_edges(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ):
@@ -170,7 +170,7 @@ class TestWorkflowAPI:
         assert edge_2["from"] == "script_node_1"
         assert edge_2["to"] == "script_node_2"
 
-    def test_get_workflow_not_found(self, nexus_api: NexusApiRegistry):
+    def test_get_workflow_not_found(self, nexus_api: SyntaraApiRegistry):
         """API 2: Verify 404 is returned for non-existent workflow ID."""
         non_existent_id = uuid4()
 
@@ -179,7 +179,7 @@ class TestWorkflowAPI:
 
     def test_update_workflow_metadata(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ):
@@ -214,7 +214,7 @@ class TestWorkflowAPI:
 
     def test_delete_workflow(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ):
@@ -249,7 +249,7 @@ class TestWorkflowAPI:
 
     def test_list_workflows_with_pagination_filtering_sorting(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ):

@@ -7,15 +7,15 @@ from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
 import pytest
-from nexus_api_client.models.sub_resource_role_assignment_create import SubResourceRoleAssignmentCreate
-from nexus_api_client.models.user_create import UserCreate
+from syntara_api_client.models.sub_resource_role_assignment_create import SubResourceRoleAssignmentCreate
+from syntara_api_client.models.user_create import UserCreate
 
 from orchestrator_test_sdk.e2e import generate_test_password, unique_name
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from nexus_api_client.api import NexusApiRegistry
+    from syntara_api_client.api import SyntaraApiRegistry
 
 
 class UserFactory(Protocol):
@@ -23,7 +23,7 @@ class UserFactory(Protocol):
 
     def __call__(
         self,
-        api: NexusApiRegistry,
+        api: SyntaraApiRegistry,
         prefix: str | None = None,
         user_name: str | None = None,
         email: str | None = None,
@@ -35,10 +35,10 @@ class UserFactory(Protocol):
 @pytest.fixture(scope="module")
 def create_user() -> Generator[UserFactory, None, None]:
     """Create test users. Returns ``(user_id, username, password)``."""
-    created: list[tuple[NexusApiRegistry, UUID]] = []
+    created: list[tuple[SyntaraApiRegistry, UUID]] = []
 
     def _create_user(
-        api: NexusApiRegistry,
+        api: SyntaraApiRegistry,
         prefix: str | None = None,
         user_name: str | None = None,
         email: str | None = None,
@@ -73,15 +73,15 @@ def create_user() -> Generator[UserFactory, None, None]:
 class UserRoleAssignmentFactory(Protocol):
     """Protocol ensuring type safety for optional and keyword arguments on the factory."""
 
-    def __call__(self, api: NexusApiRegistry, user_id: UUID, role_name: str) -> UUID: ...
+    def __call__(self, api: SyntaraApiRegistry, user_id: UUID, role_name: str) -> UUID: ...
 
 
 @pytest.fixture(scope="module")
 def assign_system_role() -> Generator[UserRoleAssignmentFactory, None, None]:
     """Assign a system-scoped role to a user. Returns the assignment id."""
-    created: list[tuple[NexusApiRegistry, UUID, UUID]] = []
+    created: list[tuple[SyntaraApiRegistry, UUID, UUID]] = []
 
-    def _create_user_role_assignment(api: NexusApiRegistry, user_id: UUID, role_name: str) -> UUID:
+    def _create_user_role_assignment(api: SyntaraApiRegistry, user_id: UUID, role_name: str) -> UUID:
         resp = api.users.create_role_assignment(
             user_id=user_id,
             body=SubResourceRoleAssignmentCreate(role_name=role_name),

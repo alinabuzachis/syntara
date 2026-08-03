@@ -9,9 +9,9 @@ from http import HTTPStatus
 from uuid import UUID
 
 import pytest
-from nexus_api_client.api import NexusApiRegistry
-from nexus_api_client.models import ExecutionCreate, WorkflowCreate, WorkflowDefinition, WorkflowRead, WorkflowUpdate
 from orchestrator_test_sdk.e2e import unique_name
+from syntara_api_client.api import SyntaraApiRegistry
+from syntara_api_client.models import ExecutionCreate, WorkflowCreate, WorkflowDefinition, WorkflowRead, WorkflowUpdate
 
 pytestmark = [pytest.mark.e2e]
 
@@ -32,7 +32,7 @@ def _minimal_workflow_definition(workflow_name: str) -> WorkflowDefinition:
 class TestWorkflowUnauthorizedAccess:
     """Verify unauthenticated requests to workflow endpoints are rejected with 401."""
 
-    def test_list_workflows_without_auth(self, unauth_api: NexusApiRegistry):
+    def test_list_workflows_without_auth(self, unauth_api: SyntaraApiRegistry):
         """GET /api/v1/workflows without authentication returns 401.
 
         Objective: Verify that listing workflows requires authentication.
@@ -46,7 +46,7 @@ class TestWorkflowUnauthorizedAccess:
             f"Expected 401 Unauthorized for unauthenticated GET /workflows, got {resp.status_code}"
         )
 
-    def test_create_workflow_without_auth(self, unauth_api: NexusApiRegistry, first_project_id: UUID):
+    def test_create_workflow_without_auth(self, unauth_api: SyntaraApiRegistry, first_project_id: UUID):
         """POST /api/v1/workflows without authentication returns 401.
 
         Objective: Verify that creating a workflow requires authentication.
@@ -69,7 +69,7 @@ class TestWorkflowUnauthorizedAccess:
 
     def test_get_workflow_by_id_without_auth(
         self,
-        unauth_api: NexusApiRegistry,
+        unauth_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ):
@@ -101,7 +101,7 @@ class TestWorkflowUnauthorizedAccess:
 
     def test_update_workflow_without_auth(
         self,
-        unauth_api: NexusApiRegistry,
+        unauth_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ):
@@ -136,8 +136,8 @@ class TestWorkflowUnauthorizedAccess:
 
     def test_delete_workflow_without_auth(
         self,
-        unauth_api: NexusApiRegistry,
-        nexus_api: NexusApiRegistry,
+        unauth_api: SyntaraApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ):
@@ -174,7 +174,7 @@ class TestWorkflowUnauthorizedAccess:
 
     def test_execute_workflow_without_auth(
         self,
-        unauth_api: NexusApiRegistry,
+        unauth_api: SyntaraApiRegistry,
         workflow_factory: Callable[[WorkflowCreate], WorkflowRead],
         first_project_id: UUID,
     ):

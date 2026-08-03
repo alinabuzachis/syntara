@@ -9,7 +9,7 @@ description = "Reusable pytest fixtures for Orchestrator E2E tests"
 license = "Apache-2.0"
 requires-python = ">=3.12"
 dependencies = [
-    "nexus-api-client",
+    "syntara-api-client",
     "pytest>=7.0",
 ]
 
@@ -17,7 +17,7 @@ dependencies = [
 orchestrator-test-sdk = "orchestrator_test_sdk.plugin"
 
 [tool.uv.sources]
-nexus-api-client = { path = "../src/api_client", editable = true }
+syntara-api-client = { path = "../src/api_client", editable = true }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/orchestrator_test_sdk"]

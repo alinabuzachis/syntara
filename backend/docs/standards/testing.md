@@ -224,7 +224,7 @@ async def test_file_upload_invalid_file_type(base_client: AsyncClient) -> None:
 - Uses production-like configuration
 - Tests real user scenarios end-to-end
 - Slowest execution (minutes)
-- Uses auto-generated API client (`nexus-api-client`)
+- Uses auto-generated API client (`syntara-api-client`)
 
 **Marker:** `@pytest.mark.e2e` (REQUIRED)
 
@@ -234,7 +234,7 @@ async def test_file_upload_invalid_file_type(base_client: AsyncClient) -> None:
 
 **API Client Rules (REQUIRED):**
 
-- All API calls MUST use the auto-generated client under `src/api_client/nexus_api_client/` — do NOT call HTTP libraries (e.g., `requests`, `httpx`) directly in test files
+- All API calls MUST use the auto-generated client under `src/api_client/syntara_api_client/` — do NOT call HTTP libraries (e.g., `requests`, `httpx`) directly in test files
 - All API calls MUST go through the `nexus_api` fixture (type: `NexusApiRegistry`)
 - Use the typed property for the relevant API group: `nexus_api.workflows`, `nexus_api.executions`, `nexus_api.approvals`, `nexus_api.invocation`, `nexus_api.tool_manager`, `nexus_api.files`, `nexus_api.default`
 
@@ -243,7 +243,7 @@ async def test_file_upload_invalid_file_type(base_client: AsyncClient) -> None:
 """E2E tests for GET endpoints: workflows and approvals."""
 
 import pytest
-from nexus_api_client.api import NexusApiRegistry
+from syntara_api_client.api import NexusApiRegistry
 
 pytestmark = pytest.mark.e2e
 

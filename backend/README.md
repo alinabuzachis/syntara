@@ -589,12 +589,12 @@ Reusable pytest fixtures for integration and E2E tests live in `test-sdk/`. The 
 
 **Installing in another repository**:
 
-Both `nexus-api-client` (the generated API client) and `orchestrator-test-sdk` live in this repo and can be installed directly from git using pip's subdirectory syntax:
+Both `syntara-api-client` (the generated API client) and `orchestrator-test-sdk` live in this repo and can be installed directly from git using pip's subdirectory syntax:
 
 ```toml
 # pyproject.toml — uv / pip
 dependencies = [
-    "nexus-api-client @ git+https://github.com/syntara-orchestration/syntara.git#subdirectory=backend/src/api_client",
+    "syntara-api-client @ git+https://github.com/syntara-orchestration/syntara.git#subdirectory=backend/src/api_client",
     "orchestrator-test-sdk @ git+https://github.com/syntara-orchestration/syntara.git#subdirectory=backend/test-sdk",
 ]
 ```

@@ -14,8 +14,8 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 if TYPE_CHECKING:
-    from nexus_api_client.api import NexusApiRegistry
     from orchestrator_test_sdk.factories import ProjectFactory, RoleFactory, UserFactory, UserRoleAssignmentFactory
+    from syntara_api_client.api import SyntaraApiRegistry
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set — full stack required", allow_module_level=True)
@@ -34,7 +34,7 @@ class TestSystemScopedPolicyAllowed:
     def test_allowed(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
         create_role: RoleFactory,
         create_user: UserFactory,
@@ -64,7 +64,7 @@ class TestSystemScopedPolicyDenied:
     def test_denied(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_user: UserFactory,
         create_project: ProjectFactory,
         create_role: RoleFactory,

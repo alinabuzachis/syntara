@@ -9,12 +9,11 @@ from typing import TYPE_CHECKING
 import pytest
 
 if TYPE_CHECKING:
-    from nexus_api_client.api import NexusApiRegistry
+    from syntara_api_client.api import SyntaraApiRegistry
 
 if not os.environ.get("APP_BASE_URL"):
     pytest.skip("APP_BASE_URL not set -- full stack required", allow_module_level=True)
 
-from nexus_api_client.models.workflow_create import WorkflowCreate
 from orchestrator_test_sdk.e2e import unique_name
 from orchestrator_test_sdk.e2e.auth import api_for
 from orchestrator_test_sdk.e2e.constants import MINIMAL_WORKFLOW_DEFINITION
@@ -29,6 +28,7 @@ from orchestrator_test_sdk.factories import (
     add_to_group,
     remove_from_group,
 )
+from syntara_api_client.models.workflow_create import WorkflowCreate
 
 pytestmark = [pytest.mark.e2e]
 
@@ -43,7 +43,7 @@ class TestMultiGroupMembership:
     def test_both_groups_grant_full_access(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
         create_group: GroupFactory,
         create_workflow: WorkflowFactory,
@@ -103,7 +103,7 @@ class TestMultiGroupMembership:
     def test_removing_from_ops_revokes_only_ops_permissions(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
         create_group: GroupFactory,
         create_credential: CredentialFactory,
@@ -163,7 +163,7 @@ class TestMultiGroupMembership:
     def test_removing_from_security_revokes_only_security_permissions(
         self,
         nexus_base_url: str,
-        admin_api: NexusApiRegistry,
+        admin_api: SyntaraApiRegistry,
         create_project: ProjectFactory,
         create_group: GroupFactory,
         create_credential: CredentialFactory,

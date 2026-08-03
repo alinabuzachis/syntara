@@ -12,17 +12,17 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import pytest
-from nexus_api_client.models.user_create import UserCreate
 from orchestrator_test_sdk.e2e import (
     generate_test_password,
     unique_name,
 )
+from syntara_api_client.models.user_create import UserCreate
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from nexus_api_client.api import NexusApiRegistry
-    from nexus_api_client.models.user_read import UserRead
+    from syntara_api_client.api import SyntaraApiRegistry
+    from syntara_api_client.models.user_read import UserRead
 
 pytestmark = [pytest.mark.e2e]
 
@@ -41,7 +41,7 @@ class TestAPI50EmailUniqueness:
 
     def test_duplicate_email_rejected(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_api: SyntaraApiRegistry,
         local_user_factory: Callable[..., tuple[UserRead, str]],
     ) -> None:
         """First user with an email succeeds; duplicate email is rejected with 409."""
