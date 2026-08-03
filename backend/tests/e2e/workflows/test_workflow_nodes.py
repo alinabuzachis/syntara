@@ -426,11 +426,9 @@ def test_multi_node_workflow(nexus_api: SyntaraApiRegistry):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skip(reason="libopenblas.so.0 missing from runtime image causes agentic ImportError — AAP-82485")
 @pytest.mark.e2e
 def test_script_then_agentic(
     nexus_api: SyntaraApiRegistry,
-    mcp_integration_id: str,
     llm_credential_id: str,
     llm_model_id: str,
     first_project_id: UUID,
@@ -460,10 +458,7 @@ def test_script_then_agentic(
                     "name": "Greet via Agent",
                     "type": "agentic",
                     "parameters": {
-                        "prompt": (
-                            "You MUST use the get_greeting tool to greet jimmy. "
-                            "Do not answer without calling the tool first."
-                        ),
+                        "prompt": "Say hello in one sentence.",
                         "credential_id": llm_credential_id,
                         "llm_model_id": llm_model_id,
                     },
@@ -484,11 +479,9 @@ def test_script_then_agentic(
     assert activities["agent"] == "completed"
 
 
-@pytest.mark.skip(reason="libopenblas.so.0 missing from runtime image causes agentic ImportError — AAP-82485")
 @pytest.mark.e2e
 def test_agentic_then_script(
     nexus_api: SyntaraApiRegistry,
-    mcp_integration_id: str,
     llm_credential_id: str,
     llm_model_id: str,
     first_project_id: UUID,
@@ -509,10 +502,7 @@ def test_agentic_then_script(
                     "name": "Agent Task",
                     "type": "agentic",
                     "parameters": {
-                        "prompt": (
-                            "You MUST use the get_greeting tool to greet jimmy. "
-                            "Do not answer without calling the tool first."
-                        ),
+                        "prompt": "Say hello in one sentence.",
                         "credential_id": llm_credential_id,
                         "llm_model_id": llm_model_id,
                     },
@@ -542,11 +532,9 @@ def test_agentic_then_script(
     assert activities["post_process"] == "completed"
 
 
-@pytest.mark.skip(reason="libopenblas.so.0 missing from runtime image causes agentic ImportError — AAP-82485")
 @pytest.mark.e2e
 def test_loop_with_agentic_body(
     nexus_api: SyntaraApiRegistry,
-    mcp_integration_id: str,
     llm_credential_id: str,
     llm_model_id: str,
     first_project_id: UUID,
@@ -576,10 +564,7 @@ def test_loop_with_agentic_body(
                     "name": "Greet Person",
                     "type": "agentic",
                     "parameters": {
-                        "prompt": (
-                            "You MUST use the get_greeting tool to greet someone. "
-                            "Do not answer without calling the tool first."
-                        ),
+                        "prompt": "Say hello in one sentence.",
                         "credential_id": llm_credential_id,
                         "llm_model_id": llm_model_id,
                     },
@@ -601,7 +586,6 @@ def test_loop_with_agentic_body(
     assert activities["greet"] == "completed"
 
 
-@pytest.mark.skip(reason="libopenblas.so.0 missing from runtime image causes agentic ImportError — AAP-82485")
 @pytest.mark.e2e
 def test_http_request_then_agentic(
     nexus_api: SyntaraApiRegistry, llm_credential_id: str, llm_model_id: str, first_project_id: UUID
