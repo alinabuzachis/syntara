@@ -74,6 +74,26 @@ describe('SaveWorkflowButton', () => {
     expect(await axe(container)).toHaveNoViolations()
   })
 
+  it('is aria-disabled when isNodeEditorOpen is true', () => {
+    render(<SaveWorkflowButton {...defaultProps} isNodeEditorOpen={true} />)
+    expect(screen.getByRole('button', { name: /save/i })).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('does not call onSave when isNodeEditorOpen is true', async () => {
+    const onSave = vi.fn()
+    render(<SaveWorkflowButton {...defaultProps} onSave={onSave} isNodeEditorOpen={true} />)
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /save/i }))
+    expect(onSave).not.toHaveBeenCalled()
+  })
+
+  it('shows "finish editing" tooltip when isNodeEditorOpen is true', async () => {
+    render(<SaveWorkflowButton {...defaultProps} isNodeEditorOpen={true} />)
+    const user = userEvent.setup()
+    await user.hover(screen.getByRole('button', { name: /save/i }))
+    expect(await screen.findByText(/Finish editing the current step before saving/)).toBeInTheDocument()
+  })
+
   it('has no accessibility violations when disabled', async () => {
     const { container } = render(<SaveWorkflowButton {...defaultProps} canEdit={false} />)
     expect(await axe(container)).toHaveNoViolations()

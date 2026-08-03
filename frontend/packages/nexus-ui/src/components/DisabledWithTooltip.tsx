@@ -1,11 +1,14 @@
 import { Tooltip } from '@patternfly/react-core'
-import type { ReactElement } from 'react'
+import type { TooltipPosition } from '@patternfly/react-core'
+import type { ReactElement, ReactNode } from 'react'
 
 type DisabledWithTooltipProps = {
   /** Whether the action is disabled (e.g. due to missing permission). */
   isDisabled: boolean
   /** Tooltip explaining why the action is disabled. Use `permissionTooltip()` for the standard format. */
-  content: string
+  content: ReactNode
+  /** Tooltip position. Defaults to PatternFly's default (top). */
+  position?: TooltipPosition | 'top' | 'bottom' | 'left' | 'right'
   /**
    * A single React element to wrap. When disabled, PF `Tooltip` is added around
    * the child. The consumer is responsible for setting `isAriaDisabled` on the
@@ -33,8 +36,12 @@ type DisabledWithTooltipProps = {
  * </DisabledWithTooltip>
  * ```
  */
-export function DisabledWithTooltip({ isDisabled, content, children }: Readonly<DisabledWithTooltipProps>) {
+export function DisabledWithTooltip({ isDisabled, content, position, children }: Readonly<DisabledWithTooltipProps>) {
   if (!isDisabled) return children
 
-  return <Tooltip content={content}>{children}</Tooltip>
+  return (
+    <Tooltip content={content} position={position}>
+      {children}
+    </Tooltip>
+  )
 }

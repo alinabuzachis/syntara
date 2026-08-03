@@ -55,6 +55,42 @@ describe('DisabledWithTooltip', () => {
 
     expect(await axe(container)).toHaveNoViolations()
   })
+
+  it('renders ReactNode content in tooltip', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <DisabledWithTooltip
+        isDisabled
+        content={
+          <>
+            Finish editing
+            <br />
+            Last saved 5 min ago
+          </>
+        }
+      >
+        <Button isAriaDisabled>Save</Button>
+      </DisabledWithTooltip>
+    )
+
+    await user.hover(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText(/Finish editing/)).toBeInTheDocument()
+    expect(screen.getByText(/Last saved 5 min ago/)).toBeInTheDocument()
+  })
+
+  it('passes position prop to tooltip', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <DisabledWithTooltip isDisabled content="bottom tooltip" position="bottom">
+        <Button isAriaDisabled>Run</Button>
+      </DisabledWithTooltip>
+    )
+
+    await user.hover(screen.getByRole('button', { name: 'Run' }))
+    expect(await screen.findByText('bottom tooltip')).toBeInTheDocument()
+  })
 })
 
 describe('permissionTooltip', () => {

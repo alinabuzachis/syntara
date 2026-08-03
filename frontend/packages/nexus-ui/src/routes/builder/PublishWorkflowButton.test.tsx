@@ -197,6 +197,43 @@ describe('PublishWorkflowButton', () => {
     expect(await axe(container)).toHaveNoViolations()
   })
 
+  it('button is aria-disabled when isNodeEditorOpen is true', () => {
+    render(<PublishWorkflowButton {...defaultProps} isNodeEditorOpen={true} />)
+
+    expect(screen.getByRole('button', { name: /Publish workflow/i })).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('shows "finish editing" tooltip when isNodeEditorOpen is true', async () => {
+    const user = userEvent.setup()
+
+    render(<PublishWorkflowButton {...defaultProps} isNodeEditorOpen={true} />)
+
+    await user.hover(screen.getByRole('button', { name: /Publish workflow/i }))
+
+    expect(await screen.findByText('Finish editing the current step before publishing')).toBeInTheDocument()
+  })
+
+  it('does not call handleVerify when isNodeEditorOpen is true', async () => {
+    const user = userEvent.setup()
+    const handleVerify = vi.fn()
+
+    render(<PublishWorkflowButton {...defaultProps} handleVerify={handleVerify} isNodeEditorOpen={true} />)
+
+    await user.click(screen.getByRole('button', { name: /Publish workflow/i }))
+
+    expect(handleVerify).not.toHaveBeenCalled()
+  })
+
+  it('shows permission tooltip over node-editor tooltip when canEdit is false', async () => {
+    const user = userEvent.setup()
+
+    render(<PublishWorkflowButton {...defaultProps} canEdit={false} isNodeEditorOpen={true} />)
+
+    await user.hover(screen.getByRole('button', { name: /Publish workflow/i }))
+
+    expect(await screen.findByText('You need edit permission')).toBeInTheDocument()
+  })
+
   it('has no accessibility violations when disabled', async () => {
     const { container } = render(<PublishWorkflowButton {...defaultProps} canEdit={false} />)
 

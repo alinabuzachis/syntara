@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 
 import { useBlurOnOpen } from '../../hooks/useBlurOnOpen'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
+import { resetAll } from '../../stores/workflowStoreActions'
 import { detachPromise } from '../../utils/detachPromise'
 
 import { UnsavedChangesContext, type DirtyCheckOptions } from './unsavedChangesContext'
@@ -62,8 +63,6 @@ export function UnsavedChangesProvider({ children }: Readonly<UnsavedChangesProv
   const pendingTargetRef = useRef<string | null>(null)
 
   const dirtyChecksRef = useRef(new Map<number, DirtyCheckOptions>())
-
-  const { setWorkflow, setEdges } = useWorkflowStore()
 
   const handleTanStackBlock = useCallback((proceed: () => void, reset: () => void) => {
     proceedNavRef.current = proceed
@@ -152,25 +151,23 @@ export function UnsavedChangesProvider({ children }: Readonly<UnsavedChangesProv
 
     if (success) {
       if (isBuilderDirty()) {
-        setWorkflow(null)
-        setEdges([])
+        resetAll()
       }
       proceedNavigation()
     } else {
       cancelNavigation()
     }
-  }, [getActiveDirtyCheck, saveHandler, isBuilderDirty, setWorkflow, setEdges, proceedNavigation, cancelNavigation])
+  }, [getActiveDirtyCheck, saveHandler, isBuilderDirty, proceedNavigation, cancelNavigation])
 
   const handleExitWithoutSaving = useCallback(() => {
     if (isBuilderDirty()) {
-      setWorkflow(null)
-      setEdges([])
+      resetAll()
     }
     for (const entry of dirtyChecksRef.current.values()) {
       entry.exitWithoutSaving?.()
     }
     proceedNavigation()
-  }, [isBuilderDirty, setWorkflow, setEdges, proceedNavigation])
+  }, [isBuilderDirty, proceedNavigation])
 
   const isOnBuilder = location.startsWith('/workflow-builder')
   const activeDirtyCheck = getActiveDirtyCheck()

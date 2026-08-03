@@ -41,6 +41,39 @@ describe('RunWorkflowSection', () => {
       expect(await screen.findByText('No run permission')).toBeInTheDocument()
     })
 
+    it('shows node-editor tooltip when isNodeEditorOpen is true', async () => {
+      const user = userEvent.setup()
+      render(<RunWorkflowSection {...defaultProps} isNodeEditorOpen />)
+
+      await user.hover(screen.getByRole('button', { name: /^Run$/i }))
+
+      expect(await screen.findByText('Finish editing the current step before running')).toBeInTheDocument()
+    })
+
+    it('shows permission tooltip over node-editor when canRun is false and editor is open', async () => {
+      const user = userEvent.setup()
+      render(
+        <RunWorkflowSection
+          {...defaultProps}
+          isNodeEditorOpen
+          builderPermissions={{ ...defaultPermissions, canRun: false }}
+        />
+      )
+
+      await user.hover(screen.getByRole('button', { name: /^Run$/i }))
+
+      expect(await screen.findByText('No run permission')).toBeInTheDocument()
+    })
+
+    it('shows node-editor tooltip over save-first when both editor open and unsaved', async () => {
+      const user = userEvent.setup()
+      render(<RunWorkflowSection {...defaultProps} isSaved={false} isNodeEditorOpen />)
+
+      await user.hover(screen.getByRole('button', { name: /^Run$/i }))
+
+      expect(await screen.findByText('Finish editing the current step before running')).toBeInTheDocument()
+    })
+
     it('shows save-first tooltip when workflow is unsaved with triggers', async () => {
       const user = userEvent.setup()
       render(<RunWorkflowSection {...defaultProps} isSaved={false} />)
@@ -107,6 +140,12 @@ describe('RunWorkflowSection', () => {
 
     it('is disabled when no triggers', () => {
       render(<RunWorkflowSection {...defaultProps} triggers={undefined} />)
+
+      expect(screen.getByRole('button', { name: /^Run$/i })).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('is disabled when isNodeEditorOpen is true', () => {
+      render(<RunWorkflowSection {...defaultProps} isNodeEditorOpen />)
 
       expect(screen.getByRole('button', { name: /^Run$/i })).toHaveAttribute('aria-disabled', 'true')
     })

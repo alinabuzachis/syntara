@@ -45,21 +45,31 @@ export type RunWorkflowSectionProps = Readonly<{
   isSaved: boolean
   dispatch: Dispatch<BuilderAction>
   builderPermissions: BuilderPermissions
+  isNodeEditorOpen?: boolean
 }>
 
 const NO_TRIGGERS_TOOLTIP = 'At least one trigger step needs to be placed on the canvas for this workflow to run'
 const SAVE_FIRST_TOOLTIP = 'Save workflow before running'
+const NODE_EDITOR_TOOLTIP = 'Finish editing the current step before running'
 
-export function RunWorkflowSection({ triggers, isSaved, dispatch, builderPermissions }: RunWorkflowSectionProps) {
+export function RunWorkflowSection({
+  triggers,
+  isSaved,
+  dispatch,
+  builderPermissions,
+  isNodeEditorOpen,
+}: RunWorkflowSectionProps) {
   const [isRunDropdownOpen, setIsRunDropdownOpen] = useState(false)
   const hasTriggers = (triggers?.length ?? 0) > 0
   const hasMultipleTriggers = (triggers?.length ?? 0) > 1
 
-  const isRunDisabled = !builderPermissions.canRun || !hasTriggers || !isSaved
+  const isRunDisabled = !builderPermissions.canRun || !!isNodeEditorOpen || !hasTriggers || !isSaved
 
   let runTooltipContent = ''
   if (!builderPermissions.canRun) {
     runTooltipContent = builderPermissions.tooltips.run
+  } else if (isNodeEditorOpen) {
+    runTooltipContent = NODE_EDITOR_TOOLTIP
   } else if (!isSaved) {
     runTooltipContent = SAVE_FIRST_TOOLTIP
   } else if (!hasTriggers) {
@@ -80,7 +90,7 @@ export function RunWorkflowSection({ triggers, isSaved, dispatch, builderPermiss
 
   if (hasMultipleTriggers) {
     return (
-      <DisabledWithTooltip isDisabled={isRunDisabled} content={runTooltipContent}>
+      <DisabledWithTooltip isDisabled={isRunDisabled} content={runTooltipContent} position="bottom">
         <Dropdown
           isOpen={isRunDropdownOpen}
           onOpenChange={setIsRunDropdownOpen}
@@ -107,7 +117,7 @@ export function RunWorkflowSection({ triggers, isSaved, dispatch, builderPermiss
   }
 
   return (
-    <DisabledWithTooltip isDisabled={isRunDisabled} content={runTooltipContent}>
+    <DisabledWithTooltip isDisabled={isRunDisabled} content={runTooltipContent} position="bottom">
       <Button
         variant="plain"
         isAriaDisabled={isRunDisabled}

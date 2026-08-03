@@ -12,6 +12,7 @@ type PublishWorkflowButtonProps = Readonly<{
   editTooltip: string
   handleVerify: (onValid?: () => void) => void
   onPublishClick: () => void
+  isNodeEditorOpen?: boolean
 }>
 
 export function PublishWorkflowButton({
@@ -23,13 +24,16 @@ export function PublishWorkflowButton({
   editTooltip,
   handleVerify,
   onPublishClick,
+  isNodeEditorOpen,
 }: PublishWorkflowButtonProps) {
   const hasErrors = validationErrorCount > 0
-  const canPublish = canEdit && !hasNoSteps && !hasErrors && !isVerifying && !hasNoChanges
+  const canPublish = canEdit && !hasNoSteps && !hasErrors && !isVerifying && !hasNoChanges && !isNodeEditorOpen
   const errorSuffix = validationErrorCount === 1 ? '' : 's'
 
   let tooltipContent = editTooltip
-  if (canEdit && hasNoChanges) {
+  if (isNodeEditorOpen && canEdit) {
+    tooltipContent = 'Finish editing the current step before publishing'
+  } else if (canEdit && hasNoChanges) {
     tooltipContent = 'No changes to publish'
   } else if (canEdit && hasNoSteps) {
     tooltipContent = 'Complete your workflow before publishing'
@@ -40,7 +44,7 @@ export function PublishWorkflowButton({
   }
 
   return (
-    <DisabledWithTooltip isDisabled={!canPublish} content={tooltipContent}>
+    <DisabledWithTooltip isDisabled={!canPublish} content={tooltipContent} position="bottom">
       <Button
         variant="primary"
         isAriaDisabled={!canPublish}

@@ -1292,3 +1292,74 @@ describe('useWorkflowStore', () => {
     })
   })
 })
+
+describe('resetAll (workflowStoreActions)', () => {
+  beforeEach(() => {
+    useWorkflowStore.setState({
+      currentWorkflow: null,
+      workflowVersion: 0,
+      edges: [],
+      nodePositions: {},
+      _positionsUserModified: false,
+      isDirty: false,
+      validationErrorCount: 0,
+    })
+    useWorkflowStore.temporal.getState().clear()
+  })
+
+  it('clears all workflow state atomically', async () => {
+    const { resetAll } = await import('./workflowStoreActions')
+
+    const workflow = makeWorkflow('Dirty Workflow')
+    useWorkflowStore.getState().setWorkflow(workflow)
+    useWorkflowStore
+      .getState()
+      .setEdges([{ id: 'e1', source: 'a', target: 'b', sourceHandle: 'out', targetHandle: 'in' }])
+    useWorkflowStore.getState().updateNodePositions({ node1: { x: 100, y: 200 } })
+    useWorkflowStore.getState().setValidationErrorCount(3)
+
+    expect(useWorkflowStore.getState().isDirty).toBe(true)
+    expect(useWorkflowStore.getState().currentWorkflow).not.toBeNull()
+
+    resetAll()
+
+    const state = useWorkflowStore.getState()
+    expect(state.currentWorkflow).toBeNull()
+    expect(state.projectId).toBeNull()
+    expect(state.edges).toEqual([])
+    expect(state.nodePositions).toEqual({})
+    expect(state._positionsUserModified).toBe(false)
+    expect(state.isDirty).toBe(false)
+    expect(state.validationErrorCount).toBe(0)
+  })
+
+  it('clears temporal undo history', async () => {
+    const { resetAll } = await import('./workflowStoreActions')
+
+    const workflow = makeWorkflow('Undo Test')
+    useWorkflowStore.getState().loadWorkflowWithEdges(workflow, [])
+    useWorkflowStore
+      .getState()
+      .setEdges([{ id: 'e1', source: 'a', target: 'b', sourceHandle: 'out', targetHandle: 'in' }])
+
+    expect(useWorkflowStore.temporal.getState().pastStates.length).toBeGreaterThan(0)
+
+    resetAll()
+
+    expect(useWorkflowStore.temporal.getState().pastStates.length).toBe(0)
+    expect(useWorkflowStore.temporal.getState().futureStates.length).toBe(0)
+  })
+
+  it('leaves isDirty as false after reset (prevents navigation blocker re-trigger)', async () => {
+    const { resetAll } = await import('./workflowStoreActions')
+
+    useWorkflowStore.getState().setWorkflow(makeWorkflow('Blocker Test'))
+    useWorkflowStore.getState().markDirty()
+
+    expect(useWorkflowStore.getState().isDirty).toBe(true)
+
+    resetAll()
+
+    expect(useWorkflowStore.getState().isDirty).toBe(false)
+  })
+})

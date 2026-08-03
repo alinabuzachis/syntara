@@ -4,13 +4,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useUnsavedChanges } from '../../app/useUnsavedChanges'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
+import { resetAll } from '../../stores/workflowStoreActions'
 import { routerTestState } from '../../test/setup'
 
 import { UnsavedChangesProvider } from './UnsavedChangesProvider'
 
-// Mock workflow store - needed to control isDirty state and capture state clearing
+// Mock workflow store - needed to control isDirty state
 vi.mock('../../stores/useWorkflowStore', () => ({
   useWorkflowStore: vi.fn(),
+}))
+
+vi.mock('../../stores/workflowStoreActions', () => ({
+  resetAll: vi.fn(),
 }))
 
 // Test helper component
@@ -32,17 +37,11 @@ function TestConsumer({
 }
 
 describe('UnsavedChangesProvider', () => {
-  const mockSetWorkflow = vi.fn()
-  const mockSetEdges = vi.fn()
-
   beforeEach(() => {
     vi.clearAllMocks()
     routerTestState.pathname = '/workflow-builder/123'
 
-    vi.mocked(useWorkflowStore).mockReturnValue({
-      setWorkflow: mockSetWorkflow,
-      setEdges: mockSetEdges,
-    })
+    vi.mocked(useWorkflowStore).mockReturnValue({})
 
     vi.mocked(useWorkflowStore).getState = vi.fn().mockReturnValue({
       isDirty: true,
@@ -77,8 +76,7 @@ describe('UnsavedChangesProvider', () => {
       await user.click(screen.getByText('Navigate Away'))
       await user.click(screen.getByRole('button', { name: 'Exit without saving' }))
 
-      expect(mockSetWorkflow).toHaveBeenCalledWith(null)
-      expect(mockSetEdges).toHaveBeenCalledWith([])
+      expect(resetAll).toHaveBeenCalled()
       expect(routerTestState.navigate).toHaveBeenCalledWith({ to: '/workflows' })
     })
 
@@ -437,8 +435,7 @@ describe('UnsavedChangesProvider (TanStack router path)', () => {
   const mockNavigate = vi.fn()
   const mockProceed = vi.fn()
   const mockReset = vi.fn()
-  const mockSetWorkflow = vi.fn()
-  const mockSetEdges = vi.fn()
+  const mockResetAll = vi.fn()
 
   let mockBlockerState: { status: string; proceed?: () => void; reset?: () => void } = { status: 'idle' }
 
@@ -456,10 +453,12 @@ describe('UnsavedChangesProvider (TanStack router path)', () => {
       },
     }))
     vi.doMock('../../stores/useWorkflowStore', () => ({
-      useWorkflowStore: Object.assign(
-        vi.fn().mockReturnValue({ setWorkflow: mockSetWorkflow, setEdges: mockSetEdges }),
-        { getState: vi.fn().mockReturnValue({ isDirty: true }) }
-      ),
+      useWorkflowStore: Object.assign(vi.fn().mockReturnValue({}), {
+        getState: vi.fn().mockReturnValue({ isDirty: true }),
+      }),
+    }))
+    vi.doMock('../../stores/workflowStoreActions', () => ({
+      resetAll: mockResetAll,
     }))
   })
 
@@ -519,8 +518,7 @@ describe('UnsavedChangesProvider (TanStack router path)', () => {
     await screen.findByText('Save changes before exiting the workflow builder?')
     await user.click(screen.getByRole('button', { name: 'Exit without saving' }))
 
-    expect(mockSetWorkflow).toHaveBeenCalledWith(null)
-    expect(mockSetEdges).toHaveBeenCalledWith([])
+    expect(mockResetAll).toHaveBeenCalled()
     expect(mockProceed).toHaveBeenCalled()
     expect(screen.queryByText('Save changes before exiting the workflow builder?')).not.toBeInTheDocument()
   })

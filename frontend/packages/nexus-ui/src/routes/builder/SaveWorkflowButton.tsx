@@ -1,6 +1,8 @@
 import { Button, Icon, Tooltip } from '@patternfly/react-core'
 import { RhUiSaveFillIcon } from '@patternfly/react-icons'
+import type { ReactNode } from 'react'
 
+import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
 import { formatDateTime } from '../../utils/dateUtils'
 
 type SaveWorkflowButtonProps = Readonly<{
@@ -11,6 +13,7 @@ type SaveWorkflowButtonProps = Readonly<{
   onSave: () => void
   canEdit: boolean
   editTooltip: string
+  isNodeEditorOpen?: boolean
 }>
 
 export function SaveWorkflowButton({
@@ -21,34 +24,58 @@ export function SaveWorkflowButton({
   onSave,
   canEdit,
   editTooltip,
+  isNodeEditorOpen,
 }: SaveWorkflowButtonProps) {
-  const isDisabledByState = isPending || (!isDirty && !isNew)
+  const isDisabled = !canEdit || isPending || (!isDirty && !isNew) || !!isNodeEditorOpen
+  const lastSavedText = lastSavedAt ? `Last saved ${formatDateTime(lastSavedAt)}` : null
 
-  let tooltipContent: string
+  let disabledTooltip: ReactNode
   if (!canEdit) {
-    tooltipContent = editTooltip
-  } else if (lastSavedAt) {
-    tooltipContent = `Last saved ${formatDateTime(lastSavedAt)}`
+    disabledTooltip = editTooltip
+  } else if (isNodeEditorOpen && lastSavedText) {
+    disabledTooltip = (
+      <>
+        Finish editing the current step before saving
+        <br />
+        {lastSavedText}
+      </>
+    )
+  } else if (isNodeEditorOpen) {
+    disabledTooltip = 'Finish editing the current step before saving'
   } else {
-    tooltipContent = 'Save workflow'
+    disabledTooltip = lastSavedText ?? 'Save workflow'
+  }
+
+  const enabledTooltip = lastSavedText ?? 'Save workflow'
+
+  const button = (
+    <Button
+      variant="plain"
+      onClick={!isDisabled ? onSave : undefined}
+      isLoading={isPending}
+      isAriaDisabled={isDisabled}
+      icon={
+        <Icon isInline>
+          <RhUiSaveFillIcon />
+        </Icon>
+      }
+      iconPosition="start"
+    >
+      {isPending ? 'Saving...' : 'Save'}
+    </Button>
+  )
+
+  if (isDisabled) {
+    return (
+      <DisabledWithTooltip isDisabled content={disabledTooltip} position="bottom">
+        {button}
+      </DisabledWithTooltip>
+    )
   }
 
   return (
-    <Tooltip content={tooltipContent} position="bottom" enableFlip={false}>
-      <Button
-        variant="plain"
-        onClick={canEdit ? onSave : undefined}
-        isLoading={isPending}
-        isAriaDisabled={!canEdit || isDisabledByState}
-        icon={
-          <Icon isInline>
-            <RhUiSaveFillIcon />
-          </Icon>
-        }
-        iconPosition="start"
-      >
-        {isPending ? 'Saving...' : 'Save'}
-      </Button>
+    <Tooltip content={enabledTooltip} position="bottom" enableFlip={false}>
+      {button}
     </Tooltip>
   )
 }

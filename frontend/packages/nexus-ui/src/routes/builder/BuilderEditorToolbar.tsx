@@ -255,6 +255,7 @@ type BuilderEditorToolbarProps = Readonly<{
   onPendingImport: (data: PendingImportData) => void
   triggers?: { id: string; name?: string }[]
   builderPermissions: BuilderPermissions
+  isNodeEditorOpen?: boolean
 }>
 
 export function BuilderEditorToolbar({
@@ -282,6 +283,7 @@ export function BuilderEditorToolbar({
   onPendingImport,
   triggers,
   builderPermissions,
+  isNodeEditorOpen,
 }: BuilderEditorToolbarProps) {
   const { importFileRef, handleImportFile, handleExport, handleVerify, isVerifying, validationErrorCount } =
     useWorkflowImportExport({
@@ -362,6 +364,7 @@ export function BuilderEditorToolbar({
         isSaved={!!workflow?.id}
         dispatch={dispatch}
         builderPermissions={builderPermissions}
+        isNodeEditorOpen={isNodeEditorOpen}
       />
 
       <Divider orientation={{ default: 'vertical' }} />
@@ -374,6 +377,7 @@ export function BuilderEditorToolbar({
         onSave={handleSaveWorkflow}
         canEdit={builderPermissions.canEdit}
         editTooltip={builderPermissions.tooltips.save}
+        isNodeEditorOpen={isNodeEditorOpen}
       />
 
       {showWorkflowActions && (
@@ -388,6 +392,7 @@ export function BuilderEditorToolbar({
             editTooltip={builderPermissions.tooltips.publish}
             handleVerify={handleVerify}
             onPublishClick={onPublishClick}
+            isNodeEditorOpen={isNodeEditorOpen}
           />
         </>
       )}

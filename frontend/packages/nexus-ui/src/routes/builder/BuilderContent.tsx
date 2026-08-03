@@ -522,6 +522,7 @@ export function BuilderContent(props: BuilderContentProps) {
                     viewedVersionStatus={versionPanel.viewedVersionStatus}
                     onExitVersionView={versionPanel.handleExitVersionView}
                     onRestoreVersion={versionPanel.openRestoreDialogForCurrentVersion}
+                    isNodeEditorOpen={isNodeEditorOpen}
                   />
                 </StackItem>
                 <BuilderReadOnlyBanner

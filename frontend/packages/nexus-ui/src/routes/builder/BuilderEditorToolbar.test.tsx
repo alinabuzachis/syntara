@@ -420,6 +420,12 @@ describe('BuilderEditorToolbar', () => {
       expect(screen.getByRole('button', { name: /^Run$/i })).toHaveAttribute('aria-disabled', 'true')
     })
 
+    it('disables Run button when isNodeEditorOpen is true', () => {
+      render(<BuilderEditorToolbar {...defaultProps} isNodeEditorOpen />)
+
+      expect(screen.getByRole('button', { name: /^Run$/i })).toHaveAttribute('aria-disabled', 'true')
+    })
+
     it('disables Delete menu item when canDelete is false', () => {
       render(
         <BuilderEditorToolbar

@@ -62,6 +62,7 @@ type BuilderToolbarContentProps = Readonly<{
   onExitVersionView?: () => void
   onRestoreVersion?: () => void
   onToggleVersionHistory?: () => void
+  isNodeEditorOpen?: boolean
 }>
 
 /**
@@ -108,6 +109,7 @@ function BuilderToolbarContent({
   onExitVersionView,
   onRestoreVersion,
   onToggleVersionHistory,
+  isNodeEditorOpen,
 }: BuilderToolbarContentProps) {
   if (isViewingVersion && onExitVersionView) {
     return (
@@ -196,6 +198,7 @@ function BuilderToolbarContent({
       isAddNodePanelOpen={isAddNodePanelOpen}
       hasNoWorkflowNodes={hasNoWorkflowNodes}
       builderPermissions={builderPermissions}
+      isNodeEditorOpen={isNodeEditorOpen}
     />
   )
 }
@@ -246,6 +249,7 @@ export type BuilderWorkflowPageHeaderProps = Readonly<{
   onExitVersionView?: () => void
   onRestoreVersion?: () => void
   onPendingImport: (data: PendingImportData) => void
+  isNodeEditorOpen?: boolean
 }>
 
 /**
@@ -292,6 +296,7 @@ export function BuilderWorkflowPageHeader({
   onExitVersionView,
   onRestoreVersion,
   onPendingImport,
+  isNodeEditorOpen,
 }: BuilderWorkflowPageHeaderProps) {
   const builderDocLink = useDocLink('builder')
   const publishDialog = useDialogState<true>()
@@ -411,6 +416,7 @@ export function BuilderWorkflowPageHeader({
             onExitVersionView={onExitVersionView}
             onRestoreVersion={onRestoreVersion}
             onToggleVersionHistory={handleToggleVersionHistory}
+            isNodeEditorOpen={isNodeEditorOpen}
           />
         }
       />
