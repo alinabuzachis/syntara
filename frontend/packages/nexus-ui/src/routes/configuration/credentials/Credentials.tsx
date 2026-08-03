@@ -37,6 +37,7 @@ import { CredentialFormModal } from './form/CredentialFormModal'
 import { useCredentialPermissions } from './useCredentialPermissions'
 import { useDeleteCredentialState } from './useDeleteCredentialState'
 import { useDisableCredentialState } from './useDisableCredentialState'
+import { useOptimisticCredentialEnabled } from './useOptimisticCredentialEnabled'
 
 const SORT_FIELDS: Record<number, string> = {
   0: 'name',
@@ -153,9 +154,9 @@ export default function Credentials() {
 
   // Fetch credentials
   const query = credentialsClient.useQuery('get', '/credentials', { params: { query: finalQueryParams } })
-  const credentials = useMemo(() => query.data?.resources ?? [], [query.data?.resources])
+  const serverCredentials = useMemo(() => query.data?.resources ?? [], [query.data?.resources])
 
-  useCursorReset(credentials.length, hasActiveFilters, cursor, query.isFetching, resetPagination)
+  useCursorReset(serverCredentials.length, hasActiveFilters, cursor, query.isFetching, resetPagination)
 
   // Fetch credential types for type name lookup
   const typesQuery = credentialsClient.useQuery('get', '/credential_types')
@@ -169,6 +170,36 @@ export default function Credentials() {
 
   // Expandable row state
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+
+  // Mutations (patch uses mutateAsync so enable/disable can await inside a useOptimistic Action)
+  const { mutateAsync: patchCredential, isPending: isPatchPending } = credentialsClient.useMutation(
+    'patch',
+    '/credentials/{credential_id}'
+  )
+  const { mutate: deleteCredential, isPending: isDeletePending } = credentialsClient.useMutation(
+    'delete',
+    '/credentials/{credential_id}'
+  )
+
+  const handleEnabledMutationSuccess = useCallback(() => query.refetch(), [query])
+  const handleEnabledMutationError = useCallback(
+    (title: string, error: unknown) => {
+      showAlert({
+        title,
+        description: getErrorMessage(error),
+        variant: 'danger',
+        autoDismiss: true,
+      })
+    },
+    [showAlert]
+  )
+
+  const { credentials, setCredentialEnabled } = useOptimisticCredentialEnabled({
+    credentials: serverCredentials,
+    patchCredential,
+    onSuccess: handleEnabledMutationSuccess,
+    onError: handleEnabledMutationError,
+  })
 
   const expandableCredentialIds = useMemo(
     () => credentials.filter((c) => Boolean(c.description?.trim())).map((c) => c.id!),
@@ -234,16 +265,6 @@ export default function Credentials() {
     })
   }
 
-  // Mutations
-  const { mutate: patchCredential, isPending: isPatchPending } = credentialsClient.useMutation(
-    'patch',
-    '/credentials/{credential_id}'
-  )
-  const { mutate: deleteCredential, isPending: isDeletePending } = credentialsClient.useMutation(
-    'delete',
-    '/credentials/{credential_id}'
-  )
-
   // Disable credential dialog state
   const {
     credentialToDisable,
@@ -261,44 +282,15 @@ export default function Credentials() {
     if (credential.enabled) {
       openDisableDialog(credential)
     } else {
-      patchCredential(
-        { params: { path: { credential_id: credential.id! } }, body: { enabled: true } },
-        {
-          onSuccess: () => {
-            detachPromise(query.refetch())
-          },
-          onError: (error: unknown) => {
-            showAlert({
-              title: 'Failed to enable credential',
-              description: getErrorMessage(error),
-              variant: 'danger',
-              autoDismiss: true,
-            })
-          },
-        }
-      )
+      setCredentialEnabled(credential, true)
     }
   }
 
   function handleConfirmDisable() {
     if (!credentialToDisable) return
-    patchCredential(
-      { params: { path: { credential_id: credentialToDisable.id! } }, body: { enabled: false } },
-      {
-        onSuccess: () => {
-          detachPromise(query.refetch())
-        },
-        onError: (error: unknown) => {
-          showAlert({
-            title: 'Failed to disable credential',
-            description: getErrorMessage(error),
-            variant: 'danger',
-            autoDismiss: true,
-          })
-        },
-        onSettled: closeDisableDialog,
-      }
-    )
+    const target = credentialToDisable
+    closeDisableDialog()
+    setCredentialEnabled(target, false)
   }
 
   const handleConfirmDelete = useDeleteAction<Credential, { params: { path: { credential_id: string } } }>({

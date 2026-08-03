@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -201,10 +201,12 @@ describe('Credentials', () => {
   })
 
   let mockMutate: ReturnType<typeof vi.fn>
+  let mockMutateAsync: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
     vi.clearAllMocks()
     mockMutate = vi.fn()
+    mockMutateAsync = vi.fn().mockResolvedValue(undefined)
     mockSelectedProject.current = { id: 'proj-1', name: 'My Project' }
     mockAllProjectsRef.current = [
       { id: 'proj-1', name: 'Project Alpha' },
@@ -224,8 +226,11 @@ describe('Credentials', () => {
     }
 
     vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery(mockCredentials))
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    vi.mocked(credentialsClient.useMutation).mockReturnValue({ mutate: mockMutate, isPending: false } as any)
+    vi.mocked(credentialsClient.useMutation).mockReturnValue({
+      mutate: mockMutate,
+      mutateAsync: mockMutateAsync,
+      isPending: false,
+    } as never)
   })
 
   it('has no accessibility violations', async () => {
@@ -322,7 +327,7 @@ describe('Credentials', () => {
     // After sorting by -created_at, the disabled credential "Staging SSH" is at index 1
     await user.click(switches[1])
 
-    expect(mockMutate).toHaveBeenCalled()
+    expect(mockMutateAsync).toHaveBeenCalled()
   })
 
   it('renders loading state', () => {
@@ -367,10 +372,7 @@ describe('Credentials', () => {
   })
 
   it('confirms disable and calls patch mutation with onSuccess', async () => {
-    mockMutate.mockImplementation((_args: unknown, callbacks: { onSuccess?: () => void; onSettled?: () => void }) => {
-      callbacks.onSuccess?.()
-      callbacks.onSettled?.()
-    })
+    mockMutateAsync.mockResolvedValue(undefined)
 
     const user = userEvent.setup()
     render(<Credentials />, { wrapper })
@@ -381,16 +383,12 @@ describe('Credentials', () => {
     expect(screen.getByText('Disable credential?')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Disable' }))
 
-    expect(mockMutate).toHaveBeenCalled()
+    expect(mockMutateAsync).toHaveBeenCalled()
+    expect(screen.queryByText('Disable credential?')).not.toBeInTheDocument()
   })
 
   it('handles disable mutation error', async () => {
-    mockMutate.mockImplementation(
-      (_args: unknown, callbacks: { onError?: (e: unknown) => void; onSettled?: () => void }) => {
-        callbacks.onError?.(new Error('Server error'))
-        callbacks.onSettled?.()
-      }
-    )
+    mockMutateAsync.mockRejectedValue(new Error('Server error'))
 
     const user = userEvent.setup()
     render(<Credentials />, { wrapper })
@@ -399,7 +397,7 @@ describe('Credentials', () => {
     await user.click(switches[0])
     await user.click(screen.getByRole('button', { name: 'Disable' }))
 
-    expect(mockMutate).toHaveBeenCalled()
+    expect(mockMutateAsync).toHaveBeenCalled()
   })
 
   it('shows warning when workflow fetch fails in disable dialog', async () => {
@@ -435,9 +433,7 @@ describe('Credentials', () => {
   })
 
   it('enables credential directly without dialog', async () => {
-    mockMutate.mockImplementation((_args: unknown, callbacks: { onSuccess?: () => void }) => {
-      callbacks.onSuccess?.()
-    })
+    mockMutateAsync.mockResolvedValue(undefined)
 
     const user = userEvent.setup()
     render(<Credentials />, { wrapper })
@@ -446,14 +442,12 @@ describe('Credentials', () => {
     // After sorting by -created_at, the disabled credential "Staging SSH" is at index 1
     await user.click(switches[1])
 
-    expect(mockMutate).toHaveBeenCalled()
+    expect(mockMutateAsync).toHaveBeenCalled()
     expect(screen.queryByText('Disable credential?')).not.toBeInTheDocument()
   })
 
   it('handles enable mutation error', async () => {
-    mockMutate.mockImplementation((_args: unknown, callbacks: { onError?: (e: unknown) => void }) => {
-      callbacks.onError?.(new Error('Failed'))
-    })
+    mockMutateAsync.mockRejectedValue(new Error('Failed'))
 
     const user = userEvent.setup()
     render(<Credentials />, { wrapper })
@@ -462,7 +456,34 @@ describe('Credentials', () => {
     // After sorting by -created_at, the disabled credential "Staging SSH" is at index 1
     await user.click(switches[1])
 
-    expect(mockMutate).toHaveBeenCalled()
+    expect(mockMutateAsync).toHaveBeenCalled()
+  })
+
+  it('optimistically flips the enable switch before the patch resolves', async () => {
+    let resolvePatch!: (value: unknown) => void
+    mockMutateAsync.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvePatch = resolve
+        })
+    )
+
+    const user = userEvent.setup()
+    render(<Credentials />, { wrapper })
+
+    const switches = screen.getAllByRole('switch', { name: 'Enabled' })
+    // Staging SSH starts disabled
+    expect(switches[1]).not.toBeChecked()
+    await user.click(switches[1])
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('switch', { name: 'Enabled' })[1]).toBeChecked()
+    })
+
+    await act(async () => {
+      resolvePatch(undefined)
+      await Promise.resolve()
+    })
   })
 
   it('closes create modal on close', async () => {

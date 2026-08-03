@@ -401,7 +401,7 @@ Before writing any new UI code, follow this checklist:
    - Follow DRY (Don't Repeat Yourself) principles
 
 6. **React Best Practices**
-   - Leverage React 19 features (see §38 for ref-as-prop and ref cleanup functions; §39 for `use(Context)` over `useContext`)
+   - Leverage React 19 features (see §38 for ref-as-prop and ref cleanup functions; §39 for `use(Context)` over `useContext`; §40 for `useOptimistic`)
    - Use functional components and hooks
    - Use proper TypeScript typing (avoid `any`)
    - Implement proper error boundaries
@@ -1940,3 +1940,37 @@ const value = use(AlertContext)
 ```
 
 `use(Context)` is the standard for reading React context in this codebase. Keep using domain hooks that wrap it (`useAlerts`, `useBrand`, `useDocLink`, etc.) — migrate the implementation inside those hooks, not every call site that already goes through a hook.
+
+## 40. React 19 Optimistic UI — `useOptimistic` for Async Mutations
+
+When a mutation has a clear before/after UI (toggles, counters, list membership), prefer React 19 [`useOptimistic`](https://react.dev/reference/react/useOptimistic) so the UI updates immediately and rolls back if the Action fails.
+
+```tsx
+import { startTransition, useOptimistic } from 'react'
+
+const [optimisticItems, setOptimisticItems] = useOptimistic(items, (current, update: EnabledUpdate) =>
+  current.map((item) => (item.id === update.id ? { ...item, enabled: update.enabled } : item))
+)
+
+function setEnabled(item: Item, enabled: boolean) {
+  startTransition(async () => {
+    setOptimisticItems({ id: item.id, enabled })
+    try {
+      await mutateAsync({ body: { enabled } })
+      await refetch()
+    } catch (error) {
+      showError(error) // base `items` unchanged → UI rolls back when the Action ends
+    }
+  })
+}
+```
+
+Rules of thumb:
+
+- Call the optimistic setter **inside** a `startTransition` / Action (or an Action prop). Outside an Action, React warns and the optimistic flash is unreliable.
+- Prefer `mutateAsync` + `await` so the Action stays pending until the server round-trip finishes.
+- Await refetch (or otherwise converge server state) **before** the Action ends on success, so the UI does not snap back to stale query data.
+- Keep confirmation dialogs for destructive toggles (e.g. credential disable) — apply the optimistic update on confirm, not when opening the dialog.
+- Skip `useOptimistic` when the success path is entangled with conflict handling, dirty client stores, or multi-step workflows (e.g. workflow publish).
+
+Reference implementation: `useOptimisticCredentialEnabled` (credentials list enable/disable).

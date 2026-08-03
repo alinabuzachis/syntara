@@ -31,6 +31,7 @@ Standards for implementing, reviewing, and refactoring frontend code using React
 - Accept `ref` as a regular prop — do **not** use `forwardRef` ([ref as a prop](https://react.dev/blog/2024/12/05/react-19#ref-as-a-prop))
 - Prefer ref callback cleanup functions over paired `useRef` + `useEffect` for DOM listener/observer lifecycle ([cleanup functions for refs](https://react.dev/blog/2024/12/05/react-19#cleanup-functions-for-refs)); see coding standards §38
 - Prefer `use(Context)` over `useContext(Context)` ([`use`](https://react.dev/reference/react/use)); see coding standards §39
+- For clear before/after mutations (toggles, counters), prefer `useOptimistic` inside a `startTransition` Action ([`useOptimistic`](https://react.dev/reference/react/useOptimistic)); see coding standards §40
 - Implement proper component composition over prop drilling
 - Apply memoization strategically — only when profiling indicates performance issues
 - Use proper error boundaries for graceful error handling
