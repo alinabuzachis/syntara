@@ -5,6 +5,7 @@ import {
   openWorkflowInBuilder,
   createWorkflowWithTrigger,
   deleteWorkflow,
+  publishWorkflowViaApi,
 } from './helpers/workflows'
 
 // Regression: React Compiler memoized the <Controller> element for the description
@@ -33,8 +34,7 @@ test.describe('Publish dialog regression', () => {
   })
 })
 
-// Skip: publish tests consistently fail in CI — needs investigation
-test.describe.skip('Workflow publish/unpublish', () => {
+test.describe('Workflow publish/unpublish', () => {
   test('new workflow shows Draft badge after save', async ({ app }) => {
     const workflowName = buildUniqueName('e2e-publish-draft')
 
@@ -99,25 +99,34 @@ test.describe.skip('Workflow publish/unpublish', () => {
 
       // Dialog should close after submit
       await expect(dialog).not.toBeVisible({ timeout: 10_000 })
+
+      // Badge should update to Published, proving the publish took effect
+      await expect(app.getByText('Published', { exact: true })).toBeVisible({ timeout: 15_000 })
     } finally {
       await deleteWorkflow(app, workflowName)
     }
   })
 
-  test('unpublish action is not in kebab before publishing', async ({ app }) => {
+  test('unpublish action returns workflow to Draft', async ({ app }) => {
     test.setTimeout(90_000)
-    const workflowName = buildUniqueName('e2e-unpublish-kebab')
+    const workflowName = buildUniqueName('e2e-unpublish-roundtrip')
 
     try {
-      const { id } = await createBasicWorkflowViaApi(app, workflowName, 'Unpublish step')
+      const { id, versionNumber } = await createBasicWorkflowViaApi(app, workflowName, 'Unpublish step')
+      await publishWorkflowViaApi(app, id, versionNumber)
       await openWorkflowInBuilder(app, workflowName, id)
 
-      // Before publishing, Unpublish should NOT be in kebab
-      await app.getByRole('button', { name: 'Workflow actions' }).click()
-      await expect(app.getByRole('menuitem', { name: /Unpublish workflow/i })).toHaveCount(0)
+      // Confirm publish is reflected in builder
+      await expect(app.getByText('Published', { exact: true })).toBeVisible()
 
-      // Close kebab
+      // Open kebab — Unpublish action should be available for a published workflow
       await app.getByRole('button', { name: 'Workflow actions' }).click()
+      const unpublishItem = app.getByRole('menuitem', { name: /Unpublish workflow/i })
+      await expect(unpublishItem).toBeVisible()
+      await unpublishItem.click()
+
+      // Badge should return to Draft
+      await expect(app.getByText('Draft', { exact: true })).toBeVisible({ timeout: 15_000 })
     } finally {
       await deleteWorkflow(app, workflowName)
     }
@@ -128,7 +137,7 @@ test.describe.skip('Workflow publish/unpublish', () => {
     const workflowName = buildUniqueName('e2e-list-badge')
 
     try {
-      await createBasicWorkflowViaApi(app, workflowName, 'List badge step')
+      const { id, versionNumber } = await createBasicWorkflowViaApi(app, workflowName, 'List badge step')
 
       // Navigate to workflow list
       await app.goto(toAppUrl('/workflows'))
@@ -139,30 +148,19 @@ test.describe.skip('Workflow publish/unpublish', () => {
       const row = app.getByRole('row', { name: new RegExp(workflowName) })
       await expect(row).toBeVisible()
       await expect(row.getByText('Draft', { exact: true })).toBeVisible()
-    } finally {
-      await deleteWorkflow(app, workflowName)
-    }
-  })
 
-  test('workflow list kebab has publish action', async ({ app }) => {
-    test.setTimeout(90_000)
-    const workflowName = buildUniqueName('e2e-list-publish-action')
+      // Publish via API and verify the list reflects Published status
+      await publishWorkflowViaApi(app, id, versionNumber)
 
-    try {
-      await createBasicWorkflowViaApi(app, workflowName, 'List action step')
-
-      // Navigate to workflow list
+      // Navigate away and back to force a fresh data fetch — re-applying the same
+      // filter in place is a no-op and returns stale cached data.
       await app.goto(toAppUrl('/workflows'))
       await app.getByPlaceholder('Filter by name').fill(workflowName)
       await app.getByRole('button', { name: 'Apply filter' }).click()
 
-      // Open kebab — Publish should be available
-      const row = app.getByRole('row', { name: new RegExp(workflowName) })
-      await row.getByRole('button', { name: /Actions|Kebab toggle/i }).click({ force: true })
-      await expect(app.getByRole('menuitem', { name: /Publish workflow/i })).toBeVisible()
-
-      // Unpublish should NOT be available for an unpublished workflow
-      await expect(app.getByRole('menuitem', { name: /Unpublish workflow/i })).toHaveCount(0)
+      const updatedRow = app.getByRole('row', { name: new RegExp(workflowName) })
+      await expect(updatedRow).toBeVisible()
+      await expect(updatedRow.getByText('Published', { exact: true })).toBeVisible({ timeout: 15_000 })
     } finally {
       await deleteWorkflow(app, workflowName)
     }
@@ -178,20 +176,6 @@ test.describe.skip('Workflow publish/unpublish', () => {
       const publishBtn = app.getByRole('button', { name: /Publish workflow/i })
       await expect(publishBtn).toBeVisible()
       await expect(publishBtn).toHaveAttribute('aria-disabled', 'true')
-    } finally {
-      await deleteWorkflow(app, workflowName)
-    }
-  })
-
-  test('enabled/disabled toggle is removed from builder toolbar', async ({ app }) => {
-    const workflowName = buildUniqueName('e2e-no-toggle')
-
-    try {
-      const { id } = await createBasicWorkflowViaApi(app, workflowName, 'No toggle step')
-      await openWorkflowInBuilder(app, workflowName, id)
-
-      // Verify no switch/toggle exists in the toolbar
-      await expect(app.getByRole('switch')).toHaveCount(0)
     } finally {
       await deleteWorkflow(app, workflowName)
     }

@@ -3,9 +3,15 @@ import { randomUUID } from 'node:crypto'
 import { type Page } from '@playwright/test'
 
 import { expect, toAppUrl } from '../fixtures'
-import { createBasicWorkflowViaApi, deleteWorkflowViaApi, ensureProject, findWorkflowIdByName } from '../utils/api'
+import {
+  createBasicWorkflowViaApi,
+  deleteWorkflowViaApi,
+  ensureProject,
+  findWorkflowIdByName,
+  publishWorkflowViaApi,
+} from '../utils/api'
 
-export { createBasicWorkflowViaApi }
+export { createBasicWorkflowViaApi, publishWorkflowViaApi }
 
 export const buildUniqueName = (prefix: string) => `${prefix}-${Date.now()}-${randomUUID()}`
 
