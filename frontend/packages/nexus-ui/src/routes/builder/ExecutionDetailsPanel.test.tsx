@@ -140,15 +140,16 @@ describe('ExecutionDetailsPanel', () => {
     })
   })
 
-  describe('sorting', () => {
-    it('renders sortable activity table headers with chronological default', () => {
+  describe('activity table columns', () => {
+    it('renders original column headers without sort controls', () => {
       renderPanel(WORKFLOW_DEF)
 
-      expect(screen.getByRole('columnheader', { name: /Activity/i })).toBeInTheDocument()
-      expect(screen.getByRole('columnheader', { name: /Type/i })).toBeInTheDocument()
-      expect(screen.getByRole('columnheader', { name: /Timestamp/i })).toBeInTheDocument()
-      expect(screen.getByRole('columnheader', { name: /Duration/i })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: /Name/i })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: /Started/i })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: /Ended/i })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: /Elapsed time/i })).toBeInTheDocument()
       expect(screen.getByRole('columnheader', { name: /Status/i })).toBeInTheDocument()
+      expect(screen.queryByRole('columnheader', { name: /Type/i })).not.toBeInTheDocument()
     })
 
     it('orders activities chronologically by default (earlier started first)', () => {

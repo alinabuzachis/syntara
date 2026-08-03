@@ -1,7 +1,6 @@
 import { Content, ContentVariants } from '@patternfly/react-core'
 import { RhUiExternalLinkIcon } from '@patternfly/react-icons'
 import { Table, Thead, Th, Tbody, Td, Tr } from '@patternfly/react-table'
-import type { ThProps } from '@patternfly/react-table'
 import type React from 'react'
 import { Fragment, useMemo } from 'react'
 
@@ -11,7 +10,23 @@ import type { ActivityState } from '../workflows/execution/types'
 import { parseCompositeKey } from '../workflows/execution/utils/activityState'
 
 import { ActivityStatusLabel } from './ExecutionStatus'
-import { computeActivityDurationMs } from './sortExecutionActivities'
+import { ACTIVITY_STATUS } from './utils/executionState/executionHelpers'
+
+function parseTimeMs(value: string | null | undefined): number | null {
+  if (value == null) return null
+  const ms = Date.parse(value)
+  return Number.isNaN(ms) ? null : ms
+}
+
+function computeActivityDurationMs(state: ActivityState | undefined, now: number): number | null {
+  if (!state) return null
+  const startedAtMs = parseTimeMs(state.startedAt)
+  if (startedAtMs === null) return null
+  const completedAtMs = parseTimeMs(state.completedAt)
+  if (completedAtMs !== null) return Math.max(0, completedAtMs - startedAtMs)
+  const isActive = state.status === ACTIVITY_STATUS.RUNNING || state.status === ACTIVITY_STATUS.RETRYING
+  return isActive ? Math.max(0, now - startedAtMs) : null
+}
 
 export type ActivityOrderItem = {
   id: string
@@ -30,8 +45,6 @@ type ExecutionActivityTableProps = {
   onRowClick?: (nodeId: string, nodeName: string) => void
   /** Currently selected node ID for row highlighting. */
   selectedNodeId?: string | null
-  /** PatternFly sort props for activity table column fields. */
-  getSortParams?: (columnField: string) => ThProps['sort']
 }
 
 const DASH = (
@@ -92,7 +105,7 @@ function ActivityRow({
   const elapsedMs = computeActivityDurationMs(state, now) ?? undefined
   const displayName = name ?? id
   const jobUrl = isAAPNodeType(type) ? extractAAPJobUrl(state?.outputData) : null
-  const columnCount = hasAAPColumn ? 7 : 6
+  const columnCount = hasAAPColumn ? 6 : 5
 
   return (
     <Fragment>
@@ -101,11 +114,10 @@ function ActivityRow({
         onRowClick={onRowClick ? () => onRowClick(id, displayName) : undefined}
         isRowSelected={isSelected}
       >
-        <Td dataLabel="Activity">{displayName}</Td>
-        <Td dataLabel="Type">{type ?? DASH}</Td>
-        <Td dataLabel="Timestamp">{formatOptionalDate(state?.startedAt) ?? DASH}</Td>
+        <Td dataLabel="Name">{displayName}</Td>
+        <Td dataLabel="Started">{formatOptionalDate(state?.startedAt) ?? DASH}</Td>
         <Td dataLabel="Ended">{formatOptionalDate(state?.completedAt) ?? DASH}</Td>
-        <Td dataLabel="Duration">{elapsedMs === undefined ? DASH : formatElapsedTime(elapsedMs)}</Td>
+        <Td dataLabel="Elapsed time">{elapsedMs === undefined ? DASH : formatElapsedTime(elapsedMs)}</Td>
         <Td dataLabel="Status" modifier="nowrap">
           <ActivityStatusLabel status={state?.status ?? 'pending'} nodeType={type} />
         </Td>
@@ -131,7 +143,6 @@ export function ExecutionActivityTable({
   executionError,
   onRowClick,
   selectedNodeId,
-  getSortParams,
 }: ExecutionActivityTableProps) {
   const hasAAPColumn = useMemo(() => activityOrder.some((a) => isAAPNodeType(a.type)), [activityOrder])
 
@@ -139,22 +150,11 @@ export function ExecutionActivityTable({
     <Table aria-label="Activity states" isPlain isStickyHeader variant="compact">
       <Thead>
         <Tr>
-          <Th modifier="nowrap" sort={getSortParams?.('activity')}>
-            Activity
-          </Th>
-          <Th modifier="nowrap" sort={getSortParams?.('type')}>
-            Type
-          </Th>
-          <Th modifier="nowrap" sort={getSortParams?.('timestamp')}>
-            Timestamp
-          </Th>
+          <Th modifier="nowrap">Name</Th>
+          <Th modifier="nowrap">Started</Th>
           <Th modifier="nowrap">Ended</Th>
-          <Th modifier="nowrap" sort={getSortParams?.('duration')}>
-            Duration
-          </Th>
-          <Th modifier="nowrap" sort={getSortParams?.('status')}>
-            Status
-          </Th>
+          <Th modifier="nowrap">Elapsed time</Th>
+          <Th modifier="nowrap">Status</Th>
           {hasAAPColumn && <Th aria-label="AAP job link" />}
         </Tr>
       </Thead>

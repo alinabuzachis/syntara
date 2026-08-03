@@ -155,44 +155,54 @@ describe('ExecutionActivityTable', () => {
     })
   })
 
-  describe('accessibility', () => {
-    it('renders column headers', () => {
-      renderTable()
+  describe('elapsed time computation', () => {
+    it('returns elapsed ms for a completed activity', () => {
+      renderTable({
+        states: new Map([state('task-1', { status: 'completed', startedAt: T0, completedAt: T2 })]),
+        order: [{ id: 'task-1', name: 'Task' }],
+      })
+      // T0→T2 is 60 seconds
+      expect(screen.getByText('1m 0s')).toBeInTheDocument()
+    })
 
-      expect(screen.getByRole('columnheader', { name: 'Activity' })).toBeInTheDocument()
-      expect(screen.getByRole('columnheader', { name: 'Type' })).toBeInTheDocument()
-      expect(screen.getByRole('columnheader', { name: 'Timestamp' })).toBeInTheDocument()
-      expect(screen.getByRole('columnheader', { name: 'Ended' })).toBeInTheDocument()
-      expect(screen.getByRole('columnheader', { name: 'Duration' })).toBeInTheDocument()
-      expect(screen.getByRole('columnheader', { name: 'Status' })).toBeInTheDocument()
+    it('returns live elapsed for a running activity using now', () => {
+      renderTable({
+        states: new Map([state('task-1', { status: 'running', startedAt: T0 })]),
+        order: [{ id: 'task-1', name: 'Task' }],
+      })
+      // T0→NOW is 120 seconds
+      expect(screen.getByText('2m 0s')).toBeInTheDocument()
+    })
+
+    it('returns live elapsed for a retrying activity', () => {
+      renderTable({
+        states: new Map([state('task-1', { status: 'retrying', startedAt: T0 })]),
+        order: [{ id: 'task-1', name: 'Task' }],
+      })
+      expect(screen.getByText('2m 0s')).toBeInTheDocument()
+    })
+
+    it('shows dash when activity has no startedAt', () => {
+      renderTable({
+        states: new Map([state('task-1', { status: 'pending' })]),
+        order: [{ id: 'task-1', name: 'Task' }],
+      })
+      // No start time → elapsed is undefined → dash rendered
+      expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(1)
     })
   })
 
-  describe('sorting', () => {
-    it('applies getSortParams to sortable column headers', () => {
-      const getSortParams = vi.fn((field: string) =>
-        field === 'timestamp'
-          ? {
-              sortBy: { index: 2, direction: 'asc' as const, defaultDirection: 'asc' as const },
-              onSort: vi.fn(),
-              columnIndex: 2,
-            }
-          : {
-              sortBy: { index: 2, direction: 'asc' as const, defaultDirection: 'asc' as const },
-              onSort: vi.fn(),
-              columnIndex: 0,
-            }
-      )
+  describe('accessibility', () => {
+    it('renders original column headers without sort controls', () => {
+      renderTable()
 
-      render(
-        <ExecutionActivityTable activityStates={new Map()} activityOrder={[]} now={NOW} getSortParams={getSortParams} />
-      )
-
-      expect(getSortParams).toHaveBeenCalledWith('activity')
-      expect(getSortParams).toHaveBeenCalledWith('type')
-      expect(getSortParams).toHaveBeenCalledWith('timestamp')
-      expect(getSortParams).toHaveBeenCalledWith('duration')
-      expect(getSortParams).toHaveBeenCalledWith('status')
+      expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: 'Started' })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: 'Ended' })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: 'Elapsed time' })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: 'Status' })).toBeInTheDocument()
+      // Type column was removed — activities execute in chronological order
+      expect(screen.queryByRole('columnheader', { name: 'Type' })).not.toBeInTheDocument()
     })
   })
 })

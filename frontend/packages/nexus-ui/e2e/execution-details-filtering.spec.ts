@@ -189,14 +189,14 @@ async function installStableApprovalActivityStatuses(app: Page, executionId: str
 
 /**
  * Named activity rows only — excludes the header and error-detail rows that
- * PatternFly renders as additional tbody rows without an Activity cell.
+ * PatternFly renders as additional tbody rows without a Name cell.
  */
 function activityDataRows(app: Page) {
   return app
     .getByRole('grid', { name: 'Activity states' })
     .locator('tbody')
     .getByRole('row')
-    .filter({ has: app.locator('[data-label="Activity"]') })
+    .filter({ has: app.locator('[data-label="Name"]') })
 }
 
 test.describe('Execution Details — Activity Filtering', { tag: '@pr-check' }, () => {
@@ -504,73 +504,6 @@ test.describe('Execution Details — Activity Filtering', { tag: '@pr-check' }, 
       await expect(statusChipGroup.getByText('Successful')).toBeVisible()
       await expect(app.getByRole('row', { name: /Staging Tests/ })).toBeVisible()
       await expect(app.getByRole('row', { name: /Production Deployment Approval/ })).not.toBeVisible()
-    })
-  })
-
-  // Activity table uses `activity_sort`; Run History uses `sort` on the same URL.
-  test.describe('sort URL params', () => {
-    let workflowId: string | null = null
-    let executionId: string | null = null
-
-    test.beforeAll(async ({ browser }) => {
-      const page = await browser.newPage()
-      try {
-        const workflowName = buildUniqueName('e2e-act-sort-url')
-        ;({ id: workflowId } = await createWorkflowViaApi(
-          page,
-          workflowName,
-          [{ id: 'trigger_manual', type: 'manual_trigger', name: 'Manual trigger', parameters: {} }],
-          [
-            {
-              id: 'alpha',
-              type: 'script',
-              name: 'Alpha Script',
-              parameters: { language: 'python', code: 'print(1)' },
-            },
-            {
-              id: 'bravo',
-              type: 'script',
-              name: 'Bravo Script',
-              parameters: { language: 'python', code: 'print(2)' },
-            },
-          ],
-          [
-            { from: 'trigger_manual', to: 'alpha' },
-            { from: 'alpha', to: 'bravo' },
-          ]
-        ))
-        executionId = await createExecutionViaApi(page, workflowId)
-      } finally {
-        await page.close()
-      }
-    })
-
-    test.afterAll(async ({ browser }) => {
-      if (!workflowId) return
-      const page = await browser.newPage()
-      try {
-        await deleteWorkflowViaApi(page, workflowId)
-      } finally {
-        await page.close()
-      }
-    })
-
-    test('activity_sort is reflected in the URL when sorting the activity table', async ({ app }) => {
-      test.skip(!executionId, 'Failed to create workflow/execution for sort URL tests')
-      const hasData = await navigateToExecution(app, executionId!)
-      test.skip(!hasData, 'Execution activities not available')
-
-      const activityReady = await app
-        .getByRole('row', { name: /Bravo Script/ })
-        .waitFor({ state: 'visible', timeout: 30_000 })
-        .then(() => true)
-        .catch(() => false)
-      test.skip(!activityReady, 'Workflow activities not ready — Temporal worker may not be running')
-
-      const activityTable = app.getByRole('grid', { name: 'Activity states' })
-      await activityTable.getByRole('columnheader', { name: 'Status' }).click()
-      await expect(app).toHaveURL(/activity_sort=/)
-      expect(new URL(app.url()).searchParams.get('activity_sort')).toBeTruthy()
     })
   })
 })
