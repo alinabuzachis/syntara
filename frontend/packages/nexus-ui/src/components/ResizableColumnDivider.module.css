@@ -1,0 +1,20 @@
+.divider {
+  width: 6px;
+  cursor: col-resize;
+  background: var(--pf-t--global--border--color--default);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  margin-inline: var(--pf-t--global--spacer--sm);
+  height: 20%;
+  margin-block: auto;
+  border-radius: var(--pf-t--global--border--radius--small);
+}
+
+.hoverTarget {
+  position: absolute;
+  left: -3px;
+  right: -3px;
+  top: 0;
+  bottom: 0;
+}

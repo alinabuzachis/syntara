@@ -1,0 +1,51 @@
+.outerFlex {
+  height: 100%;
+  min-width: 0;
+}
+
+.navArrow {
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.contentFlex {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.panelSlot {
+  flex-shrink: 1;
+  flex-grow: 0;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.paramsSlot {
+  composes: panelSlot;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel {
+  height: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.panelMain {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panelBody {
+  height: 100%;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}

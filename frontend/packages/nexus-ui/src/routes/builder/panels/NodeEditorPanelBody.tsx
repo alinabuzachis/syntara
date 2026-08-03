@@ -2,11 +2,14 @@ import { Flex, FlexItem, Panel, PanelMain, PanelMainBody } from '@patternfly/rea
 import type { Node } from '@xyflow/react'
 import type { ReactNode } from 'react'
 
+import { ResizableColumnDivider } from '../../../components/ResizableColumnDivider'
 import type { NodeType } from '../../workflows/canvas/nodes/NodeType'
 import type { WorkflowMetadata } from '../types/workflowMetadata'
 
 import { useAdjacentNodes } from './hooks/useAdjacentNodes'
+import { useResizablePanels } from './hooks/useResizablePanels'
 import { InputPanel } from './InputPanel'
+import styles from './NodeEditorPanelBody.module.css'
 import { NodePanelNavigationArrow } from './NodePanelNavigationArrow'
 import { OutputPanel } from './OutputPanel'
 import { RightSidePill } from './RightSidePill'
@@ -19,7 +22,6 @@ type NodeEditorPanelBodyProps = {
   sourceNodeId?: string | null
   inputData: Record<string, Record<string, unknown>> | null
   outputData: Record<string, unknown> | null
-  outputFlex: 'flex_1' | 'flex_2'
   parametersContent: ReactNode
   onNavigateToNode?: (nodeId: string) => void
   onAddStep?: (handle?: string) => void
@@ -34,7 +36,6 @@ export function NodeEditorPanelBody({
   sourceNodeId,
   inputData,
   outputData,
-  outputFlex,
   parametersContent,
   onNavigateToNode,
   onAddStep,
@@ -45,24 +46,35 @@ export function NodeEditorPanelBody({
   const showNextArrow = showNavigation && downstream.length > 0 && onNavigateToNode != null
   const showAddStepPill = onAddStep != null
 
+  const panelCount: 2 | 3 = showInputPanel ? 3 : 2
+  const { widths, handleResize, handleResizeEnd, containerRef } = useResizablePanels({
+    panelCount,
+    workflowId: workflowMetadata?.id,
+    nodeId,
+  })
+
+  const paramsIndex = showInputPanel ? 1 : 0
+  const outputIndex = showInputPanel ? 2 : 1
+  const safeNodeId = nodeId ?? ''
+
   return (
     <Flex
       alignItems={{ default: 'alignItemsStretch' }}
       flexWrap={{ default: 'nowrap' }}
       gap={{ default: 'gapNone' }}
-      style={{ height: '100%', minWidth: 0 }}
+      className={styles.outerFlex}
     >
       {showPreviousArrow && (
-        <FlexItem style={{ flexShrink: 0, alignSelf: 'center' }}>
+        <FlexItem className={styles.navArrow}>
           <NodePanelNavigationArrow direction="previous" nodes={upstream} onNavigate={onNavigateToNode} />
         </FlexItem>
       )}
-      <FlexItem flex={{ default: 'flex_1' }} style={{ minWidth: 0, minHeight: 0, height: '100%' }}>
-        <Flex
-          alignItems={{ default: 'alignItemsStretch' }}
-          flexWrap={{ default: 'nowrap' }}
-          gap={{ default: 'gapSm' }}
+      <FlexItem flex={{ default: 'flex_1' }} className={styles.contentFlex}>
+        <div
+          ref={containerRef}
           style={{
+            display: 'flex',
+            alignItems: 'stretch',
             height: '100%',
             minWidth: 0,
             paddingLeft: showPreviousArrow ? undefined : 'var(--pf-t--global--spacer--sm)',
@@ -70,71 +82,43 @@ export function NodeEditorPanelBody({
           }}
         >
           {showInputPanel && (
-            <FlexItem
-              flex={{ default: 'flex_1' }}
-              style={{
-                minWidth: 0,
-                minHeight: 0,
-                height: '100%',
-              }}
-            >
-              <InputPanel
-                nodeId={nodeId ?? ''}
-                executionData={inputData}
-                sourceNodeId={sourceNodeId}
-                workflowMetadata={workflowMetadata}
+            <>
+              <div className={styles.panelSlot} style={{ flexBasis: `${widths[0]}%` }}>
+                <InputPanel
+                  nodeId={safeNodeId}
+                  executionData={inputData}
+                  sourceNodeId={sourceNodeId}
+                  workflowMetadata={workflowMetadata}
+                />
+              </div>
+              <ResizableColumnDivider
+                onResize={handleResize.bind(null, 0)}
+                onResizeEnd={handleResizeEnd}
+                currentValue={Math.round(widths[0])}
+                aria-label="Resize input and parameters panels"
               />
-            </FlexItem>
+            </>
           )}
-          <FlexItem
-            flex={{ default: 'flex_1' }}
-            style={{
-              minWidth: 0,
-              minHeight: 0,
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
-            <Panel
-              variant="raised"
-              style={{
-                height: '100%',
-                maxHeight: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-              }}
-            >
-              <PanelMain
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}
-              >
-                <PanelMainBody
-                  style={{
-                    height: '100%',
-                    overflowY: 'auto',
-                    flex: 1,
-                    minHeight: 0,
-                  }}
-                >
-                  {parametersContent}
-                </PanelMainBody>
+          <div className={styles.paramsSlot} style={{ flexBasis: `${widths[paramsIndex]}%` }}>
+            <Panel variant="raised" className={styles.panel}>
+              <PanelMain className={styles.panelMain}>
+                <PanelMainBody className={styles.panelBody}>{parametersContent}</PanelMainBody>
               </PanelMain>
             </Panel>
-          </FlexItem>
-          <FlexItem
-            flex={{ default: outputFlex }}
-            style={{
-              minWidth: 0,
-              minHeight: 0,
-              height: '100%',
-            }}
-          >
-            <OutputPanel outputData={outputData} nodeId={nodeId ?? ''} />
-          </FlexItem>
-        </Flex>
+          </div>
+          <ResizableColumnDivider
+            onResize={handleResize.bind(null, showInputPanel ? 1 : 0)}
+            onResizeEnd={handleResizeEnd}
+            currentValue={Math.round(widths[paramsIndex])}
+            aria-label="Resize parameters and output panels"
+          />
+          <div className={styles.panelSlot} style={{ flexBasis: `${widths[outputIndex]}%` }}>
+            <OutputPanel outputData={outputData} nodeId={safeNodeId} />
+          </div>
+        </div>
       </FlexItem>
       {(showNextArrow || showAddStepPill) && (
-        <FlexItem style={{ flexShrink: 0, alignSelf: 'center' }}>
+        <FlexItem className={styles.navArrow}>
           <Flex direction={{ default: 'column' }} gap={{ default: 'gapNone' }}>
             {showNextArrow && (
               <FlexItem>

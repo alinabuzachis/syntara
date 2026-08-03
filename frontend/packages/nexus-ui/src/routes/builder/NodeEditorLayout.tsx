@@ -85,7 +85,6 @@ export function NodeEditorLayout({
   mode = 'edit',
 }: NodeEditorLayoutProps) {
   const { inputData, outputData } = useNodeExecutionData(nodeId ?? '', executionId, workflowId)
-  const outputFlex = showInputPanel ? 'flex_1' : 'flex_2'
   let closeAriaLabel = 'Cancel without saving'
   if (readOnly) closeAriaLabel = 'Close node editor'
   else if (mode === 'add') closeAriaLabel = 'Cancel step creation'
@@ -203,7 +202,6 @@ export function NodeEditorLayout({
             sourceNodeId={sourceNodeId}
             inputData={inputData}
             outputData={outputData}
-            outputFlex={outputFlex}
             parametersContent={
               <NodeFormTabBarProvider tabBarAction={tabBarAction}>{parametersContent}</NodeFormTabBarProvider>
             }
