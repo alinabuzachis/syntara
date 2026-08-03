@@ -8,6 +8,7 @@ import { axe } from 'vitest-axe'
 import { mockAuthMiddleware } from '../../test/mockAuthMiddleware'
 
 import { accessClient, accessFetchClient, dynamicFetchClient } from './accessClient'
+import { ACTION_HELP, PROJECT_HELP, RESOURCE_ID_HELP, RESOURCE_TYPE_HELP } from './accessControlFieldHelpText'
 import type { ResourceActionMap } from './canIUtils'
 import { CheckAccessView } from './CheckAccessView'
 import { useAllProjects, useSelectableProjects } from './useAllProjects'
@@ -338,5 +339,27 @@ describe('CheckAccessView', () => {
     const { container } = render(<CheckAccessView {...sampleResourceActions} />, { wrapper })
     const results = await axe(container)
     expect(results).toHaveNoViolations()
+  })
+
+  describe('field help popovers', () => {
+    it('shows resource type, action, project, and resource id help on click', async () => {
+      const user = userEvent.setup()
+      render(<CheckAccessView {...sampleResourceActions} />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'More info for Resource type' }))
+      expect(screen.getByText(RESOURCE_TYPE_HELP)).toBeInTheDocument()
+
+      await user.keyboard('{Escape}')
+      await user.click(screen.getByRole('button', { name: 'More info for Action' }))
+      expect(screen.getByText(ACTION_HELP)).toBeInTheDocument()
+
+      await user.keyboard('{Escape}')
+      await user.click(screen.getByRole('button', { name: 'More info for Project' }))
+      expect(screen.getByText(PROJECT_HELP)).toBeInTheDocument()
+
+      await user.keyboard('{Escape}')
+      await user.click(screen.getByRole('button', { name: 'More info for Resource ID' }))
+      expect(screen.getByText(RESOURCE_ID_HELP)).toBeInTheDocument()
+    })
   })
 })

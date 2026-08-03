@@ -6,6 +6,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { accessClient, accessFetchClient, dynamicFetchClient } from './accessClient'
+import { ACTION_HELP, PROJECT_HELP, RESOURCE_ID_HELP, RESOURCE_TYPE_HELP } from './accessControlFieldHelpText'
 import type { ResourceActionMap } from './canIUtils'
 import { useAllProjects, useSelectableProjects } from './useAllProjects'
 import { WhoCanView } from './WhoCanView'
@@ -358,6 +359,28 @@ describe('WhoCanView', () => {
           })
         )
       })
+    })
+  })
+
+  describe('field help popovers', () => {
+    it('shows resource type, action, project, and resource id help on click', async () => {
+      const user = userEvent.setup()
+      render(<WhoCanView {...sampleResourceActions} />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'More info for Resource type' }))
+      expect(screen.getByText(RESOURCE_TYPE_HELP)).toBeInTheDocument()
+
+      await user.keyboard('{Escape}')
+      await user.click(screen.getByRole('button', { name: 'More info for Action' }))
+      expect(screen.getByText(ACTION_HELP)).toBeInTheDocument()
+
+      await user.keyboard('{Escape}')
+      await user.click(screen.getByRole('button', { name: 'More info for Project' }))
+      expect(screen.getByText(PROJECT_HELP)).toBeInTheDocument()
+
+      await user.keyboard('{Escape}')
+      await user.click(screen.getByRole('button', { name: 'More info for Resource ID' }))
+      expect(screen.getByText(RESOURCE_ID_HELP)).toBeInTheDocument()
     })
   })
 })

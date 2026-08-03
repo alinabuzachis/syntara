@@ -1198,6 +1198,16 @@ export const detailTabPages: PageEntry[] = [
     },
   },
   {
+    section: 'access-management/users',
+    name: 'user-detail-check-access-tab',
+    path: AppRoute.AccessManagement.UserDetailTab.replace(':userId', MOCK_USER_ID).replace(':tab', 'check-access'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByRole('tab', { name: /Check my access/i, selected: true })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'More info for Resource type' })).toBeVisible()
+    },
+  },
+  {
     section: 'access-management/groups',
     name: 'group-detail-members-tab',
     path: AppRoute.AccessManagement.GroupDetailTab.replace(':groupId', MOCK_GROUP_ID).replace(':tab', 'members'),

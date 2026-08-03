@@ -23,6 +23,7 @@ import { NxErrorState } from '../../components/states/NxErrorState'
 import { getErrorMessage } from '../../utils/apiErrors'
 
 import { accessClient } from './accessClient'
+import { accessControlHelp } from './accessControlFieldHelp'
 import type { ResourceActionMap } from './canIUtils'
 import { ProjectSelect } from './ProjectSelect'
 import { ResourceIdSelect } from './ResourceIdSelect'
@@ -160,7 +161,12 @@ export function CheckAccessView({ resourceTypes, actionsByResource }: Readonly<R
     <Flex direction={{ default: 'row' }} gap={{ default: 'gapXl' }} alignItems={{ default: 'alignItemsFlexStart' }}>
       <FlexItem style={{ minWidth: 340, maxWidth: 400 }}>
         <Form onSubmit={onSubmit}>
-          <FormGroup label="Resource type" isRequired fieldId="can-i-resource-type">
+          <FormGroup
+            label="Resource type"
+            isRequired
+            fieldId="can-i-resource-type"
+            labelHelp={accessControlHelp.resourceType}
+          >
             <Controller
               name="resourceType"
               control={control}
@@ -180,7 +186,7 @@ export function CheckAccessView({ resourceTypes, actionsByResource }: Readonly<R
             />
           </FormGroup>
 
-          <FormGroup label="Action" isRequired fieldId="can-i-action">
+          <FormGroup label="Action" isRequired fieldId="can-i-action" labelHelp={accessControlHelp.action}>
             <Controller
               name="action"
               control={control}
@@ -198,7 +204,7 @@ export function CheckAccessView({ resourceTypes, actionsByResource }: Readonly<R
             />
           </FormGroup>
 
-          <FormGroup label="Project" fieldId="can-i-project">
+          <FormGroup label="Project" fieldId="can-i-project" labelHelp={accessControlHelp.project}>
             <Controller
               name="project"
               control={control}
@@ -213,7 +219,7 @@ export function CheckAccessView({ resourceTypes, actionsByResource }: Readonly<R
             />
           </FormGroup>
 
-          <FormGroup label="Resource ID" fieldId="can-i-resource-id">
+          <FormGroup label="Resource ID" fieldId="can-i-resource-id" labelHelp={accessControlHelp.resourceId}>
             <Controller
               name="resourceId"
               control={control}

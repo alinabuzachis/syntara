@@ -594,6 +594,7 @@ export const pages: PageEntry[] = [
     path: AppRoute.AccessManagement.CheckAccess,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { name: 'Access Management' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'More info for Resource type' })).toBeVisible()
     },
   },
 
