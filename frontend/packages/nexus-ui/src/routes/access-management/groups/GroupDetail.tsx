@@ -11,19 +11,24 @@ import {
   Tab,
   TabTitleText,
 } from '@patternfly/react-core'
-import { RhUiEditIcon } from '@patternfly/react-icons'
+import { RhUiEditIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import type { Group } from '@syntara/contracts'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsGroupDetail, breadcrumbsGroupDetailEarlyShell } from '../../../app/breadcrumbBuilders'
+import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
+import { IconLabel } from '../../../components/IconLabel'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
+import { NxKebabMenu } from '../../../components/NxKebabMenu'
 import { NxPageTitle } from '../../../components/NxPageTitle'
 import { NxListPanel, NxListPanelTabs } from '../../../components/panels/list/NxListPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
+import { useDeleteAction } from '../../../hooks/useDeleteAction'
+import { useDialogState } from '../../../hooks/useDialogState'
 import { useUrlTab } from '../../../hooks/useUrlTab'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
@@ -65,6 +70,44 @@ function GroupDetailsTab({ group }: Readonly<{ group: Group }>) {
         <DescriptionListDescription>{formatDateTime(group.updated_at)}</DescriptionListDescription>
       </DescriptionListGroup>
     </DescriptionList>
+  )
+}
+
+function GroupDetailToolbar({
+  permissions,
+  onEdit,
+  onDelete,
+}: Readonly<{
+  permissions: ReturnType<typeof useGroupPermissions>
+  onEdit: () => void
+  onDelete: () => void
+}>) {
+  return (
+    <>
+      <DisabledWithTooltip isDisabled={!permissions.canUpdate} content={permissions.tooltips.update}>
+        <Button
+          variant="primary"
+          icon={<RhUiEditIcon />}
+          isAriaDisabled={!permissions.canUpdate}
+          onClick={permissions.canUpdate ? onEdit : undefined}
+        >
+          Edit group
+        </Button>
+      </DisabledWithTooltip>
+      <NxKebabMenu
+        actions={[
+          {
+            key: 'delete',
+            title: <IconLabel icon={<RhUiTrashIcon />}>Delete group</IconLabel>,
+            isDanger: true,
+            onClick: permissions.canDelete ? onDelete : undefined,
+            isAriaDisabled: !permissions.canDelete,
+            tooltipProps: permissions.canDelete ? undefined : { content: permissions.tooltips.delete },
+          },
+        ]}
+        aria-label="Group actions"
+      />
+    </>
   )
 }
 
@@ -181,8 +224,10 @@ export function GroupDetail() {
   type GroupTab = 'details' | 'members' | 'roles'
   const [activeTab] = useUrlTab<GroupTab>(basePath)
   const [editModalOpen, setEditModalOpen] = useState(false)
+  const deleteDialog = useDialogState<Group>()
 
   const groupPermissions = useGroupPermissions()
+  const { mutate: deleteGroup } = accessClient.useMutation('delete', '/groups/{group_id}')
   const { groupQuery, membersQuery, isAuthenticated, memberCount, roleAssignmentCount } = useGroupQueries(groupId)
   const { canReadMembers, canReadAssignments, isLoading: permissionsLoading } = useGroupDetailPermissions()
 
@@ -190,6 +235,15 @@ export function GroupDetail() {
   const showAssignments = permissionsLoading || canReadAssignments
 
   const navigateBack = () => detachPromise(navigate({ to: AppRoute.AccessManagement.Groups }))
+
+  const handleDelete = useDeleteAction({
+    deleteFn: deleteGroup,
+    buildParams: (group: Group) => ({ params: { path: { group_id: group.id } } }),
+    entityLabel: 'group',
+    getItemName: (group: Group) => group.name,
+    onSuccess: navigateBack,
+    onSettled: deleteDialog.close,
+  })
 
   const groupData = groupQuery.data
   const refetchGroup = groupQuery.refetch
@@ -234,16 +288,11 @@ export function GroupDetail() {
         breadcrumbs={groupCrumbs}
         toolbar={
           !groupData.is_builtin ? (
-            <DisabledWithTooltip isDisabled={!groupPermissions.canUpdate} content={groupPermissions.tooltips.update}>
-              <Button
-                variant="secondary"
-                icon={<RhUiEditIcon />}
-                isAriaDisabled={!groupPermissions.canUpdate}
-                onClick={groupPermissions.canUpdate ? () => setEditModalOpen(true) : undefined}
-              >
-                Edit group
-              </Button>
-            </DisabledWithTooltip>
+            <GroupDetailToolbar
+              permissions={groupPermissions}
+              onEdit={() => setEditModalOpen(true)}
+              onDelete={() => deleteDialog.open(groupData as Group)}
+            />
           ) : undefined
         }
       />
@@ -277,6 +326,24 @@ export function GroupDetail() {
           detachPromise(groupQuery.refetch())
         }}
       />
+
+      {!groupData.is_builtin && (
+        <NxConfirmationDialog
+          isOpen={deleteDialog.isOpen}
+          onClose={deleteDialog.close}
+          onConfirm={() => handleDelete(deleteDialog.item)}
+          title="Delete group?"
+          confirmLabel="Delete"
+          confirmVariant="danger"
+          titleIconVariant="warning"
+          destructiveAcknowledgement={{
+            checkboxId: 'delete-group-detail-ack',
+            label: 'I understand this group will be permanently deleted.',
+          }}
+        >
+          The group <strong>{deleteDialog.item?.name}</strong> will be deleted. This cannot be undone.
+        </NxConfirmationDialog>
+      )}
     </NxPage>
   )
 }

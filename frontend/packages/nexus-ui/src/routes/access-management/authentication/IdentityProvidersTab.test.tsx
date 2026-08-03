@@ -483,7 +483,7 @@ describe('IdentityProvidersTab', () => {
 
       const actionsButton = screen.getByRole('button', { name: /Kebab toggle/ })
       await user.click(actionsButton)
-      await user.click(screen.getByText('Edit mapping'))
+      await user.click(screen.getByRole('menuitem', { name: /edit group mapping/i }))
 
       expect(routerTestState.navigate).toHaveBeenCalledWith({
         to: '/system-administration/authentication/identity-providers/provider-1/group-mapping/edit',

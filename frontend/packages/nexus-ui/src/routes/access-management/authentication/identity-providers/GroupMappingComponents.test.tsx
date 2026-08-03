@@ -370,18 +370,18 @@ describe('ReadOnlyView', () => {
     onEditMapping: vi.fn(),
   }
 
-  it('renders Edit mapping button and keyword filter toolbar', () => {
+  it('renders Edit group mapping button and keyword filter toolbar', () => {
     render(<ReadOnlyView {...readOnlyDefaults} />)
 
-    expect(screen.getByRole('button', { name: /edit mapping/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /edit group mapping/i })).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Filter by keyword')).toBeInTheDocument()
   })
 
-  it('hides Edit mapping when onEditMapping is omitted', () => {
+  it('hides Edit group mapping when onEditMapping is omitted', () => {
     render(<ReadOnlyView entries={mockEntries} nexusGroups={mockNexusGroups} />)
 
     expect(screen.getByPlaceholderText('Filter by keyword')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /edit mapping/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /edit group mapping/i })).not.toBeInTheDocument()
   })
 
   it('renders entries as plain text in table cells', () => {

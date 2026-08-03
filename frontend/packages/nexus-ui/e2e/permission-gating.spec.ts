@@ -25,11 +25,14 @@ import {
   createGroupViaApi,
   createIdentityProviderViaApi,
   createServiceAccountViaApi,
+  createUserViaApi,
   deleteCredentialViaApi,
   deleteGroupViaApi,
   deleteIdentityProviderViaApi,
   deleteServiceAccountViaApi,
+  deleteUserViaApi,
   ensureProject,
+  getAuthToken,
 } from './utils/api'
 
 const AM_URL = '/system-administration/access-management'
@@ -798,6 +801,105 @@ test.describe('Permission gating — Access Management actions', () => {
 
     await createButton.hover()
     await expect(userApp.getByRole('tooltip').filter({ hasText: 'user:create' })).toBeVisible()
+  })
+})
+
+// ── Action gating — Detail page header actions ───────────────────────────
+
+test.describe('Permission gating — Detail page header actions', () => {
+  const E2E_USER_PASSWORD = 'E2eTestP@ssw0rd!'
+
+  test('auditor: user detail Edit and kebab actions are aria-disabled', async ({ app, auditorApp }) => {
+    const username = buildUniqueName('e2e-perm-user-detail')
+    const user = await createUserViaApi(app, { username, password: E2E_USER_PASSWORD })
+    if (!user) throw new Error('createUserViaApi failed')
+
+    try {
+      await auditorApp.goto(toAppUrl(`${AM_URL}/users/${user.id}`))
+      await expect(auditorApp.getByRole('heading', { level: 1, name: username })).toBeVisible()
+
+      await expect(auditorApp.getByRole('button', { name: 'Edit user' })).toHaveAttribute('aria-disabled', 'true')
+
+      await auditorApp.getByRole('button', { name: 'User actions' }).click()
+      await expect(auditorApp.getByRole('menuitem', { name: 'Revoke tokens' })).toHaveAttribute('aria-disabled', 'true')
+      await expect(auditorApp.getByRole('menuitem', { name: 'Delete user' })).toHaveAttribute('aria-disabled', 'true')
+    } finally {
+      await deleteUserViaApi(app, user.id)
+    }
+  })
+
+  test('auditor: group detail Edit and kebab actions are aria-disabled', async ({ app, auditorApp }) => {
+    const groupId = await createGroupViaApi(app, { name: buildUniqueName('e2e-perm-group-detail') })
+    if (!groupId) throw new Error('createGroupViaApi failed')
+
+    try {
+      await auditorApp.goto(toAppUrl(`${AM_URL}/groups/${groupId}`))
+      await expect(auditorApp.getByRole('heading', { level: 1 })).toBeVisible()
+
+      await expect(auditorApp.getByRole('button', { name: 'Edit group' })).toHaveAttribute('aria-disabled', 'true')
+
+      await auditorApp.getByRole('button', { name: 'Group actions' }).click()
+      await expect(auditorApp.getByRole('menuitem', { name: 'Delete group' })).toHaveAttribute('aria-disabled', 'true')
+    } finally {
+      await deleteGroupViaApi(app, groupId)
+    }
+  })
+
+  test('auditor: project detail Edit and kebab actions are aria-disabled', async ({ app, auditorApp }) => {
+    const project = await ensureProject(app, buildUniqueName('e2e-perm-project-detail'))
+    if (!project) throw new Error('ensureProject failed')
+
+    try {
+      await auditorApp.goto(toAppUrl(`${AM_URL}/projects/${project.id}`))
+      await expect(auditorApp.getByRole('heading', { level: 1, name: project.name })).toBeVisible()
+
+      await expect(auditorApp.getByRole('button', { name: 'Edit project' })).toHaveAttribute('aria-disabled', 'true')
+
+      await auditorApp.getByRole('button', { name: 'Project actions' }).click()
+      await expect(auditorApp.getByRole('menuitem', { name: 'Delete project' })).toHaveAttribute(
+        'aria-disabled',
+        'true'
+      )
+    } finally {
+      const token = await getAuthToken(app)
+      if (token) await apiRequest(app, 'delete', `/projects/${project.id}`, { token })
+    }
+  })
+
+  test('auditor: identity provider detail Edit and kebab actions are aria-disabled', async ({ app, auditorApp }) => {
+    const idpName = buildUniqueName('e2e-perm-idp-detail')
+    const idp = await createIdentityProviderViaApi(app, {
+      name: idpName,
+      enabled: false,
+      configuration: {
+        provider_type: 'oidc',
+        client_id: 'e2e-test',
+        client_secret: 'e2e-secret',
+        issuer_url: 'https://idp.example.com',
+        redirect_uri: `${appBaseUrl}/auth/callback`,
+      },
+    })
+    if (!idp) throw new Error('createIdentityProviderViaApi failed')
+
+    try {
+      await auditorApp.goto(toAppUrl(`${AUTH_URL}/identity-providers/${idp.id}`))
+      await expect(auditorApp.getByRole('heading', { level: 1, name: idpName })).toBeVisible()
+
+      await expect(auditorApp.getByRole('button', { name: 'Edit provider' })).toHaveAttribute('aria-disabled', 'true')
+
+      await auditorApp.getByRole('button', { name: 'Identity provider actions' }).click()
+      await expect(auditorApp.getByRole('menuitem', { name: 'Edit group mapping' })).toHaveAttribute(
+        'aria-disabled',
+        'true'
+      )
+      await expect(auditorApp.getByRole('menuitem', { name: 'Revoke tokens' })).toHaveAttribute('aria-disabled', 'true')
+      await expect(auditorApp.getByRole('menuitem', { name: 'Delete identity provider' })).toHaveAttribute(
+        'aria-disabled',
+        'true'
+      )
+    } finally {
+      await deleteIdentityProviderViaApi(app, idp.id)
+    }
   })
 })
 

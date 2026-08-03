@@ -8,6 +8,7 @@ import { axe } from 'vitest-axe'
 import { AlertProvider } from '../../../providers/alerts'
 import { routerTestState } from '../../../test/setup'
 import { accessClient, accessFetchClient } from '../../access/accessClient'
+import { useProjectPermissions } from '../useProjectPermissions'
 
 import { ProjectDetail } from './ProjectDetail'
 
@@ -68,6 +69,19 @@ vi.mock('./ProjectNotFoundState', () => ({
   ),
 }))
 
+vi.mock('../ProjectFormModal', () => ({
+  ProjectFormModal: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) =>
+    isOpen ? (
+      <div data-testid="project-form-modal">
+        <button type="button" onClick={onClose}>
+          Close modal
+        </button>
+      </div>
+    ) : null,
+}))
+
+vi.mock('../useProjectPermissions')
+
 vi.mock('../../../utils/dateUtils', () => ({
   formatDateTime: (v: string | null | undefined) => v ?? 'N/A',
 }))
@@ -112,7 +126,86 @@ describe('ProjectDetail', () => {
     mockDetailTab.mockReturnValue(['details', mockGoToTab])
     mockUseParams.mockReturnValue({ projectId: 'proj-1' })
     vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
+    vi.mocked(useProjectPermissions).mockReturnValue({
+      canCreate: true,
+      canUpdate: true,
+      canDelete: true,
+      isLoading: false,
+      tooltips: { create: '', update: '', delete: '' },
+    })
+    vi.mocked(accessClient.useMutation).mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    } as never)
     setupMocks()
+  })
+
+  it('renders toolbar with Edit project button and kebab menu', () => {
+    render(<ProjectDetail />, { wrapper })
+
+    expect(screen.getByRole('button', { name: 'Edit project' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Project actions' })).toBeInTheDocument()
+  })
+
+  it('opens edit modal when Edit project is clicked', async () => {
+    const user = userEvent.setup()
+    render(<ProjectDetail />, { wrapper })
+
+    await user.click(screen.getByRole('button', { name: 'Edit project' }))
+
+    expect(screen.getByTestId('project-form-modal')).toBeInTheDocument()
+  })
+
+  it('disables Edit project button when canUpdate is false', () => {
+    vi.mocked(useProjectPermissions).mockReturnValue({
+      canCreate: true,
+      canUpdate: false,
+      canDelete: true,
+      isLoading: false,
+      tooltips: { create: '', update: 'Insufficient permissions', delete: '' },
+    })
+
+    render(<ProjectDetail />, { wrapper })
+
+    expect(screen.getByRole('button', { name: 'Edit project' })).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('opens delete confirmation dialog from kebab menu', async () => {
+    const user = userEvent.setup()
+    render(<ProjectDetail />, { wrapper })
+
+    await user.click(screen.getByRole('button', { name: 'Project actions' }))
+    await user.click(screen.getByRole('menuitem', { name: /delete project/i }))
+
+    expect(screen.getByText('Delete project?')).toBeInTheDocument()
+  })
+
+  it('closes delete confirmation dialog when Cancel is clicked', async () => {
+    const user = userEvent.setup()
+    render(<ProjectDetail />, { wrapper })
+
+    await user.click(screen.getByRole('button', { name: 'Project actions' }))
+    await user.click(screen.getByRole('menuitem', { name: /delete project/i }))
+    expect(screen.getByText('Delete project?')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByText('Delete project?')).not.toBeInTheDocument()
+  })
+
+  it('disables delete action in kebab menu when canDelete is false', async () => {
+    vi.mocked(useProjectPermissions).mockReturnValue({
+      canCreate: true,
+      canUpdate: true,
+      canDelete: false,
+      isLoading: false,
+      tooltips: { create: '', update: '', delete: 'Insufficient permissions' },
+    })
+
+    const user = userEvent.setup()
+    render(<ProjectDetail />, { wrapper })
+
+    await user.click(screen.getByRole('button', { name: 'Project actions' }))
+    expect(screen.getByRole('menuitem', { name: /delete project/i })).toHaveAttribute('aria-disabled', 'true')
   })
 
   it('has no accessibility violations', async () => {

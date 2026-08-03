@@ -1,6 +1,5 @@
 import {
   Badge,
-  Button,
   DescriptionList,
   DescriptionListDescription,
   DescriptionListGroup,
@@ -11,21 +10,20 @@ import {
   Tab,
   TabTitleText,
 } from '@patternfly/react-core'
-import { RhUiEditIcon } from '@patternfly/react-icons'
 import type { User } from '@syntara/contracts'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useMemo } from 'react'
 
 import { AppRoute } from '../../../app/AppRoute'
-import { breadcrumbsUserDetail, breadcrumbsUserDetailEarlyShell } from '../../../app/breadcrumbBuilders'
+import { breadcrumbsUserDetail } from '../../../app/breadcrumbBuilders'
 import { authClient } from '../../../client'
-import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
 import { NxPageTitle } from '../../../components/NxPageTitle'
 import { NxListPanel, NxListPanelTabs } from '../../../components/panels/list/NxListPanel'
-import { NxLoadingState } from '../../../components/states/NxLoadingState'
 import { useQueryState } from '../../../components/states/useQueryState'
+import { useDeleteAction } from '../../../hooks/useDeleteAction'
+import { useDialogState } from '../../../hooks/useDialogState'
 import { useUrlTab } from '../../../hooks/useUrlTab'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
@@ -36,18 +34,19 @@ import { CheckAccessView } from '../../access/CheckAccessView'
 import { MyPermissionsView } from '../../access/MyPermissionsView'
 import { useResourceActions } from '../../access/useResourceActions'
 import { AUTH_TYPE_LOCAL } from '../adminConstants'
-import { DetailPageShell } from '../DetailPageShell'
 import { DisabledBadge } from '../DisabledBadge'
 import { RoleAssignmentsPanel } from '../RoleAssignmentsPanel'
 import { RolePrincipalType } from '../RoleAssignmentTypes'
+import { useRevokeUserTokens } from '../useRevokeUserTokens'
 import { useUserPermissions } from '../useUserPermissions'
 
 import type { UserIdentity } from './identityUtils'
+import { UserDetailConfirmationDialogs, UserDetailToolbar } from './UserDetailActions'
+import { renderUserDetailEarlyShell } from './userDetailEarlyShell'
 import { computeGroupCount, computeRoleAssignmentCount } from './userDetailUtils'
 import { userDisplayName } from './userDisplayName'
 import { UserGroupsPanel } from './UserGroupsPanel'
 import { UserIdentitiesPanel } from './UserIdentitiesPanel'
-import { UserNotFoundState } from './UserNotFoundState'
 import { useUserDetailPermissions } from './useUserDetailPermissions'
 
 function useUserDetailData(userId: string | undefined) {
@@ -187,25 +186,6 @@ function UserDetailsTab({
         <DescriptionListDescription>{formatDateTime(user.created_at)}</DescriptionListDescription>
       </DescriptionListGroup>
     </DescriptionList>
-  )
-}
-
-function EditUserButton({
-  canUpdate,
-  tooltip,
-  onClick,
-}: Readonly<{ canUpdate: boolean; tooltip: string; onClick: () => void }>) {
-  return (
-    <DisabledWithTooltip isDisabled={!canUpdate} content={tooltip}>
-      <Button
-        variant="secondary"
-        icon={<RhUiEditIcon />}
-        isAriaDisabled={!canUpdate}
-        onClick={canUpdate ? onClick : undefined}
-      >
-        Edit user
-      </Button>
-    </DisabledWithTooltip>
   )
 }
 
@@ -361,6 +341,9 @@ export function UserDetail({ isMyProfile }: Readonly<UserDetailProps> = {}) {
   const [activeTab] = useUrlTab<UserTab>(basePath)
 
   const userPermissions = useUserPermissions()
+  const deleteDialog = useDialogState<User>()
+  const { revokeDialog, handleRevoke } = useRevokeUserTokens()
+  const { mutate: deleteUser } = accessClient.useMutation('delete', '/users/{user_id}')
   const { userQuery, groupCount, identitiesData, roleAssignmentCount, currentUserId } = useUserDetailData(userId)
   const {
     canReadGroups,
@@ -381,6 +364,15 @@ export function UserDetail({ isMyProfile }: Readonly<UserDetailProps> = {}) {
   const navigateEdit = () =>
     detachPromise(navigate({ to: AppRoute.AccessManagement.EditUser.replace(':userId', userId ?? '') }))
 
+  const handleDelete = useDeleteAction({
+    deleteFn: deleteUser,
+    buildParams: (user: User) => ({ params: { path: { user_id: user.id } } }),
+    entityLabel: 'user',
+    getItemName: (user: User) => user.username,
+    onSuccess: navigateBack,
+    onSettled: deleteDialog.close,
+  })
+
   const refetchUser = userQuery.refetch
   const queryState = useQueryState(userQuery, {
     title: 'Error loading user',
@@ -389,38 +381,15 @@ export function UserDetail({ isMyProfile }: Readonly<UserDetailProps> = {}) {
     },
   })
 
-  const shellTitle = isMyProfile ? 'My Profile' : 'User'
-  const shellBreadcrumbs = isMyProfile ? [] : breadcrumbsUserDetailEarlyShell()
-
-  if (isMyProfile && meQuery.isPending) {
-    return (
-      <DetailPageShell title="My Profile" breadcrumbs={[]}>
-        <NxLoadingState />
-      </DetailPageShell>
-    )
-  }
-
-  if (userQuery.error) {
-    return (
-      <DetailPageShell title={shellTitle} breadcrumbs={shellBreadcrumbs}>
-        <UserNotFoundState
-          onBack={navigateBack}
-          backLabel={isMyProfile ? 'Back to workflows' : undefined}
-          onRetry={() => {
-            detachPromise(refetchUser())
-          }}
-        />
-      </DetailPageShell>
-    )
-  }
-
-  if (queryState) {
-    return (
-      <DetailPageShell title={shellTitle} breadcrumbs={shellBreadcrumbs}>
-        {queryState}
-      </DetailPageShell>
-    )
-  }
+  const earlyShell = renderUserDetailEarlyShell({
+    isMyProfile: !!isMyProfile,
+    isMeQueryPending: meQuery.isPending,
+    hasUserQueryError: !!userQuery.error,
+    queryState,
+    navigateBack,
+    refetchUser,
+  })
+  if (earlyShell) return earlyShell
 
   const userData = userQuery.data
   if (!userData) return null
@@ -444,10 +413,12 @@ export function UserDetail({ isMyProfile }: Readonly<UserDetailProps> = {}) {
           ) : undefined
         }
         toolbar={
-          <EditUserButton
-            canUpdate={userPermissions.canUpdate}
-            tooltip={userPermissions.tooltips.update}
-            onClick={navigateEdit}
+          <UserDetailToolbar
+            permissions={userPermissions}
+            showKebabMenu={!userData.is_builtin}
+            onEdit={navigateEdit}
+            onRevoke={() => revokeDialog.open(userData)}
+            onDelete={() => deleteDialog.open(userData)}
           />
         }
       />
@@ -471,6 +442,14 @@ export function UserDetail({ isMyProfile }: Readonly<UserDetailProps> = {}) {
           />
         </NxListPanel>
       </NxPageBody>
+
+      <UserDetailConfirmationDialogs
+        user={userData}
+        revokeDialog={revokeDialog}
+        deleteDialog={deleteDialog}
+        onRevoke={handleRevoke}
+        onDelete={() => handleDelete(deleteDialog.item)}
+      />
     </NxPage>
   )
 }

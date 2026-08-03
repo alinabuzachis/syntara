@@ -8,6 +8,7 @@ import { axe } from 'vitest-axe'
 import { AlertProvider } from '../../../providers/alerts'
 import { routerTestState } from '../../../test/setup'
 import { accessClient, accessFetchClient } from '../../access/accessClient'
+import { useGroupPermissions } from '../useGroupPermissions'
 
 import { GroupDetail } from './GroupDetail'
 
@@ -30,16 +31,7 @@ vi.mock('../../access/accessClient', () => ({
   },
 }))
 
-vi.mock('../useGroupPermissions', () => ({
-  useGroupPermissions: () => ({
-    canCreate: true,
-    canUpdate: true,
-    canDelete: true,
-    canManageMembers: true,
-    isLoading: false,
-    tooltips: { create: '', update: '', delete: '', manageMembers: '' },
-  }),
-}))
+vi.mock('../useGroupPermissions')
 
 const VALID_GROUP_ID = 'g-1234-5678-abcd'
 
@@ -223,6 +215,14 @@ describe('GroupDetail', () => {
     mockLocationValue = `/system-administration/access-management/groups/${VALID_GROUP_ID}`
     mockUseParams.mockReturnValue({ groupId: VALID_GROUP_ID })
     vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
+    vi.mocked(useGroupPermissions).mockReturnValue({
+      canCreate: true,
+      canUpdate: true,
+      canDelete: true,
+      canManageMembers: true,
+      isLoading: false,
+      tooltips: { create: '', update: '', delete: '', manageMembers: '' },
+    })
     mockSuccessQueries()
   })
 
@@ -305,6 +305,71 @@ describe('GroupDetail', () => {
       await user.click(screen.getByRole('button', { name: 'Edit group' }))
 
       expect(screen.getByTestId('group-form-modal')).toBeInTheDocument()
+    })
+
+    it('disables Edit group button when canUpdate is false', () => {
+      vi.mocked(useGroupPermissions).mockReturnValue({
+        canCreate: true,
+        canUpdate: false,
+        canDelete: true,
+        canManageMembers: true,
+        isLoading: false,
+        tooltips: { create: '', update: 'Insufficient permissions', delete: '', manageMembers: '' },
+      })
+
+      render(<GroupDetail />, { wrapper })
+
+      expect(screen.getByRole('button', { name: 'Edit group' })).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('renders kebab menu with delete action for non-built-in groups', async () => {
+      const user = userEvent.setup()
+      render(<GroupDetail />, { wrapper })
+
+      expect(screen.getByRole('button', { name: 'Group actions' })).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Group actions' }))
+
+      expect(screen.getByRole('menuitem', { name: /delete group/i })).toBeInTheDocument()
+    })
+
+    it('opens delete confirmation dialog from kebab menu', async () => {
+      const user = userEvent.setup()
+      render(<GroupDetail />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Group actions' }))
+      await user.click(screen.getByRole('menuitem', { name: /delete group/i }))
+
+      expect(screen.getByText('Delete group?')).toBeInTheDocument()
+    })
+
+    it('closes delete confirmation dialog when Cancel is clicked', async () => {
+      const user = userEvent.setup()
+      render(<GroupDetail />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Group actions' }))
+      await user.click(screen.getByRole('menuitem', { name: /delete group/i }))
+      expect(screen.getByText('Delete group?')).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Cancel' }))
+      expect(screen.queryByText('Delete group?')).not.toBeInTheDocument()
+    })
+
+    it('disables delete action in kebab menu when canDelete is false', async () => {
+      vi.mocked(useGroupPermissions).mockReturnValue({
+        canCreate: true,
+        canUpdate: true,
+        canDelete: false,
+        canManageMembers: true,
+        isLoading: false,
+        tooltips: { create: '', update: '', delete: 'Insufficient permissions', manageMembers: '' },
+      })
+
+      const user = userEvent.setup()
+      render(<GroupDetail />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'Group actions' }))
+      expect(screen.getByRole('menuitem', { name: /delete group/i })).toHaveAttribute('aria-disabled', 'true')
     })
 
     it('closes the edit modal when Close modal is clicked', async () => {

@@ -17,9 +17,14 @@ import {
   Tab,
   TabTitleText,
 } from '@patternfly/react-core'
-import { RhUiArrowLeftIcon, RhUiEditIcon, RhUiSearchIcon, RhUiSyncIcon, RhUiTrashIcon } from '@patternfly/react-icons'
-import { ActionsColumn } from '@patternfly/react-table'
-import type { IAction } from '@patternfly/react-table'
+import {
+  RhUiArrowLeftIcon,
+  RhUiBanIcon,
+  RhUiEditIcon,
+  RhUiSearchIcon,
+  RhUiSyncIcon,
+  RhUiTrashIcon,
+} from '@patternfly/react-icons'
 import { type IdentityProvidersAPI } from '@syntara/contracts'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useState, type ReactNode } from 'react'
@@ -29,18 +34,24 @@ import {
   breadcrumbsIdentityProviderDetail,
   breadcrumbsIdentityProviderDetailEarlyShell,
 } from '../../../../app/breadcrumbBuilders'
-import { identityProvidersClient } from '../../../../client'
+import { adminClient, identityProvidersClient } from '../../../../client'
+import { NxConfirmationDialog } from '../../../../components/dialogs/NxConfirmationDialog'
 import { DisabledWithTooltip } from '../../../../components/DisabledWithTooltip'
 import { IconLabel } from '../../../../components/IconLabel'
 import { NxPage, NxPageBody } from '../../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../../components/layout/NxPageHeader'
 import { NxPanel } from '../../../../components/layout/NxPanel'
+import { NxKebabMenu } from '../../../../components/NxKebabMenu'
+import type { KebabAction } from '../../../../components/NxKebabMenu'
 import { NxPageTitle } from '../../../../components/NxPageTitle'
 import { NxListPanel, NxListPanelTabs } from '../../../../components/panels/list/NxListPanel'
 import { ProviderIcon } from '../../../../components/ProviderIcon'
 import { useQueryState } from '../../../../components/states/useQueryState'
 import { useDeleteAction } from '../../../../hooks/useDeleteAction'
+import { useDialogState } from '../../../../hooks/useDialogState'
+import { useMutationErrorHandler } from '../../../../hooks/useMutationErrorHandler'
 import { useUrlTab } from '../../../../hooks/useUrlTab'
+import { useAlerts } from '../../../../providers/alerts'
 import { getErrorStatus } from '../../../../utils/apiErrors'
 import { formatDateTime } from '../../../../utils/dateUtils'
 import { detachPromise } from '../../../../utils/detachPromise'
@@ -207,21 +218,71 @@ function IdentityProviderDetailTabStrip({
   )
 }
 
+function IdentityProviderDetailToolbar({
+  permissions,
+  isEnabled,
+  kebabActions,
+  onToggle,
+  onEdit,
+}: Readonly<{
+  permissions: ReturnType<typeof useIdentityProviderPermissions>
+  isEnabled: boolean
+  kebabActions: KebabAction[]
+  onToggle: () => void
+  onEdit: () => void
+}>) {
+  return (
+    <>
+      <DisabledWithTooltip isDisabled={!permissions.canUpdate} content={permissions.tooltips.update}>
+        <Switch
+          id="provider-detail-toggle"
+          label="Enabled"
+          isChecked={isEnabled}
+          aria-disabled={!permissions.canUpdate || undefined}
+          onChange={permissions.canUpdate ? onToggle : undefined}
+        />
+      </DisabledWithTooltip>
+      <DisabledWithTooltip isDisabled={!permissions.canUpdate} content={permissions.tooltips.update}>
+        <Button
+          variant="primary"
+          icon={<RhUiEditIcon />}
+          isAriaDisabled={!permissions.canUpdate}
+          onClick={permissions.canUpdate ? onEdit : undefined}
+        >
+          Edit provider
+        </Button>
+      </DisabledWithTooltip>
+      <NxKebabMenu actions={kebabActions} aria-label="Identity provider actions" />
+    </>
+  )
+}
+
 function buildKebabActions(
   idpPermissions: ReturnType<typeof useIdentityProviderPermissions>,
   onEditMapping: () => void,
+  onRevoke: () => void,
   onDelete: () => void
-): IAction[] {
+): KebabAction[] {
   return [
     {
-      title: <IconLabel icon={<RhUiEditIcon />}>Edit mapping</IconLabel>,
+      key: 'edit-mapping',
+      title: <IconLabel icon={<RhUiEditIcon />}>Edit group mapping</IconLabel>,
       isAriaDisabled: !idpPermissions.canUpdate,
       tooltipProps: idpPermissions.canUpdate ? undefined : { content: idpPermissions.tooltips.update },
       onClick: idpPermissions.canUpdate ? onEditMapping : undefined,
     },
-    { isSeparator: true },
     {
-      title: <IconLabel icon={<RhUiTrashIcon />}>Delete</IconLabel>,
+      key: 'revoke',
+      title: <IconLabel icon={<RhUiBanIcon />}>Revoke tokens</IconLabel>,
+      isAriaDisabled: !idpPermissions.canRevoke,
+      tooltipProps: idpPermissions.canRevoke ? undefined : { content: idpPermissions.tooltips.revoke },
+      onClick: idpPermissions.canRevoke ? onRevoke : undefined,
+    },
+    { key: 'separator', isSeparator: true },
+    {
+      key: 'delete',
+      title: <IconLabel icon={<RhUiTrashIcon />}>Delete identity provider</IconLabel>,
+      isDanger: true,
       isAriaDisabled: !idpPermissions.canDelete,
       tooltipProps: idpPermissions.canDelete ? undefined : { content: idpPermissions.tooltips.delete },
       onClick: idpPermissions.canDelete ? onDelete : undefined,
@@ -235,7 +296,10 @@ export function IdentityProviderDetail() {
   const { providerId }: { providerId: string } = useParams({ strict: false })
   const isValidId = !!providerId && isValidUUID(providerId)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const revokeDialog = useDialogState<ProviderData>()
   const idpPermissions = useIdentityProviderPermissions()
+  const { showSuccess } = useAlerts()
+  const handleMutationError = useMutationErrorHandler()
   const canUpdate = idpPermissions.canUpdate
   const idpDetailBasePath = AppRoute.SystemAdministration.Authentication.IdentityProviderDetail.replace(
     ':providerId',
@@ -287,10 +351,36 @@ export function IdentityProviderDetail() {
     onSettled: () => setDeleteDialogOpen(false),
   })
 
+  const { mutate: revokeIdpTokens } = adminClient.useMutation('post', '/admin/revocation/identity_providers/{idp_name}')
+
+  const handleRevoke = () => {
+    if (!revokeDialog.item) return
+    const idpName = revokeDialog.item.name ?? ''
+    revokeIdpTokens(
+      { params: { path: { idp_name: idpName } } },
+      {
+        onSuccess: (data) => {
+          showSuccess({
+            title: 'Tokens revoked',
+            description: data.message,
+          })
+        },
+        onError: handleMutationError({
+          title: 'Failed to revoke tokens',
+          context: `Identity provider "${idpName}"`,
+        }),
+        onSettled: revokeDialog.close,
+      }
+    )
+  }
+
   const kebabActions = buildKebabActions(
     idpPermissions,
     () => {
       if (providerId) detachPromise(navigate({ to: identityProviderGroupMappingEditPath(providerId) }))
+    },
+    () => {
+      if (providerData) revokeDialog.open(providerData)
     },
     () => setDeleteDialogOpen(true)
   )
@@ -355,34 +445,13 @@ export function IdentityProviderDetail() {
           </FlexItem>
         }
         toolbar={
-          <>
-            <DisabledWithTooltip isDisabled={!idpPermissions.canUpdate} content={idpPermissions.tooltips.update}>
-              <Switch
-                id="provider-detail-toggle"
-                label="Enabled"
-                isChecked={providerData.enabled}
-                aria-disabled={!idpPermissions.canUpdate || undefined}
-                onChange={
-                  idpPermissions.canUpdate
-                    ? () => {
-                        if (providerData) handleToggle(providerData)
-                      }
-                    : undefined
-                }
-              />
-            </DisabledWithTooltip>
-            <DisabledWithTooltip isDisabled={!idpPermissions.canUpdate} content={idpPermissions.tooltips.update}>
-              <Button
-                variant="primary"
-                icon={<RhUiEditIcon />}
-                isAriaDisabled={!idpPermissions.canUpdate}
-                onClick={idpPermissions.canUpdate ? navigateEdit : undefined}
-              >
-                Edit provider
-              </Button>
-            </DisabledWithTooltip>
-            <ActionsColumn items={kebabActions} />
-          </>
+          <IdentityProviderDetailToolbar
+            permissions={idpPermissions}
+            isEnabled={providerData.enabled ?? false}
+            kebabActions={kebabActions}
+            onToggle={() => handleToggle(providerData)}
+            onEdit={navigateEdit}
+          />
         }
       />
       <NxPageBody>
@@ -404,6 +473,18 @@ export function IdentityProviderDetail() {
         onClose={() => setDeleteDialogOpen(false)}
         onConfirm={() => handleDelete(providerData)}
       />
+      <NxConfirmationDialog
+        isOpen={revokeDialog.isOpen}
+        onClose={revokeDialog.close}
+        onConfirm={handleRevoke}
+        title="Revoke identity provider tokens?"
+        confirmLabel="Revoke tokens"
+        confirmVariant="danger"
+        titleIconVariant="warning"
+      >
+        All tokens for users authenticated via <strong>{revokeDialog.item?.name}</strong> will be revoked. Affected
+        users will be signed out and must sign in again.
+      </NxConfirmationDialog>
       <DisableIdentityProviderDialog
         provider={disableDialog.item}
         isLoading={isDisabling}

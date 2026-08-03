@@ -187,8 +187,8 @@ test.describe('Session Revocation — IdP-Scoped (UI-29)', () => {
       await app.goto(toAppUrl(`${AUTHENTICATION_URL}/identity-providers/${providerId}`))
       await expect(app.getByRole('heading', { level: 1, name: providerName })).toBeVisible()
 
-      await app.getByRole('button', { name: /Kebab toggle/i }).click({ force: true })
-      await app.getByRole('menuitem', { name: 'Delete' }).click()
+      await app.getByRole('button', { name: 'Identity provider actions' }).click()
+      await app.getByRole('menuitem', { name: 'Delete identity provider' }).click()
 
       await confirmIdpDeleteDialog(app, providerName)
 

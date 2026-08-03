@@ -6,7 +6,7 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { identityProvidersClient } from '../../../../client'
+import { adminClient, identityProvidersClient } from '../../../../client'
 import { AlertProvider } from '../../../../providers/alerts'
 import { routerTestState } from '../../../../test/setup'
 import { accessFetchClient } from '../../../access/accessClient'
@@ -18,15 +18,6 @@ type MutationCallbacks = {
   onSuccess?: () => void
   onError?: (error: Error) => void
 }
-
-vi.mock('../../../../client', () => ({
-  authMiddleware: { onRequest: vi.fn() },
-  interfaceTagMiddleware: { onRequest: vi.fn() },
-  identityProvidersClient: {
-    useQuery: vi.fn(),
-    useMutation: vi.fn(),
-  },
-}))
 
 vi.mock('../../../access/accessClient', () => ({
   accessFetchClient: { POST: vi.fn() },
@@ -46,6 +37,9 @@ vi.mock('../../../../client', async (importOriginal) => {
     ...original,
     identityProvidersClient: {
       useQuery: vi.fn(),
+      useMutation: vi.fn(),
+    },
+    adminClient: {
       useMutation: vi.fn(),
     },
   }
@@ -115,12 +109,14 @@ describe('IdentityProviderDetail', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(identityProvidersClient.useMutation).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
+    vi.mocked(adminClient.useMutation).mockReturnValue({ mutate: vi.fn(), isPending: false } as never)
     vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
     vi.mocked(useParams).mockReturnValue({ providerId: VALID_PROVIDER_ID })
     mockIdpPermissions.canCreate = true
     mockIdpPermissions.canUpdate = true
     mockIdpPermissions.canDelete = true
     mockIdpPermissions.canTest = true
+    mockIdpPermissions.canRevoke = true
     mockIdpPermissions.isLoading = false
     routerTestState.pathname = `/system-administration/authentication/identity-providers/${VALID_PROVIDER_ID}`
   })
@@ -613,10 +609,10 @@ describe('IdentityProviderDetail', () => {
 
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
 
-    const kebabButton = screen.getByRole('button', { name: /kebab toggle/i })
+    const kebabButton = screen.getByRole('button', { name: /identity provider actions/i })
     await user.click(kebabButton)
 
-    await user.click(screen.getByText('Delete'))
+    await user.click(screen.getByRole('menuitem', { name: /delete identity provider/i }))
 
     // The confirmation dialog should now be visible
     expect(screen.getByText('Delete identity provider?')).toBeInTheDocument()
@@ -624,6 +620,63 @@ describe('IdentityProviderDetail', () => {
     expect(screen.getByText(/remove all user identities linked to this provider/i)).toBeInTheDocument()
     expect(screen.getByText(/revoke active sessions authenticated via this provider/i)).toBeInTheDocument()
     expect(screen.getByText(/prevent users from signing in with this provider/i)).toBeInTheDocument()
+  })
+
+  it('opens revoke confirmation dialog from kebab menu', async () => {
+    const user = userEvent.setup()
+    vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn())
+
+    render(<IdentityProviderDetail />, { wrapper: createWrapper() })
+
+    await user.click(screen.getByRole('button', { name: /identity provider actions/i }))
+    await user.click(screen.getByRole('menuitem', { name: /revoke tokens/i }))
+
+    expect(screen.getByText('Revoke identity provider tokens?')).toBeInTheDocument()
+    expect(screen.getByText(/will be revoked/i)).toBeInTheDocument()
+  })
+
+  it('closes delete confirmation dialog when Cancel is clicked', async () => {
+    const user = userEvent.setup()
+    vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn())
+
+    render(<IdentityProviderDetail />, { wrapper: createWrapper() })
+
+    await user.click(screen.getByRole('button', { name: /identity provider actions/i }))
+    await user.click(screen.getByRole('menuitem', { name: /delete identity provider/i }))
+    expect(screen.getByText('Delete identity provider?')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByText('Delete identity provider?')).not.toBeInTheDocument()
+  })
+
+  it('closes revoke confirmation dialog when Cancel is clicked', async () => {
+    const user = userEvent.setup()
+    vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn())
+
+    render(<IdentityProviderDetail />, { wrapper: createWrapper() })
+
+    await user.click(screen.getByRole('button', { name: /identity provider actions/i }))
+    await user.click(screen.getByRole('menuitem', { name: /revoke tokens/i }))
+    expect(screen.getByText('Revoke identity provider tokens?')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByText('Revoke identity provider tokens?')).not.toBeInTheDocument()
+  })
+
+  it('calls revoke mutation when confirming revocation', async () => {
+    const user = userEvent.setup()
+    const mockRevoke = vi.fn()
+    vi.mocked(adminClient.useMutation).mockReturnValue({ mutate: mockRevoke, isPending: false } as never)
+    vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn())
+
+    render(<IdentityProviderDetail />, { wrapper: createWrapper() })
+
+    await user.click(screen.getByRole('button', { name: /identity provider actions/i }))
+    await user.click(screen.getByRole('menuitem', { name: /revoke tokens/i }))
+
+    await user.click(screen.getByRole('button', { name: 'Revoke tokens' }))
+
+    expect(mockRevoke).toHaveBeenCalled()
   })
 
   it('calls delete mutation when confirming deletion', async () => {
@@ -638,9 +691,9 @@ describe('IdentityProviderDetail', () => {
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
 
     // Open kebab and click delete
-    const kebabButton = screen.getByRole('button', { name: /kebab toggle/i })
+    const kebabButton = screen.getByRole('button', { name: /identity provider actions/i })
     await user.click(kebabButton)
-    await user.click(screen.getByText('Delete'))
+    await user.click(screen.getByRole('menuitem', { name: /delete identity provider/i }))
 
     // Check the acknowledgement checkbox before clicking Delete
     await user.click(screen.getByRole('checkbox'))
@@ -659,9 +712,9 @@ describe('IdentityProviderDetail', () => {
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
 
     // Open kebab and click delete
-    const kebabButton = screen.getByRole('button', { name: /kebab toggle/i })
+    const kebabButton = screen.getByRole('button', { name: /identity provider actions/i })
     await user.click(kebabButton)
-    await user.click(screen.getByText('Delete'))
+    await user.click(screen.getByRole('menuitem', { name: /delete identity provider/i }))
 
     expect(screen.getByText('Delete identity provider?')).toBeInTheDocument()
 
@@ -762,10 +815,10 @@ describe('IdentityProviderDetail', () => {
 
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
 
-    const kebabButton = screen.getByRole('button', { name: /kebab toggle/i })
+    const kebabButton = screen.getByRole('button', { name: /identity provider actions/i })
     await user.click(kebabButton)
 
-    await user.click(screen.getByText('Edit mapping'))
+    await user.click(screen.getByRole('menuitem', { name: /edit group mapping/i }))
 
     expect(routerTestState.navigate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -774,19 +827,58 @@ describe('IdentityProviderDetail', () => {
     )
   })
 
-  it('disables Edit mapping in kebab when user lacks identity-provider:update', async () => {
+  it('disables Edit group mapping in kebab when user lacks identity-provider:update', async () => {
     const user = userEvent.setup()
     mockIdpPermissions.canUpdate = false
     vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn())
 
     render(<IdentityProviderDetail />, { wrapper: createWrapper() })
 
-    const kebabButton = screen.getByRole('button', { name: /kebab toggle/i })
+    const kebabButton = screen.getByRole('button', { name: /identity provider actions/i })
     await user.click(kebabButton)
 
-    const editMappingItem = screen.getByRole('menuitem', { name: /Edit mapping/i })
+    const editMappingItem = screen.getByRole('menuitem', { name: /edit group mapping/i })
     expect(editMappingItem).toHaveAttribute('aria-disabled', 'true')
-    expect(screen.getByText('Delete')).toBeInTheDocument()
+    await user.click(editMappingItem)
+    expect(routerTestState.navigate).not.toHaveBeenCalled()
+    expect(screen.getByRole('menuitem', { name: /delete identity provider/i })).toBeInTheDocument()
+  })
+
+  it('disables Edit provider button when canUpdate is false', () => {
+    mockIdpPermissions.canUpdate = false
+    vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn())
+
+    render(<IdentityProviderDetail />, { wrapper: createWrapper() })
+
+    expect(screen.getByRole('button', { name: 'Edit provider' })).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('disables revoke action in kebab menu when canRevoke is false', async () => {
+    const user = userEvent.setup()
+    mockIdpPermissions.canRevoke = false
+    vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn())
+
+    render(<IdentityProviderDetail />, { wrapper: createWrapper() })
+
+    await user.click(screen.getByRole('button', { name: /identity provider actions/i }))
+    const revokeItem = screen.getByRole('menuitem', { name: /revoke tokens/i })
+    expect(revokeItem).toHaveAttribute('aria-disabled', 'true')
+    await user.click(revokeItem)
+    expect(screen.queryByRole('dialog', { name: /revoke identity provider tokens/i })).not.toBeInTheDocument()
+  })
+
+  it('disables delete action in kebab menu when canDelete is false', async () => {
+    const user = userEvent.setup()
+    mockIdpPermissions.canDelete = false
+    vi.mocked(identityProvidersClient.useQuery).mockReturnValue(mockQueryReturn())
+
+    render(<IdentityProviderDetail />, { wrapper: createWrapper() })
+
+    await user.click(screen.getByRole('button', { name: /identity provider actions/i }))
+    const deleteItem = screen.getByRole('menuitem', { name: /delete identity provider/i })
+    expect(deleteItem).toHaveAttribute('aria-disabled', 'true')
+    await user.click(deleteItem)
+    expect(screen.queryByRole('dialog', { name: /delete identity provider/i })).not.toBeInTheDocument()
   })
 
   it('shows only some manual endpoints when others are not set', () => {

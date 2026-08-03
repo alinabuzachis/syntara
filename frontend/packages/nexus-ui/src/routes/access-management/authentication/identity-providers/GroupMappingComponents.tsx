@@ -321,7 +321,7 @@ type GroupMappingReadOnlyToolbarProps = {
   filters: FilterConfig[]
   onFilterChange: (next: FilterConfig[]) => void
   clearAllFilters: () => void
-  /** When undefined, the "Edit mapping" button is hidden (read-only mode). */
+  /** When undefined, the "Edit group mapping" button is hidden (read-only mode). */
   onEditMapping?: () => void
 }
 
@@ -343,7 +343,7 @@ function GroupMappingReadOnlyToolbar({
         toolbarEnd={
           onEditMapping ? (
             <Button variant="primary" icon={<RhUiEditIcon />} onClick={onEditMapping}>
-              Edit mapping
+              Edit group mapping
             </Button>
           ) : undefined
         }
@@ -355,7 +355,7 @@ function GroupMappingReadOnlyToolbar({
 export type ReadOnlyViewProps = {
   entries: GroupMappingEntry[]
   nexusGroups: NexusGroup[]
-  /** When undefined, the "Edit mapping" button is hidden (read-only mode). */
+  /** When undefined, the "Edit group mapping" button is hidden (read-only mode). */
   onEditMapping?: () => void
 }
 

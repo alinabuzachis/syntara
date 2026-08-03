@@ -1,4 +1,5 @@
 import {
+  Button,
   DescriptionList,
   DescriptionListDescription,
   DescriptionListGroup,
@@ -7,20 +8,31 @@ import {
   FlexItem,
   Label,
   LabelGroup,
+  List,
+  ListItem,
+  Stack,
+  StackItem,
   Tab,
   TabTitleText,
 } from '@patternfly/react-core'
+import { RhUiEditIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { useNavigate, useParams } from '@tanstack/react-router'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { breadcrumbsProjectDetail, breadcrumbsProjectDetailEarlyShell } from '../../../app/breadcrumbBuilders'
+import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
+import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
+import { IconLabel } from '../../../components/IconLabel'
 import { NxLabel } from '../../../components/labels/NxLabel'
 import { NxPage, NxPageBody } from '../../../components/layout/NxPage'
 import { NxPageHeader } from '../../../components/layout/NxPageHeader'
+import { NxKebabMenu } from '../../../components/NxKebabMenu'
 import { NxPageTitle } from '../../../components/NxPageTitle'
 import { NxListPanel, NxListPanelTabs, NxListPanelView } from '../../../components/panels/list/NxListPanel'
 import { useQueryState } from '../../../components/states/useQueryState'
+import { useDeleteAction } from '../../../hooks/useDeleteAction'
+import { useDialogState } from '../../../hooks/useDialogState'
 import { useUrlTab } from '../../../hooks/useUrlTab'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
@@ -28,12 +40,52 @@ import { useDocLink } from '../../../utils/docs/useDocLink'
 import { accessClient } from '../../access/accessClient'
 import type { ProjectRead } from '../../access/types'
 import { DetailPageShell } from '../DetailPageShell'
+import { ProjectFormModal } from '../ProjectFormModal'
+import { useProjectPermissions } from '../useProjectPermissions'
 
 import { ProjectNotFoundState } from './ProjectNotFoundState'
 import { ProjectRoleAssignmentsTab } from './ProjectRoleAssignmentsTab'
 import { useProjectDetailPermissions } from './useProjectDetailPermissions'
 
 const noop = () => {}
+
+function ProjectDetailToolbar({
+  permissions,
+  onEdit,
+  onDelete,
+}: Readonly<{
+  permissions: ReturnType<typeof useProjectPermissions>
+  onEdit: () => void
+  onDelete: () => void
+}>) {
+  return (
+    <>
+      <DisabledWithTooltip isDisabled={!permissions.canUpdate} content={permissions.tooltips.update}>
+        <Button
+          variant="primary"
+          icon={<RhUiEditIcon />}
+          isAriaDisabled={!permissions.canUpdate}
+          onClick={permissions.canUpdate ? onEdit : undefined}
+        >
+          Edit project
+        </Button>
+      </DisabledWithTooltip>
+      <NxKebabMenu
+        actions={[
+          {
+            key: 'delete',
+            title: <IconLabel icon={<RhUiTrashIcon />}>Delete project</IconLabel>,
+            isDanger: true,
+            onClick: permissions.canDelete ? onDelete : undefined,
+            isAriaDisabled: !permissions.canDelete,
+            tooltipProps: permissions.canDelete ? undefined : { content: permissions.tooltips.delete },
+          },
+        ]}
+        aria-label="Project actions"
+      />
+    </>
+  )
+}
 
 function ProjectDetailsTab({ project }: Readonly<{ project: ProjectRead }>) {
   const labelEntries = Object.entries(project.labels ?? {})
@@ -90,7 +142,11 @@ export function ProjectDetail() {
   const { projectId }: { projectId: string } = useParams({ strict: false })
   const basePath = AppRoute.AccessManagement.ProjectDetail.replace(':projectId', projectId ?? '')
   const [activeTab] = useUrlTab<ProjectTab>(basePath)
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const deleteDialog = useDialogState<ProjectRead>()
+  const projectPermissions = useProjectPermissions({ resourceProject: projectId })
   const { canReadAssignments, isLoading: permissionsLoading } = useProjectDetailPermissions(projectId ?? '')
+  const { mutate: deleteProject } = accessClient.useMutation('delete', '/projects/{project_id}')
 
   const validTabs = useMemo(() => {
     if (permissionsLoading || canReadAssignments) return ALL_PROJECT_TABS
@@ -105,6 +161,15 @@ export function ProjectDetail() {
   )
 
   const navigateBack = () => detachPromise(navigate({ to: AppRoute.AccessManagement.Projects }))
+
+  const handleDelete = useDeleteAction({
+    deleteFn: deleteProject,
+    buildParams: (project: ProjectRead) => ({ params: { path: { project_id: project.id ?? '' } } }),
+    entityLabel: 'project',
+    getItemName: (project: ProjectRead) => project.name,
+    onSuccess: navigateBack,
+    onSettled: deleteDialog.close,
+  })
 
   const projectData = projectQuery.data
   const refetchProject = projectQuery.refetch
@@ -143,7 +208,18 @@ export function ProjectDetail() {
   return (
     <NxPage>
       <NxPageTitle segments={[projectData.name, 'Projects']} />
-      <NxPageHeader title={projectData.name} docLink={projectsDocLink} breadcrumbs={projectCrumbs} />
+      <NxPageHeader
+        title={projectData.name}
+        docLink={projectsDocLink}
+        breadcrumbs={projectCrumbs}
+        toolbar={
+          <ProjectDetailToolbar
+            permissions={projectPermissions}
+            onEdit={() => setEditModalOpen(true)}
+            onDelete={() => deleteDialog.open(projectData)}
+          />
+        }
+      />
       <NxPageBody>
         <NxListPanel>
           <NxListPanelTabs basePath={basePath} defaultTab="details" validTabs={validTabs} aria-label="Project details">
@@ -171,6 +247,42 @@ export function ProjectDetail() {
           )}
         </NxListPanel>
       </NxPageBody>
+
+      <ProjectFormModal
+        project={projectData}
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSuccess={() => {
+          detachPromise(projectQuery.refetch())
+        }}
+      />
+
+      <NxConfirmationDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={deleteDialog.close}
+        onConfirm={() => handleDelete(deleteDialog.item)}
+        title="Delete project?"
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        titleIconVariant="warning"
+        destructiveAcknowledgement={{
+          checkboxId: 'delete-project-detail-ack',
+          label:
+            'I understand this project, its workflows, and role assignments will be permanently deleted or removed.',
+        }}
+      >
+        <Stack hasGutter>
+          <StackItem>
+            The project <strong>{deleteDialog.item?.name}</strong> will be deleted. This cannot be undone.
+          </StackItem>
+          <StackItem>
+            <List>
+              <ListItem>All workflows in this project will be permanently deleted.</ListItem>
+              <ListItem>All project role assignments will be removed.</ListItem>
+            </List>
+          </StackItem>
+        </Stack>
+      </NxConfirmationDialog>
     </NxPage>
   )
 }

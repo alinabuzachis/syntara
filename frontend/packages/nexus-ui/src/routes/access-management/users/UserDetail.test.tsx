@@ -9,6 +9,7 @@ import { AlertProvider } from '../../../providers/alerts'
 import { routerTestState } from '../../../test/setup'
 import { accessClient, accessFetchClient } from '../../access/accessClient'
 import { AUTH_TYPE_FEDERATED } from '../adminConstants'
+import { useUserPermissions } from '../useUserPermissions'
 
 import { UserDetail } from './UserDetail'
 import { computeRoleAssignmentCount } from './userDetailUtils'
@@ -60,14 +61,19 @@ vi.mock('../../access/accessClient', () => ({
   },
 }))
 
-vi.mock('../useUserPermissions', () => ({
-  useUserPermissions: () => ({
-    canCreate: true,
-    canUpdate: true,
-    canDelete: true,
-    canRevoke: true,
-    isLoading: false,
-    tooltips: { create: '', update: '', delete: '', revoke: '' },
+vi.mock('../useUserPermissions')
+
+const revokeDialogMock = vi.hoisted(() => ({
+  isOpen: false,
+  item: null as { username: string } | null,
+  open: vi.fn(),
+  close: vi.fn(),
+}))
+
+vi.mock('../useRevokeUserTokens', () => ({
+  useRevokeUserTokens: () => ({
+    revokeDialog: revokeDialogMock,
+    handleRevoke: vi.fn(),
   }),
 }))
 
@@ -263,9 +269,21 @@ describe('UserDetail', () => {
   beforeEach(() => {
     mockAuthQuery.mockReturnValue({ data: { id: 'me-id' }, isPending: false, isError: false, error: null })
     vi.mocked(accessFetchClient.POST).mockResolvedValue({ data: { allowed: true } } as never)
+    vi.mocked(useUserPermissions).mockReturnValue({
+      canCreate: true,
+      canUpdate: true,
+      canDelete: true,
+      canRevoke: true,
+      isLoading: false,
+      tooltips: { create: '', update: '', delete: '', revoke: '' },
+    })
     queryClient.clear()
     routerTestState.pathname = `/system-administration/access-management/users/${VALID_USER_ID}`
     mockUseParams.mockReturnValue({ userId: VALID_USER_ID })
+    revokeDialogMock.isOpen = false
+    revokeDialogMock.item = null
+    revokeDialogMock.open.mockClear()
+    revokeDialogMock.close.mockClear()
     mockSuccessQueries()
   })
 
@@ -827,6 +845,132 @@ describe('UserDetail', () => {
       expect(routerTestState.navigate).toHaveBeenCalledWith({
         to: `/system-administration/access-management/users/${VALID_USER_ID}/edit`,
       })
+    })
+
+    it('disables Edit user button when canUpdate is false', () => {
+      vi.mocked(useUserPermissions).mockReturnValue({
+        canCreate: true,
+        canUpdate: false,
+        canDelete: true,
+        canRevoke: true,
+        isLoading: false,
+        tooltips: { create: '', update: 'Insufficient permissions', delete: '', revoke: '' },
+      })
+
+      render(<UserDetail />, { wrapper })
+
+      expect(screen.getByRole('button', { name: 'Edit user' })).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('renders kebab menu with delete action for non-built-in users', async () => {
+      const user = userEvent.setup()
+      render(<UserDetail />, { wrapper })
+
+      expect(screen.getByRole('button', { name: 'User actions' })).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'User actions' }))
+
+      expect(screen.getByRole('menuitem', { name: /revoke tokens/i })).toBeInTheDocument()
+      expect(screen.getByRole('menuitem', { name: /delete user/i })).toBeInTheDocument()
+    })
+
+    it('does not render kebab menu for built-in users', () => {
+      mockSuccessQueries()
+      vi.mocked(accessClient.useQuery).mockImplementation((_method, path) => {
+        if (path === '/users/{user_id}') {
+          return {
+            data: { ...mockUser, is_builtin: true },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          } as never
+        }
+        if (path === '/users/{user_id}/identities') return emptyIdentitiesResult
+        if (path === '/users/{user_id}/role_assignments') {
+          return {
+            data: mockRoleAssignmentsData,
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          } as never
+        }
+        return {
+          data: mockGroupsData,
+          isPending: false,
+          isError: false,
+          error: null,
+          refetch: vi.fn(),
+        } as never
+      })
+
+      render(<UserDetail />, { wrapper })
+
+      expect(screen.getByRole('button', { name: 'Edit user' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'User actions' })).not.toBeInTheDocument()
+    })
+
+    it('opens delete confirmation dialog from kebab menu', async () => {
+      const user = userEvent.setup()
+      render(<UserDetail />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'User actions' }))
+      await user.click(screen.getByRole('menuitem', { name: /delete user/i }))
+
+      expect(screen.getByText('Delete user?')).toBeInTheDocument()
+    })
+
+    it('opens revoke dialog when Revoke tokens is clicked from kebab menu', async () => {
+      const user = userEvent.setup()
+      render(<UserDetail />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'User actions' }))
+      await user.click(screen.getByRole('menuitem', { name: /revoke tokens/i }))
+
+      expect(revokeDialogMock.open).toHaveBeenCalledWith(mockUser)
+    })
+
+    it('renders revoke confirmation dialog when revoke dialog is open', () => {
+      revokeDialogMock.isOpen = true
+      revokeDialogMock.item = mockUser
+      render(<UserDetail />, { wrapper })
+
+      expect(screen.getByText('Revoke user tokens?')).toBeInTheDocument()
+    })
+
+    it('disables delete action in kebab menu when canDelete is false', async () => {
+      vi.mocked(useUserPermissions).mockReturnValue({
+        canCreate: true,
+        canUpdate: true,
+        canDelete: false,
+        canRevoke: true,
+        isLoading: false,
+        tooltips: { create: '', update: '', delete: 'Insufficient permissions', revoke: '' },
+      })
+
+      const user = userEvent.setup()
+      render(<UserDetail />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'User actions' }))
+      expect(screen.getByRole('menuitem', { name: /delete user/i })).toHaveAttribute('aria-disabled', 'true')
+    })
+
+    it('disables revoke action in kebab menu when canRevoke is false', async () => {
+      vi.mocked(useUserPermissions).mockReturnValue({
+        canCreate: true,
+        canUpdate: true,
+        canDelete: true,
+        canRevoke: false,
+        isLoading: false,
+        tooltips: { create: '', update: '', delete: '', revoke: 'Insufficient permissions' },
+      })
+
+      const user = userEvent.setup()
+      render(<UserDetail />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'User actions' }))
+      expect(screen.getByRole('menuitem', { name: /revoke tokens/i })).toHaveAttribute('aria-disabled', 'true')
     })
 
     it('navigates back to users list when Back to users button in error state is clicked', async () => {

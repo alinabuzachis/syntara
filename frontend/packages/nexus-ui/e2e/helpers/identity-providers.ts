@@ -42,7 +42,7 @@ export async function gotoIdentityProviderDetail(
   if (tab === 'group-mapping') {
     await expect(app.getByRole('tab', { name: /Group mapping/i })).toHaveAttribute('aria-selected', 'true')
     await expect(
-      app.getByRole('button', { name: /Add manually/i }).or(app.getByRole('button', { name: /Edit mapping/i }))
+      app.getByRole('button', { name: /Add manually/i }).or(app.getByRole('button', { name: /Edit group mapping/i }))
     ).toBeVisible({ timeout: 15_000 })
   }
 }
@@ -88,14 +88,14 @@ export async function gotoClaimMappingWizardStep(app: Page): Promise<void> {
   await expect(app.getByText('Subject claim')).toBeVisible()
 }
 
-/** Open the dedicated group mapping form (via Add manually or Edit mapping on the tab). */
+/** Open the dedicated group mapping form (via Add manually or Edit group mapping on the tab). */
 export async function enterGroupMappingEditMode(app: Page): Promise<void> {
   const addManually = app.getByRole('button', { name: /Add manually/i })
   const fromEmptyState = await addManually.isVisible()
   if (fromEmptyState) {
     await addManually.click()
   } else {
-    await app.getByRole('button', { name: /Edit mapping/i }).click()
+    await app.getByRole('button', { name: /Edit group mapping/i }).click()
   }
   const expectedHeading = fromEmptyState ? 'Add group mapping' : 'Edit group mapping'
   await expect(app.getByRole('heading', { level: 1, name: expectedHeading })).toBeVisible()

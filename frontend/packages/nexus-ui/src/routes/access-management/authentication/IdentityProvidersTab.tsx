@@ -70,7 +70,7 @@ function getRowActions(
         : undefined,
     },
     {
-      title: <IconLabel icon={<RhUiEditIcon />}>Edit mapping</IconLabel>,
+      title: <IconLabel icon={<RhUiEditIcon />}>Edit group mapping</IconLabel>,
       isDisabled: !id,
       isAriaDisabled: !permissions.canUpdate,
       tooltipProps: tooltipWhenDenied(permissions.canUpdate, permissions.tooltips.editMapping),
