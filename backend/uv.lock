@@ -2411,6 +2411,7 @@ name = "orchestrator-cli"
 version = "0.1.0"
 source = { editable = "src/cli" }
 dependencies = [
+    { name = "click" },
     { name = "pyyaml" },
     { name = "syntara-api-client" },
     { name = "typer" },
@@ -2418,6 +2419,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "click", specifier = ">=8.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "syntara-api-client", editable = "src/api_client" },
     { name = "typer", specifier = ">=0.9.0" },

@@ -232,17 +232,16 @@ def load_spec() -> dict[str, Any]:
         if cached_fallback is not None:
             return cached_fallback
 
-        import syntara_api_client
-
-        fallback = Path(syntara_api_client.__file__).resolve().parent / "openapi.yaml"
-        if fallback.exists():
+        package_spec = Path(__file__).resolve().parent / "openapi.yaml"
+        if package_spec.exists():
             note("spec_source", "package_openapi_yaml")
-            with phase("spec.load_package_fallback"), fallback.open("rb") as f:
+            with phase("spec.load_package_fallback"), package_spec.open("rb") as f:
                 pkg_spec: dict[str, Any] = yaml.safe_load(f)
                 return pkg_spec
 
         msg = (
             "Cannot find OpenAPI spec: no schemas directory, no cached spec, "
-            "and no bundled openapi.yaml in the package."
+            "and no bundled openapi.yaml in the orchestrator_cli package. "
+            "Run 'make api-spec-bundle' to generate the spec."
         )
         raise FileNotFoundError(msg)

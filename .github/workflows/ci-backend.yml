@@ -127,6 +127,13 @@ jobs:
             exit 1
           fi
 
+      - name: Verify CLI openapi.yaml is in sync with schemas copy
+        run: |
+          diff -q backend/src/nexus/schemas/openapi.yaml backend/src/cli/orchestrator_cli/openapi.yaml || {
+            echo "::error::CLI-bundled openapi.yaml is out of sync with schemas/openapi.yaml. Copy the file and commit: cp backend/src/nexus/schemas/openapi.yaml backend/src/cli/orchestrator_cli/openapi.yaml"
+            exit 1
+          }
+
   api-spec-drift:
     name: (Backend) API Spec Drift
     needs: changes

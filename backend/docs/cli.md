@@ -4,11 +4,19 @@ The `orchestrator` command-line client provides access to the Orchestrator API f
 
 ## Installation
 
+Build and install from this monorepo (recommended for a working CLI):
+
 ```bash
-pip install orchestrator-cli
+cd backend/src/api_client && uv build
+cd ../cli && uv build
+uv pip install \
+  ../api_client/dist/syntara_api_client-*.whl \
+  ./dist/orchestrator_cli-*.whl
 ```
 
-This installs the `orchestrator` command. You can also run it as a Python module:
+`orchestrator-cli` bundles `openapi.yaml` so `from orchestrator_cli import app` works outside the source tree. Dynamic commands still require the **monorepo** `syntara-api-client` wheel (tag-module layout under `syntara_api_client/api/…`). The PyPI distribution with the same name is a different package and yields zero command groups.
+
+You can also run it as a Python module:
 
 ```bash
 python -m orchestrator_cli

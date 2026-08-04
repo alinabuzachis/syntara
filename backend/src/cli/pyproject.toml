@@ -6,6 +6,7 @@ license = "Apache-2.0"
 authors = []
 requires-python = ">=3.10"
 dependencies = [
+    "click>=8.0",
     "syntara-api-client",
     "typer>=0.9.0",
     "pyyaml>=6.0",

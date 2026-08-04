@@ -574,6 +574,8 @@ api-spec-bundle: ## Bundle all domain sub-specs into a single merged openapi.yam
 	uv run python tools/bundle_openapi.py -o $(OPENAPI_SPEC)
 	@uv run pre-commit run yamlfmt --files $(OPENAPI_SPEC) > /dev/null 2>&1 || true
 	@echo "✅ Bundled spec written to $(OPENAPI_SPEC)"
+	@cp $(OPENAPI_SPEC) src/cli/orchestrator_cli/openapi.yaml
+	@echo "📎 Spec also copied to src/cli/orchestrator_cli/openapi.yaml"
 
 
 # Tools
