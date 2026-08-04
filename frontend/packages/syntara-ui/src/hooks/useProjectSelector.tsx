@@ -14,6 +14,21 @@ import {
 } from './useProjectSelector.constants'
 import { ProjectSelectorDropdown } from './useProjectSelector.dropdown'
 
+/**
+ * Module-level flag: true after ANY `useProjectSelector` instance handles an
+ * explicit user project selection in the current browser session.  Shared across
+ * all mounted instances so the stale-selection guard in one instance (e.g. an
+ * always-mounted dialog) cannot clear a selection made by another instance (e.g.
+ * the page-level selector).  Resets to false on page reload, which is exactly
+ * when the guard *should* validate the persisted ID.
+ */
+let userExplicitlySelected = false
+
+/** @internal Test-only: reset the module-level explicit-selection flag between test cases. */
+export function resetExplicitSelectionFlag(): void {
+  userExplicitlySelected = false
+}
+
 function resolveMenuToggleStatus(
   requireProject: boolean,
   hasValidationError: boolean,
@@ -169,7 +184,8 @@ function useProjectSelectorSyncEffects({
       isInitialPage &&
       !projectsQueryIsFetching &&
       projects.length > 0 &&
-      !projects.some((p) => p.id === selectedProjectId)
+      !projects.some((p) => p.id === selectedProjectId) &&
+      !userExplicitlySelected
     ) {
       setSelectedProjectId(null)
     }
@@ -258,11 +274,13 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
       }
       const projectId = typeof value === 'string' ? value : null
       if (projectId === ALL_PROJECTS_VALUE) {
+        userExplicitlySelected = false
         setSelectedProjectId(null)
         setIsOpen(false)
         resetPagination()
         return
       }
+      userExplicitlySelected = true
       const selected = projectId ? (projects.find((p) => p.id === projectId) ?? null) : null
       setSelectedProjectId(projectId, selected?.name ?? null)
       setIsOpen(false)

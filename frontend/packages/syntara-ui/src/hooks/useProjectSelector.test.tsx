@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, renderHook, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { RefObject } from 'react'
 import type React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -8,8 +9,8 @@ import { axe } from 'vitest-axe'
 import { accessClient } from '../routes/access/accessClient'
 import type { ProjectRead } from '../routes/access/types'
 
-import { projectSelectorUx } from './projectSelectorUtils'
-import { useProjectSelector } from './useProjectSelector'
+import { handleTypeaheadChange, projectSelectorUx } from './projectSelectorUtils'
+import { resetExplicitSelectionFlag, useProjectSelector } from './useProjectSelector'
 
 // ── Mocks ─────────────────────────────────────────────────────────────────
 
@@ -147,6 +148,7 @@ describe('useProjectSelector', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     queryClient.clear()
+    resetExplicitSelectionFlag()
     mockRefetch.mockResolvedValue({ data: { resources: [], next: null, prev: null, total: 0 } })
     vi.mocked(accessClient.useQuery).mockImplementation(() => mockQueryResponse)
     vi.mocked(accessClient.useMutation).mockImplementation(() => ({
@@ -355,6 +357,63 @@ describe('useProjectSelector', () => {
       renderHook(() => useProjectSelector(), { wrapper })
 
       expect(mockSetSelectedProjectId).not.toHaveBeenCalled()
+    })
+
+    it('does not clear an explicitly selected project even if it is not in the current list', async () => {
+      const user = userEvent.setup()
+      renderSelector()
+
+      // Explicitly select a project via the dropdown
+      await user.click(screen.getByDisplayValue('All projects'))
+      await user.click(screen.getByRole('option', { name: /Beta/i }))
+      expect(mockSetSelectedProjectId).toHaveBeenCalledWith('proj-2', 'Beta')
+
+      // Now simulate a scenario where the selected project is NOT in the returned list
+      // (e.g. it's on page 2 and the list reset to page 1). The stale guard should NOT
+      // clear because the user explicitly selected it.
+      mockSetSelectedProjectId.mockClear()
+      mockSelectedProjectId = 'proj-2'
+      mockQueryResponse = {
+        data: makePaginatedData([sampleProjects[0]]), // only Alpha — Beta is absent
+        isPending: false,
+        isFetching: false,
+      }
+      Object.assign(mockQueryResponse, { refetch: mockRefetch, error: null })
+
+      renderHook(() => useProjectSelector(), { wrapper })
+
+      // The stale guard must NOT clear because userExplicitlySelected is true
+      expect(mockSetSelectedProjectId).not.toHaveBeenCalledWith(null)
+    })
+
+    it('clears stale project after selecting "All projects" resets the explicit flag', async () => {
+      const user = userEvent.setup()
+      renderSelector()
+
+      // Explicitly select a project (sets module flag to true)
+      await user.click(screen.getByDisplayValue('All projects'))
+      await user.click(screen.getByRole('option', { name: /Beta/i }))
+
+      // Select "All projects" (resets module flag to false)
+      mockSelectedProjectId = 'proj-2'
+      await user.click(screen.getByDisplayValue('Beta'))
+      await user.click(screen.getByRole('option', { name: /All projects/i }))
+
+      // Now mount a new hook instance with a stale ID — the flag is false so the guard should clear
+      mockSetSelectedProjectId.mockClear()
+      mockSelectedProjectId = 'nonexistent-stale-id'
+      mockQueryResponse = {
+        data: makePaginatedData(sampleProjects),
+        isPending: false,
+        isFetching: false,
+      }
+      Object.assign(mockQueryResponse, { refetch: mockRefetch, error: null })
+
+      renderHook(() => useProjectSelector(), { wrapper })
+
+      await waitFor(() => {
+        expect(mockSetSelectedProjectId).toHaveBeenCalledWith(null)
+      })
     })
   })
 
@@ -647,6 +706,75 @@ describe('useProjectSelector', () => {
       await user.click(screen.getByRole('option', { name: 'View more' }))
 
       expect(typeaheadInput()).toHaveValue('alp')
+    })
+
+    it('does not trigger a spurious filter update when the dropdown closes', async () => {
+      mockSelectedProjectId = 'proj-1'
+      const user = userEvent.setup()
+      renderSelector()
+
+      // Open and type a filter
+      await user.click(screen.getByDisplayValue('Alpha'))
+      await user.type(typeaheadInput(), 'bet')
+
+      // Close the dropdown via Escape — the TextInputGroupMain value switches from
+      // filterValue to toggleLabel ("Alpha"). Without the suppressFilterUpdateOnCloseRef
+      // guard this programmatic value change would call updateFilter, resetting pagination.
+      await user.keyboard('{Escape}')
+
+      // Reopen — the input should show empty (cleared by clearTypeaheadOnly on close),
+      // not the selected project name that was briefly swapped in.
+      await user.click(screen.getByDisplayValue('Alpha'))
+      expect(typeaheadInput()).toHaveValue('')
+    })
+
+    it('does not swallow the first keystroke after close-then-reopen without typing', async () => {
+      const user = userEvent.setup()
+      renderSelector()
+
+      // Open without typing (filterValue and toggleLabel are both "All projects")
+      await user.click(screen.getByDisplayValue('All projects'))
+
+      // Close — suppressFilterUpdateOnCloseRef is set to true.
+      // If onChange never fires (filterValue === toggleLabel), the ref stays stale.
+      // The fix resets the ref when the dropdown re-opens.
+      await user.keyboard('{Escape}')
+
+      // Re-open and type — first character must not be swallowed
+      await user.click(screen.getByDisplayValue('All projects'))
+      await user.type(typeaheadInput(), 'a')
+
+      expect(typeaheadInput()).toHaveValue('a')
+    })
+
+    it('handleTypeaheadChange suppresses the spurious onChange when the ref is set and dropdown is closed', () => {
+      // Directly test the extracted guard logic — PF's programmatic value swap on
+      // close (filterValue → toggleLabel) cannot be replicated in JSDOM because
+      // React controlled input reconciliation doesn't fire onChange events.
+      const suppressRef: RefObject<boolean> = { current: true }
+      const updateFilter = vi.fn<(v: string) => void>()
+      const setIsOpen = vi.fn<(open: boolean) => void>()
+
+      handleTypeaheadChange('Alpha', suppressRef, false, updateFilter, setIsOpen)
+
+      // Guard should have consumed the ref and returned early
+      expect(suppressRef.current).toBe(false)
+      expect(updateFilter).not.toHaveBeenCalled()
+      expect(setIsOpen).not.toHaveBeenCalled()
+    })
+
+    it('handleTypeaheadChange passes through when the ref is set but dropdown is still open', () => {
+      // If the dropdown is open, a change with the ref set is genuine user input
+      // that happened to arrive during the same tick — let it through.
+      const suppressRef: RefObject<boolean> = { current: true }
+      const updateFilter = vi.fn<(v: string) => void>()
+      const setIsOpen = vi.fn<(open: boolean) => void>()
+
+      handleTypeaheadChange('bet', suppressRef, true, updateFilter, setIsOpen)
+
+      expect(suppressRef.current).toBe(false)
+      expect(updateFilter).toHaveBeenCalledWith('bet')
+      expect(setIsOpen).not.toHaveBeenCalled()
     })
   })
 

@@ -16,6 +16,7 @@ import {
   Tooltip,
 } from '@patternfly/react-core'
 import { RhUiAddIcon, TimesIcon } from '@patternfly/react-icons'
+import { useRef } from 'react'
 import type { CSSProperties, Dispatch, MouseEvent, ReactNode, SetStateAction } from 'react'
 
 import { NxSelect } from '../components/NxSelect'
@@ -25,6 +26,7 @@ import { detachPromise } from '../utils/detachPromise'
 
 import {
   getProjectTogglePrefixLabelStyle,
+  handleTypeaheadChange,
   PROJECT_SELECTOR_LIST_MAX_HEIGHT,
   PROJECT_SELECTOR_WIDTH,
   projectSelectorUx,
@@ -211,6 +213,15 @@ export function ProjectSelectorDropdown(props: Readonly<ProjectSelectorDropdownP
     setSelectedProjectId,
   } = props
 
+  /**
+   * When the dropdown closes, `TextInputGroupMain` value switches from `filterValue`
+   * to `toggleLabel` (the selected project name). This programmatic value change can
+   * fire `onChange`, which would call `updateFilter` and reset pagination — dropping
+   * View-more pages and triggering the stale-selection guard. This ref suppresses that
+   * single spurious `onChange` so only genuine user input reaches `updateFilter`.
+   */
+  const suppressFilterUpdateOnCloseRef = useRef(false)
+
   return (
     <>
       <NxSelect
@@ -218,6 +229,7 @@ export function ProjectSelectorDropdown(props: Readonly<ProjectSelectorDropdownP
         variant="typeahead"
         shouldFocusFirstItemOnOpen={false}
         onOpenChange={(open) => {
+          if (!open) suppressFilterUpdateOnCloseRef.current = true
           setIsOpen(open)
           if (!open) clearTypeaheadOnly()
         }}
@@ -256,11 +268,15 @@ export function ProjectSelectorDropdown(props: Readonly<ProjectSelectorDropdownP
                   value={isOpen ? filterValue : toggleLabel}
                   aria-label="Project"
                   aria-invalid={menuToggleStatus === 'danger'}
-                  onChange={(_e, val) => {
-                    updateFilter(val)
-                    if (!isOpen) setIsOpen(true)
+                  onChange={(_e, val) =>
+                    handleTypeaheadChange(val, suppressFilterUpdateOnCloseRef, isOpen, updateFilter, setIsOpen)
+                  }
+                  onClick={() => {
+                    if (!isOpen) {
+                      suppressFilterUpdateOnCloseRef.current = false
+                      setIsOpen(true)
+                    }
                   }}
-                  onClick={() => (isOpen ? null : setIsOpen(true))}
                   placeholder={toggleLabel}
                   autoComplete="off"
                 />

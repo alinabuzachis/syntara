@@ -3,7 +3,7 @@
  * Keep logic comparisons out of `projectSelectorUx` — use internal keys in code instead.
  */
 
-import type { CSSProperties } from 'react'
+import type { CSSProperties, RefObject } from 'react'
 
 /**
  * No `--pf-t--global--*` width token exists for "select menu max width".
@@ -49,4 +49,27 @@ export function getProjectTogglePrefixLabelStyle(isDisabled: boolean | undefined
     paddingInlineStart: 'var(--pf-t--global--spacer--control--horizontal--default)',
     paddingInlineEnd: 'var(--pf-t--global--spacer--xs)',
   }
+}
+
+/**
+ * Handles `onChange` from the typeahead input, guarding against the spurious
+ * event PF fires when the dropdown closes and the displayed value swaps from
+ * `filterValue` back to `toggleLabel`.
+ *
+ * Extracted as a standalone function so the guard branches can be unit-tested
+ * directly — PF's programmatic value swap cannot be replicated in JSDOM.
+ */
+export function handleTypeaheadChange(
+  val: string,
+  suppressRef: RefObject<boolean>,
+  isOpen: boolean,
+  updateFilter: (v: string) => void,
+  setIsOpen: (open: boolean) => void
+): void {
+  if (suppressRef.current) {
+    suppressRef.current = false
+    if (!isOpen) return
+  }
+  updateFilter(val)
+  if (!isOpen) setIsOpen(true)
 }
