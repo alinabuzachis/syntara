@@ -164,10 +164,10 @@ export default tseslint.config(
       ],
     },
   },
-  // NxLink.tsx is the one file that legitimately imports TanStack Link directly —
-  // it is the app-level wrapper that all other files must use instead.
+  // NxLink.tsx wraps TanStack Link for general use. NxPageBreadcrumbs also
+  // imports Link directly because NxLink renders a PF6 Button (wrong for breadcrumb styling).
   {
-    files: ['**/components/NxLink.tsx'],
+    files: ['**/components/NxLink.tsx', '**/components/layout/NxPageBreadcrumbs.tsx'],
     rules: {
       '@typescript-eslint/no-restricted-imports': 'off',
     },

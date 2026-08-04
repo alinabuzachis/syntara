@@ -47,7 +47,13 @@ const mockNavigate = vi.fn()
 
 vi.mock('@tanstack/react-router', async () => {
   const actual = await vi.importActual('@tanstack/react-router')
-  return { ...actual, useNavigate: () => mockNavigate, useParams: vi.fn(() => ({ integrationId: 'int-1' })) }
+  const { MockLink } = await import('../../../test/setup')
+  return {
+    ...actual,
+    Link: MockLink,
+    useNavigate: () => mockNavigate,
+    useParams: vi.fn(() => ({ integrationId: 'int-1' })),
+  }
 })
 
 vi.mock('../../builder/components/CredentialSelector', () => ({

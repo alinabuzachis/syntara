@@ -6,19 +6,15 @@ import { useMemo, useState } from 'react'
 
 import type { AppBreadcrumbItem } from '../../app/breadcrumbs/appBreadcrumbItem'
 import { detachPromise } from '../../utils/detachPromise'
-import { isModifiedClick } from '../../utils/isModifiedClick'
 
 type BreadcrumbDropdownToggleProps = Readonly<{
   toggleRef: Ref<MenuToggleElement | null>
-  /** Whether the dropdown is currently open. */
   isOpen: boolean
-  /** Number of collapsed middle segments, shown in the badge and announced to screen readers. */
   middleCount: number
   /** Opens/closes the dropdown. PF6 Dropdown does not wire this — the toggle must call it. */
   onClick: () => void
 }>
 
-/** Plain-text menu toggle displaying a badge with the count of hidden breadcrumb segments. */
 function BreadcrumbDropdownToggle(props: BreadcrumbDropdownToggleProps) {
   const { toggleRef, isOpen, middleCount, onClick } = props
   return (
@@ -45,11 +41,9 @@ function renderBreadcrumbDropdownToggle(
 }
 
 export type NxPageBreadcrumbsCollapsedMiddleProps = Readonly<{
-  /** The middle breadcrumb segments to collapse behind the dropdown toggle. */
   middleItems: readonly AppBreadcrumbItem[]
 }>
 
-/** Narrow-layout breadcrumb: collapses two or more middle segments behind a dropdown toggle. */
 export function NxPageBreadcrumbsCollapsedMiddle(props: NxPageBreadcrumbsCollapsedMiddleProps) {
   const { middleItems } = props
   const [isOpen, setIsOpen] = useState(false)
@@ -72,7 +66,7 @@ export function NxPageBreadcrumbsCollapsedMiddle(props: NxPageBreadcrumbsCollaps
               key={item.href ?? item.label}
               to={item.href}
               onClick={(e: MouseEvent) => {
-                if (item.href && !isModifiedClick(e)) {
+                if (item.href && !(e.metaKey || e.altKey || e.ctrlKey || e.shiftKey || e.button !== 0)) {
                   e.preventDefault()
                   detachPromise(navigate({ to: item.href }))
                 }

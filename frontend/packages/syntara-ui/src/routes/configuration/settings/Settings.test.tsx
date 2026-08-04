@@ -22,8 +22,10 @@ const mockShowWarning = vi.fn()
 
 vi.mock('@tanstack/react-router', async () => {
   const actual = await vi.importActual('@tanstack/react-router')
+  const { MockLink } = await import('../../../test/setup')
   return {
     ...actual,
+    Link: MockLink,
     useNavigate: () => mockSetLocation,
     useRouterState: vi.fn((opts?: { select?: (s: { location: { pathname: string } }) => unknown }) => {
       const state = { location: { pathname: mockLocation.value } }

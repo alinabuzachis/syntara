@@ -35,8 +35,10 @@ vi.mock('../../../hooks/routing/useLocation', () => ({
 
 vi.mock('@tanstack/react-router', async () => {
   const actual = await vi.importActual('@tanstack/react-router')
+  const { MockLink } = await import('../../../test/setup')
   return {
     ...actual,
+    Link: MockLink,
     useParams: () => ({ userId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
   }
 })

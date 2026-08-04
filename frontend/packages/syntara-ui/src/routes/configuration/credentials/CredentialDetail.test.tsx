@@ -87,8 +87,10 @@ vi.mock('../../../client', () => ({
 
 vi.mock('@tanstack/react-router', async () => {
   const actual = await vi.importActual('@tanstack/react-router')
+  const { MockLink } = await import('../../../test/setup')
   return {
     ...actual,
+    Link: MockLink,
     useNavigate: () => mockNavigate,
     useParams: vi.fn(() => ({ credentialId: '1' })),
     useRouterState: (opts?: { select?: (s: { location: { pathname: string; searchStr: string } }) => unknown }) => {

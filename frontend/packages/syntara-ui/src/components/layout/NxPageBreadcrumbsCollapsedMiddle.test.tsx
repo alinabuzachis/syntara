@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import type { AppBreadcrumbItem } from '../../app/breadcrumbs/appBreadcrumbItem'
 
@@ -106,5 +107,19 @@ describe('NxPageBreadcrumbsCollapsedMiddle', () => {
 
     const noLinkItem = screen.getByRole('menuitem', { name: 'No link' })
     expect(noLinkItem).not.toHaveAttribute('href')
+  })
+
+  it('has no accessibility violations when the dropdown is open', async () => {
+    const { Breadcrumb } = await import('@patternfly/react-core')
+    const user = userEvent.setup()
+    const { container } = render(
+      <Breadcrumb>
+        <NxPageBreadcrumbsCollapsedMiddle middleItems={MIDDLE_ITEMS} />
+      </Breadcrumb>
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Earlier pages, 2 levels' }))
+
+    expect(await axe(container)).toHaveNoViolations()
   })
 })

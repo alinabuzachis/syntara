@@ -23,6 +23,21 @@ function applyUrlUpdate(url: string) {
 
 export const mockUseSearch = vi.fn(() => ({}))
 
+export function MockLink({
+  to,
+  children,
+  className,
+  style,
+  ...rest
+}: {
+  to: string
+  children: React.ReactNode
+  className?: string
+  style?: React.CSSProperties
+}) {
+  return React.createElement('a', { href: String(to), className, style, ...rest }, children)
+}
+
 export const routerTestState = {
   pathname: '/',
   searchStr: '',
@@ -42,18 +57,7 @@ vi.mock('@tanstack/react-router', async () => {
   const actual = await vi.importActual<typeof import('@tanstack/react-router')>('@tanstack/react-router')
   return {
     ...actual,
-    Link: ({
-      to,
-      children,
-      className,
-      style,
-      ...rest
-    }: {
-      to: string
-      children: React.ReactNode
-      className?: string
-      style?: React.CSSProperties
-    }) => React.createElement('a', { href: String(to), className, style, ...rest }, children),
+    Link: MockLink,
     useSearch: mockUseSearch,
     useNavigate: () => routerTestState.navigate,
     useRouterState: (opts?: { select?: (s: { location: { pathname: string; searchStr: string } }) => unknown }) => {

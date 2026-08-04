@@ -52,9 +52,10 @@ vi.mock('../../../access/useAllGroups', () => ({
 
 vi.mock('@tanstack/react-router', async () => {
   const actual = await vi.importActual('@tanstack/react-router')
-  const { routerTestState } = await import('../../../../test/setup')
+  const { routerTestState, MockLink } = await import('../../../../test/setup')
   return {
     ...actual,
+    Link: MockLink,
     useParams: () => ({ providerId: mockProviderIdRef.current }),
     useRouterState: vi.fn(
       (opts?: { select?: (s: { location: { pathname: string; searchStr: string } }) => unknown }) => {

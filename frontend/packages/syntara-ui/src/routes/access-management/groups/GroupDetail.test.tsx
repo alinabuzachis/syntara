@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../../providers/alerts'
-import { routerTestState } from '../../../test/setup'
+import { routerTestState, MockLink } from '../../../test/setup'
 import { accessClient, accessFetchClient } from '../../access/accessClient'
 import { useGroupPermissions } from '../useGroupPermissions'
 
@@ -42,6 +42,7 @@ vi.mock('@tanstack/react-router', async () => {
   const actual = await vi.importActual('@tanstack/react-router')
   return {
     ...actual,
+    Link: MockLink,
     useParams: () => mockUseParams(),
     useNavigate: () => routerTestState.navigate,
     useRouterState: (opts?: { select?: (s: { location: { pathname: string; searchStr: string } }) => unknown }) => {

@@ -49,9 +49,10 @@ const mockUseParams = vi.fn(() => ({}))
 vi.mock('@tanstack/react-router', async () => {
   const actual = await vi.importActual('@tanstack/react-router')
   // Import global setup's router mock
-  const { routerTestState } = await import('../../../test/setup')
+  const { routerTestState, MockLink } = await import('../../../test/setup')
   return {
     ...actual,
+    Link: MockLink,
     useParams: () => mockUseParams(),
     useNavigate: () => routerTestState.navigate,
     useRouterState: (opts?: { select?: (s: { location: { pathname: string; searchStr: string } }) => unknown }) => {

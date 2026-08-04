@@ -36,9 +36,10 @@ const { mockUseParams } = vi.hoisted(() => ({
 
 vi.mock('@tanstack/react-router', async () => {
   const actual = await vi.importActual('@tanstack/react-router')
-  const { routerTestState } = await import('../../../../test/setup')
+  const { routerTestState, MockLink } = await import('../../../../test/setup')
   return {
     ...actual,
+    Link: MockLink,
     useParams: () => mockUseParams(),
     useNavigate: () => routerTestState.navigate,
   }

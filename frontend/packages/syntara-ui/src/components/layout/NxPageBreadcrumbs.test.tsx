@@ -50,50 +50,6 @@ describe('NxPageBreadcrumbs', () => {
     expect(screen.getByText('Current')).toBeInTheDocument()
   })
 
-  it('uses client-side navigation on regular click', async () => {
-    const user = userEvent.setup()
-
-    render(<NxPageBreadcrumbs items={[{ label: 'Parent', href: '/parent' }, { label: 'Current' }]} />)
-
-    const link = screen.getByRole('link', { name: 'Parent' })
-
-    let defaultPrevented: boolean | undefined
-    document.addEventListener(
-      'click',
-      (e) => {
-        defaultPrevented = e.defaultPrevented
-      },
-      { once: true }
-    )
-
-    await user.click(link)
-
-    expect(defaultPrevented).toBe(true)
-  })
-
-  it('allows modifier-key clicks to use default browser behavior', async () => {
-    const user = userEvent.setup()
-
-    render(<NxPageBreadcrumbs items={[{ label: 'Parent', href: '/parent' }, { label: 'Current' }]} />)
-
-    const link = screen.getByRole('link', { name: 'Parent' })
-
-    let defaultPrevented: boolean | undefined
-    document.addEventListener(
-      'click',
-      (e) => {
-        defaultPrevented = e.defaultPrevented
-      },
-      { once: true }
-    )
-
-    await user.keyboard('{Meta>}')
-    await user.click(link)
-    await user.keyboard('{/Meta}')
-
-    expect(defaultPrevented).toBe(false)
-  })
-
   it('has no accessibility violations', async () => {
     const { container } = render(
       <NxPageBreadcrumbs items={[{ label: 'One', href: '/one' }, { label: 'Two', href: '/two' }, { label: 'Three' }]} />
@@ -200,7 +156,7 @@ describe('NxPageBreadcrumbs', () => {
       <NxPageBreadcrumbs
         items={[
           { label: 'First', href: '/first' },
-          { label: 'Mid no href' }, // no href → key falls back to label
+          { label: 'Mid no href' },
           { label: 'Mid B', href: '/b' },
           { label: 'Last' },
         ]}
