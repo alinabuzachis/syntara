@@ -59,6 +59,23 @@ class ApprovalDecidedEvent:
 
 
 @dataclass
+class ApprovalDecisionDeniedEvent:
+    """Domain event fired when a user is denied an approval decision.
+
+    Covers approver-list denials (user has permission but is not in the
+    approval's approver_users/groups) for both single and batch endpoints.
+    """
+
+    approval_id: UUID
+    execution_id: UUID
+    approval_node_id: str
+    user_id: UUID
+    username: str
+    action: str = field(default="decide")
+    principal_type: PrincipalType | None = field(default=None)
+
+
+@dataclass
 class ApprovalExpiredEvent:
     """Domain event fired when a pending approval request expires due to decision window timeout."""
 
@@ -115,6 +132,35 @@ class ApprovalExpiredHandler(AuditEventHandler[ApprovalExpiredEvent]):
             source_component="nexus.approvals",
             structured_data=data,
             actor_type=PrincipalType.SYSTEM,
+            execution_id=event.execution_id,
+            activity_id=event.approval_node_id,
+            resource_urn=f"urn:syntara:approval:{event.approval_id}",
+            resource_name=event.approval_node_id,
+        )
+
+
+class ApprovalDecisionDeniedHandler(AuditEventHandler[ApprovalDecisionDeniedEvent]):
+    """Maps an ApprovalDecisionDeniedEvent to a SECURITY_EVENT AuditEvent."""
+
+    def handle(self, event: ApprovalDecisionDeniedEvent) -> AuditEvent:
+        """Map an ApprovalDecisionDeniedEvent to a normalized AuditEvent."""
+        data = AuditContextData(
+            data_type="authorization-denied",
+            resource_type="approval",
+            action=event.action,
+        )
+
+        return AuditEvent(
+            event_category=EventCategory.SECURITY_EVENT,
+            event_severity=EventSeverity.WARNING,
+            event_status=EventStatus.ERROR,
+            event_action="authorization_denied",
+            event_message=f"Authorization denied: {event.action} on approval",
+            source_component="nexus.approvals",
+            structured_data=data,
+            actor_id=event.user_id,
+            actor_type=resolve_actor_type(actor_id=event.user_id, principal_type=event.principal_type),
+            actor_username=event.username,
             execution_id=event.execution_id,
             activity_id=event.approval_node_id,
             resource_urn=f"urn:syntara:approval:{event.approval_id}",

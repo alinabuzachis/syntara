@@ -6,6 +6,8 @@ from uuid import uuid4
 from nexus.approvals.audit.approval import (
     ApprovalDecidedEvent,
     ApprovalDecidedHandler,
+    ApprovalDecisionDeniedEvent,
+    ApprovalDecisionDeniedHandler,
     ApprovalRequestedEvent,
     ApprovalRequestedHandler,
 )
@@ -68,6 +70,88 @@ class TestApprovalRequestedHandler:
         assert result.structured_data is not None
         assert result.structured_data.data_type == "approval-requested"
         assert result.structured_data.name == "Deploy to Production"  # type: ignore[attr-defined]
+
+
+class TestApprovalDecisionDeniedHandler:
+    """Tests for ApprovalDecisionDeniedHandler."""
+
+    def test_is_audit_event_handler_subclass(self) -> None:
+        assert issubclass(ApprovalDecisionDeniedHandler, AuditEventHandler)
+
+    def test_maps_event_to_security_event(self) -> None:
+        approval_id = uuid4()
+        execution_id = uuid4()
+        user_id = uuid4()
+        event = ApprovalDecisionDeniedEvent(
+            approval_id=approval_id,
+            execution_id=execution_id,
+            approval_node_id="approve_deployment",
+            user_id=user_id,
+            username="unauthorized_user",
+            action="decide",
+        )
+        handler = ApprovalDecisionDeniedHandler()
+        result = handler.handle(event)
+
+        assert result.event_category == EventCategory.SECURITY_EVENT
+        assert result.event_severity == EventSeverity.WARNING
+        assert result.event_status == EventStatus.ERROR
+        assert result.event_action == "authorization_denied"
+        assert result.source_component == "nexus.approvals"
+        assert "authorization denied" in result.event_message.lower()
+        assert result.execution_id == execution_id
+        assert result.activity_id == "approve_deployment"
+        assert result.actor_id == user_id
+        assert result.actor_username == "unauthorized_user"
+        assert result.actor_type == PrincipalType.USER
+
+    def test_resource_fields(self) -> None:
+        approval_id = uuid4()
+        event = ApprovalDecisionDeniedEvent(
+            approval_id=approval_id,
+            execution_id=uuid4(),
+            approval_node_id="approve_deployment",
+            user_id=uuid4(),
+            username="test_user",
+        )
+        handler = ApprovalDecisionDeniedHandler()
+        result = handler.handle(event)
+
+        assert result.resource_urn == f"urn:syntara:approval:{approval_id}"
+        assert result.resource_name == "approve_deployment"
+
+    def test_structured_data(self) -> None:
+        event = ApprovalDecisionDeniedEvent(
+            approval_id=uuid4(),
+            execution_id=uuid4(),
+            approval_node_id="approve_deployment",
+            user_id=uuid4(),
+            username="test_user",
+            action="decide",
+        )
+        handler = ApprovalDecisionDeniedHandler()
+        result = handler.handle(event)
+
+        assert result.structured_data is not None
+        assert result.structured_data.data_type == "authorization-denied"
+        assert result.structured_data.resource_type == "approval"  # type: ignore[attr-defined]
+        assert result.structured_data.action == "decide"  # type: ignore[attr-defined]
+
+    def test_delete_action(self) -> None:
+        event = ApprovalDecisionDeniedEvent(
+            approval_id=uuid4(),
+            execution_id=uuid4(),
+            approval_node_id="approve_deployment",
+            user_id=uuid4(),
+            username="test_user",
+            action="delete",
+        )
+        handler = ApprovalDecisionDeniedHandler()
+        result = handler.handle(event)
+
+        assert result.event_action == "authorization_denied"
+        assert result.structured_data is not None
+        assert result.structured_data.action == "delete"  # type: ignore[attr-defined]
 
 
 class TestApprovalDecidedHandler:

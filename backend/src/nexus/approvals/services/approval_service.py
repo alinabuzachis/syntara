@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from nexus.authz.evaluator import AuthzEvaluator
     from nexus.core.models import User
 
-from nexus.approvals.audit.approval import ApprovalDecidedEvent, ApprovalRequestedEvent
+from nexus.approvals.audit.approval import ApprovalDecidedEvent, ApprovalDecisionDeniedEvent, ApprovalRequestedEvent
 from nexus.approvals.clients.workflow_client import WorkflowApiClient
 from nexus.approvals.exceptions import (
     ApprovalAlreadyDecidedError,
@@ -361,6 +361,20 @@ class ApprovalService(BaseService):
         )
         return bool(in_user_list or in_group)
 
+    def _dispatch_authorization_denied(self, approval: ApprovalRequest, action: str) -> None:
+        """Dispatch an authorization-denied audit event for an approval action."""
+        AuditEventDispatcher.dispatch(
+            ApprovalDecisionDeniedEvent(
+                approval_id=approval.id,
+                execution_id=approval.execution_id,
+                approval_node_id=approval.approval_node_id,
+                user_id=self.user.id,
+                username=self.user.username,
+                action=action,
+                principal_type=self.user.__dict__.get("__principal_type__"),
+            )
+        )
+
     async def _validate_execution_reference(self, execution_id: UUID, project_id: UUID) -> None:
         """Validate that the execution exists and belongs to the expected project.
 
@@ -527,6 +541,7 @@ class ApprovalService(BaseService):
             raise ApprovalNotFoundError(approval_id)
 
         if not await self._is_user_authorized_approver(approval, action="delete"):
+            self._dispatch_authorization_denied(approval, action="delete")
             raise ApprovalNotAuthorizedError(approval_id, self.user.id)
 
         if approval.status != ApprovalRequestStatus.PENDING:
@@ -584,6 +599,7 @@ class ApprovalService(BaseService):
         # approval state (pending vs already decided). Checking status first would leak
         # whether the approval has been decided via different exception types.
         if not await self._is_user_authorized_approver(approval):
+            self._dispatch_authorization_denied(approval, action="decide")
             raise ApprovalNotAuthorizedError(approval_id, self.user.id)
 
         # Check if already decided
@@ -713,6 +729,7 @@ class ApprovalService(BaseService):
         # approval state (pending vs already decided). Checking status first would leak
         # whether the approval has been decided via error message differences.
         if not await self._is_user_authorized_approver(approval):
+            self._dispatch_authorization_denied(approval, action="decide")
             return BatchApprovalResult(
                 approval_id=approval_id,
                 success=False,

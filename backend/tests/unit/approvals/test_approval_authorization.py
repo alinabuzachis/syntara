@@ -6,6 +6,8 @@ Tests the authorization logic for approvals including:
 - Authorization checks in decide() and batch_decide()
 """
 
+from typing import Any
+from unittest.mock import patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -13,6 +15,7 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.approvals.audit.approval import ApprovalDecisionDeniedEvent
 from nexus.approvals.exceptions import ApprovalNotAuthorizedError
 from nexus.approvals.models import (
     ActivitySummary,
@@ -27,6 +30,7 @@ from nexus.approvals.models import (
     WorkflowContext,
 )
 from nexus.approvals.services.approval_service import ApprovalService
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.authz.engine import AuthzResult
 from nexus.core.models import Group, User
 from nexus.core.models.group import user_groups
@@ -53,6 +57,8 @@ def _mock_evaluator_for_approver_tests(monkeypatch: pytest.MonkeyPatch, request)
             TestApprovalServiceIsUserAuthorizedApprover,
             TestApprovalServiceDecideAuthorization,
             TestApprovalServiceBatchDecideAuthorization,
+            TestApprovalAuthorizationDeniedAuditEvents,
+            TestApprovalAuthorizationDeniedAuditRegression,
         ),
     ):
         return
@@ -711,3 +717,259 @@ class TestApprovalServiceEvaluatorAuthorization(TestApprovalAuthorizationBase):
         # evaluator allows + empty approver list = authorized (AC5 fallback)
         is_authorized = await service._is_user_authorized_approver(approval)
         assert is_authorized is True
+
+
+class TestApprovalAuthorizationDeniedAuditEvents(TestApprovalAuthorizationBase):
+    """Test that authorization_denied SECURITY_EVENT is emitted on approver-list denials."""
+
+    @pytest.mark.asyncio
+    async def test_decide_unauthorized_emits_authorization_denied_event(
+        self, test_db_session: AsyncSession, users: dict[str, User], executions_factory: ExecutionsFactory
+    ) -> None:
+        """Single decide() emits authorization_denied SECURITY_EVENT before raising."""
+        user = users["user_1"]
+        other_user = users["user_2"]
+        executions = await executions_factory.create_executions(count=1)
+        execution = executions[0]
+
+        request = self._create_approval_request(
+            execution_id=execution.id,
+            approver_user_ids=[other_user.id],
+            project_id=execution.project_id,
+        )
+
+        service = ApprovalService(test_db_session, user)
+        approval_read = await service.create(request)
+
+        decision = ApprovalDecisionRequest(status=ApprovalDecisionStatus.APPROVED)
+
+        with patch("nexus.approvals.services.approval_service.AuditEventDispatcher.dispatch") as mock_dispatch:
+            with pytest.raises(ApprovalNotAuthorizedError):
+                await service.decide(approval_read.id, decision)
+
+            mock_dispatch.assert_called_once()
+            event = mock_dispatch.call_args[0][0]
+            assert isinstance(event, ApprovalDecisionDeniedEvent)
+            assert event.approval_id == approval_read.id
+            assert event.user_id == user.id
+            assert event.username == user.username
+            assert event.action == "decide"
+
+    @pytest.mark.asyncio
+    async def test_batch_decide_unauthorized_emits_per_item_authorization_denied_event(
+        self, test_db_session: AsyncSession, users: dict[str, User], executions_factory: ExecutionsFactory
+    ) -> None:
+        """Batch decide emits authorization_denied for each unauthorized item."""
+        user = users["user_1"]
+        other_user = users["user_2"]
+        executions = await executions_factory.create_executions(count=1)
+        execution = executions[0]
+
+        request1 = self._create_approval_request(
+            execution_id=execution.id,
+            approval_node_id="approval_1",
+            approver_user_ids=[user.id],
+            project_id=execution.project_id,
+        )
+        request2 = self._create_approval_request(
+            execution_id=execution.id,
+            approval_node_id="approval_2",
+            approver_user_ids=[other_user.id],
+            project_id=execution.project_id,
+        )
+
+        service = ApprovalService(test_db_session, user)
+        approval1 = await service.create(request1)
+        approval2 = await service.create(request2)
+
+        batch_request = BatchApprovalRequest(
+            decisions=[
+                BatchApprovalDecision(
+                    approval_id=approval1.id, status=BatchApprovalDecisionStatus.APPROVED, notes="OK"
+                ),
+                BatchApprovalDecision(
+                    approval_id=approval2.id, status=BatchApprovalDecisionStatus.APPROVED, notes="OK"
+                ),
+            ]
+        )
+
+        with patch("nexus.approvals.services.approval_service.AuditEventDispatcher.dispatch") as mock_dispatch:
+            response = await service.batch_decide(batch_request)
+
+        assert response.total_failed == 1
+
+        denied_events = [
+            call.args[0]
+            for call in mock_dispatch.call_args_list
+            if isinstance(call.args[0], ApprovalDecisionDeniedEvent)
+        ]
+        assert len(denied_events) == 1
+        assert denied_events[0].approval_id == approval2.id
+        assert denied_events[0].user_id == user.id
+        assert denied_events[0].action == "decide"
+
+    @pytest.mark.asyncio
+    async def test_delete_unauthorized_emits_authorization_denied_event(
+        self, test_db_session: AsyncSession, users: dict[str, User], executions_factory: ExecutionsFactory
+    ) -> None:
+        """delete() emits authorization_denied SECURITY_EVENT before raising."""
+        user = users["user_1"]
+        other_user = users["user_2"]
+        executions = await executions_factory.create_executions(count=1)
+        execution = executions[0]
+
+        request = self._create_approval_request(
+            execution_id=execution.id,
+            approver_user_ids=[other_user.id],
+            project_id=execution.project_id,
+        )
+
+        service = ApprovalService(test_db_session, user)
+        approval_read = await service.create(request)
+
+        with patch("nexus.approvals.services.approval_service.AuditEventDispatcher.dispatch") as mock_dispatch:
+            with pytest.raises(ApprovalNotAuthorizedError):
+                await service.delete(approval_read.id)
+
+            mock_dispatch.assert_called_once()
+            event = mock_dispatch.call_args[0][0]
+            assert isinstance(event, ApprovalDecisionDeniedEvent)
+            assert event.approval_id == approval_read.id
+            assert event.user_id == user.id
+            assert event.action == "delete"
+
+
+class TestApprovalAuthorizationDeniedAuditRegression(TestApprovalAuthorizationBase):
+    """Regression tests: verify full audit pipeline produces correct AuditEvent.
+
+    Unlike the tests above (which mock the dispatcher and check domain events),
+    these let the real dispatcher + handler run and capture the final AuditEvent
+    at the emitter boundary. If someone changes the handler mapping, these break.
+    """
+
+    def setup_method(self) -> None:
+        """Register audit handlers so the dispatcher routes events to real handlers."""
+        from nexus.approvals.audit.approval import (
+            ApprovalDecidedEvent,
+            ApprovalDecidedHandler,
+            ApprovalDecisionDeniedHandler,
+        )
+
+        AuditEventDispatcher.register(
+            {
+                ApprovalDecisionDeniedEvent: ApprovalDecisionDeniedHandler(),
+                ApprovalDecidedEvent: ApprovalDecidedHandler(),
+            }
+        )
+
+    def teardown_method(self) -> None:
+        """Reset dispatcher registry to avoid leaking into other tests."""
+        AuditEventDispatcher._reset()
+
+    @pytest.mark.asyncio
+    async def test_decide_produces_security_event_audit_record(
+        self, test_db_session: AsyncSession, users: dict[str, User], executions_factory: ExecutionsFactory
+    ) -> None:
+        """Full pipeline: decide() denial produces authorization_denied SECURITY_EVENT."""
+        from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
+
+        user = users["user_1"]
+        other_user = users["user_2"]
+        executions = await executions_factory.create_executions(count=1)
+        execution = executions[0]
+
+        request = self._create_approval_request(
+            execution_id=execution.id,
+            approver_user_ids=[other_user.id],
+            project_id=execution.project_id,
+        )
+
+        service = ApprovalService(test_db_session, user)
+        approval_read = await service.create(request)
+
+        decision = ApprovalDecisionRequest(status=ApprovalDecisionStatus.APPROVED)
+
+        captured_events: list[Any] = []
+        capture = patch(
+            "nexus.audit.dispatcher.emit_audit_event",
+            side_effect=lambda e, _s=None: captured_events.append(e),
+        )
+        with capture:
+            with pytest.raises(ApprovalNotAuthorizedError):
+                await service.decide(approval_read.id, decision)
+
+        assert len(captured_events) == 1
+        audit_event = captured_events[0]
+        assert audit_event.event_category == EventCategory.SECURITY_EVENT
+        assert audit_event.event_action == "authorization_denied"
+        assert audit_event.event_severity == EventSeverity.WARNING
+        assert audit_event.event_status == EventStatus.ERROR
+        assert audit_event.source_component == "nexus.approvals"
+        assert audit_event.actor_id == user.id
+        assert audit_event.actor_username == user.username
+        assert audit_event.resource_urn == f"urn:syntara:approval:{approval_read.id}"
+
+    @pytest.mark.asyncio
+    async def test_batch_decide_produces_per_item_security_event(
+        self, test_db_session: AsyncSession, users: dict[str, User], executions_factory: ExecutionsFactory
+    ) -> None:
+        """Full pipeline: batch denial produces per-item authorization_denied SECURITY_EVENT."""
+        from nexus.audit.models.audit_event import EventCategory, EventSeverity, EventStatus
+
+        user = users["user_1"]
+        other_user = users["user_2"]
+        executions = await executions_factory.create_executions(count=1)
+        execution = executions[0]
+
+        request1 = self._create_approval_request(
+            execution_id=execution.id,
+            approval_node_id="approval_1",
+            approver_user_ids=[user.id],
+            project_id=execution.project_id,
+        )
+        request2 = self._create_approval_request(
+            execution_id=execution.id,
+            approval_node_id="approval_2",
+            approver_user_ids=[other_user.id],
+            project_id=execution.project_id,
+        )
+
+        service = ApprovalService(test_db_session, user)
+        approval1 = await service.create(request1)
+        approval2 = await service.create(request2)
+
+        batch_request = BatchApprovalRequest(
+            decisions=[
+                BatchApprovalDecision(
+                    approval_id=approval1.id, status=BatchApprovalDecisionStatus.APPROVED, notes="OK"
+                ),
+                BatchApprovalDecision(
+                    approval_id=approval2.id, status=BatchApprovalDecisionStatus.APPROVED, notes="OK"
+                ),
+            ]
+        )
+
+        captured_events: list[Any] = []
+        capture = patch(
+            "nexus.audit.dispatcher.emit_audit_event",
+            side_effect=lambda e, _s=None: captured_events.append(e),
+        )
+        with capture:
+            response = await service.batch_decide(batch_request)
+
+        assert response.total_failed == 1
+
+        denied_audit_events = [e for e in captured_events if e.event_action == "authorization_denied"]
+        assert len(denied_audit_events) == 1
+
+        audit_event = denied_audit_events[0]
+        assert audit_event.event_category == EventCategory.SECURITY_EVENT
+        assert audit_event.event_severity == EventSeverity.WARNING
+        assert audit_event.event_status == EventStatus.ERROR
+        assert audit_event.source_component == "nexus.approvals"
+        assert audit_event.actor_id == user.id
+        assert audit_event.resource_urn == f"urn:syntara:approval:{approval2.id}"
+
+        # Successful decision should also produce its own audit event
+        decided_audit_events = [e for e in captured_events if e.event_action == "approval_decided"]
+        assert len(decided_audit_events) == 1
