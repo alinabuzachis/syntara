@@ -60,7 +60,7 @@ export const nodeMetadata: Record<string, NodeMetadata> = {
   condition: {
     icon: RhUiConditionNodeIcon,
     label: 'Condition',
-    expandable: true,
+    expandable: false,
   },
   loop: {
     icon: RhUiLoopNodeIcon,
@@ -81,6 +81,12 @@ export const nodeMetadata: Record<string, NodeMetadata> = {
   wait: {
     icon: RhUiClockIcon,
     label: 'Wait',
+    expandable: false,
+  },
+  /** Canvas Approval node (task executor); separate from `task` so expandable can be false. */
+  approval: {
+    icon: RhUiUserCheckIcon,
+    label: 'Approval',
     expandable: false,
   },
 }

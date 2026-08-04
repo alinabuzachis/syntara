@@ -13,22 +13,21 @@ import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
 import { StandardNodeHeader } from './common/StandardNodeHeader'
 import { MenuNodeType, useNodeMenuActions } from './hooks/useNodeMenuActions'
-import { executorMetadata, nodeMetadata } from './nodeMetadata'
+import { nodeMetadata } from './nodeMetadata'
 import { renderNodeIcon } from './renderNodeIcon'
 
 export type ApprovalNode = { type: 'approval' } & Node<ApprovalNodeType>
 
 export function ApprovalNodeComponent(props: NodeProps<ApprovalNode>) {
-  const metadata = nodeMetadata.task
+  const metadata = nodeMetadata.approval
   const menuActions = useNodeMenuActions({
     nodeId: props.data.id,
     nodeType: MenuNodeType.ACTIVITY,
     disabled: props.data.settings?.disabled ?? false,
   })
 
-  const executorMeta = executorMetadata.approval
-  const iconNode = renderNodeIcon(executorMeta?.icon, 'approval', 'canvas', getNodeTypeColor(ActivityTypeEnum.APPROVAL))
-  const taskExecutor = executorMeta?.label ?? 'Approval'
+  const iconNode = renderNodeIcon(metadata.icon, 'approval', 'canvas', getNodeTypeColor(ActivityTypeEnum.APPROVAL))
+  const taskExecutor = metadata.label
 
   // Extract execution state if present
   const executionState = (props.data as Record<string, unknown>).__executionState as
@@ -53,6 +52,7 @@ export function ApprovalNodeComponent(props: NodeProps<ApprovalNode>) {
       className={metadata.className}
       nodeProps={props}
       disableSource
+      collapsible={false}
       executionState={executionState}
       showExecutionBadge={showExecutionBadge}
       topBarColor={getNodeTypeColor('approval')}
@@ -70,7 +70,7 @@ export function ApprovalNodeComponent(props: NodeProps<ApprovalNode>) {
           icon={iconNode}
           title={props.data.name ?? 'Untitled Approval'}
           subtitle={taskExecutor}
-          expandable
+          expandable={metadata.expandable}
           menuActions={menuActions}
         />
         <Flex justifyContent={{ default: 'justifyContentFlexEnd' }} gap={{ default: 'gapNone' }}>

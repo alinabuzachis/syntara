@@ -92,5 +92,14 @@ describe('ApprovalNodeComponent', () => {
 
       expect(screen.getByText('Approval')).toBeInTheDocument()
     })
+
+    it('does not render expand/collapse toggle', () => {
+      render(<ApprovalNodeComponent {...createNodeProps(baseApprovalNode)} />)
+
+      expect(screen.queryByTestId('node-expand-toggle')).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: /expand step details|collapse step details/i })
+      ).not.toBeInTheDocument()
+    })
   })
 })

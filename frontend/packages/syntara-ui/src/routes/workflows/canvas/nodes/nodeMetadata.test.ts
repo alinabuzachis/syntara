@@ -31,8 +31,15 @@ describe('nodeMetadata', () => {
     it('has metadata for condition node', () => {
       expect(nodeMetadata.condition).toBeDefined()
       expect(nodeMetadata.condition.label).toBe('Condition')
-      expect(nodeMetadata.condition.expandable).toBe(true)
+      expect(nodeMetadata.condition.expandable).toBe(false)
       expect(nodeMetadata.condition.icon).toBeDefined()
+    })
+
+    it('has metadata for approval node', () => {
+      expect(nodeMetadata.approval).toBeDefined()
+      expect(nodeMetadata.approval.label).toBe('Approval')
+      expect(nodeMetadata.approval.expandable).toBe(false)
+      expect(nodeMetadata.approval.icon).toBeDefined()
     })
 
     it('has metadata for loop node', () => {

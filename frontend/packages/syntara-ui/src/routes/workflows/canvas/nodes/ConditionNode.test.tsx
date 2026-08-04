@@ -66,6 +66,15 @@ describe('ConditionNodeComponent', () => {
       expect(screen.getByText('True')).toBeInTheDocument()
       expect(screen.getByText('False')).toBeInTheDocument()
     })
+
+    it('does not render expand/collapse toggle', () => {
+      render(<ConditionNodeComponent {...createNodeProps(baseConditionNode)} />)
+
+      expect(screen.queryByTestId('node-expand-toggle')).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: /expand step details|collapse step details/i })
+      ).not.toBeInTheDocument()
+    })
   })
 
   describe('Untitled condition', () => {

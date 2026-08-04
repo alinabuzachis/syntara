@@ -48,6 +48,7 @@ export function ConditionNodeComponent(props: NodeProps<ConditionNode>) {
       className={metadata.className}
       nodeProps={props}
       disableSource
+      collapsible={false}
       executionState={executionState}
       topBarColor={getNodeTypeColor('condition')}
       semanticZoomSummary={{
@@ -88,7 +89,7 @@ export function ConditionNodeDetails(props: {
         icon={props.icon}
         title={props.conditionActivity.name ?? 'Untitled Condition'}
         subtitle={metadata.label}
-        expandable
+        expandable={metadata.expandable}
         menuActions={props.menuActions}
       />
       <Flex justifyContent={{ default: 'justifyContentFlexEnd' }} gap={{ default: 'gapNone' }}>
