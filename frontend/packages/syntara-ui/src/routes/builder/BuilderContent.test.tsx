@@ -3180,8 +3180,8 @@ describe('BuilderContent', () => {
     it('shows conflict dialog when save returns WORKFLOW_VERSION_CONFLICT', async () => {
       await triggerConflictDialog()
 
-      expect(screen.getByText(/Version 5 was saved by alice/)).toBeInTheDocument()
-      expect(screen.getByText(/Your changes are based on version 3/)).toBeInTheDocument()
+      expect(screen.getByText(/was saved by alice/)).toBeInTheDocument()
+      expect(screen.getByText(/Your changes are based on version/)).toBeInTheDocument()
     })
 
     it('"Save as newest version" retries save with conflict version', async () => {

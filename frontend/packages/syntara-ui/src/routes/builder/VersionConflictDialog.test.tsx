@@ -90,16 +90,61 @@ describe('VersionConflictDialog', () => {
         {...defaultProps}
         conflictInfo={{
           currentVersion: 5,
-          currentVersionName: null,
+          currentVersionName: 'My Release v2',
           expectedVersion: 3,
+          expectedVersionName: 'Initial Draft',
+          expectedVersionCreatedAt: '2026-05-15T10:00:00Z',
           createdByUsername: 'alice',
           createdAt: '2026-06-01T00:00:00Z',
         }}
       />
     )
 
-    expect(screen.getByText(/Version 5 was saved by alice/)).toBeInTheDocument()
-    expect(screen.getByText(/Your changes are based on version 3/)).toBeInTheDocument()
+    expect(screen.getByText(/My Release v2/)).toBeInTheDocument()
+    expect(screen.getByText(/was saved by/)).toBeInTheDocument()
+    expect(screen.getByText(/alice/)).toBeInTheDocument()
+    expect(screen.getByText(/Initial Draft/)).toBeInTheDocument()
+  })
+
+  it('falls back to formatted dates when version names are null', () => {
+    render(
+      <VersionConflictDialog
+        {...defaultProps}
+        conflictInfo={{
+          currentVersion: 5,
+          currentVersionName: null,
+          expectedVersion: 3,
+          expectedVersionName: null,
+          expectedVersionCreatedAt: '2026-05-15T10:00:00Z',
+          createdByUsername: 'alice',
+          createdAt: '2026-06-01T00:00:00Z',
+        }}
+      />
+    )
+
+    expect(screen.getByText(/was saved by/)).toBeInTheDocument()
+    expect(screen.getByText(/alice/)).toBeInTheDocument()
+  })
+
+  it('falls back to version number when no name or date available', () => {
+    render(
+      <VersionConflictDialog
+        {...defaultProps}
+        conflictInfo={{
+          currentVersion: 5,
+          currentVersionName: null,
+          expectedVersion: 3,
+          expectedVersionName: null,
+          expectedVersionCreatedAt: null,
+          createdByUsername: 'alice',
+          createdAt: '',
+        }}
+      />
+    )
+
+    const paragraph = screen.getByText(/was saved by alice/)
+    expect(paragraph).toHaveTextContent('Version 5 was saved by alice')
+    expect(paragraph).toHaveTextContent('based on version 3')
   })
 
   it('does not render when closed', () => {

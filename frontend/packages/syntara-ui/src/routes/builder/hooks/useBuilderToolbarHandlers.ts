@@ -20,7 +20,9 @@ type ShowAlert = (options: AlertMessage) => void
 async function checkVersionConflictBeforeRun(
   workflowId: string,
   loadedVersion: number,
-  onRunConflict: (info: ConflictInfo) => void
+  onRunConflict: (info: ConflictInfo) => void,
+  loadedVersionName?: string | null,
+  loadedVersionCreatedAt?: string | null
 ): Promise<boolean> {
   const { data: latest } = await workflowFetchClient.GET('/workflows/{workflow_id}', {
     params: { path: { workflow_id: workflowId } },
@@ -31,6 +33,8 @@ async function checkVersionConflictBeforeRun(
       currentVersion: serverVersion,
       currentVersionName: latest?.version?.name ?? formatDateTime(latest?.version?.created_at) ?? null,
       expectedVersion: loadedVersion,
+      expectedVersionName: loadedVersionName ?? null,
+      expectedVersionCreatedAt: loadedVersionCreatedAt ?? null,
       createdByUsername: 'another user',
       createdAt: latest?.updated_at ?? '',
     })
@@ -71,6 +75,8 @@ export type UseBuilderToolbarHandlersOptions = {
   handleSaveWorkflow: (options?: { expectedVersionOverride?: number; blockOnWarnings?: boolean }) => Promise<boolean>
   currentWorkflow: WorkflowDefinition | null
   loadedVersion: number | null
+  loadedVersionName?: string | null
+  loadedVersionCreatedAt?: string | null
   onRunConflict?: (info: ConflictInfo) => void
 }
 
@@ -93,6 +99,8 @@ export function useBuilderToolbarHandlers({
   handleSaveWorkflow,
   currentWorkflow,
   loadedVersion,
+  loadedVersionName,
+  loadedVersionCreatedAt,
   onRunConflict,
 }: UseBuilderToolbarHandlersOptions) {
   const handleRunWorkflow = useCallback(
@@ -104,7 +112,13 @@ export function useBuilderToolbarHandlers({
       if (!workflow?.id) return
 
       if (loadedVersion != null && !runOptions?.skipPreflightCheck && onRunConflict) {
-        const hasConflict = await checkVersionConflictBeforeRun(workflow.id, loadedVersion, onRunConflict)
+        const hasConflict = await checkVersionConflictBeforeRun(
+          workflow.id,
+          loadedVersion,
+          onRunConflict,
+          loadedVersionName,
+          loadedVersionCreatedAt
+        )
         if (hasConflict) {
           dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
           return
@@ -196,6 +210,8 @@ export function useBuilderToolbarHandlers({
       currentWorkflow,
       setLocation,
       loadedVersion,
+      loadedVersionName,
+      loadedVersionCreatedAt,
       onRunConflict,
     ]
   )

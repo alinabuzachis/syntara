@@ -228,6 +228,8 @@ def workflow_version_conflict_handler(request: Request, exc: "WorkflowVersionCon
             "current_version": exc.current_version,
             "current_version_name": exc.current_version_name,
             "expected_version": exc.expected_version,
+            "expected_version_name": exc.expected_version_name,
+            "expected_created_at": exc.expected_created_at.isoformat() if exc.expected_created_at else None,
             "created_by_username": exc.created_by_username,
             "created_at": exc.created_at.isoformat(),
         },

@@ -36,19 +36,27 @@ class TestCheckExpectedVersion:
         workflow.updated_at = None
 
         current_ver = MagicMock()
+        current_ver.version = 3
         current_ver.name = "Release v2"
         current_ver.created_at = MagicMock()
         user_obj = MagicMock()
         user_obj.username = "alice"
 
+        expected_ver = MagicMock()
+        expected_ver.version = 1
+        expected_ver.name = "Initial Draft"
+        expected_ver.created_at = MagicMock()
+
         result = MagicMock()
-        result.one_or_none.return_value = (current_ver, user_obj)
+        result.all.return_value = [(current_ver, user_obj), (expected_ver, None)]
         mock_service.session.exec.return_value = result  # type: ignore[attr-defined]
 
         with pytest.raises(WorkflowVersionConflictError) as exc_info:
             await mock_service._check_expected_version(workflow, expected_version=1)
 
         assert exc_info.value.current_version_name == "Release v2"
+        assert exc_info.value.expected_version_name == "Initial Draft"
+        assert exc_info.value.expected_created_at == expected_ver.created_at
 
     @pytest.mark.asyncio
     async def test_conflict_version_name_none_when_no_row(self, mock_service: WorkflowService) -> None:
@@ -59,13 +67,15 @@ class TestCheckExpectedVersion:
         workflow.updated_at = MagicMock()
 
         result = MagicMock()
-        result.one_or_none.return_value = None
+        result.all.return_value = []
         mock_service.session.exec.return_value = result  # type: ignore[attr-defined]
 
         with pytest.raises(WorkflowVersionConflictError) as exc_info:
             await mock_service._check_expected_version(workflow, expected_version=1)
 
         assert exc_info.value.current_version_name is None
+        assert exc_info.value.expected_version_name is None
+        assert exc_info.value.expected_created_at is None
 
 
 class TestGetWebhookSyncDefinition:

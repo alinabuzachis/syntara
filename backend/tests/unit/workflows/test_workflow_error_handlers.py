@@ -385,6 +385,8 @@ class TestWorkflowVersionConflictHandler:
             created_by_username="other_user",
             created_at=created_at,
             current_version_name="v3-draft",
+            expected_version_name="v2-release",
+            expected_created_at=created_at,
         )
         response = workflow_version_conflict_handler(request, exc)
 
@@ -401,4 +403,6 @@ class TestWorkflowVersionConflictHandler:
         assert data["expected_version"] == 2
         assert data["created_by_username"] == "other_user"
         assert data["current_version_name"] == "v3-draft"
+        assert data["expected_version_name"] == "v2-release"
+        assert data["expected_created_at"] == created_at.isoformat()
         assert data["created_at"] == created_at.isoformat()

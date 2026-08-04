@@ -298,6 +298,8 @@ export function BuilderContent(props: BuilderContentProps) {
     handleSaveWorkflow,
     currentWorkflow,
     loadedVersion,
+    loadedVersionName: workflow?.version?.name ?? null,
+    loadedVersionCreatedAt: workflow?.version?.created_at ?? null,
     onRunConflict: handleConflict('run'),
   })
   useEffect(() => {

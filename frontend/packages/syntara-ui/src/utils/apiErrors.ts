@@ -723,6 +723,8 @@ export function extractVersionConflictInfo(error: Record<string, unknown>) {
     currentVersion: (body.current_version as number) ?? 0,
     currentVersionName: (body.current_version_name as string | null) ?? null,
     expectedVersion: (body.expected_version as number) ?? 0,
+    expectedVersionName: (body.expected_version_name as string | null) ?? null,
+    expectedVersionCreatedAt: (body.expected_created_at as string | null) ?? null,
     createdByUsername: (body.created_by_username as string) ?? 'another user',
     createdAt,
   }

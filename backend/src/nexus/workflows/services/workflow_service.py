@@ -710,24 +710,30 @@ class WorkflowService(BaseService):
         username = "unknown"
         created_at = workflow.updated_at or datetime.now(UTC)
         version_name: str | None = None
+        expected_version_name: str | None = None
+        expected_created_at: datetime | None = None
 
+        # Fetch both current and expected version rows in a single query
         result = await self.session.exec(
             select(WorkflowVersion, User)
             .outerjoin(User, WorkflowVersion.created_by == User.id)  # type: ignore[arg-type]
             .filter(
                 WorkflowVersion.workflow_id == workflow.id,  # type: ignore[arg-type]
-                WorkflowVersion.version == workflow.current_version,  # type: ignore[arg-type]
+                WorkflowVersion.version.in_([workflow.current_version, expected_version]),  # type: ignore[attr-defined]
                 WorkflowVersion.deleted_at.is_(None),  # type: ignore[union-attr]
             )
         )
-        row = result.one_or_none()
+        rows = result.all()
 
-        if row:
-            current_ver, user = row
-            created_at = current_ver.created_at or created_at
-            version_name = current_ver.name
-            if user:
-                username = user.username
+        for version_row, user in rows:
+            if version_row.version == workflow.current_version:
+                created_at = version_row.created_at or created_at
+                version_name = version_row.name
+                if user:
+                    username = user.username
+            elif version_row.version == expected_version:
+                expected_version_name = version_row.name
+                expected_created_at = version_row.created_at
 
         raise WorkflowVersionConflictError(
             workflow_id=workflow.id,
@@ -736,6 +742,8 @@ class WorkflowService(BaseService):
             created_by_username=username,
             created_at=created_at,
             current_version_name=version_name,
+            expected_version_name=expected_version_name,
+            expected_created_at=expected_created_at,
         )
 
     async def _get_webhook_sync_definition(

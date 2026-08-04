@@ -68,6 +68,8 @@ const conflictInfo: ConflictInfo = {
   currentVersion: 5,
   currentVersionName: null,
   expectedVersion: 3,
+  expectedVersionName: null,
+  expectedVersionCreatedAt: null,
   createdByUsername: 'other',
   createdAt: '2026-01-01',
 }

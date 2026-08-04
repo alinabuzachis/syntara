@@ -2,12 +2,16 @@ import { Button, Content, List, ListItem, Modal, ModalBody, ModalFooter, ModalHe
 
 import { useBlurOnOpen } from '../../hooks/useBlurOnOpen'
 
+import { formatHistoryDateTime } from './historyDateUtils'
+
 export type ConflictAction = 'save' | 'publish' | 'run'
 
 export type ConflictInfo = {
   currentVersion: number
   currentVersionName: string | null
   expectedVersion: number
+  expectedVersionName: string | null
+  expectedVersionCreatedAt: string | null
   createdByUsername: string
   createdAt: string
 }
@@ -51,6 +55,17 @@ const COPY = {
   },
 } as const
 
+function getVersionLabel(
+  name: string | null | undefined,
+  dateIso: string | null | undefined,
+  version: number | undefined
+): string {
+  if (name) return name
+  if (dateIso) return formatHistoryDateTime(dateIso)
+  if (version != null) return String(version)
+  return ''
+}
+
 /**
  * Version conflict resolution dialog.
  *
@@ -72,14 +87,25 @@ export function VersionConflictDialog({
   useBlurOnOpen(isOpen)
   const copy = COPY[conflictAction]
 
+  const currentVersionLabel = getVersionLabel(
+    conflictInfo?.currentVersionName,
+    conflictInfo?.createdAt,
+    conflictInfo?.currentVersion
+  )
+  const expectedVersionLabel = getVersionLabel(
+    conflictInfo?.expectedVersionName,
+    conflictInfo?.expectedVersionCreatedAt,
+    conflictInfo?.expectedVersion
+  )
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} variant="medium" aria-label={copy.title}>
       <ModalHeader title={copy.title} titleIconVariant="warning" />
       <ModalBody>
         {conflictInfo && (
           <Content component="p">
-            {conflictInfo.currentVersionName ?? `Version ${conflictInfo.currentVersion}`} was saved by{' '}
-            {conflictInfo.createdByUsername}. Your changes are based on version {conflictInfo.expectedVersion}.
+            Version <strong>{currentVersionLabel}</strong> was saved by {conflictInfo.createdByUsername}. Your changes
+            are based on version <strong>{expectedVersionLabel}</strong>.
           </Content>
         )}
         <Content component="p">

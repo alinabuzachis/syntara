@@ -41,6 +41,12 @@ test.describe('Concurrent Edit Conflict Detection @pr-check', () => {
       await expect(dialog).toBeVisible({ timeout: 15_000 })
       await expect(dialog.getByText('Save conflict: newer version available')).toBeVisible()
 
+      // Verify the conflict info paragraph renders version labels from the API
+      // (should show dates or names, not bare numbers like "Version 2")
+      const conflictInfo = dialog.getByText(/was saved by/)
+      await expect(conflictInfo).toBeVisible()
+      await expect(conflictInfo).not.toHaveText(/Version \d+ was saved by/)
+
       await expect(dialog.getByRole('button', { name: 'Save as newest version' })).toBeVisible()
       await expect(dialog.getByRole('button', { name: /Create duplicate workflow/i })).toBeVisible()
       await expect(dialog.getByRole('button', { name: 'Refresh to latest' })).toBeVisible()
