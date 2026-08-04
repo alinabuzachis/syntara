@@ -59,17 +59,40 @@ def _drain_revocation_window_after_module() -> Generator[None, None, None]:
     _wait_for_cache_expiry()
 
 
-def _revoke_all(nexus_api: SyntaraApiRegistry) -> None:
-    """Revoke all sessions via the generated API client.
+_API_HEALTH_TIMEOUT = 15.0
 
-    ``_AutoRefreshAuth`` on the underlying ``nexus_client`` automatically
-    re-authenticates on 401, so this works even after a prior revocation
-    has invalidated the session-scoped admin token.
+
+def _wait_for_api_healthy(nexus_api: SyntaraApiRegistry) -> None:
+    """Poll the API until it responds with 200, absorbing any post-revocation instability."""
+    deadline = time.monotonic() + _API_HEALTH_TIMEOUT
+    while True:
+        try:
+            resp = nexus_api.settings.list(limit=1)
+            if resp.status_code == HTTPStatus.OK:
+                return
+        except Exception:
+            pass
+        if time.monotonic() >= deadline:
+            pytest.fail(f"API not healthy after {_API_HEALTH_TIMEOUT}s following global revocation")
+        time.sleep(0.5)
+
+
+def _revoke_all(nexus_api: SyntaraApiRegistry) -> None:
+    """Revoke all sessions via the generated API client, then wait for the API to stabilize.
+
+    Global revocation invalidates every cached session on the server.  In the
+    resource-constrained KinD CI cluster this can temporarily overwhelm the API
+    pod (cache invalidation storm, ``_AutoRefreshAuth`` re-authentication
+    traffic), causing nginx to return 502 Bad Gateway on subsequent requests.
+
+    After the revocation succeeds we poll the API until it responds with 200,
+    ensuring callers always see a stable server.
     """
     response = nexus_api.admin.revoke_all_sessions()
     assert response.status_code == HTTPStatus.OK, (
         f"Failed to set global revocation: {response.status_code} {response.content!r}"
     )
+    _wait_for_api_healthy(nexus_api)
 
 
 def assert_refresh_unauthorized_consistently(
