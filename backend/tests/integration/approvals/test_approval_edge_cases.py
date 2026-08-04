@@ -12,7 +12,7 @@ Run with:
 """
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -93,26 +93,17 @@ class TestApprovalEdgeCases:
             workflow_context=workflow_context,
         )
 
-    @pytest.mark.skip(
-        reason="asyncio.gather with shared session serializes operations; "
-        "test cannot verify true concurrent behavior. Optimistic locking "
-        "is verified by batch_decide tests with separate transactions."
-    )
     async def test_scenario_12_concurrent_approval_attempts_race_condition(
         self,
         test_db_session: AsyncSession,
+        test_db_session_factory,
         test_user: User,
         executions_factory: ExecutionsFactory,
     ) -> None:
         """Scenario 12: Concurrent approval decision attempts (race condition handling).
 
-        NOTE: This test is skipped because asyncio.gather with a shared AsyncSession
-        serializes database operations, preventing true concurrent execution.
-        The with_for_update() lock is never contended because all coroutines share
-        one session. True concurrency testing requires separate DB sessions per coroutine.
-
-        Optimistic locking and race condition handling IS verified by batch_decide tests
-        in test_approval_service.py which use separate transactions.
+        Each concurrent actor uses its own DB session so optimistic locking
+        (UPDATE … WHERE status=PENDING) is actually contended across transactions.
 
         Flow:
         1. Create approval in PENDING state
@@ -121,6 +112,7 @@ class TestApprovalEdgeCases:
         4. Verify other 2 raise ApprovalAlreadyDecidedError
         5. Verify approval state is consistent (only 1 decision recorded)
         """
+        session_factory = test_db_session_factory
         service = self._create_test_service(test_db_session, test_user)
 
         executions = await executions_factory.create_executions(count=1)
@@ -131,38 +123,49 @@ class TestApprovalEdgeCases:
             project_id=execution.project_id,
         )
 
-        # Create approval
+        # Create approval (committed so other sessions can see it)
         approval = await service.create(approval_request)
+        await test_db_session.commit()
+        approval_id = approval.id
+        user_id = test_user.id
 
-        # Concurrent decision attempts
         decision_request = ApprovalDecisionRequest(status=ApprovalDecisionStatus.APPROVED)
 
         async def _attempt_decision() -> tuple[str, object]:
-            """Attempt to decide the approval."""
-            try:
-                result = await service.decide(approval.id, decision_request)
-                return ("success", result)
-            except ApprovalAlreadyDecidedError:
-                return ("already_decided", None)
+            """Attempt to decide the approval on a dedicated session."""
+            async with session_factory() as session:
+                user = await session.get(User, user_id)
+                assert user is not None
+                actor_service = self._create_test_service(session, user)
+                try:
+                    result = await actor_service.decide(approval_id, decision_request)
+                    return ("success", result)
+                except ApprovalAlreadyDecidedError:
+                    return ("already_decided", None)
 
-        # Launch 3 concurrent attempts
-        results = await asyncio.gather(
-            _attempt_decision(),
-            _attempt_decision(),
-            _attempt_decision(),
-        )
+        with patch("nexus.approvals.services.approval_service.WorkflowApiClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client.send_approval_signal = AsyncMock()
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client_class.return_value = mock_client
 
-        # Verify exactly one succeeded
+            results = await asyncio.gather(
+                _attempt_decision(),
+                _attempt_decision(),
+                _attempt_decision(),
+            )
+
         successes = [r for r in results if r[0] == "success"]
         failures = [r for r in results if r[0] == "already_decided"]
 
-        assert len(successes) == 1, "Exactly one concurrent attempt should succeed"
-        assert len(failures) == 2, "Two concurrent attempts should fail with AlreadyDecidedError"
+        assert len(successes) == 1, f"Exactly one concurrent attempt should succeed; got {results!r}"
+        assert len(failures) == 2, f"Two concurrent attempts should fail with AlreadyDecided; got {results!r}"
 
-        # Verify approval state is consistent
-        retrieved = await service.get(approval.id)
+        retrieved = await service.get(approval_id)
         assert retrieved.status == ApprovalRequestStatus.APPROVED
-        assert retrieved.decided_by == test_user.id
+        assert retrieved.decided_by is not None
+        assert retrieved.decided_by.id == user_id
 
     async def test_scenario_13_parallel_branch_failure_cancels_approval(
         self,

@@ -2,27 +2,45 @@
 
 Verifies that optimistic and pessimistic locking prevent race conditions
 when multiple users or batch operations attempt to decide the same approval simultaneously.
+
+Concurrency tests use a dedicated session per actor (via ``test_session_factory``).
+A shared AsyncSession cannot exercise true cross-transaction locking and previously
+caused flaky failures / "This transaction is closed" errors under asyncio.gather.
 """
 
+from __future__ import annotations
+
 import asyncio
-from collections.abc import Awaitable, Callable
+from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
 import pytest
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy import delete
+from sqlmodel import col
 
 from nexus.approvals.exceptions import ApprovalAlreadyDecidedError
 from nexus.approvals.models import (
     ApprovalDecisionRequest,
     ApprovalRequest,
+    ApprovalRequestRead,
     ApprovalRequestStatus,
     BatchApprovalDecision,
     BatchApprovalRequest,
+    BatchApprovalResponse,
 )
 from nexus.approvals.services.approval_service import ApprovalService
+from nexus.auth.passwords import hash_password
 from nexus.authz.engine import AuthzResult
+from nexus.authz.models.project import Project
 from nexus.core.models import User
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+    from sqlmodel.ext.asyncio.session import AsyncSession
 
 
 @pytest.fixture(autouse=True)
@@ -81,6 +99,118 @@ def _valid_next_step() -> dict[str, str]:
     }
 
 
+def _make_user(prefix: str = "user") -> User:
+    """Build a unique User row for committed setup sessions."""
+    suffix = uuid4().hex[:8]
+    return User(
+        username=f"{prefix}-{suffix}",
+        email=f"{prefix}-{suffix}@example.com",
+        first_name=prefix.title(),
+        last_name="User",
+        password_hash=hash_password("password123"),
+        is_enabled=True,
+    )
+
+
+def _make_approval(project_id: UUID, node_id: str = "test_node") -> ApprovalRequest:
+    """Build a pending ApprovalRequest for committed setup sessions."""
+    return ApprovalRequest(
+        execution_id=uuid4(),
+        approval_node_id=node_id,
+        project_id=project_id,
+        name=f"Test Approval {node_id}",
+        timeout_at=None,
+        status=ApprovalRequestStatus.PENDING,
+        workflow_context=_valid_workflow_context(),
+        next_step_approved=_valid_next_step(),
+        next_step_rejected=None,
+    )
+
+
+async def _cleanup_concurrency_rows(
+    session_factory: async_sessionmaker[AsyncSession],
+    *,
+    project_id: UUID,
+    user_ids: list[UUID],
+    approval_ids: list[UUID],
+) -> None:
+    """Delete committed concurrency-test rows (approvals → users → project)."""
+    async with session_factory() as session:
+        if approval_ids:
+            await session.exec(delete(ApprovalRequest).where(col(ApprovalRequest.id).in_(approval_ids)))
+        if user_ids:
+            await session.exec(delete(User).where(col(User.id).in_(user_ids)))
+        await session.exec(delete(Project).where(col(Project.id) == project_id))
+        await session.commit()
+
+
+@asynccontextmanager
+async def _concurrency_data(
+    session_factory: async_sessionmaker[AsyncSession],
+    *,
+    user_count: int = 2,
+    approval_count: int = 1,
+) -> AsyncIterator[tuple[list[UUID], list[UUID]]]:
+    """Commit project/users/approvals visible across sessions; delete them on exit.
+
+    ``test_session_factory`` commits go to the real DB (no per-test rollback), so
+    callers must clean up to preserve isolation for later tests in the session.
+    """
+    async with session_factory() as session:
+        project = Project(name=f"concurrency-project-{uuid4().hex[:8]}", description="Concurrency test")
+        session.add(project)
+        await session.flush()
+
+        users = [_make_user(f"actor{i}") for i in range(user_count)]
+        session.add_all(users)
+        await session.flush()
+
+        approvals = [_make_approval(project.id, node_id=f"node_{i}") for i in range(approval_count)]
+        session.add_all(approvals)
+        await session.commit()
+
+        project_id = project.id
+        user_ids = [user.id for user in users]
+        approval_ids = [approval.id for approval in approvals]
+
+    try:
+        yield user_ids, approval_ids
+    finally:
+        await _cleanup_concurrency_rows(
+            session_factory,
+            project_id=project_id,
+            user_ids=user_ids,
+            approval_ids=approval_ids,
+        )
+
+
+async def _decide_with_own_session(
+    session_factory: async_sessionmaker[AsyncSession],
+    user_id: UUID,
+    approval_id: UUID,
+    decision: ApprovalDecisionRequest,
+) -> ApprovalRequestRead:
+    """Run decide() on a dedicated session (one session per concurrent actor)."""
+    async with session_factory() as session:
+        user = await session.get(User, user_id)
+        assert user is not None
+        service = ApprovalService(session, user)
+        return await service.decide(approval_id, decision)
+
+
+async def _batch_decide_with_own_session(
+    session_factory: async_sessionmaker[AsyncSession],
+    user_id: UUID,
+    decisions: list[BatchApprovalDecision],
+) -> BatchApprovalResponse:
+    """Run batch_decide() on a dedicated session."""
+    async with session_factory() as session:
+        user = await session.get(User, user_id)
+        assert user is not None
+        service = ApprovalService(session, user)
+        return await service.batch_decide(BatchApprovalRequest(decisions=decisions))
+
+
 @pytest.fixture
 def mock_workflow_client():
     """Mock the workflow client to avoid HTTP calls in unit tests."""
@@ -94,66 +224,49 @@ def mock_workflow_client():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(
-    reason="asyncio.gather with shared session serializes operations; "
-    "test cannot verify true concurrent behavior. Optimistic locking "
-    "is verified by batch_decide tests with separate transactions."
-)
 async def test_concurrent_decisions_only_one_succeeds(
-    test_db_session: AsyncSession,
-    admin_user: User,
-    user_factory: Callable[..., Awaitable[User]],
+    test_session_factory: async_sessionmaker[AsyncSession],
     mock_workflow_client: AsyncMock,
-    test_project_id: UUID,
 ) -> None:
     """Test that when two users decide the same approval simultaneously, only one succeeds.
 
     This verifies the optimistic locking implementation (WHERE status=PENDING)
     prevents double-decision race conditions.
     """
-    # Create approval request
-    approval = ApprovalRequest(
-        execution_id=uuid4(),
-        approval_node_id="test_node",
-        project_id=test_project_id,
-        name="Test Approval",
-        timeout_at=None,
-        status=ApprovalRequestStatus.PENDING,
-        workflow_context=_valid_workflow_context(),
-        next_step_approved=_valid_next_step(),
-        next_step_rejected=None,
-    )
-    test_db_session.add(approval)
-    await test_db_session.commit()
-    await test_db_session.refresh(approval)
+    async with _concurrency_data(test_session_factory, user_count=2, approval_count=1) as (
+        user_ids,
+        approval_ids,
+    ):
+        approval_id = approval_ids[0]
 
-    # Create two services with different users attempting to decide
-    basic_user = await user_factory()
-    service_admin = ApprovalService(test_db_session, admin_user)
-    service_basic = ApprovalService(test_db_session, basic_user)
+        results = await asyncio.gather(
+            _decide_with_own_session(
+                test_session_factory,
+                user_ids[0],
+                approval_id,
+                ApprovalDecisionRequest(status="approved", note="Actor 0 approves"),
+            ),
+            _decide_with_own_session(
+                test_session_factory,
+                user_ids[1],
+                approval_id,
+                ApprovalDecisionRequest(status="approved", note="Actor 1 approves"),
+            ),
+            return_exceptions=True,
+        )
 
-    decision_admin = ApprovalDecisionRequest(status="approved", note="Admin approves")
-    decision_basic = ApprovalDecisionRequest(status="approved", note="Basic approves")
+        success_count = sum(1 for r in results if not isinstance(r, Exception))
+        error_count = sum(1 for r in results if isinstance(r, ApprovalAlreadyDecidedError))
 
-    # Spawn concurrent decision attempts
-    results = await asyncio.gather(
-        service_admin.decide(approval.id, decision_admin),
-        service_basic.decide(approval.id, decision_basic),
-        return_exceptions=True,
-    )
+        assert success_count == 1, f"Exactly one decision should succeed; got {results!r}"
+        assert error_count == 1, f"Exactly one decision should fail with AlreadyDecided; got {results!r}"
 
-    # One should succeed, one should fail with ApprovalAlreadyDecidedError
-    success_count = sum(1 for r in results if not isinstance(r, Exception))
-    error_count = sum(1 for r in results if isinstance(r, ApprovalAlreadyDecidedError))
-
-    assert success_count == 1, "Exactly one decision should succeed"
-    assert error_count == 1, "Exactly one decision should fail with ApprovalAlreadyDecidedError"
-
-    # Verify approval has exactly one decision
-    await test_db_session.refresh(approval)
-    assert approval.status in (ApprovalRequestStatus.APPROVED, ApprovalRequestStatus.REJECTED)
-    assert approval.decided_by is not None
-    assert approval.decided_at is not None
+        async with test_session_factory() as session:
+            approval = await session.get(ApprovalRequest, approval_id)
+            assert approval is not None
+            assert approval.status in (ApprovalRequestStatus.APPROVED, ApprovalRequestStatus.REJECTED)
+            assert approval.decided_by is not None
+            assert approval.decided_at is not None
 
 
 @pytest.mark.asyncio
@@ -206,62 +319,49 @@ async def test_concurrent_decision_and_list_no_deadlock(
     assert not isinstance(results[1], Exception), f"List failed: {results[1]}"
 
 
-@pytest.mark.skip(
-    reason="Session management issue: asyncio.gather with shared session does not guarantee true "
-    "concurrent execution. Both operations may complete before the other checks the row, causing "
-    "flaky failures. Requires separate sessions per service to properly test concurrent locking."
-)
 @pytest.mark.asyncio
 async def test_batch_decision_locks_prevent_concurrent_single_decision(
-    test_db_session: AsyncSession,
-    admin_user: User,
-    user_factory: Callable[..., Awaitable[User]],
+    test_session_factory: async_sessionmaker[AsyncSession],
     mock_workflow_client: AsyncMock,
-    test_project_id: UUID,
 ) -> None:
-    """Test that batch decision row locks prevent concurrent single decisions.
+    """Test that batch FOR UPDATE and single decide contend safely across sessions.
 
-    Batch operation uses SELECT FOR UPDATE (pessimistic lock), which should
-    block concurrent single decision attempts until batch completes.
+    Exactly one path should apply the decision; the loser either raises
+    ApprovalAlreadyDecidedError (single decide) or reports failure in the batch result.
     """
-    # Create approval request
-    approval = ApprovalRequest(
-        execution_id=uuid4(),
-        approval_node_id="test_node",
-        project_id=test_project_id,
-        name="Test Approval",
-        timeout_at=None,
-        status=ApprovalRequestStatus.PENDING,
-        workflow_context=_valid_workflow_context(),
-        next_step_approved=_valid_next_step(),
-        next_step_rejected=None,
-    )
-    test_db_session.add(approval)
-    await test_db_session.commit()
-    await test_db_session.refresh(approval)
+    async with _concurrency_data(test_session_factory, user_count=2, approval_count=1) as (
+        user_ids,
+        approval_ids,
+    ):
+        approval_id = approval_ids[0]
 
-    basic_user = await user_factory()
-    service_admin = ApprovalService(test_db_session, admin_user)
-    service_basic = ApprovalService(test_db_session, basic_user)
+        batch_decisions = [BatchApprovalDecision(approval_id=approval_id, status="approved", note="Batch approve")]
+        single_decision = ApprovalDecisionRequest(status="approved", note="Single approve")
 
-    batch_decisions = [BatchApprovalDecision(approval_id=approval.id, status="approved", note="Batch approve")]
-    single_decision = ApprovalDecisionRequest(status="approved", note="Single approve")
+        results = await asyncio.gather(
+            _batch_decide_with_own_session(test_session_factory, user_ids[0], batch_decisions),
+            _decide_with_own_session(test_session_factory, user_ids[1], approval_id, single_decision),
+            return_exceptions=True,
+        )
+        batch_result, single_result = results
 
-    # Spawn concurrent operations: batch + single decision
-    # Note: Due to optimistic locking in single decision, both will attempt,
-    # but only one will succeed (the one that commits first)
-    results = await asyncio.gather(
-        service_admin.batch_decide(BatchApprovalRequest(decisions=batch_decisions)),
-        service_basic.decide(approval.id, single_decision),
-        return_exceptions=True,
-    )
+        assert not isinstance(batch_result, Exception), f"Batch failed unexpectedly: {batch_result}"
 
-    # One should succeed, one should fail
-    success_count = sum(1 for r in results if not isinstance(r, Exception))
-    error_count = sum(1 for r in results if isinstance(r, ApprovalAlreadyDecidedError))
+        batch_won = isinstance(batch_result, BatchApprovalResponse) and batch_result.total_success == 1
+        single_won = not isinstance(single_result, Exception)
+        single_lost = isinstance(single_result, ApprovalAlreadyDecidedError)
 
-    assert success_count == 1, "Exactly one operation should succeed"
-    assert error_count == 1, "Exactly one operation should fail"
+        assert batch_won ^ single_won, f"Exactly one path should decide the approval; got {results!r}"
+        if single_won:
+            assert not batch_won
+        else:
+            assert single_lost, f"Losing single decide should raise AlreadyDecided; got {single_result!r}"
+
+        async with test_session_factory() as session:
+            approval = await session.get(ApprovalRequest, approval_id)
+            assert approval is not None
+            assert approval.status == ApprovalRequestStatus.APPROVED
+            assert approval.decided_by is not None
 
 
 @pytest.mark.asyncio
@@ -328,147 +428,106 @@ async def test_batch_decision_with_duplicate_ids_processes_once(
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(
-    reason="Session management issue: 'This transaction is closed' error occurs when "
-    "concurrent batch operations share a session. Requires separate sessions per batch."
-)
 async def test_concurrent_batch_decisions_no_overlap(
-    test_db_session: AsyncSession,
-    admin_user: User,
-    user_factory: Callable[..., Awaitable[User]],
+    test_session_factory: async_sessionmaker[AsyncSession],
     mock_workflow_client: AsyncMock,
-    test_project_id: UUID,
 ) -> None:
     """Test that concurrent batch decisions on non-overlapping approvals succeed.
 
     Two batches with completely different approval sets should not conflict.
     """
-    # Create 4 approval requests
-    approvals = [
-        ApprovalRequest(
-            execution_id=uuid4(),
-            approval_node_id=f"node_{i}",
-            project_id=test_project_id,
-            name=f"Test Approval {i}",
-            timeout_at=None,
-            status=ApprovalRequestStatus.PENDING,
-            workflow_context=_valid_workflow_context(),
-            next_step_approved=_valid_next_step(),
-            next_step_rejected=None,
+    async with _concurrency_data(test_session_factory, user_count=2, approval_count=4) as (
+        user_ids,
+        approval_ids,
+    ):
+        batch1 = [
+            BatchApprovalDecision(approval_id=approval_ids[0], status="approved", note="Batch 1"),
+            BatchApprovalDecision(approval_id=approval_ids[1], status="approved", note="Batch 1"),
+        ]
+        batch2 = [
+            BatchApprovalDecision(approval_id=approval_ids[2], status="rejected", note="Batch 2"),
+            BatchApprovalDecision(approval_id=approval_ids[3], status="rejected", note="Batch 2"),
+        ]
+
+        results = await asyncio.gather(
+            _batch_decide_with_own_session(test_session_factory, user_ids[0], batch1),
+            _batch_decide_with_own_session(test_session_factory, user_ids[1], batch2),
+            return_exceptions=True,
         )
-        for i in range(4)
-    ]
-    for approval in approvals:
-        test_db_session.add(approval)
-    await test_db_session.commit()
-    for approval in approvals:
-        await test_db_session.refresh(approval)
 
-    basic_user = await user_factory()
-    service_admin = ApprovalService(test_db_session, admin_user)
-    service_basic = ApprovalService(test_db_session, basic_user)
+        assert len(results) == 2
+        assert isinstance(results[0], BatchApprovalResponse), f"Batch 1 failed: {results[0]}"
+        assert isinstance(results[1], BatchApprovalResponse), f"Batch 2 failed: {results[1]}"
+        assert results[0].total_success == 2
+        assert results[1].total_success == 2
 
-    # Batch 1: approvals 0, 1
-    batch1 = [
-        BatchApprovalDecision(approval_id=approvals[0].id, status="approved", note="Batch 1"),
-        BatchApprovalDecision(approval_id=approvals[1].id, status="approved", note="Batch 1"),
-    ]
-
-    # Batch 2: approvals 2, 3
-    batch2 = [
-        BatchApprovalDecision(approval_id=approvals[2].id, status="rejected", note="Batch 2"),
-        BatchApprovalDecision(approval_id=approvals[3].id, status="rejected", note="Batch 2"),
-    ]
-
-    # Both batches should succeed without conflict
-    results = await asyncio.gather(
-        service_admin.batch_decide(BatchApprovalRequest(decisions=batch1)),
-        service_basic.batch_decide(BatchApprovalRequest(decisions=batch2)),
-        return_exceptions=True,
-    )
-
-    assert len(results) == 2
-    assert not isinstance(results[0], Exception), f"Batch 1 failed: {results[0]}"
-    assert not isinstance(results[1], Exception), f"Batch 2 failed: {results[1]}"
-
-    # Verify all approvals were decided
-    for approval in approvals:
-        await test_db_session.refresh(approval)
-        assert approval.status in (ApprovalRequestStatus.APPROVED, ApprovalRequestStatus.REJECTED)
+        async with test_session_factory() as session:
+            for approval_id in approval_ids:
+                approval = await session.get(ApprovalRequest, approval_id)
+                assert approval is not None
+                assert approval.status in (ApprovalRequestStatus.APPROVED, ApprovalRequestStatus.REJECTED)
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(
-    reason="Session management issue: 'This transaction is closed' error occurs when "
-    "concurrent batch operations share a session. Requires separate sessions per batch."
-)
 async def test_concurrent_batch_decisions_with_overlap(
-    test_db_session: AsyncSession,
-    admin_user: User,
-    user_factory: Callable[..., Awaitable[User]],
+    test_session_factory: async_sessionmaker[AsyncSession],
     mock_workflow_client: AsyncMock,
-    test_project_id: UUID,
 ) -> None:
     """Test that concurrent batch decisions on overlapping approvals handle conflicts gracefully.
 
     Two batches trying to decide the same approval should result in one batch
     succeeding for the overlapping approval and the other failing for that specific approval.
     """
-    # Create 3 approval requests
-    approvals = [
-        ApprovalRequest(
-            execution_id=uuid4(),
-            approval_node_id=f"node_{i}",
-            project_id=test_project_id,
-            name=f"Test Approval {i}",
-            timeout_at=None,
-            status=ApprovalRequestStatus.PENDING,
-            workflow_context=_valid_workflow_context(),
-            next_step_approved=_valid_next_step(),
-            next_step_rejected=None,
+    async with _concurrency_data(test_session_factory, user_count=2, approval_count=3) as (
+        user_ids,
+        approval_ids,
+    ):
+        batch1 = [
+            BatchApprovalDecision(approval_id=approval_ids[0], status="approved", note="Batch 1"),
+            BatchApprovalDecision(approval_id=approval_ids[1], status="approved", note="Batch 1"),
+        ]
+        batch2 = [
+            BatchApprovalDecision(approval_id=approval_ids[1], status="rejected", note="Batch 2"),
+            BatchApprovalDecision(approval_id=approval_ids[2], status="rejected", note="Batch 2"),
+        ]
+
+        results = await asyncio.gather(
+            _batch_decide_with_own_session(test_session_factory, user_ids[0], batch1),
+            _batch_decide_with_own_session(test_session_factory, user_ids[1], batch2),
+            return_exceptions=True,
         )
-        for i in range(3)
-    ]
-    for approval in approvals:
-        test_db_session.add(approval)
-    await test_db_session.commit()
-    for approval in approvals:
-        await test_db_session.refresh(approval)
 
-    basic_user = await user_factory()
-    service_admin = ApprovalService(test_db_session, admin_user)
-    service_basic = ApprovalService(test_db_session, basic_user)
+        assert len(results) == 2
+        assert isinstance(results[0], BatchApprovalResponse), f"Batch 1 failed: {results[0]}"
+        assert isinstance(results[1], BatchApprovalResponse), f"Batch 2 failed: {results[1]}"
+        batch1_result = results[0]
+        batch2_result = results[1]
 
-    # Batch 1: approvals 0, 1
-    batch1 = [
-        BatchApprovalDecision(approval_id=approvals[0].id, status="approved", note="Batch 1"),
-        BatchApprovalDecision(approval_id=approvals[1].id, status="approved", note="Batch 1"),
-    ]
+        # Winner of the overlap claims both of its decisions (exclusive + overlap) =>
+        # total_success == 2; the other batch keeps only its exclusive => total_success == 1.
+        overlap_won_by_batch1 = batch1_result.total_success == 2
+        overlap_won_by_batch2 = batch2_result.total_success == 2
+        assert overlap_won_by_batch1 ^ overlap_won_by_batch2, (
+            f"Exactly one batch should win the overlapping approval; got {results!r}"
+        )
+        assert batch1_result.total_success + batch2_result.total_success == 3, (
+            f"Expected 2 exclusive + 1 overlap successes; got {results!r}"
+        )
 
-    # Batch 2: approvals 1, 2 (overlaps with batch 1 on approval 1)
-    batch2 = [
-        BatchApprovalDecision(approval_id=approvals[1].id, status="rejected", note="Batch 2"),
-        BatchApprovalDecision(approval_id=approvals[2].id, status="rejected", note="Batch 2"),
-    ]
+        # Non-overlapping approvals always succeed in their owning batch
+        assert any(item.approval_id == approval_ids[0] and item.success for item in batch1_result.results)
+        assert any(item.approval_id == approval_ids[2] and item.success for item in batch2_result.results)
 
-    # Both batches run concurrently
-    results = await asyncio.gather(
-        service_admin.batch_decide(BatchApprovalRequest(decisions=batch1)),
-        service_basic.batch_decide(BatchApprovalRequest(decisions=batch2)),
-        return_exceptions=True,
-    )
+        overlap_successes = sum(
+            1
+            for response in (batch1_result, batch2_result)
+            for item in response.results
+            if item.approval_id == approval_ids[1] and item.success
+        )
+        assert overlap_successes == 1, f"Overlap approval should be decided by exactly one batch; got {results!r}"
 
-    # Both batches should complete (partial success is valid for batch operations)
-    assert len(results) == 2
-    assert not isinstance(results[0], Exception), f"Batch 1 failed: {results[0]}"
-    assert not isinstance(results[1], Exception), f"Batch 2 failed: {results[1]}"
-
-    # Verify approval 1 was decided (only one batch succeeded for it)
-    await test_db_session.refresh(approvals[1])
-    assert approvals[1].status in (ApprovalRequestStatus.APPROVED, ApprovalRequestStatus.REJECTED)
-
-    # Verify approvals 0 and 2 were also decided
-    await test_db_session.refresh(approvals[0])
-    await test_db_session.refresh(approvals[2])
-    assert approvals[0].status in (ApprovalRequestStatus.APPROVED, ApprovalRequestStatus.REJECTED)
-    assert approvals[2].status in (ApprovalRequestStatus.APPROVED, ApprovalRequestStatus.REJECTED)
+        async with test_session_factory() as session:
+            for approval_id in approval_ids:
+                approval = await session.get(ApprovalRequest, approval_id)
+                assert approval is not None
+                assert approval.status in (ApprovalRequestStatus.APPROVED, ApprovalRequestStatus.REJECTED)
