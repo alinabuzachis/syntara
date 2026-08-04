@@ -1,8 +1,8 @@
-# Contributing to Nexus UI
+# Contributing to Syntara UI
 
 ## Welcome Contributors!
 
-We're excited that you're interested in contributing to the Nexus UI project. This document provides guidelines to help you contribute effectively.
+We're excited that you're interested in contributing to the Syntara UI project. This document provides guidelines to help you contribute effectively.
 
 All pull requests must pass the `(Frontend) Required Checks` CI gate before merging. This includes unit tests, type-checking, linting, and builds. SonarCloud analysis runs on PRs but is informational only and does not block merges.
 
@@ -203,4 +203,4 @@ If you have questions, please:
 - Open an issue for discussion
 - Reach out to maintainers
 
-Thank you for contributing to Nexus UI!
+Thank you for contributing to Syntara UI!

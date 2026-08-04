@@ -183,7 +183,7 @@ if (missingBaselines.length > 0) {
   }
   console.error('\nTo fix: run `npx playwright test page-screenshots --update-snapshots` on Linux')
   console.error(
-    '        or use Docker: docker run --rm -v $(pwd):/work -w /work/packages/nexus-ui \\\n' +
+    '        or use Docker: docker run --rm -v $(pwd):/work -w /work/packages/syntara-ui \\\n' +
       '          mcr.microsoft.com/playwright:v1.59.0-noble \\\n' +
       '          npx playwright test e2e/visual-regression/page-screenshots --update-snapshots\n'
   )

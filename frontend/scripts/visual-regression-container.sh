@@ -82,7 +82,7 @@ else
 fi
 echo ""
 
-SNAPSHOT_DIR="packages/nexus-ui/e2e/visual-regression/page-screenshots.spec.ts-snapshots"
+SNAPSHOT_DIR="packages/syntara-ui/e2e/visual-regression/page-screenshots.spec.ts-snapshots"
 API_PORT=3300
 UI_PORT=4173
 
@@ -147,11 +147,11 @@ set +e
     set +e
     NODE_OPTIONS='--max-old-space-size=4096' \
     VITE_API_URL=http://localhost:${API_PORT} \
-    npm run build --prefix packages/nexus-ui
+    npm run build --prefix packages/syntara-ui
     BUILD_EXIT=\$?
     set -e
     if [[ \$BUILD_EXIT -ne 0 ]]; then
-      if [[ -f packages/nexus-ui/dist/index.html ]]; then
+      if [[ -f packages/syntara-ui/dist/index.html ]]; then
         echo \"Note: build exited \${BUILD_EXIT} but dist output exists, continuing.\"
       else
         echo \"Build failed (exit \${BUILD_EXIT}) and no dist/index.html found.\"
@@ -162,7 +162,7 @@ set +e
     echo ''
     echo '--- Starting mock API and preview server ---'
     PORT=${API_PORT} npm run start --prefix packages/syntara-mock-api &
-    (cd packages/nexus-ui && npx vite preview --port ${UI_PORT}) &
+    (cd packages/syntara-ui && npx vite preview --port ${UI_PORT}) &
 
     echo 'Waiting for servers...'
     for i in \$(seq 1 60); do
@@ -182,7 +182,7 @@ set +e
     echo ''
     echo '--- Running visual regression tests ---'
     TEST_EXIT=0
-    cd packages/nexus-ui
+    cd packages/syntara-ui
     NEXUS_E2E_BASE_URL=http://localhost:${UI_PORT} \
     NEXUS_E2E_API_PORT=${API_PORT} \
     npx playwright test e2e/visual-regression/page-screenshots.spec.ts ${UPDATE_FLAG} || TEST_EXIT=\$?

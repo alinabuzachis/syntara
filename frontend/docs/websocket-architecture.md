@@ -208,7 +208,7 @@ Each `channelId` creates its own WebSocket connection to its corresponding backe
 ### File Structure
 
 ```text
-packages/nexus-ui/src/lib/websocket/
+packages/syntara-ui/src/lib/websocket/
 ├── channels.ts       # Channel definitions (WebSocketChannel)
 ├── store.ts          # Zustand store with all connection logic
 ├── hooks.ts          # useWebSocket hook (single hook for all operations)

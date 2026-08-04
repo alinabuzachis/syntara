@@ -15,12 +15,12 @@ Your goal is to author comprehensive, production-grade end-to-end tests using Pl
 
 | Component     | Location                                     |
 | ------------- | -------------------------------------------- |
-| Config        | `frontend/packages/nexus-ui/playwright.config.ts`     |
-| Test files    | `frontend/packages/nexus-ui/e2e/*.spec.ts`            |
-| Fixtures      | `frontend/packages/nexus-ui/e2e/fixtures.ts`          |
-| Helpers       | `frontend/packages/nexus-ui/e2e/helpers/workflows.ts` |
-| Utils (API)   | `frontend/packages/nexus-ui/e2e/utils/api.ts`         |
-| Utils (Mocks) | `frontend/packages/nexus-ui/e2e/utils/mockData.ts`    |
+| Config        | `frontend/packages/syntara-ui/playwright.config.ts`     |
+| Test files    | `frontend/packages/syntara-ui/e2e/*.spec.ts`            |
+| Fixtures      | `frontend/packages/syntara-ui/e2e/fixtures.ts`          |
+| Helpers       | `frontend/packages/syntara-ui/e2e/helpers/workflows.ts` |
+| Utils (API)   | `frontend/packages/syntara-ui/e2e/utils/api.ts`         |
+| Utils (Mocks) | `frontend/packages/syntara-ui/e2e/utils/mockData.ts`    |
 
 ### Key Conventions (extracted from existing tests)
 
@@ -111,7 +111,7 @@ To test against the real Nexus backend instead of the mock API:
 
 ### Step 1: Read existing test files
 
-Read all files in `frontend/packages/nexus-ui/e2e/`:
+Read all files in `frontend/packages/syntara-ui/e2e/`:
 
 - `fixtures.ts` — custom `{ app }` fixture definition and `toAppUrl` helper
 - `helpers/workflows.ts` — `buildUniqueName`, `createBasicWorkflow`, `addNodePanel` (Add step panel), `fillCodeEditor`, `closeNodeEditorPanel`
@@ -188,7 +188,7 @@ Instead of guessing that a button is called "Save":
 
 ### Key information to gather
 
-1. **Routes:** Read `frontend/packages/nexus-ui/src/app/AppRoute.tsx` and `frontend/packages/nexus-ui/src/app/navigationItems.tsx`
+1. **Routes:** Read `frontend/packages/syntara-ui/src/app/AppRoute.tsx` and `frontend/packages/syntara-ui/src/app/navigationItems.tsx`
 2. **Features:** Workflows, Builder, Executions, Credentials, Integrations, Approvals
 3. **Critical paths:**
    - Create workflow → Add steps → Save → Execute → View results
@@ -763,12 +763,12 @@ Use `app` (admin) to create resources, then `viewerApp`/`auditorApp`/`userApp` t
 
 ### Resource Utility Pattern (Recommended for Real Backend)
 
-For faster test setup/teardown when running against a real backend, create API-based resource utilities in `frontend/packages/nexus-ui/e2e/utils/`.
+For faster test setup/teardown when running against a real backend, create API-based resource utilities in `frontend/packages/syntara-ui/e2e/utils/`.
 
 **Add new resource-specific helpers alongside the existing utilities:**
 
 ```typescript
-// packages/nexus-ui/e2e/utils/workflows.ts
+// packages/syntara-ui/e2e/utils/workflows.ts
 import { type Page } from '@playwright/test'
 import { buildUniqueName } from '../helpers/workflows'
 
@@ -889,7 +889,7 @@ npm run e2e
 npm run e2e:ui
 
 # Specific test file
-cd packages/nexus-ui
+cd packages/syntara-ui
 npx playwright test e2e/workflows.spec.ts
 
 # Specific test by name
@@ -1141,7 +1141,7 @@ Before considering tests complete:
 npm run e2e
 
 # Run specific test alone
-cd packages/nexus-ui && npx playwright test --grep "specific test"
+cd packages/syntara-ui && npx playwright test --grep "specific test"
 
 # TypeScript compiles
 npm run tsc
@@ -1151,8 +1151,8 @@ npm run tsc
 
 ## Deliverables
 
-1. **Test files** — `frontend/packages/nexus-ui/e2e/*.spec.ts`
-2. **Helpers** — Reusable functions in `frontend/packages/nexus-ui/e2e/helpers/`
-3. **Resource utilities** — `frontend/packages/nexus-ui/e2e/utils/` (if creating API-based setup/teardown)
+1. **Test files** — `frontend/packages/syntara-ui/e2e/*.spec.ts`
+2. **Helpers** — Reusable functions in `frontend/packages/syntara-ui/e2e/helpers/`
+3. **Resource utilities** — `frontend/packages/syntara-ui/e2e/utils/` (if creating API-based setup/teardown)
 4. **Coverage summary** — Brief comment documenting features, edge cases, and known gaps
-5. **Visual regression** — If the PR changes any UI layout or visual appearance, check whether a visual regression snapshot exists. See [`packages/nexus-ui/VISUAL_REGRESSION.md`](../packages/nexus-ui/VISUAL_REGRESSION.md) for the page registry, baseline update workflow, and CI screenshot comparison. Run `npm run e2e:visual-regression` to verify; run with `--update-snapshots` to update baselines.
+5. **Visual regression** — If the PR changes any UI layout or visual appearance, check whether a visual regression snapshot exists. See [`packages/syntara-ui/VISUAL_REGRESSION.md`](../packages/syntara-ui/VISUAL_REGRESSION.md) for the page registry, baseline update workflow, and CI screenshot comparison. Run `npm run e2e:visual-regression` to verify; run with `--update-snapshots` to update baselines.

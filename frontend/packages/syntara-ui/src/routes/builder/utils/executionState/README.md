@@ -229,7 +229,7 @@ All components have comprehensive test coverage (71 tests total):
 Run tests:
 
 ```bash
-npm --workspace=@ansible/nexus-ui run vitest -- executionState
+npm --workspace=@syntara/ui run vitest -- executionState
 ```
 
 ## Performance Considerations

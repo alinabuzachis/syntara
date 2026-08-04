@@ -452,7 +452,7 @@ await execution_service.start_workflow(
 The service looks up `background_task_queue` from settings and routes the Temporal workflow
 there. From this point, execution is identical to any other workflow — visible in the Temporal
 UI under `nexus-background-queue`, status synced to the DB via `ActivitySyncService`, and
-surfaced in the Nexus UI for administrators with the builtin toggle enabled.
+surfaced in the Syntara UI for administrators with the builtin toggle enabled.
 
 ## Constraints and Known Gaps
 

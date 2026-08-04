@@ -6,7 +6,7 @@ The Approval node creates a human approval gate that pauses workflow execution u
 
 ## Node Registration
 
-**File**: `packages/nexus-ui/src/routes/builder/registry/nodes/registerApprovalNode.ts`
+**File**: `packages/syntara-ui/src/routes/builder/registry/nodes/registerApprovalNode.ts`
 
 ### Registry Properties
 
@@ -80,7 +80,7 @@ onSubmit: (data, onSuccess, onError) => {
 
 ## Form Schema & Validation
 
-**File**: `packages/nexus-ui/src/routes/builder/node-forms/approvalFormSchema.ts`
+**File**: `packages/syntara-ui/src/routes/builder/node-forms/approvalFormSchema.ts`
 
 ### Zod Schema
 
@@ -150,7 +150,7 @@ export type ApprovalFormSubmitData = {
 
 ## Form Component Structure
 
-**File**: `packages/nexus-ui/src/routes/builder/node-forms/ApprovalNodeForm.tsx`
+**File**: `packages/syntara-ui/src/routes/builder/node-forms/ApprovalNodeForm.tsx`
 
 ### Component Hierarchy
 
@@ -413,7 +413,7 @@ After creating the activity object:
 
 ## Approval Status Badges
 
-**File**: `packages/nexus-ui/src/routes/approvals/approvalUtils.tsx`
+**File**: `packages/syntara-ui/src/routes/approvals/approvalUtils.tsx`
 
 The `ApprovalStatusBadges` component renders status badges for approval requests in the approvals list view and execution details.
 
@@ -474,7 +474,7 @@ export function ApprovalStatusBadges(props: Readonly<{ status?: ApprovalStatus |
 
 ## Builder Approval Handling (Execution Context)
 
-The builder also handles approval interactions when viewing a live or recent execution overlay. The `useBuilderApproval` hook (`packages/nexus-ui/src/routes/builder/hooks/useBuilderApproval.ts`) bridges the execution-side approval system into the builder canvas:
+The builder also handles approval interactions when viewing a live or recent execution overlay. The `useBuilderApproval` hook (`packages/syntara-ui/src/routes/builder/hooks/useBuilderApproval.ts`) bridges the execution-side approval system into the builder canvas:
 
 - **Badge click detection**: Uses `EXECUTION_BADGE_SELECTOR` (a CSS data-attribute selector from `ExecutionStatusBadge.tsx`) to distinguish clicks on the execution status badge from normal node clicks
 - **Approval view**: When a user clicks a waiting-approval badge, the hook fetches the pending approval and opens `ApprovalReviewModal` inline in the builder
@@ -485,7 +485,7 @@ The builder also handles approval interactions when viewing a live or recent exe
 
 ### Group Permission Filtering
 
-`useApprovalDecideGroups` (`packages/nexus-ui/src/routes/builder/node-forms/useApprovalDecideGroups.ts`) returns **all groups** without filtering by `approval:decide` permission. Users can select groups whose members lack the required permission, creating approvals that no group member can decide (effectively hanging forever). The helper text warns about empty groups, but there is no check for permission eligibility.
+`useApprovalDecideGroups` (`packages/syntara-ui/src/routes/builder/node-forms/useApprovalDecideGroups.ts`) returns **all groups** without filtering by `approval:decide` permission. Users can select groups whose members lack the required permission, creating approvals that no group member can decide (effectively hanging forever). The helper text warns about empty groups, but there is no check for permission eligibility.
 
 **Why**: The `/authz/who_can` endpoint returns users, not groups. Client-side filtering would require N×M API calls (N groups × M members). A proper fix requires a backend `/authz/which_groups_can` endpoint.
 

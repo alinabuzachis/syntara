@@ -12,7 +12,7 @@ describe('resolveScope', () => {
   })
 
   it('scopes an isolated route folder to that section', () => {
-    const result = resolveScope(['frontend/packages/nexus-ui/src/routes/workflows/WorkflowsList.tsx'])
+    const result = resolveScope(['frontend/packages/syntara-ui/src/routes/workflows/WorkflowsList.tsx'])
     expect(result).toEqual({ full: false, sections: ['workflows'] })
     expect(formatScopeLine(result)).toBe('SCOPE=(?:^|\\s)(workflows)/')
   })
@@ -26,26 +26,26 @@ describe('resolveScope', () => {
     expect(
       resolveScope([
         'frontend/packages/syntara-mock-api/src/handlers.ts',
-        'frontend/packages/nexus-ui/src/routes/workflows/WorkflowsList.tsx',
+        'frontend/packages/syntara-ui/src/routes/workflows/WorkflowsList.tsx',
       ])
     ).toEqual({ full: true })
   })
 
-  it('forces FULL for nexus-contracts changes', () => {
-    expect(resolveScope(['frontend/packages/nexus-contracts/src/schemas.ts'])).toEqual({ full: true })
+  it('forces FULL for syntara-contracts changes', () => {
+    expect(resolveScope(['frontend/packages/syntara-contracts/src/schemas.ts'])).toEqual({ full: true })
   })
 
-  it('forces FULL for unmatched shared nexus-ui files', () => {
-    expect(resolveScope(['frontend/packages/nexus-ui/src/components/Button.tsx'])).toEqual({ full: true })
-    expect(resolveScope(['frontend/packages/nexus-ui/e2e/visual-regression/page-registry.ts'])).toEqual({
+  it('forces FULL for unmatched shared syntara-ui files', () => {
+    expect(resolveScope(['frontend/packages/syntara-ui/src/components/Button.tsx'])).toEqual({ full: true })
+    expect(resolveScope(['frontend/packages/syntara-ui/e2e/visual-regression/page-registry.ts'])).toEqual({
       full: true,
     })
   })
 
   it('unions sections when multiple isolated folders change', () => {
     const result = resolveScope([
-      'frontend/packages/nexus-ui/src/routes/workflows/WorkflowsList.tsx',
-      'frontend/packages/nexus-ui/src/routes/approvals/ApprovalsList.tsx',
+      'frontend/packages/syntara-ui/src/routes/workflows/WorkflowsList.tsx',
+      'frontend/packages/syntara-ui/src/routes/approvals/ApprovalsList.tsx',
     ])
     expect(result.full).toBe(false)
     if (!result.full) {

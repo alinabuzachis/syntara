@@ -40,7 +40,7 @@ REPO_ROOT=$(git rev-parse --show-toplevel)
 
 | Setting | Default | How to verify |
 |---|---|---|
-| UI project path | `$REPO_ROOT/frontend/packages/nexus-ui` | `ls $REPO_ROOT/frontend/packages/nexus-ui/playwright.config.ts` |
+| UI project path | `$REPO_ROOT/frontend/packages/syntara-ui` | `ls $REPO_ROOT/frontend/packages/syntara-ui/playwright.config.ts` |
 | Admin password path | `$REPO_ROOT/backend/.secrets/admin-password` | `test -f $REPO_ROOT/backend/.secrets/admin-password` |
 | CA cert path | `$REPO_ROOT/backend/.secrets/certs/ca.pem` | `test -f $REPO_ROOT/backend/.secrets/certs/ca.pem` |
 | Backend URL | `https://localhost:8000` | `curl -sf --cacert $REPO_ROOT/backend/.secrets/certs/ca.pem https://localhost:8000/health` |
@@ -136,7 +136,7 @@ Construct the command based on the wizard answers.
 **Real backend mode:**
 
 ```bash
-(cd $REPO_ROOT/frontend/packages/nexus-ui && \
+(cd $REPO_ROOT/frontend/packages/syntara-ui && \
 VITE_API_URL=https://localhost:8000 \
 NEXUS_E2E_SKIP_WEB_SERVER=1 \
 NEXUS_E2E_BASE_URL=http://localhost:5173 \
@@ -153,7 +153,7 @@ If the user provided a custom admin password path, backend URL, or frontend URL,
 **Mock API mode:**
 
 ```bash
-(cd $REPO_ROOT/frontend/packages/nexus-ui && npx playwright test $TEST_ARGS)
+(cd $REPO_ROOT/frontend/packages/syntara-ui && npx playwright test $TEST_ARGS)
 ```
 
 No env vars needed — Playwright auto-starts everything.
@@ -174,7 +174,7 @@ After the test run completes, present a clear summary to the user. Do not just l
 2. **Failed tests** — list each by name with a one-line description of the error
 3. **Link to the full HTML report:**
    ```
-   open $REPO_ROOT/frontend/packages/nexus-ui/playwright-report/index.html
+   open $REPO_ROOT/frontend/packages/syntara-ui/playwright-report/index.html
    ```
 
 Keep the report concise — the user should be able to see the result at a glance without scrolling through raw output.

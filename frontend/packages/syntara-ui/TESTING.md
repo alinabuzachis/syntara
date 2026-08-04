@@ -45,7 +45,7 @@ Coverage threshold is enforced by CI (per-file 80% minimum). The check will **fa
 ## Test File Naming
 
 - **Standard tests**: `*.test.ts`, `*.test.tsx` (uses jsdom)
-- **E2E tests**: `packages/nexus-ui/e2e/*.spec.ts`
+- **E2E tests**: `packages/syntara-ui/e2e/*.spec.ts`
 
 ## When to Use Playwright E2E
 
@@ -170,17 +170,17 @@ Coverage reports are generated in CI. View them locally with `npm run test:cover
 
 ### Configuration
 
-E2E tests use Playwright config in `packages/nexus-ui/playwright.config.ts`:
+E2E tests use Playwright config in `packages/syntara-ui/playwright.config.ts`:
 
 - **Browser**: Chromium
 - **Headless**: Yes (by default)
 - **Screenshots**: On failure
-- **Pattern**: `packages/nexus-ui/e2e/*.spec.ts`
+- **Pattern**: `packages/syntara-ui/e2e/*.spec.ts`
 
 ### Playwright E2E Example
 
 ```typescript
-// File: packages/nexus-ui/e2e/workflows.spec.ts
+// File: packages/syntara-ui/e2e/workflows.spec.ts
 import { test, expect, toAppUrl } from './fixtures'
 import { buildUniqueName } from './helpers/workflows'
 
@@ -255,7 +255,7 @@ Key points:
 
 ## Playwright Integration Tests
 
-Playwright integration tests live in `packages/nexus-ui/e2e` and exercise full user workflows.
+Playwright integration tests live in `packages/syntara-ui/e2e` and exercise full user workflows.
 
 ### Environment
 

@@ -1,4 +1,4 @@
-# Nexus UI Developer Guide
+# Syntara UI Developer Guide
 
 ## Table of Contents
 
@@ -17,7 +17,7 @@
 
 ### Purpose
 
-Nexus UI is a React-based application for building and managing complex automation workflows, focusing on type-safety, performance, and developer experience.
+Syntara UI is a React-based application for building and managing complex automation workflows, focusing on type-safety, performance, and developer experience.
 
 ### Technology Stack
 
@@ -25,7 +25,7 @@ Nexus UI is a React-based application for building and managing complex automati
 - **Styling**: PatternFly 6
 - **State Management**: TanStack Query (server state), Zustand (client state)
 - **API Integration**: openapi-fetch, openapi-react-query
-- **Date formatting**: date-fns (`packages/nexus-ui/src/utils/dateUtils.ts`)
+- **Date formatting**: date-fns (`packages/syntara-ui/src/utils/dateUtils.ts`)
 - **Testing**: Vitest, React Testing Library
 - **Build**: Vite, npm workspaces
 
@@ -64,7 +64,7 @@ npm start
 
 ### Monorepo Structure
 
-- `packages/nexus-ui`: Main React application
+- `packages/syntara-ui`: Main React application
 - `packages/syntara-contracts`: OpenAPI TypeScript types
 - `packages/syntara-mock-api`: MSW-based mock API server
 
@@ -233,7 +233,7 @@ npm run e2e            # Run headless
 npm run e2e:ui         # Run with Playwright UI
 
 # Run a specific test file
-npx vitest run packages/nexus-ui/path/to/specific/test.test.ts
+npx vitest run packages/syntara-ui/path/to/specific/test.test.ts
 ```
 
 ### Running E2E Tests Against the Real Backend
@@ -280,9 +280,9 @@ The Playwright config sets `ignoreHTTPSErrors` to `true` in real-backend mode (w
 - Follow AAA pattern (Arrange-Act-Assert)
 - Mock external dependencies with `vi.fn()` and `vi.mock()`
 - All new/modified code must meet **80% coverage** (lines, statements, functions, branches)
-- Use `*.test.tsx` for jsdom unit tests, `*.spec.ts` under `packages/nexus-ui/e2e/` for Playwright E2E tests
-- **E2E tests** run against mock API by default, real backend supported — See [packages/nexus-ui/TESTING.md](packages/nexus-ui/TESTING.md) for setup
-- **Visual regression** — every route is screenshotted and compared against baselines in CI. New routes must be added to the page registry. See [packages/nexus-ui/VISUAL_REGRESSION.md](packages/nexus-ui/VISUAL_REGRESSION.md)
+- Use `*.test.tsx` for jsdom unit tests, `*.spec.ts` under `packages/syntara-ui/e2e/` for Playwright E2E tests
+- **E2E tests** run against mock API by default, real backend supported — See [packages/syntara-ui/TESTING.md](packages/syntara-ui/TESTING.md) for setup
+- **Visual regression** — every route is screenshotted and compared against baselines in CI. New routes must be added to the page registry. See [packages/syntara-ui/VISUAL_REGRESSION.md](packages/syntara-ui/VISUAL_REGRESSION.md)
 
 ## Performance Optimization
 
@@ -389,5 +389,5 @@ See [docs/zustand-architecture.md](docs/zustand-architecture.md) for the complet
 | Execution visualizer protocol | [docs/execution-visualizer-protocol.md](docs/execution-visualizer-protocol.md)             |
 | Error handling                | [docs/error-handling.md](docs/error-handling.md)                                           |
 | Workflow loading & saving     | [docs/workflow-loading-saving.md](docs/workflow-loading-saving.md)                         |
-| Testing guide                 | [packages/nexus-ui/TESTING.md](packages/nexus-ui/TESTING.md)                               |
+| Testing guide                 | [packages/syntara-ui/TESTING.md](packages/syntara-ui/TESTING.md)                           |
 | Contributing guidelines       | [CONTRIBUTING.md](CONTRIBUTING.md)                                                         |

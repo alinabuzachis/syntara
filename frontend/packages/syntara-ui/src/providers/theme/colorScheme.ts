@@ -1,10 +1,10 @@
 /**
  * Color scheme: PatternFly `pf-v6-theme-dark` on `<html>` selects light vs dark.
  * `pf-v6-theme-glass` stays on for both themes (set in `index.html`); runtime only toggles `pf-v6-theme-dark`.
- * Keep `resolveColorScheme` and `applyDocumentColorScheme` in sync with the inline script in `packages/nexus-ui/index.html`.
+ * Keep `resolveColorScheme` and `applyDocumentColorScheme` in sync with the inline script in `packages/syntara-ui/index.html`.
  */
 /** `localStorage` key for persisted light/dark preference. */
-export const COLOR_SCHEME_STORAGE_KEY = 'nexus-ui-color-scheme'
+export const COLOR_SCHEME_STORAGE_KEY = 'syntara-ui-color-scheme'
 
 /** Resolved appearance: PatternFly light (no `pf-v6-theme-dark`) or dark. */
 export type ColorScheme = 'light' | 'dark'

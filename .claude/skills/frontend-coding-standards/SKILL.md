@@ -34,7 +34,7 @@ Before writing custom utilities, hooks, or helpers, check whether the library or
 - `URL` constructor instead of string concatenation for URLs
 - `crypto.getRandomValues()` + a wrapper instead of Math.random() for IDs
 
-**Caveat -- verify browser API availability in all deployment contexts.** Some Web APIs are restricted to secure contexts (HTTPS or localhost). For example, `crypto.randomUUID()` is unavailable over plain HTTP and causes a runtime crash. The project uses `generateUUID()` from `frontend/packages/nexus-ui/src/utils/generateUUID.ts` which wraps `crypto.getRandomValues()` (available in all contexts). When using a native API, check [MDN's "Secure context: required" badge](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts) and verify the app works over both HTTP and HTTPS.
+**Caveat -- verify browser API availability in all deployment contexts.** Some Web APIs are restricted to secure contexts (HTTPS or localhost). For example, `crypto.randomUUID()` is unavailable over plain HTTP and causes a runtime crash. The project uses `generateUUID()` from `frontend/packages/syntara-ui/src/utils/generateUUID.ts` which wraps `crypto.getRandomValues()` (available in all contexts). When using a native API, check [MDN's "Secure context: required" badge](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts) and verify the app works over both HTTP and HTTPS.
 
 When reviewing code, flag any pattern that duplicates what a dependency or browser API already exposes. If unsure whether a library covers a use case, check [`.claude/skills/frontend-library-references/SKILL.md`](../frontend-library-references/SKILL.md) and fetch the `llms.txt` URL for that library.
 
@@ -293,7 +293,7 @@ Codebase Search Patterns:
 
 - Component used in 2+ unrelated features
 - Hook provides generic, reusable functionality
-- Pattern is not domain-specific to nexus-ui
+- Pattern is not domain-specific to syntara-ui
 
 ### Shared Hooks Available
 
@@ -301,7 +301,7 @@ Codebase Search Patterns:
 - `useCursorReset(itemCount, hasActiveFilters, cursor, isFetching, setCursor)` — reset to page 1
 - `useDialogState<T>()` — dialog open/close state with associated item
 - `useDeleteAction(options)` — delete mutation with success/error alerts
-- `NxConfirmationDialog` — reusable confirm/cancel modal (`frontend/packages/nexus-ui/src/components/dialogs/NxConfirmationDialog.tsx`)
+- `NxConfirmationDialog` — reusable confirm/cancel modal (`frontend/packages/syntara-ui/src/components/dialogs/NxConfirmationDialog.tsx`)
 
 ### List Page Standard Pattern
 
@@ -369,12 +369,12 @@ export function MyListPage() {
 Before writing any new UI code, follow this checklist:
 
 1. **Check for Existing Components**
-   - Search `frontend/packages/nexus-ui/src/components/` for existing application-specific components
+   - Search `frontend/packages/syntara-ui/src/components/` for existing application-specific components
    - Check PatternFly documentation for available components: Button, Alert, Switch, Table, Dialog, EmptyState, Menu, Tooltip, Checkbox, etc.
    - Verify if a PatternFly component or existing app component can be reused or extended
 
 2. **Component Location Strategy**
-   - **Application-specific components** → `frontend/packages/nexus-ui/src/components/`
+   - **Application-specific components** → `frontend/packages/syntara-ui/src/components/`
    - Use PatternFly components directly from `@patternfly/react-core` and related packages
    - When in doubt, prefer PatternFly components over custom implementations
 
@@ -382,15 +382,15 @@ Before writing any new UI code, follow this checklist:
    - ALWAYS use PatternFly components as the foundation
    - Build accessible components following PatternFly patterns and design system
    - Include comprehensive tests (see existing `.test.tsx` files)
-   - Place in `frontend/packages/nexus-ui/src/components/` for app-specific components
+   - Place in `frontend/packages/syntara-ui/src/components/` for app-specific components
    - **Use PF6 design tokens instead of hardcoded pixel values** for spacing, sizing, colors, and icons. Use `var(--pf-t--global--spacer--*)` for margins/padding, `var(--pf-t--global--icon--size--*)` for icon dimensions, `var(--pf-t--global--color--*)` for colors, and content-aware units (`ch`, `rem`) for input widths. Hardcoded `px` values are acceptable only for layout constraints (table column widths, fixed panel heights) where no semantic token applies. **CSS modules must also use PF tokens** -- ESLint only catches hardcoded values in JSX, so CSS modules need manual review. Use semantic tokens like `var(--pf-t--global--text--color--subtle)` rather than lower-level tokens like `var(--pf-t--global--color--200)`.
    - **Use `RhUi*` icons** (e.g., `RhUiAddIcon`, `RhUiTrashIcon`, `RhUiEditIcon`) for all action buttons, not legacy PatternFly icons like `PlusCircleIcon`, `CopyIcon`, or `TrashIcon`. The `RhUi*` icon set is the project standard. **Enforced by ESLint:** `no-restricted-imports` (warn) flags any non-`RhUi` import from `@patternfly/react-icons`. Existing legacy icons are being phased out.
    - **Add `shouldFocusToggleOnSelect` to PF Select components** for accessibility. The select should receive focus when a selection is made. This is not a PF default but is needed for proper keyboard navigation.
-   - **JSDoc on shared/global component props** -- every exported component in `frontend/packages/nexus-ui/src/components/` (especially `Nx*` components) must have JSDoc descriptions on its props interface. TypeScript types convey shape; JSDoc conveys intent. Describe what each prop controls, when to use optional props, and any non-obvious default behavior. This helps both human contributors and AI agents use components correctly without reading the implementation.
+   - **JSDoc on shared/global component props** -- every exported component in `frontend/packages/syntara-ui/src/components/` (especially `Nx*` components) must have JSDoc descriptions on its props interface. TypeScript types convey shape; JSDoc conveys intent. Describe what each prop controls, when to use optional props, and any non-obvious default behavior. This helps both human contributors and AI agents use components correctly without reading the implementation.
 
 4. **Custom Hooks**
    - Extract reusable logic into custom hooks
-   - Place hooks in `frontend/packages/nexus-ui/src/hooks/`
+   - Place hooks in `frontend/packages/syntara-ui/src/hooks/`
    - Follow naming convention: `useXxx`
    - Include TypeScript types
 
@@ -423,7 +423,7 @@ Result: Use PatternFly Modal component or extend existing app component
 
 ### Code Readability Enforcement (ESLint)
 
-ESLint enforces readability, type safety, and code quality rules at `error` level. CI will block violations. See `frontend/packages/nexus-ui/eslint.config.js` for the full list of rules and thresholds.
+ESLint enforces readability, type safety, and code quality rules at `error` level. CI will block violations. See `frontend/packages/syntara-ui/eslint.config.js` for the full list of rules and thresholds.
 
 ### Zero New Warnings Policy
 
@@ -1097,7 +1097,7 @@ export function useResourceActions() {
 
 **Do** load the full list by following `next` cursors in a small utility, then cache with React Query in a dedicated hook:
 
-- Use `fetchAllPages` from `frontend/packages/nexus-ui/src/utils/fetchAllPages.ts` (safety caps: `MAX_PAGES`, `MAX_ITEMS`, loop detection).
+- Use `fetchAllPages` from `frontend/packages/syntara-ui/src/utils/fetchAllPages.ts` (safety caps: `MAX_PAGES`, `MAX_ITEMS`, loop detection).
 - Expose one hook per resource, e.g. `useAllProjects`, `useAllSettings`, in the route/feature folder, with `queryKey` like `['all-projects']` and a matching test file.
 - **Tables** that paginate in the UI should keep using **`useCursorPagination`** — `fetchAllPages` is only for "need every row once" scenarios (dropdowns, full settings catalog, modals).
 
@@ -1657,11 +1657,11 @@ export type SwitchConfig = { cases: Array<{ label: string }> }
 
 The doc link system has five parts:
 
-1. **`frontend/packages/nexus-ui/src/utils/docs/docsUrls.json`** -- flat map of logical doc keys to **path fragments** (one string per key). Adding a new page means adding a new entry here.
-2. **`frontend/packages/nexus-ui/src/utils/docs/docsConfig.json`** -- community homepage URL + docs `version` used when substituting `{version}` in product bases.
-3. **`frontend/packages/nexus-ui/src/utils/docs/loadDocsConfig.ts`** -- build-time merge via `import.meta.glob` of optional `docsConfig.overlay.json` / `docsUrls.overlay.json` (gitignored; injected only on extended builds).
-4. **`frontend/packages/nexus-ui/src/utils/docs/types.ts`** -- `DocKey` type is derived from `keyof typeof docsUrls`, so TypeScript rejects any key not in the JSON at compile time.
-5. **`frontend/packages/nexus-ui/src/utils/docs/DocLinkProvider.tsx` + `useDocLink.ts`** -- React context (wired in `App.tsx`) reads `VITE_EXTENDED` for community vs extended mode, then `resolveDocUrl` builds the final URL.
+1. **`frontend/packages/syntara-ui/src/utils/docs/docsUrls.json`** -- flat map of logical doc keys to **path fragments** (one string per key). Adding a new page means adding a new entry here.
+2. **`frontend/packages/syntara-ui/src/utils/docs/docsConfig.json`** -- community homepage URL + docs `version` used when substituting `{version}` in product bases.
+3. **`frontend/packages/syntara-ui/src/utils/docs/loadDocsConfig.ts`** -- build-time merge via `import.meta.glob` of optional `docsConfig.overlay.json` / `docsUrls.overlay.json` (gitignored; injected only on extended builds).
+4. **`frontend/packages/syntara-ui/src/utils/docs/types.ts`** -- `DocKey` type is derived from `keyof typeof docsUrls`, so TypeScript rejects any key not in the JSON at compile time.
+5. **`frontend/packages/syntara-ui/src/utils/docs/DocLinkProvider.tsx` + `useDocLink.ts`** -- React context (wired in `App.tsx`) reads `VITE_EXTENDED` for community vs extended mode, then `resolveDocUrl` builds the final URL.
 
 ### Usage
 
@@ -1682,7 +1682,7 @@ The sidebar help icon (`AppDockedNav`) uses the `home` key. In community mode th
 
 ### Adding a New Doc Link
 
-1. Add a flat path entry to `frontend/packages/nexus-ui/src/utils/docs/docsUrls.json`:
+1. Add a flat path entry to `frontend/packages/syntara-ui/src/utils/docs/docsUrls.json`:
 
 ```json
 {

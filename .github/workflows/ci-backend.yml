@@ -558,7 +558,7 @@ jobs:
           APP_COLLECTION_INTERVAL_SECONDS: "10"
           APP_WORKFLOW_HTTP_REQUEST_ALLOWED_HOSTS: '["host.containers.internal"]'
         run: |
-          # Start core services + mock-segment (exclude nexus-ui which is private)
+          # Start core services + mock-segment (exclude syntara-ui which is private)
           uvx podman-compose -p nexus-ci --profile telemetry-e2e up --build -d database temporal nexus temporal-worker temporal-background-worker mcp-server mock-segment
 
       - name: Verify services are healthy

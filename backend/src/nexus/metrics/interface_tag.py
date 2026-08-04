@@ -1,6 +1,6 @@
 """API-vs-UI interface detection for request metrics tagging.
 
-Determines whether an HTTP request originates from the Nexus UI or from an
+Determines whether an HTTP request originates from the Syntara UI or from an
 external API consumer (CLI, CI/CD pipeline, script, MCP client).  The detected
 interface is stored in a :class:`~contextvars.ContextVar` so that any
 downstream middleware or instrumentation point can read it without passing the

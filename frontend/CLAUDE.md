@@ -42,9 +42,9 @@ When the Storybook MCP is available in the session, use its tools for all compon
 **Never use bare `cd pkg && command`** — shell state does not persist between Bash calls and this pattern fails under `eval`. Use a subshell or `--prefix` instead:
 
 ```bash
-(cd packages/nexus-ui && npx eslint 'src/**/*.ts')  # subshell
-npm --prefix packages/nexus-ui run lint              # npm script
-npx --prefix packages/nexus-ui vitest run path/to/test.test.ts
+(cd packages/syntara-ui && npx eslint 'src/**/*.ts')  # subshell
+npm --prefix packages/syntara-ui run lint              # npm script
+npx --prefix packages/syntara-ui vitest run path/to/test.test.ts
 ```
 
 ### Accessibility review (always)
@@ -64,7 +64,7 @@ Treat accessibility as part of every UI change, not an optional follow-up:
 - **Leave files no worse than you found them**: If you touch a file, avoid increasing its warning count. When practical, reduce nearby warnings as part of the change.
 - **Refactor instead of suppressing**: Prefer clearer control flow, smaller functions, extracted helpers, and stronger types over disabling rules.
 - **Validate before finishing**: After substantive edits, run the relevant lint/type-check commands for the affected package and fix any issues introduced by the change.
-- **Use `detachPromise(...)` for fire-and-forget promises**: Import from `packages/nexus-ui/src/utils/detachPromise.ts`. The unary `void` operator is forbidden by ESLint `no-void`.
+- **Use `detachPromise(...)` for fire-and-forget promises**: Import from `packages/syntara-ui/src/utils/detachPromise.ts`. The unary `void` operator is forbidden by ESLint `no-void`.
 
 ### Common PR Mistakes — Quick Checklist
 
@@ -139,10 +139,10 @@ npm run test:ui             # Run UI package tests
 npm run e2e                 # Run e2e playwright tests
 npm run e2e:ui              # Run e2e playwright tests in the playwright UI
 npm run e2e:visual-regression        # Page screenshot visual regression (mock API + UI via Playwright webServer)
-npm run e2e:visual-regression:update # Same, with --update-snapshots (see packages/nexus-ui/VISUAL_REGRESSION.md)
+npm run e2e:visual-regression:update # Same, with --update-snapshots (see packages/syntara-ui/VISUAL_REGRESSION.md)
 
 # Run a specific test or coverage
-npx vitest run packages/nexus-ui/path/to/specific/test.test.ts
+npx vitest run packages/syntara-ui/path/to/specific/test.test.ts
 npm run test:coverage
 
 # Build
@@ -202,12 +202,12 @@ For how the UI is structured, see these comprehensive guides:
 | **Dialog state management**         | [`.claude/skills/frontend-coding-standards/SKILL.md`](.claude/skills/frontend-coding-standards/SKILL.md) -- `useDialogState` hook                                                                                                                                                                    |
 | **Error handling patterns**         | [`docs/error-handling.md`](docs/error-handling.md) -- RFC 9457, error utilities, retry support                                                                                                                                                                                                       |
 | **Testing standards**               | [`.claude/skills/frontend-testing-guidelines/SKILL.md`](.claude/skills/frontend-testing-guidelines/SKILL.md) -- coverage, queries, accessibility                                                                                                                                                     |
-| **Visual regression testing**       | [`packages/nexus-ui/VISUAL_REGRESSION.md`](packages/nexus-ui/VISUAL_REGRESSION.md) -- page registry, baselines, manual-only workflow                                                                                                                                                                 |
-| **New workflow step type**          | `packages/nexus-ui/src/routes/builder/registry/nodes/QUICK_START.md`                                                                                                                                                                                                                                 |
+| **Visual regression testing**       | [`packages/syntara-ui/VISUAL_REGRESSION.md`](packages/syntara-ui/VISUAL_REGRESSION.md) -- page registry, baselines, manual-only workflow                                                                                                                                                             |
+| **New workflow step type**          | `packages/syntara-ui/src/routes/builder/registry/nodes/QUICK_START.md`                                                                                                                                                                                                                               |
 | **UX / PatternFly design system**   | [`.claude/skills/frontend-patternfly-ux/SKILL.md`](.claude/skills/frontend-patternfly-ux/SKILL.md) -- PF6 patterns                                                                                                                                                                                   |
 | **Library docs / llms.txt links**   | [`.claude/skills/frontend-library-references/SKILL.md`](.claude/skills/frontend-library-references/SKILL.md) -- fetch before writing React, Zod, Zustand, Vitest, Vite, or TanStack Query code                                                                                                       |
 | **Permission gating / RBAC**        | [`docs/permissions-rbac.md`](docs/permissions-rbac.md) -- `useCanI`, `DisabledWithTooltip`, `ProtectedRoute`, nav filtering, mock API roles, ungated inventory                                                                                                                                       |
-| **Page content frame (`NxPanel`)**  | `packages/nexus-ui/src/components/layout/NxPanel.tsx` -- `Panel` -> `PanelMain` -> `PanelMainBody`; see JSDoc (glass vs `opaqueFloatingFill` vs `variant="raised"`) and [patternfly-react#12372](https://github.com/patternfly/patternfly-react/pull/12372)                                          |
+| **Page content frame (`NxPanel`)**  | `packages/syntara-ui/src/components/layout/NxPanel.tsx` -- `Panel` -> `PanelMain` -> `PanelMainBody`; see JSDoc (glass vs `opaqueFloatingFill` vs `variant="raised"`) and [patternfly-react#12372](https://github.com/patternfly/patternfly-react/pull/12372)                                        |
 | **Documentation links**             | [`.claude/skills/frontend-coding-standards/SKILL.md`](.claude/skills/frontend-coding-standards/SKILL.md) -- `useDocLink` hook, `DocKey` type, community vs extended URL resolution                                                                                                                   |
 
 ### Quick Reference: Common Tasks
@@ -227,8 +227,8 @@ See: [`docs/data-flow.md`](docs/data-flow.md) — "Type-Safe API Clients"
 
 #### How do I add a new route?
 
-1. Add route constant to `packages/nexus-ui/src/app/AppRoute.tsx`
-2. Add navigation item to `packages/nexus-ui/src/app/navigationItems.tsx` with lazy-loaded component
+1. Add route constant to `packages/syntara-ui/src/app/AppRoute.tsx`
+2. Add navigation item to `packages/syntara-ui/src/app/navigationItems.tsx` with lazy-loaded component
 3. The router auto-discovers it from `navigationItems` — no manual route config needed
 4. In the page component, render `<title>{toPageTitle(['Page Name'])}</title>` as the first child of `<NxPage>`; import `toPageTitle` from `src/utils/toPageTitle`
 
@@ -331,7 +331,7 @@ See: [`docs/architecture.md`](docs/architecture.md#api-filtering-architecture) �
 
 #### What is the default workflow name?
 
-**`new-workflow`**, defined as `DEFAULT_WORKFLOW_NAME` in `packages/nexus-ui/src/routes/builder/utils/workflowNaming.ts`. Conflicts auto-increment: `new-workflow-1`, `new-workflow-2`, etc.
+**`new-workflow`**, defined as `DEFAULT_WORKFLOW_NAME` in `packages/syntara-ui/src/routes/builder/utils/workflowNaming.ts`. Conflicts auto-increment: `new-workflow-1`, `new-workflow-2`, etc.
 
 #### How do I debug the workflow builder?
 
@@ -341,7 +341,7 @@ See: [`docs/architecture.md`](docs/architecture.md#api-filtering-architecture) �
 
 #### How do I format dates?
 
-Use date utilities in `packages/nexus-ui/src/utils/dateUtils.ts`:
+Use date utilities in `packages/syntara-ui/src/utils/dateUtils.ts`:
 
 - `formatDate(isoString)` — "Jan 15, 2024"
 - `formatTime(isoString)` — "2:30 PM"

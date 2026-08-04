@@ -5,7 +5,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     mockReset: true,
-    setupFiles: ['./packages/nexus-ui/src/test/setup.ts'],
+    setupFiles: ['./packages/syntara-ui/src/test/setup.ts'],
     include: ['packages/*/src/**/*.{test,spec}.{js,jsx,ts,tsx}'],
     coverage: {
       provider: 'v8',

@@ -1,6 +1,6 @@
 ---
 description: PatternFly UX Design System — Opinionated implementation rules for building frontend UI that adheres to PatternFly standards and this project's UX team's component usage guidelines.
-globs: ['packages/nexus-ui/src/**/*.tsx', 'packages/nexus-ui/src/**/*.ts']
+globs: ['packages/syntara-ui/src/**/*.tsx', 'packages/syntara-ui/src/**/*.ts']
 alwaysApply: false
 ---
 

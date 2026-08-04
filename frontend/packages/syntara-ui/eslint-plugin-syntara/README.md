@@ -118,7 +118,7 @@ Disallows browser-locale date formatting methods (`toLocaleDateString`, `toLocal
 Run the test suite:
 
 ```bash
-npx vitest run packages/nexus-ui/eslint-plugin-syntara/__tests__/
+npx vitest run packages/syntara-ui/eslint-plugin-syntara/__tests__/
 ```
 
 Run tests for a specific rule:

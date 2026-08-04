@@ -13,7 +13,7 @@ That's it! The **auto-discovery system** automatically finds and registers all `
 
 ## Step 1: Create Your Form Component
 
-Create a form component in `packages/nexus-ui/src/routes/builder/node-forms/`:
+Create a form component in `packages/syntara-ui/src/routes/builder/node-forms/`:
 
 ```typescript
 // MyNewNodeForm.tsx

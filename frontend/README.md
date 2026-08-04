@@ -1,8 +1,8 @@
-# Nexus UI
+# Syntara UI
 
 ## Overview
 
-Nexus UI is a cutting-edge React application designed for building and managing complex automation workflows. It provides a robust, type-safe, and performant solution for creating, visualizing, and managing automated processes.
+Syntara UI is a cutting-edge React application designed for building and managing complex automation workflows. It provides a robust, type-safe, and performant solution for creating, visualizing, and managing automated processes.
 
 ### Key Features
 
@@ -67,7 +67,7 @@ Get familiar with the hot reload workflow:
 
 1. **Open the UI** in your browser: <http://localhost:5173>
 2. **Navigate to** the Workflows page
-3. **Open the code** in your editor: `packages/nexus-ui/src/routes/workflows/Workflows.tsx`
+3. **Open the code** in your editor: `packages/syntara-ui/src/routes/workflows/Workflows.tsx`
 4. **Find the `NxPageHeader`** component and change the title text
 5. **Watch it reload** automatically in your browser - no refresh needed!
 6. **Revert the change** - you're ready to start real development
@@ -118,13 +118,13 @@ The frontend uses npm workspaces to organize its packages:
 ```text
 frontend/
 ├── packages/
-│   ├── nexus-ui/              # Main React 19 application
+│   ├── syntara-ui/              # Main React 19 application
 │   ├── syntara-contracts/       # OpenAPI TypeScript types
 │   └── syntara-mock-api/        # MSW-based mock API server
 ├── docs/                      # Architecture and design documentation
 ├── tools/                     # Developer utilities (workflow creator, CI scripts)
 ├── package.json               # Root workspace configuration
-├── packages/nexus-ui/Containerfile        # UI container image
+├── packages/syntara-ui/Containerfile        # UI container image
 └── packages/syntara-mock-api/Containerfile  # Mock API container image
 ```
 
@@ -162,7 +162,7 @@ npm run e2e:ui                     # Run Playwright UI mode
 # Tests run against the mock backend by default.
 # UI runs on port 4173 and mock API on port 3300.
 # Override ports with NEXUS_E2E_PORT and NEXUS_E2E_API_PORT.
-# Real backend mode: see packages/nexus-ui/TESTING.md for setup.
+# Real backend mode: see packages/syntara-ui/TESTING.md for setup.
 
 
 # API Contracts
@@ -195,11 +195,11 @@ All local container operations use Podman:
 ./build-multiarch.sh push          # Build and push to registry
 
 # Single-architecture builds (faster for development)
-podman build -f packages/nexus-ui/Containerfile -t nexus-ui:latest .
+podman build -f packages/syntara-ui/Containerfile -t syntara-ui:latest .
 podman build -f packages/syntara-mock-api/Containerfile -t syntara-mock-api:latest .
 
 # Run containers
-podman run -p 4000:80 nexus-ui:latest
+podman run -p 4000:80 syntara-ui:latest
 podman run -p 3000:3000 syntara-mock-api:latest
 ```
 
@@ -235,7 +235,7 @@ We welcome contributions! Please read our [Contributing Guidelines](CONTRIBUTING
 
 ## Technology Stack
 
-### Nexus UI (Application)
+### Syntara UI (Application)
 
 - React 19 with TypeScript
 - Vite build tool

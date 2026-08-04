@@ -62,7 +62,7 @@ How this UI is anchored, and how it relates to other design tooling:
   3. **Engage PatternFly.** If UX confirms the gap, UX coordinates with PatternFly on resolution — new component, variant, token, or an accepted override — often via a PatternFly GitHub issue or direct conversation.
   4. **Document and track.** If a temporary override is approved, create an issue with the label `patternfly-override` to track technical debt. Link the PatternFly issue if one exists.
   5. **Resolve upstream.** The aim is to remove the override by contributing back to PatternFly. Overrides without a resolution path should be periodically reviewed.
-- **`Nx` prefix convention** — opinionated global components use the `Nx` prefix (e.g., `NxPage`, `NxPanel`, `NxConfirmationDialog`, `NxDetailList`) and live in `frontend/packages/nexus-ui/src/components/` organized by subdirectory: `layout/`, `dialogs/`, `details/`, `tabs/`, `states/`. These wrap raw PatternFly primitives with project-specific defaults and behavior — use the `Nx*` wrapper, not the raw PF component, for these patterns.
+- **`Nx` prefix convention** — opinionated global components use the `Nx` prefix (e.g., `NxPage`, `NxPanel`, `NxConfirmationDialog`, `NxDetailList`) and live in `frontend/packages/syntara-ui/src/components/` organized by subdirectory: `layout/`, `dialogs/`, `details/`, `tabs/`, `states/`. These wrap raw PatternFly primitives with project-specific defaults and behavior — use the `Nx*` wrapper, not the raw PF component, for these patterns.
 - **What this is not** — The experience is **not** built on custom libraries. This product deliberately uses a PatternFly-first stack.
 
 ---
@@ -164,7 +164,7 @@ Every page **must** follow this structural hierarchy:
 | Main Content       | Table / Canvas / Form       | Primary page content                     |
 | Footer (on tables) | `PaginationFooter`          | Navigation between table pages           |
 
-For **floating panels on the workflow canvas** under the glass theme, prefer `NxPanel` with `variant="raised"` for compact controls (opaque + shadow) or `opaqueFloatingFill` for large flat shells without raised chrome; see JSDoc on `frontend/packages/nexus-ui/src/components/layout/NxPanel.tsx`.
+For **floating panels on the workflow canvas** under the glass theme, prefer `NxPanel` with `variant="raised"` for compact controls (opaque + shadow) or `opaqueFloatingFill` for large flat shells without raised chrome; see JSDoc on `frontend/packages/syntara-ui/src/components/layout/NxPanel.tsx`.
 
 ### Centered Layout for Loading / Empty States
 
@@ -172,7 +172,7 @@ Use `NxPageBody` with `isCentered` for page-level centered layouts (loading spin
 
 ### Panel Content Stack
 
-Use `NxPanelContentStack` (from `frontend/packages/nexus-ui/src/components/layout/NxPanelContentStack.tsx`) as the main content column inside `NxPanel isFullHeight`. It provides the correct flex behavior (`flex: 1`, `minHeight: 0`) so nested scroll areas resolve height correctly.
+Use `NxPanelContentStack` (from `frontend/packages/syntara-ui/src/components/layout/NxPanelContentStack.tsx`) as the main content column inside `NxPanel isFullHeight`. It provides the correct flex behavior (`flex: 1`, `minHeight: 0`) so nested scroll areas resolve height correctly.
 
 | Variant   | Use case                                                            |
 | --------- | ------------------------------------------------------------------- |
@@ -325,7 +325,7 @@ Filter bar is visible when data exists or when filters are active; hidden only w
   - `NxScrollableTableContainer` uses `table-layout: fixed` for equal column distribution — do not opt out with `useFixedLayout={false}`
   - Wrap cell text in `<Truncate content={value} />` for any column that may contain user-generated or variable-length content
   - `LinkCell` children support `<Truncate>` — the link button constrains overflow automatically
-- **`NxKebabMenu` component** — Use `NxKebabMenu` (from `frontend/packages/nexus-ui/src/components/NxKebabMenu.tsx`) for table row actions and contextual overflow menus. API:
+- **`NxKebabMenu` component** — Use `NxKebabMenu` (from `frontend/packages/syntara-ui/src/components/NxKebabMenu.tsx`) for table row actions and contextual overflow menus. API:
   - `actions`: array of `{ key, title, onClick, isSeparator?, isDanger?, isAriaDisabled?, tooltipProps? }`
   - `aria-label`: must be unique per row (e.g., `` `Actions for ${resource.name}` ``)
   - Action ordering: non-destructive first → `isSeparator: true` → destructive last (`isDanger: true`)
@@ -409,11 +409,11 @@ For fields where users can select multiple items (e.g., group assignment on user
 
 ### Details Component
 
-- Use `NxDetailList` + `NxDetail` for detail page fields (from `frontend/packages/nexus-ui/src/components/details/`)
+- Use `NxDetailList` + `NxDetail` for detail page fields (from `frontend/packages/syntara-ui/src/components/details/`)
   - **Vertical** (default) for standard detail pages
   - **`isHorizontal`** for compact contexts (e.g., canvas step detail panels)
 - `NxDetail` with empty/null/undefined children **renders nothing automatically** — optional fields can be passed unconditionally without manual null checks
-- Use `NxCodeBlock` (from `frontend/packages/nexus-ui/src/components/details/NxCodeBlock.tsx`) for scripts, JSON payloads, or log output
+- Use `NxCodeBlock` (from `frontend/packages/syntara-ui/src/components/details/NxCodeBlock.tsx`) for scripts, JSON payloads, or log output
   - Supports `enableCopy` (clipboard), `enableExpand` (full-screen modal), and `jsonObject` (auto-formatted JSON)
   - Default max height of 24rem with scroll; use `noMaxHeight` when inside a height-constrained parent
 - Use consistent formatting for dates and durations — follow PatternFly's [Date/Time guidelines](https://www.patternfly.org/ux-writing/numerics/#date-and-time-formats)
@@ -677,7 +677,7 @@ For canonical copy patterns per tier → see Storybook: `list-all-documentation 
 
 ### Delete: Destructive Confirmation Modal with Checkbox
 
-**Always** use `NxConfirmationDialog` from `frontend/packages/nexus-ui/src/components/dialogs/NxConfirmationDialog.tsx` for delete actions. Never build modals from raw `Modal` + `ModalHeader` + `ModalBody` + `ModalFooter`.
+**Always** use `NxConfirmationDialog` from `frontend/packages/syntara-ui/src/components/dialogs/NxConfirmationDialog.tsx` for delete actions. Never build modals from raw `Modal` + `ModalHeader` + `ModalBody` + `ModalFooter`.
 
 There are three delete variants depending on what happens downstream when the resource is deleted.
 
@@ -1000,9 +1000,9 @@ Use `Label` only when visual distinction is needed — for statuses, categorical
 | User-authored tags, workflow tags                                                     | `NxUserTag`                                         | Outlined compact                |
 | Filter chips (active filters)                                                        | `Label variant="outline" isCompact` in `LabelGroup` | Outlined compact, removable      |
 
-**`NxLabel`** (from `frontend/packages/nexus-ui/src/components/labels/NxLabel.tsx`) — thin wrapper over PF `Label` with UX defaults: `isCompact={true}`, `variant="filled"`. Never use PF `Label` directly.
+**`NxLabel`** (from `frontend/packages/syntara-ui/src/components/labels/NxLabel.tsx`) — thin wrapper over PF `Label` with UX defaults: `isCompact={true}`, `variant="filled"`. Never use PF `Label` directly.
 
-**`NxUserTag`** (from `frontend/packages/nexus-ui/src/components/labels/NxUserTag.tsx`) — outline-only wrapper for user-authored content. Always use for content typed by users (workflow tags, custom labels).
+**`NxUserTag`** (from `frontend/packages/syntara-ui/src/components/labels/NxUserTag.tsx`) — outline-only wrapper for user-authored content. Always use for content typed by users (workflow tags, custom labels).
 
 ### Filled vs. Outline — When to Use Each Variant
 

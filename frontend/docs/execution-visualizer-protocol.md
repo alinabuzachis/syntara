@@ -614,7 +614,7 @@ Steps can be marked as "skipped" when they're on a branch that wasn't taken:
 // 3. Step has no downstream pending steps (cascade complete)
 ```
 
-**Implementation location:** `packages/nexus-ui/src/routes/builder/utils/executionState/traversal.ts`
+**Implementation location:** `packages/syntara-ui/src/routes/builder/utils/executionState/traversal.ts`
 
 ### Edge Status Determination
 
@@ -630,6 +630,6 @@ Edge visual status is derived from step states:
 // Edge is "pending" (dotted line) otherwise
 ```
 
-**Implementation location:** `packages/nexus-ui/src/routes/builder/utils/executionState/ExecutionStateEnricher.ts`
+**Implementation location:** `packages/syntara-ui/src/routes/builder/utils/executionState/ExecutionStateEnricher.ts`
 
 ---

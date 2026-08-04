@@ -20,8 +20,6 @@ import { useAllGroups } from '../../access/useAllGroups'
  * - Client-side filtering would require N×M API calls (N groups × M members), causing poor performance
  * - Backend filtering requires new endpoint or additional fields on existing endpoint
  *
- * See PR #895 review comment: https://github.com/syntara-orchestration/syntara-ui/pull/895
- *
  * @returns Object containing groups array, loading state, and error
  */
 export function useApprovalDecideGroups() {

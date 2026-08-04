@@ -15,10 +15,10 @@ syntara/
 │   └── Makefile       # Backend-specific targets (run make -C backend help)
 ├── frontend/          # React 19 / TypeScript / PatternFly 6 (npm workspaces)
 │   ├── packages/
-│   │   ├── nexus-ui/          # Main UI application
+│   │   ├── syntara-ui/          # Main UI application
 │   │   ├── syntara-contracts/   # Generated TypeScript types from backend OpenAPI specs
 │   │   └── syntara-mock-api/    # MSW-based mock API server
-│   └── package.json           # Workspace root (E2E tests at packages/nexus-ui/e2e/)
+│   └── package.json           # Workspace root (E2E tests at packages/syntara-ui/e2e/)
 ├── podman-compose.yml # Full-stack local dev (all services)
 ├── Makefile           # Root orchestration (run make help)
 └── .env.example       # Combined environment config

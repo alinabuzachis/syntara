@@ -40,13 +40,13 @@
 # ── Release / packaging ──────────────────────────────────────────────────
 /.tekton/ @syntara-orchestration/release-team
 /backend/containers/ @syntara-orchestration/release-team
-# The previous rule here was "./frontend/packages/nexus-ui/" — a leading "./"
+# The previous rule here was "./frontend/packages/syntara-ui/" — a leading "./"
 # is invalid CODEOWNERS syntax, so it never matched anything. Narrowed to the
 # shipping artifacts on purpose: pointing it at the whole directory would make
 # @release-team the sole owner of the UI app and displace @ui-team.
-/frontend/packages/nexus-ui/Containerfile @syntara-orchestration/release-team
-/frontend/packages/nexus-ui/Containerfile.konflux @syntara-orchestration/release-team
-/frontend/packages/nexus-ui/nginx.conf.template @syntara-orchestration/release-team
+/frontend/packages/syntara-ui/Containerfile @syntara-orchestration/release-team
+/frontend/packages/syntara-ui/Containerfile.konflux @syntara-orchestration/release-team
+/frontend/packages/syntara-ui/nginx.conf.template @syntara-orchestration/release-team
 
 # ── Governance & architecture — @syntara-orchestration/syntara-leads ────────────
 # Deliberately narrow. Everything below is either a decision that binds the
@@ -57,7 +57,7 @@
 /.github/CODEOWNERS @syntara-orchestration/syntara-leads
 /LICENSE @syntara-orchestration/syntara-leads
 /backend/LICENSE @syntara-orchestration/syntara-leads
-/frontend/packages/nexus-ui/LICENSE @syntara-orchestration/syntara-leads
+/frontend/packages/syntara-ui/LICENSE @syntara-orchestration/syntara-leads
 
 # Architecture decision records and engineering standards
 /backend/decision-records.md @syntara-orchestration/syntara-leads
@@ -73,4 +73,4 @@
 /backend/src/nexus/core/database/migrations/versions/ @syntara-orchestration/syntara-backend
 
 # Frontend framework — only the API client bootstrap needs leads review.
-/frontend/packages/nexus-ui/src/client.tsx @syntara-orchestration/syntara-leads
+/frontend/packages/syntara-ui/src/client.tsx @syntara-orchestration/syntara-leads

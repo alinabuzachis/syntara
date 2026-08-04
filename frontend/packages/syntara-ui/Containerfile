@@ -7,13 +7,13 @@ ARG BUILDPLATFORM
 WORKDIR /app
 
 COPY LICENSE /licenses/LICENSE
-COPY packages/nexus-ui/LICENSE /licenses/nexus-ui-LICENSE
+COPY packages/syntara-ui/LICENSE /licenses/syntara-ui-LICENSE
 
 RUN apk add --no-cache openssl
 RUN printf "demo:$(openssl passwd -apr1 coffee)\n" > /app/.htpasswd
 COPY package.json package-lock.json ./
 COPY packages/syntara-contracts/package.json ./packages/syntara-contracts/
-COPY packages/nexus-ui/package.json ./packages/nexus-ui/
+COPY packages/syntara-ui/package.json ./packages/syntara-ui/
 RUN npm ci --no-fund --no-audit --ignore-scripts
 COPY . .
 # Rebuild workspace packages to ensure symlinks are valid after source copy
@@ -26,7 +26,7 @@ FROM mirror.gcr.io/library/nginx:1.27.4-alpine@sha256:4ff102c5d78d254a6f0da062b3
 
 COPY --from=builder /licenses /licenses
 
-COPY --from=builder /app/packages/nexus-ui/dist /usr/share/nginx/html
-COPY packages/nexus-ui/nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY --from=builder /app/packages/syntara-ui/dist /usr/share/nginx/html
+COPY packages/syntara-ui/nginx.conf.template /etc/nginx/templates/default.conf.template
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

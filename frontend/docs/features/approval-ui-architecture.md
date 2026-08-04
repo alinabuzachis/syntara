@@ -18,7 +18,7 @@ The Approval UI provides a comprehensive interface for viewing and managing appr
 
 ### Entry Point: `Approvals` Component
 
-**File:** `packages/nexus-ui/src/routes/approvals/Approvals.tsx`
+**File:** `packages/syntara-ui/src/routes/approvals/Approvals.tsx`
 
 The top-level component performs permission checks via `useApprovalPermissions()` before delegating to `ApprovalsPage`:
 
@@ -46,7 +46,7 @@ See each hook's source file for signatures and implementation (listed in [Key Fi
 
 ### `useApprovalsData` Hook
 
-**File:** `packages/nexus-ui/src/routes/approvals/useApprovalsData.ts`
+**File:** `packages/syntara-ui/src/routes/approvals/useApprovalsData.ts`
 
 Fetches approvals from the API, enriches them with workflow metadata, and performs client-side sorting.
 
@@ -78,7 +78,7 @@ Both checks must pass for a checkbox to be enabled.
 
 ### `useApprovalDecideProjects` Hook
 
-**File:** `packages/nexus-ui/src/routes/approvals/useApprovalDecideProjects.ts`
+**File:** `packages/syntara-ui/src/routes/approvals/useApprovalDecideProjects.ts`
 
 Fetches all user permissions via `useAllPermissions()` and parses which projects have `approval:decide` permission. Returns `canDecideAllProjects` (boolean for system-level permission) and `canDecideProjectNames` (Set of project names with project-scoped permission).
 
@@ -86,7 +86,7 @@ Fetches all user permissions via `useAllPermissions()` and parses which projects
 
 ### `canDecideOnApproval` Function
 
-**File:** `packages/nexus-ui/src/routes/approvals/canDecideOnApproval.ts`
+**File:** `packages/syntara-ui/src/routes/approvals/canDecideOnApproval.ts`
 
 Determines if the user has RBAC permission to decide on a specific approval:
 
@@ -98,7 +98,7 @@ Determines if the user has RBAC permission to decide on a specific approval:
 
 ### `useSelectableApprovalIds` Hook
 
-**File:** `packages/nexus-ui/src/routes/approvals/useSelectableApprovalIds.ts`
+**File:** `packages/syntara-ui/src/routes/approvals/useSelectableApprovalIds.ts`
 
 Computes which approvals should have enabled checkboxes. Fetches the current user's groups via `GET /users/{user_id}/groups`, then for each approval checks both RBAC permission (from `approvalPermissions` map) and approver list membership (via `computeCanDecideOnApproval`). Returns a `Set<string>` of selectable approval IDs.
 
@@ -113,7 +113,7 @@ Computes which approvals should have enabled checkboxes. Fetches the current use
 
 ### `useApprovalSelection` Hook
 
-**File:** `packages/nexus-ui/src/routes/approvals/useApprovalSelection.ts`
+**File:** `packages/syntara-ui/src/routes/approvals/useApprovalSelection.ts`
 
 Manages checkbox selection state with filter/sort awareness and pagination support using `useReducer`.
 
@@ -137,7 +137,7 @@ Manages checkbox selection state with filter/sort awareness and pagination suppo
 
 ### `useBulkApprovalActions` Hook
 
-**File:** `packages/nexus-ui/src/routes/approvals/useBulkApprovalActions.ts`
+**File:** `packages/syntara-ui/src/routes/approvals/useBulkApprovalActions.ts`
 
 Handles bulk approve/reject mutations via `POST /approvals/batch`. Manages dialog open/close state for both approve and reject dialogs.
 
@@ -155,7 +155,7 @@ Handles bulk approve/reject mutations via `POST /approvals/batch`. Manages dialo
 
 ### Bulk Action Dialogs
 
-**Files:** `packages/nexus-ui/src/routes/approvals/BulkApproveDialog.tsx`, `BulkRejectDialog.tsx`
+**Files:** `packages/syntara-ui/src/routes/approvals/BulkApproveDialog.tsx`, `BulkRejectDialog.tsx`
 
 Both dialogs accept `isOpen`, `onClose`, `onConfirm(note)`, `approvalCount`, and optional `isLoading`. They provide an optional note field (max 1000 chars, trimmed before submission) and use a `key` prop reset pattern to clear the note field on close.
 
@@ -163,7 +163,7 @@ Both dialogs accept `isOpen`, `onClose`, `onConfirm(note)`, `approvalCount`, and
 
 ### `ApprovalStatusBadges` Component
 
-**File:** `packages/nexus-ui/src/routes/approvals/approvalUtils.tsx`
+**File:** `packages/syntara-ui/src/routes/approvals/approvalUtils.tsx`
 
 Renders a status badge using `NxLabel` with `variant="outline"` and status-specific icons.
 
@@ -179,7 +179,7 @@ Renders a status badge using `NxLabel` with `variant="outline"` and status-speci
 
 ### `useProjectSelector` Hook
 
-**File:** `packages/nexus-ui/src/hooks/useProjectSelector.tsx`
+**File:** `packages/syntara-ui/src/hooks/useProjectSelector.tsx`
 
 Returns a `ProjectSelector` ReactNode (PatternFly Select dropdown with typeahead, favorites, and "Create project" option) along with selected project state.
 
@@ -204,7 +204,7 @@ Returns a `ProjectSelector` ReactNode (PatternFly Select dropdown with typeahead
 
 ### Renamed Projects Break Permission Checks
 
-The `what_can_i` authorization endpoint returns project **names**, not IDs. The `canDecideOnApproval` function (`packages/nexus-ui/src/routes/approvals/canDecideOnApproval.ts`) maps `approval.project_id` → `project.name` → `canDecideProjectNames.has(name)`. If a project is renamed after permissions are granted, the stale name in `canDecideProjectNames` no longer matches the project's current name, and the permission check fails silently — the user loses the ability to decide on approvals in that project until their permissions are re-evaluated.
+The `what_can_i` authorization endpoint returns project **names**, not IDs. The `canDecideOnApproval` function (`packages/syntara-ui/src/routes/approvals/canDecideOnApproval.ts`) maps `approval.project_id` → `project.name` → `canDecideProjectNames.has(name)`. If a project is renamed after permissions are granted, the stale name in `canDecideProjectNames` no longer matches the project's current name, and the permission check fails silently — the user loses the ability to decide on approvals in that project until their permissions are re-evaluated.
 
 **Mitigation:** System-level `approval:decide` permission is unaffected (it bypasses the name lookup). Only project-scoped permissions are vulnerable.
 
@@ -294,34 +294,34 @@ The `what_can_i` authorization endpoint returns project **names**, not IDs. The 
 
 ### Core Components
 
-- `packages/nexus-ui/src/routes/approvals/Approvals.tsx` — Main page component
-- `packages/nexus-ui/src/routes/approvals/ApprovalsTableBody.tsx` — Table body (flat + grouped)
-- `packages/nexus-ui/src/routes/approvals/ApprovalsTableHead.tsx` — Table header
-- `packages/nexus-ui/src/routes/approvals/ApprovalsBulkActions.tsx` — Bulk action toolbar
-- `packages/nexus-ui/src/routes/approvals/BulkApproveDialog.tsx` — Approve dialog
-- `packages/nexus-ui/src/routes/approvals/BulkRejectDialog.tsx` — Reject dialog
+- `packages/syntara-ui/src/routes/approvals/Approvals.tsx` — Main page component
+- `packages/syntara-ui/src/routes/approvals/ApprovalsTableBody.tsx` — Table body (flat + grouped)
+- `packages/syntara-ui/src/routes/approvals/ApprovalsTableHead.tsx` — Table header
+- `packages/syntara-ui/src/routes/approvals/ApprovalsBulkActions.tsx` — Bulk action toolbar
+- `packages/syntara-ui/src/routes/approvals/BulkApproveDialog.tsx` — Approve dialog
+- `packages/syntara-ui/src/routes/approvals/BulkRejectDialog.tsx` — Reject dialog
 
 ### Hooks
 
-- `packages/nexus-ui/src/routes/approvals/useApprovalsData.ts` — Data fetching + enrichment
-- `packages/nexus-ui/src/routes/approvals/useApprovalPermissions.ts` — Page-level permissions
-- `packages/nexus-ui/src/routes/approvals/useApprovalDecideProjects.ts` — Project-scoped decide permissions
-- `packages/nexus-ui/src/routes/approvals/useSelectableApprovalIds.ts` — Selectable approval computation
-- `packages/nexus-ui/src/routes/approvals/useApprovalSelection.ts` — Selection state management
-- `packages/nexus-ui/src/routes/approvals/useBulkApprovalActions.ts` — Bulk action handlers
+- `packages/syntara-ui/src/routes/approvals/useApprovalsData.ts` — Data fetching + enrichment
+- `packages/syntara-ui/src/routes/approvals/useApprovalPermissions.ts` — Page-level permissions
+- `packages/syntara-ui/src/routes/approvals/useApprovalDecideProjects.ts` — Project-scoped decide permissions
+- `packages/syntara-ui/src/routes/approvals/useSelectableApprovalIds.ts` — Selectable approval computation
+- `packages/syntara-ui/src/routes/approvals/useApprovalSelection.ts` — Selection state management
+- `packages/syntara-ui/src/routes/approvals/useBulkApprovalActions.ts` — Bulk action handlers
 
 ### Utilities
 
-- `packages/nexus-ui/src/routes/approvals/approvalUtils.tsx` — Status badges
-- `packages/nexus-ui/src/routes/approvals/canDecideOnApproval.ts` — Per-approval RBAC check
-- `packages/nexus-ui/src/routes/approvals/computeCanDecideOnApproval.ts` — Approver list check
-- `packages/nexus-ui/src/routes/approvals/isApprovalSelectable.ts` — Checkbox enabled logic
+- `packages/syntara-ui/src/routes/approvals/approvalUtils.tsx` — Status badges
+- `packages/syntara-ui/src/routes/approvals/canDecideOnApproval.ts` — Per-approval RBAC check
+- `packages/syntara-ui/src/routes/approvals/computeCanDecideOnApproval.ts` — Approver list check
+- `packages/syntara-ui/src/routes/approvals/isApprovalSelectable.ts` — Checkbox enabled logic
 
 ### Shared Hooks
 
-- `packages/nexus-ui/src/hooks/useProjectSelector.tsx` — Project filtering dropdown
-- `packages/nexus-ui/src/hooks/useCursorPagination.tsx` — Cursor pagination + filters
-- `packages/nexus-ui/src/hooks/useTableSort.ts` — Sort state management
+- `packages/syntara-ui/src/hooks/useProjectSelector.tsx` — Project filtering dropdown
+- `packages/syntara-ui/src/hooks/useCursorPagination.tsx` — Cursor pagination + filters
+- `packages/syntara-ui/src/hooks/useTableSort.ts` — Sort state management
 
 ## Testing Considerations
 
@@ -354,7 +354,7 @@ The `what_can_i` authorization endpoint returns project **names**, not IDs. The 
 7. Pagination + filter interaction
 8. Sort behavior
 
-**E2E File:** `packages/nexus-ui/e2e/approvals.spec.ts`
+**E2E File:** `packages/syntara-ui/e2e/approvals.spec.ts`
 
 ## Related Documentation
 

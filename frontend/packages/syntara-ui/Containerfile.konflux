@@ -1,6 +1,6 @@
 # Konflux-specific Containerfile using UBI9 for Red Hat certification
 # This is used by Konflux pipelines for official builds
-# For local development, use packages/nexus-ui/Containerfile
+# For local development, use packages/syntara-ui/Containerfile
 
 # Build stage
 FROM registry.access.redhat.com/ubi9/nodejs-24:latest@sha256:09ec365eac116f996dd07507784d06f648401c949eb48c40fe2d961341edd3fb AS builder
@@ -11,12 +11,12 @@ WORKDIR /app
 
 # Copy license files for Red Hat certification
 COPY LICENSE /licenses/LICENSE
-COPY packages/nexus-ui/LICENSE /licenses/nexus-ui-LICENSE
+COPY packages/syntara-ui/LICENSE /licenses/syntara-ui-LICENSE
 
 # Copy package files for dependency installation
 COPY package.json package-lock.json ./
 COPY packages/syntara-contracts/package.json ./packages/syntara-contracts/
-COPY packages/nexus-ui/package.json ./packages/nexus-ui/
+COPY packages/syntara-ui/package.json ./packages/syntara-ui/
 
 # Install dependencies (CI=true for deterministic builds)
 RUN CI=true npm ci --no-fund --no-audit --ignore-scripts
@@ -36,7 +36,7 @@ USER 0
 COPY --from=builder /licenses /licenses
 
 # Copy built application to the location expected by ubi9/nginx-124
-COPY --from=builder --chown=1001:0 /app/packages/nexus-ui/dist /opt/app-root/src
+COPY --from=builder --chown=1001:0 /app/packages/syntara-ui/dist /opt/app-root/src
 
 # Switch to non-root user
 USER 1001

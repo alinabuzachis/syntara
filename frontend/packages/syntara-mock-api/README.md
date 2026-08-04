@@ -2,7 +2,7 @@
 
 ## Overview
 
-`@syntara/mock-api` is the mock API server for the Nexus UI. It provides realistic API responses during development and testing so you can work on the frontend without a running backend.
+`@syntara/mock-api` is the mock API server for the Syntara UI. It provides realistic API responses during development and testing so you can work on the frontend without a running backend.
 
 Built with [MSW (Mock Service Worker)](https://mswjs.io/) and [`@mswjs/http-middleware`](https://github.com/mswjs/http-middleware), it serves mock handlers as a standalone Node.js server.
 

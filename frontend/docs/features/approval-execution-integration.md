@@ -23,7 +23,7 @@ The execution-side approval hooks follow a **4-layer architecture** (documented 
 
 ### Hook: `useFetchApprovalForNode`
 
-**Location**: `packages/nexus-ui/src/routes/executions/hooks/useFetchApprovalForNode.ts`
+**Location**: `packages/syntara-ui/src/routes/executions/hooks/useFetchApprovalForNode.ts`
 
 **Signature**:
 
@@ -60,7 +60,7 @@ const handleNodeClick = async (nodeId: string) => {
 
 ## Review View (`ApprovalReviewView`)
 
-**Location**: `packages/nexus-ui/src/routes/executions/ApprovalReviewView.tsx`
+**Location**: `packages/syntara-ui/src/routes/executions/ApprovalReviewView.tsx`
 
 **Purpose**: Full-page review interface for pending approvals. Displays approval details, next steps, and a decision form. Only shown to authorized users.
 
@@ -190,7 +190,7 @@ decisionMutation.mutate(
 
 ## Approval Detail Content (Standalone View)
 
-**Location**: `packages/nexus-ui/src/routes/approvals/ApprovalDetailContent.tsx`
+**Location**: `packages/syntara-ui/src/routes/approvals/ApprovalDetailContent.tsx`
 
 **Purpose**: Reusable approval detail component used by the approvals list and other standalone views (not the execution-integrated review view).
 
@@ -217,7 +217,7 @@ Uses the same `NxCodeBlock` component, but with additional props for expansion:
 
 ## WebSocket Integration
 
-**Location**: `packages/nexus-ui/src/routes/executions/hooks/useExecutionStreaming.ts`
+**Location**: `packages/syntara-ui/src/routes/executions/hooks/useExecutionStreaming.ts`
 
 **Purpose**: Streams execution state updates via WebSocket, including activity status changes.
 

@@ -1,6 +1,6 @@
 # API Error Handling
 
-This document describes the error handling implementation in the Nexus UI, including parsing 4xx/5xx API responses and surfacing meaningful messages to users.
+This document describes the error handling implementation in the Syntara UI, including parsing 4xx/5xx API responses and surfacing meaningful messages to users.
 
 ---
 
@@ -50,7 +50,7 @@ The UI provides consistent error handling across all API interactions:
 
 ## Error Parsing Utilities
 
-**Location:** `packages/nexus-ui/src/utils/apiErrors.ts`
+**Location:** `packages/syntara-ui/src/utils/apiErrors.ts`
 
 A utility module for parsing API error responses consistently across the application.
 
@@ -92,7 +92,7 @@ if (isServiceUnavailableError(error)) {
 
 ### useQueryState Hook
 
-**Location:** `packages/nexus-ui/src/components/states/useQueryState.tsx`
+**Location:** `packages/syntara-ui/src/components/states/useQueryState.tsx`
 
 Automatically handles query loading, error, and 503 states.
 
@@ -130,7 +130,7 @@ For **auth or other security-sensitive** work, prefer **`await`** in an `async` 
 
 ### useApiErrorAlert Hook
 
-**Location:** `packages/nexus-ui/src/hooks/useApiErrorAlert.ts`
+**Location:** `packages/syntara-ui/src/hooks/useApiErrorAlert.ts`
 
 Shows a deduped alert for query errors. Automatically parses 4xx/5xx response bodies.
 
@@ -147,7 +147,7 @@ useApiErrorAlert(error, { title: 'Error loading workflow' })
 
 ### useMutationErrorHandler Hook
 
-**Location:** `packages/nexus-ui/src/hooks/useMutationErrorHandler.ts`
+**Location:** `packages/syntara-ui/src/hooks/useMutationErrorHandler.ts`
 
 Provides consistent error handling for mutations with special 503 support.
 
@@ -190,7 +190,7 @@ mutate(data, {
 
 ### useFormMutationErrorHandler Hook
 
-**Location:** `packages/nexus-ui/src/hooks/useFormMutationErrorHandler.ts`
+**Location:** `packages/syntara-ui/src/hooks/useFormMutationErrorHandler.ts`
 
 Specialized hook for form-backed mutations that combines `useMutationErrorHandler` with automatic field-level error mapping.
 
@@ -249,8 +249,8 @@ For consistent shape and client-side validation, forms can use **Zod** with **@h
 
 **Where it's used:**
 
-- **Integration form:** `packages/nexus-ui/src/routes/configuration/integrations/form/integrationFormSchema.ts` and `IntegrationForm.tsx` (imports `zodResolver` from `@hookform/resolvers/zod`).
-- **Step forms (builder):** Each has a schema file in `packages/nexus-ui/src/routes/builder/node-forms/` and uses `zodResolver(schema, undefined, { mode: 'sync' })` from `shared/formSchemaUtils.ts`:
+- **Integration form:** `packages/syntara-ui/src/routes/configuration/integrations/form/integrationFormSchema.ts` and `IntegrationForm.tsx` (imports `zodResolver` from `@hookform/resolvers/zod`).
+- **Step forms (builder):** Each has a schema file in `packages/syntara-ui/src/routes/builder/node-forms/` and uses `zodResolver(schema, undefined, { mode: 'sync' })` from `shared/formSchemaUtils.ts`:
   - Task Agent (`aiAgentFormSchema.ts`), Approval (`approvalFormSchema.ts`), Action (`actionFormSchema.ts`), Loop (`loopFormSchema.ts`), AAP (`aapFormSchema.ts`), Condition (`conditionFormSchema.ts`), Converge (`convergeFormSchema.ts`), Trigger (`triggerFormSchema.ts`).
 
 ### Direct Usage with getErrorMessage
@@ -273,7 +273,7 @@ mutate(data, {
 
 ### NxEmptyStateServiceUnavailable Component
 
-**Location:** `packages/nexus-ui/src/components/states/NxEmptyStateServiceUnavailable.tsx`
+**Location:** `packages/syntara-ui/src/components/states/NxEmptyStateServiceUnavailable.tsx`
 
 A reusable component for displaying 503 Service Unavailable errors. Uses PatternFly's `EmptyState` component with an error icon.
 
@@ -353,7 +353,7 @@ The backend returns HTTP 503 when the OpenRouter API key is not configured:
 
 ```
 packages/
-└── nexus-ui/
+└── syntara-ui/
     └── src/
         ├── components/
         │   └── states/
@@ -388,7 +388,7 @@ packages/
 npm test
 
 # Run specific test file
-npx vitest run packages/nexus-ui/src/utils/apiErrors.test.ts
+npx vitest run packages/syntara-ui/src/utils/apiErrors.test.ts
 ```
 
 ---

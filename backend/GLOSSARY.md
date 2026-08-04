@@ -140,7 +140,7 @@
 
 ## W
 
-**Web Application** - The Nexus UI, including configuration, chat, and workflow management interfaces.
+**Web Application** - The Syntara UI, including configuration, chat, and workflow management interfaces.
 
 **Workflow** - Executable sequence of tool invocations with defined order, dependencies, approval gates, and error handling.
 

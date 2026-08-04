@@ -157,7 +157,7 @@ User clicks "Save"
 ### File Structure
 
 ```text
-packages/nexus-ui/src/stores/
+packages/syntara-ui/src/stores/
 ├── useWorkflowStore.ts          # Main workflow store (with Zundo undo/redo)
 ├── workflowStoreSelectors.ts    # Exported selectors
 ├── workflowStoreTypes.ts        # Store type definitions
@@ -723,7 +723,7 @@ The architecture prioritizes:
 The execution visualization uses a dedicated Zustand store:
 
 ```text
-packages/nexus-ui/src/routes/workflows/stores/useExecutionStore.ts
+packages/syntara-ui/src/routes/workflows/stores/useExecutionStore.ts
 ```
 
 | Purpose               | Description                                                     |
@@ -754,7 +754,7 @@ packages/nexus-ui/src/routes/workflows/stores/useExecutionStore.ts
 The WebSocket infrastructure uses a dedicated Zustand store in `lib/websocket/`:
 
 ```text
-packages/nexus-ui/src/lib/websocket/store.ts
+packages/syntara-ui/src/lib/websocket/store.ts
 ```
 
 | Purpose                    | Description                                                 |
@@ -803,7 +803,7 @@ function ChatComponent() {
 ### Auth Store (`useAuthStore`)
 
 ```text
-packages/nexus-ui/src/stores/useAuthStore.ts
+packages/syntara-ui/src/stores/useAuthStore.ts
 ```
 
 | Purpose                     | Description                                                                                                                                      |
@@ -816,7 +816,7 @@ packages/nexus-ui/src/stores/useAuthStore.ts
 ### Project Store (`useProjectStore`)
 
 ```text
-packages/nexus-ui/src/stores/useProjectStore.ts
+packages/syntara-ui/src/stores/useProjectStore.ts
 ```
 
 | Purpose         | Description                                |

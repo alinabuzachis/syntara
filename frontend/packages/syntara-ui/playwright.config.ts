@@ -63,8 +63,8 @@ export default defineConfig({
         },
         {
           command: process.env.CI
-            ? `npm run build --prefix packages/nexus-ui && npm run preview --prefix packages/nexus-ui -- --port ${uiPort}`
-            : `npm run start --prefix packages/nexus-ui -- --port ${uiPort}`,
+            ? `npm run build --prefix packages/syntara-ui && npm run preview --prefix packages/syntara-ui -- --port ${uiPort}`
+            : `npm run start --prefix packages/syntara-ui -- --port ${uiPort}`,
           cwd: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..'),
           url: baseURL,
           reuseExistingServer: !process.env.CI,

@@ -1,10 +1,10 @@
-# UI Architecture (nexus-ui)
+# UI Architecture (syntara-ui)
 
 > **Reading time**: ~35 minutes  
 > **Diagrams**: 20 Mermaid diagrams for visual learners  
-> **Audience**: New team members joining the Nexus UI project
+> **Audience**: New team members joining the Syntara UI project
 
-This document explains **how the Nexus UI is organized**, **how it fetches data from the backend**, and **how backend workflow activities become canvas steps** (implemented as React Flow **nodes**) on the builder.
+This document explains **how the Syntara UI is organized**, **how it fetches data from the backend**, and **how backend workflow activities become canvas steps** (implemented as React Flow **nodes**) on the builder.
 
 ---
 
@@ -193,11 +193,11 @@ Notes:
 
 ### 2. Explore these 3 files (15 min)
 
-| File                                                   | Why                                                    |
-| ------------------------------------------------------ | ------------------------------------------------------ |
-| `packages/nexus-ui/src/app/App.tsx`                    | Entry point — see how routing and providers are set up |
-| `packages/nexus-ui/src/client.tsx`                     | How we make API calls — pattern you'll use everywhere  |
-| `packages/nexus-ui/src/routes/builder/BuilderFlow.tsx` | The "big" file — workflow canvas rendering             |
+| File                                                     | Why                                                    |
+| -------------------------------------------------------- | ------------------------------------------------------ |
+| `packages/syntara-ui/src/app/App.tsx`                    | Entry point — see how routing and providers are set up |
+| `packages/syntara-ui/src/client.tsx`                     | How we make API calls — pattern you'll use everywhere  |
+| `packages/syntara-ui/src/routes/builder/BuilderFlow.tsx` | The "big" file — workflow canvas rendering             |
 
 ### 3. Make a small change (10 min)
 
@@ -205,7 +205,7 @@ Let's add a console.log to understand the data flow:
 
 **Task**: See what data flows through the workflow builder
 
-1. **Open**: `packages/nexus-ui/src/routes/builder/BuilderFlow.tsx`
+1. **Open**: `packages/syntara-ui/src/routes/builder/BuilderFlow.tsx`
 2. **Find**: The `BuilderFlow` function (around line 80)
 3. **Add** this line at the top of the function:
 
@@ -236,7 +236,7 @@ The workflow builder is the most complex part. Understanding the flat ↔ nested
 
 ```
 packages/
-├── nexus-ui/           ← The actual web app (React + Vite)
+├── syntara-ui/           ← The actual web app (React + Vite)
 ├── syntara-contracts/    ← Generated TypeScript types from OpenAPI
 └── syntara-mock-api/     ← Local mock server for development
 ```
@@ -246,7 +246,7 @@ packages/
 ```mermaid
 flowchart TB
   subgraph Packages
-    UI[nexus-ui<br/>Main App]
+    UI[syntara-ui<br/>Main App]
     Contracts[syntara-contracts<br/>API Types]
     Mock[syntara-mock-api<br/>Dev Server]
   end
@@ -265,7 +265,7 @@ flowchart TB
   UI --> TanStack
 ```
 
-Within `packages/nexus-ui/src/`:
+Within `packages/syntara-ui/src/`:
 
 | Directory                                 | Purpose                                                                |
 | ----------------------------------------- | ---------------------------------------------------------------------- |
@@ -282,7 +282,7 @@ Within `packages/nexus-ui/src/`:
 
 ## App Startup (where everything begins)
 
-**Entry**: `packages/nexus-ui/src/main.tsx`
+**Entry**: `packages/syntara-ui/src/main.tsx`
 
 ```tsx
 // Simplified view of main.tsx
@@ -293,7 +293,7 @@ createRoot(document.getElementById('root')!).render(<App />)
 
 ### How `registerAllNodes()` auto-discovers step types
 
-`registerAllNodes()` is implemented in `packages/nexus-ui/src/routes/builder/registry/nodes/index.ts`.
+`registerAllNodes()` is implemented in `packages/syntara-ui/src/routes/builder/registry/nodes/index.ts`.
 It uses Vite's `import.meta.glob` to synchronously import all registration modules at startup:
 
 ```mermaid
@@ -325,15 +325,15 @@ flowchart LR
   D & E & F & G & H -->|"export default"| I
 ```
 
-- **Directory**: `packages/nexus-ui/src/routes/builder/registry/nodes/`
+- **Directory**: `packages/syntara-ui/src/routes/builder/registry/nodes/`
 - **Filename pattern**: `register*.ts`
 - **Export contract**: each `register*.ts` file must `export default function registerXxx() { ... }`
-- **When it runs**: `packages/nexus-ui/src/main.tsx` calls `registerAllNodes()` before rendering the app
+- **When it runs**: `packages/syntara-ui/src/main.tsx` calls `registerAllNodes()` before rendering the app
 
 This is why adding a new canvas step type is usually just "create a new `registerMyNode.ts` file with a default export"
 —no central list to edit.
 
-**App root**: `packages/nexus-ui/src/app/App.tsx`
+**App root**: `packages/syntara-ui/src/app/App.tsx`
 
 - Imports the singleton `QueryClient` from `src/queryClient.ts` and provides it via `QueryClientProvider`
 - Renders the global layout and mounts `AppRouter`
@@ -404,13 +404,13 @@ const { workflowId } = useParams()
 
 **Page breadcrumbs (location hierarchy):**
 
-- [`NxPageHeader`](packages/nexus-ui/src/components/layout/NxPageHeader.tsx) accepts a required string `title` (default `h1`), optional `breadcrumbs` (PatternFly `Breadcrumb` above the title when there are at least two items), optional `toolbar` for actions (laid out right-aligned via an internal spacer—callers should not add their own `FlexItem grow`), optional `projectSelector` and other title-row slots (`titleLeading`, `titleAddons`), and `titleSlot` for rare full-width custom title rows (e.g. the workflow builder).
-- Trails are built with helpers in [`breadcrumbBuilders.ts`](packages/nexus-ui/src/app/breadcrumbBuilders.ts); links use `href` values from [`AppRoute.tsx`](packages/nexus-ui/src/app/AppRoute.tsx).
+- [`NxPageHeader`](packages/syntara-ui/src/components/layout/NxPageHeader.tsx) accepts a required string `title` (default `h1`), optional `breadcrumbs` (PatternFly `Breadcrumb` above the title when there are at least two items), optional `toolbar` for actions (laid out right-aligned via an internal spacer—callers should not add their own `FlexItem grow`), optional `projectSelector` and other title-row slots (`titleLeading`, `titleAddons`), and `titleSlot` for rare full-width custom title rows (e.g. the workflow builder).
+- Trails are built with helpers in [`breadcrumbBuilders.ts`](packages/syntara-ui/src/app/breadcrumbBuilders.ts); links use `href` values from [`AppRoute.tsx`](packages/syntara-ui/src/app/AppRoute.tsx).
 - **Visibility**: nothing is rendered unless there are **at least two** items. The **last** item omits `href` and represents the current page (including tab-specific labels on detail views).
 - **Default tab**: On entity detail routes where the URL without a trailing segment is the same as the default tab (e.g. `…/projects/:id` and `…/projects/:id/details` both mean “Details”), the trail ends at the **entity name** so the parent link is not redundant with the current page.
 - **Access management hub**: Visiting `/system-administration/access-management` triggers a client-side `replace` navigation to `/system-administration/access-management/users` (the default tab). Breadcrumbs are omitted on that Users hub view because the page title and tab bar already convey the location; other hub tabs still show `Access management > …`.
 - **Settings (`/system-administration/settings`)**: The first category tab is the default view. Breadcrumbs are omitted (single-item trail). Selecting another tab shows `Settings > [category]` with **Settings** as a link so you can return to the default tab from the trail.
-- **Link style**: [`index.css`](packages/nexus-ui/src/index.css) sets breadcrumb link **color**, **`TextDecorationColor`** (underline), and **hover** variants from `--pf-t--global--text--color--link--*` — PF’s default maps underline color to neutral decoration tokens; **`TextDecorationStyle`** is **solid** where globals use dotted — so links match [PatternFly breadcrumb](https://www.patternfly.org/components/breadcrumb/) styling.
+- **Link style**: [`index.css`](packages/syntara-ui/src/index.css) sets breadcrumb link **color**, **`TextDecorationColor`** (underline), and **hover** variants from `--pf-t--global--text--color--link--*` — PF’s default maps underline color to neutral decoration tokens; **`TextDecorationStyle`** is **solid** where globals use dotted — so links match [PatternFly breadcrumb](https://www.patternfly.org/components/breadcrumb/) styling.
 - On **narrow viewports** (`max-width: 768px`), when there are two or more _middle_ segments, those segments collapse behind a dropdown toggle (badge count) per PatternFly’s breadcrumb dropdown pattern.
 
 ---
@@ -508,8 +508,8 @@ function ChatComponent() {
 
 **Quick reference:**
 
-- **Store location**: `packages/nexus-ui/src/stores/useWorkflowStore.ts`
-- **Factory functions**: `packages/nexus-ui/src/stores/workflowFactories.ts`
+- **Store location**: `packages/syntara-ui/src/stores/useWorkflowStore.ts`
+- **Factory functions**: `packages/syntara-ui/src/stores/workflowFactories.ts`
 - Use custom hooks (`useWorkflowVersion()`, `useActivities()`, etc.) for reading state
 - Use `useWorkflowStoreActions()` for dispatching actions without re-renders
 - Use atomic batch operations for coupled state changes
@@ -548,7 +548,7 @@ mutation.mutate({ body: workflowPayload })
 
 - UI uses relative paths (`/api/v1/...`)
 - Vite proxies `/api/*` to `VITE_API_URL` (or `localhost:3000` by default)
-- See `packages/nexus-ui/vite.config.ts`
+- See `packages/syntara-ui/vite.config.ts`
 
 ### Local ports (defaults)
 
@@ -625,7 +625,7 @@ The builder edits nodes + edges directly in the Zustand store. On save, `buildWo
 | `utils/buildNestedStructure.ts`                   | Legacy wrapper (identity function in v2 — returns activities as-is)                                                      |
 | `utils/validation/`                               | Validation rules                                                                                                         |
 
-Floating canvas surfaces (controls, step legend, steps on the canvas, undo/redo) use [`NxPanel`](../packages/nexus-ui/src/components/layout/NxPanel.tsx) so they stay readable under the glass theme: compact overlays use `variant="raised"`; large flat panels (for example the step editor shell) use `opaqueFloatingFill` instead of raised chrome.
+Floating canvas surfaces (controls, step legend, steps on the canvas, undo/redo) use [`NxPanel`](../packages/syntara-ui/src/components/layout/NxPanel.tsx) so they stay readable under the glass theme: compact overlays use `variant="raised"`; large flat panels (for example the step editor shell) use `opaqueFloatingFill` instead of raised chrome.
 
 ### Builder internals (advanced): registry, edges, and graph semantics
 
@@ -1163,9 +1163,9 @@ flowchart LR
 
 ### FilterBar component
 
-**Location:** `packages/nexus-ui/src/components/filters/FilterBar.tsx`  
-**Barrel:** `packages/nexus-ui/src/components/filters/index.ts`  
-**List layout wrapper:** `NxListPanelToolbar` in `packages/nexus-ui/src/components/panels/list/NxListPanel.tsx`
+**Location:** `packages/syntara-ui/src/components/filters/FilterBar.tsx`  
+**Barrel:** `packages/syntara-ui/src/components/filters/index.ts`  
+**List layout wrapper:** `NxListPanelToolbar` in `packages/syntara-ui/src/components/panels/list/NxListPanel.tsx`
 
 ```typescript
 export type FilterBarProps = {
@@ -1190,7 +1190,7 @@ export type FilterBarProps = {
 
 Active filters appear as removable chips (`ActiveFilterChips`). Clear-all calls `clearAllFilters` when provided, otherwise `onFilterChange([])`.
 
-Related components live under `packages/nexus-ui/src/components/filters/`:
+Related components live under `packages/syntara-ui/src/components/filters/`:
 
 | File                     | Role                               |
 | ------------------------ | ---------------------------------- |
@@ -1205,7 +1205,7 @@ Related components live under `packages/nexus-ui/src/components/filters/`:
 
 ### Types and utilities
 
-**Types** — `packages/nexus-ui/src/types/filters.ts`:
+**Types** — `packages/syntara-ui/src/types/filters.ts`:
 
 | Symbol                  | Purpose                                                                   |
 | ----------------------- | ------------------------------------------------------------------------- |
@@ -1225,7 +1225,7 @@ Related components live under `packages/nexus-ui/src/components/filters/`:
 | `in`          | `status[in]=running,failed`                 |
 | labels        | `labels[env]=prod` (via `buildLabelParams`) |
 
-**Utilities** — `packages/nexus-ui/src/utils/filterUtils.ts`:
+**Utilities** — `packages/syntara-ui/src/utils/filterUtils.ts`:
 
 - `buildFilterParams(filters)` → API/URL param object
 - `parseFiltersFromUrl(searchParams)` → `FilterConfig[]`
@@ -1243,7 +1243,7 @@ Related components live under `packages/nexus-ui/src/components/filters/`:
 | `useCursorPagination`       | **Preferred for list pages** — filters + sort + cursor + `queryParams` + footer props (`defaultSort` / `columns`)   |
 | `useFilteredQuery`          | Lower-level: builds filter params and calls `client.useQuery` (see below)                                           |
 
-**Sorting utilities** — `packages/nexus-ui/src/utils/sortUtils.ts`:
+**Sorting utilities** — `packages/syntara-ui/src/utils/sortUtils.ts`:
 
 - `buildSortParam(sort)` → API/URL value (`field` / `-field`) or `null`
 - `parseSortParam(value)` → `SortConfig` or `null`
@@ -1335,7 +1335,7 @@ There is **no separate free-standing keyword `SearchInput`** on `FilterBar`. “
 
 ### `useFilteredQuery` (lower-level)
 
-**Location:** `packages/nexus-ui/src/hooks/useFilteredQuery.ts`
+**Location:** `packages/syntara-ui/src/hooks/useFilteredQuery.ts`
 
 Builds `buildFilterParams(filters)` plus sort/limit/cursor/`include_total`, then calls `client.useQuery` and wraps loading/error via `useQueryState`. Useful when you need a filtered query **without** the full list-page pagination orchestration.
 

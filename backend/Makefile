@@ -17,7 +17,7 @@ PODMAN_PROJECT ?= nexus
 POSTGRES_IMAGE ?= quay.io/sclorg/postgresql-15-c9s
 REDIS_IMAGE ?= mirror.gcr.io/library/redis:6
 APP_IMAGE ?= localhost/nexus:latest
-APP_UI_IMAGE ?= quay.io/ansible/nexus-ui
+APP_UI_IMAGE ?= quay.io/ansible/syntara-ui
 APP_UI_VERSION ?= latest
 ifeq ($(shell uname -s),Darwin)
 # macOS: try podman machine inspect first (works for any machine name),
@@ -450,7 +450,7 @@ _ensure-secrets:
 run-all: _ensure-secrets _ensure-certs ## Start all services (foreground, Ctrl+C to stop)
 	@echo "🚀 Starting all services..."
 	@echo "📍 Nexus API: http://localhost:$${APP_API_PORT:-8000}"
-	@echo "📍 Nexus UI: http://localhost:$${APP_UI_PORT:-8080}"
+	@echo "📍 Syntara UI: http://localhost:$${APP_UI_PORT:-8080}"
 	@echo "📍 Database: postgresql://admin:admin@localhost:$${APP_DB_PORT:-5432}/nexus_api"
 	@echo "📍 Cache: cache://localhost:$${APP_CACHE_PORT:-6379}"
 	@echo "📍 Temporal Server: localhost:$${APP_TEMPORAL_PORT:-7233}"

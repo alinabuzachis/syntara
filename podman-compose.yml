@@ -35,11 +35,11 @@ services:
       timeout: 5s
       retries: 5
 
-  nexus-ui:
+  syntara-ui:
     build:
       context: ./frontend
-      dockerfile: packages/nexus-ui/Containerfile
-    image: ${APP_UI_IMAGE:-localhost/nexus-ui:latest}
+      dockerfile: packages/syntara-ui/Containerfile
+    image: ${APP_UI_IMAGE:-localhost/syntara-ui:latest}
     restart: unless-stopped
     ports:
       - ${APP_UI_PORT:-8080}:80

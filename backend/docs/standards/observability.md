@@ -373,10 +373,10 @@ Every HTTP request is classified as originating from the **UI** or an **external
 
 **UI clients** send the header automatically:
 
-- Typed `openapi-fetch` clients in `nexus-ui` use `interfaceTagMiddleware` (sets `X-Nexus-Client: ui` on every request).
+- Typed `openapi-fetch` clients in `syntara-ui` use `interfaceTagMiddleware` (sets `X-Nexus-Client: ui` on every request).
 - Pre-auth raw `fetch` call sites (login, CSRF, providers) use `nexusUiClientHeaders()` from `utils/nexusClientHeader.ts`.
 
-**External API consumers** should **omit** the header (default is `api`). Do not send `X-Nexus-Client: ui` unless the client is the Nexus UI.
+**External API consumers** should **omit** the header (default is `api`). Do not send `X-Nexus-Client: ui` unless the client is the Syntara UI.
 
 **Reading the interface downstream:**
 

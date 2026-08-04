@@ -21,7 +21,7 @@ This document explains **how data flows from the backend API to the UI**, focusi
 
 ## Overview
 
-The Nexus UI follows a **type-driven architecture** where TypeScript types are automatically generated from the backend's OpenAPI specification. This ensures type safety from the API all the way to the UI components.
+The Syntara UI follows a **type-driven architecture** where TypeScript types are automatically generated from the backend's OpenAPI specification. This ensures type safety from the API all the way to the UI components.
 
 ```mermaid
 flowchart TB
@@ -34,7 +34,7 @@ flowchart TB
         TS[TypeScript Types]
     end
 
-    subgraph UI["nexus-ui Package"]
+    subgraph UI["syntara-ui Package"]
         C[API Clients<br/>client.tsx]
         Q[TanStack Query Hooks]
         S[Zustand Store]
@@ -135,7 +135,7 @@ packages/syntara-contracts/
 The UI creates API clients using the generated types:
 
 ```typescript
-// packages/nexus-ui/src/client.tsx
+// packages/syntara-ui/src/client.tsx
 
 import type { ApprovalsAPI, ExecutionsAPI, ToolManagerAPI, WorkflowAPI } from '@syntara/contracts'
 import createFetchClient from 'openapi-fetch'
@@ -461,7 +461,7 @@ Special handling:
 When saving, `buildWorkflowDefinition()` produces the v2 API payload directly from the flat store state:
 
 ```typescript
-// packages/nexus-ui/src/routes/builder/utils/workflowDefinitionBuilder.ts
+// packages/syntara-ui/src/routes/builder/utils/workflowDefinitionBuilder.ts
 
 export function buildWorkflowDefinition(
   workflowName: string,
@@ -545,15 +545,15 @@ sequenceDiagram
 
 ### Critical Files
 
-| File                                                                                                                                                    | Purpose                   |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| [`packages/syntara-contracts/package.json`](../packages/syntara-contracts/package.json)                                                                 | Type generation scripts   |
-| [`packages/nexus-ui/src/client.tsx`](../packages/nexus-ui/src/client.tsx)                                                                               | API client creation       |
-| [`packages/nexus-ui/src/routes/builder/utils/processExistingWorkflow.ts`](../packages/nexus-ui/src/routes/builder/utils/processExistingWorkflow.ts)     | Load workflow from API    |
-| [`packages/nexus-ui/src/routes/builder/utils/workflowDefinitionBuilder.ts`](../packages/nexus-ui/src/routes/builder/utils/workflowDefinitionBuilder.ts) | Build v2 save payload     |
-| [`packages/nexus-ui/src/routes/builder/BuilderFlow.tsx`](../packages/nexus-ui/src/routes/builder/BuilderFlow.tsx)                                       | Canvas rendering          |
-| [`packages/nexus-ui/src/stores/useWorkflowStore.ts`](../packages/nexus-ui/src/stores/useWorkflowStore.ts)                                               | Workflow state management |
-| [`packages/nexus-ui/src/stores/useAuthStore.ts`](../packages/nexus-ui/src/stores/useAuthStore.ts)                                                       | Authentication state      |
+| File                                                                                                                                                        | Purpose                   |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| [`packages/syntara-contracts/package.json`](../packages/syntara-contracts/package.json)                                                                     | Type generation scripts   |
+| [`packages/syntara-ui/src/client.tsx`](../packages/syntara-ui/src/client.tsx)                                                                               | API client creation       |
+| [`packages/syntara-ui/src/routes/builder/utils/processExistingWorkflow.ts`](../packages/syntara-ui/src/routes/builder/utils/processExistingWorkflow.ts)     | Load workflow from API    |
+| [`packages/syntara-ui/src/routes/builder/utils/workflowDefinitionBuilder.ts`](../packages/syntara-ui/src/routes/builder/utils/workflowDefinitionBuilder.ts) | Build v2 save payload     |
+| [`packages/syntara-ui/src/routes/builder/BuilderFlow.tsx`](../packages/syntara-ui/src/routes/builder/BuilderFlow.tsx)                                       | Canvas rendering          |
+| [`packages/syntara-ui/src/stores/useWorkflowStore.ts`](../packages/syntara-ui/src/stores/useWorkflowStore.ts)                                               | Workflow state management |
+| [`packages/syntara-ui/src/stores/useAuthStore.ts`](../packages/syntara-ui/src/stores/useAuthStore.ts)                                                       | Authentication state      |
 
 ### Data Flow Summary
 

@@ -41,18 +41,18 @@ jobs:
           username: ${{ vars.QUAY_ROBOT_USERNAME }}
           password: ${{ secrets.QUAY_TOKEN }}
 
-      - name: Build and push nexus-ui image
+      - name: Build and push syntara-ui image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: frontend/
-          file: frontend/packages/nexus-ui/Containerfile
+          file: frontend/packages/syntara-ui/Containerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/syntara-ui:latest
             ghcr.io/${{ github.repository_owner }}/syntara-ui:${{ github.sha }}
-            quay.io/ansible/nexus-ui:latest
-            quay.io/ansible/nexus-ui:${{ github.sha }}
+            quay.io/ansible/syntara-ui:latest
+            quay.io/ansible/syntara-ui:${{ github.sha }}
 
       - name: Build and push syntara-mock-api image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6

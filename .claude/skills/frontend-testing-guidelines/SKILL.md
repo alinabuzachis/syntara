@@ -28,10 +28,10 @@ This is enforced incrementally - existing files can improve gradually, but new c
 
 **Coverage enforcement:**
 
-Coverage is enforced on changed files in PRs via `scripts/check-pr-coverage.js`. Run locally from `frontend/packages/nexus-ui`:
+Coverage is enforced on changed files in PRs via `scripts/check-pr-coverage.js`. Run locally from `frontend/packages/syntara-ui`:
 
 ```bash
-cd packages/nexus-ui
+cd packages/syntara-ui
 npm run test:coverage        # Generate coverage report
 npm run test:coverage        # Check coverage (see CI for per-file threshold enforcement)
 ```
@@ -117,7 +117,7 @@ test('increments count on button click', async () => {
 
 ### Playwright E2E — Full Workflow Tests in Real Browser
 
-- File naming: `*.spec.ts` under `frontend/packages/nexus-ui/e2e`
+- File naming: `*.spec.ts` under `frontend/packages/syntara-ui/e2e`
 - Use for: End-to-end user flows, routing, and integration testing
 - Environment: Playwright + Chromium (mock API by default, real backend supported)
 - Commands:
@@ -136,7 +136,7 @@ test('increments count on button click', async () => {
 **Example — Playwright E2E (use for multi-step workflows):**
 
 ```ts
-// File: packages/nexus-ui/e2e/workflows.spec.ts
+// File: packages/syntara-ui/e2e/workflows.spec.ts
 import { test, expect, toAppUrl } from './fixtures'
 import { buildUniqueName } from './helpers/workflows'
 
@@ -170,7 +170,7 @@ test('user creates a workflow', async ({ app }) => {
 
 ```text
 Does the component use browser-specific APIs?
-├─ Yes → Use Playwright E2E (packages/nexus-ui/e2e/*.spec.ts)
+├─ Yes → Use Playwright E2E (packages/syntara-ui/e2e/*.spec.ts)
 │  └─ Examples: IntersectionObserver, ResizeObserver, Canvas, real layout
 └─ No → Use jsdom (*.test.tsx)
    └─ Examples: Rendering, clicks, state, forms, most user interactions
@@ -213,7 +213,7 @@ test('complex workflow validation', async ({ page }) => {
 **Running tagged tests:**
 
 ```bash
-cd packages/nexus-ui
+cd packages/syntara-ui
 
 # Run only PR check tests (critical subset)
 npm run e2e:pr-check
@@ -264,10 +264,10 @@ npx playwright test --grep @pr-check --list   # List tagged tests
 npx playwright test --grep @pr-check --list
 
 # Search for tagged tests
-grep -r "@pr-check" packages/nexus-ui/e2e/
+grep -r "@pr-check" packages/syntara-ui/e2e/
 
 # Verify npm scripts
-cat packages/nexus-ui/package.json | grep e2e:pr-check
+cat packages/syntara-ui/package.json | grep e2e:pr-check
 ```
 
 **References:**

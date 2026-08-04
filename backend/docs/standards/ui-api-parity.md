@@ -8,7 +8,7 @@ Nexus ensures UI-API parity by design: the frontend communicates exclusively thr
 
 ## Typed API Clients
 
-All frontend API calls MUST use the typed `openapi-fetch` / `openapi-react-query` clients in `frontend/packages/nexus-ui/src/client.tsx` and `frontend/packages/nexus-ui/src/routes/access/accessClient.ts`. Direct use of `fetch()`, `XMLHttpRequest`, or `axios` is prohibited.
+All frontend API calls MUST use the typed `openapi-fetch` / `openapi-react-query` clients in `frontend/packages/syntara-ui/src/client.tsx` and `frontend/packages/syntara-ui/src/routes/access/accessClient.ts`. Direct use of `fetch()`, `XMLHttpRequest`, or `axios` is prohibited.
 
 **Why:** Typed clients ensure the frontend can only call endpoints that exist in the OpenAPI spec. Raw HTTP calls bypass type safety and can hit undocumented or non-existent endpoints, silently breaking UI-API parity.
 
@@ -34,11 +34,11 @@ All clients apply `authMiddleware` from `client.tsx`, which handles token inject
 
 | Mechanism | Scope | Behavior |
 |-----------|-------|----------|
-| ESLint rule `nexus/no-raw-http-calls` | `frontend/packages/nexus-ui/` | Blocks `fetch()`, `XMLHttpRequest`, and `axios` imports at lint time |
+| ESLint rule `nexus/no-raw-http-calls` | `frontend/packages/syntara-ui/` | Blocks `fetch()`, `XMLHttpRequest`, and `axios` imports at lint time |
 | `allowedFiles` config | ESLint config | Exempts specific files (e.g., `useFileUploadWithProgress.ts` for upload progress via XMLHttpRequest) |
 | Inline `eslint-disable-next-line` | Per-call | Requires justification after `--` (e.g., `-- pre-auth call before token middleware`) |
 
-**Rule source:** `frontend/packages/nexus-ui/eslint-plugin-syntara/rules/no-raw-http-calls.js`
+**Rule source:** `frontend/packages/syntara-ui/eslint-plugin-syntara/rules/no-raw-http-calls.js`
 
 ## Contract Generation
 
@@ -153,8 +153,8 @@ The scheduled workflow auto-closes drift issues when the drift is resolved.
 
 | What | Path |
 |------|------|
-| Typed API clients | `frontend/packages/nexus-ui/src/client.tsx`, `frontend/packages/nexus-ui/src/routes/access/accessClient.ts` |
-| ESLint rule (no raw HTTP) | `frontend/packages/nexus-ui/eslint-plugin-syntara/rules/no-raw-http-calls.js` |
+| Typed API clients | `frontend/packages/syntara-ui/src/client.tsx`, `frontend/packages/syntara-ui/src/routes/access/accessClient.ts` |
+| ESLint rule (no raw HTTP) | `frontend/packages/syntara-ui/eslint-plugin-syntara/rules/no-raw-http-calls.js` |
 | Generated contracts | `frontend/packages/syntara-contracts/src/*.ts` |
 | Contract generation scripts | `frontend/packages/syntara-contracts/package.json` (`gen:local:*`) |
 | Backend domain sub-specs | `backend/src/nexus/schemas/` (see `gen:local:*` for paths) |

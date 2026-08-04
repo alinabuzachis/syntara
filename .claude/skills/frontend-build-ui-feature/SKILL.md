@@ -16,7 +16,7 @@ Ask these questions one at a time. Do not move on until you get an answer.
    Ask if they have a mockup screenshot (Figma export or browser screenshot). If they do, ask them to paste or drag it in — save it for comparison in Phase 5. If they don't have one, ask them to describe the layout in words: what goes where, how many columns, what buttons.
 
 3. **Where does the data come from?**
-   Ask for the API endpoint (e.g. `GET /api/v1/credentials`), the key fields in the response, and which client from `frontend/packages/nexus-ui/src/client.tsx` to use. If they're not sure about the client, search `frontend/packages/nexus-ui/src/client.tsx` and suggest the right one.
+   Ask for the API endpoint (e.g. `GET /api/v1/credentials`), the key fields in the response, and which client from `frontend/packages/syntara-ui/src/client.tsx` to use. If they're not sure about the client, search `frontend/packages/syntara-ui/src/client.tsx` and suggest the right one.
 
 4. **What should it do?**
    Ask for the specific behaviors: what actions does the user take? What happens on success or failure? What states need to exist (loaded, empty, error, filtered with no results)?
@@ -40,7 +40,7 @@ Before writing any code:
 Follow the project skills for implementation. **Always match existing codebase patterns** — the coding standards and UX design system skills are the primary guidelines, not general best practices:
 
 - Use PatternFly 6 components and design tokens for all layout and styling.
-- Use typed API clients from `frontend/packages/nexus-ui/src/client.tsx`. No raw `fetch()`.
+- Use typed API clients from `frontend/packages/syntara-ui/src/client.tsx`. No raw `fetch()`.
 - Use Zod + react-hook-form for any forms. Use manual `useState`/controlled form controls as a last resort.
 - Handle all states: data loaded, no data yet, no filter results, API error with retry.
 - Write unit tests alongside the code: happy path, empty states, error state, and at least one `toHaveNoViolations()` accessibility test.

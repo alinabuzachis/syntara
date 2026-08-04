@@ -124,7 +124,7 @@ Standards for implementing, reviewing, and refactoring frontend code using React
 ## Implementation Workflow
 
 1. **Read the skills** — `.claude/skills/frontend-coding-standards/SKILL.md`, `.claude/skills/frontend-testing-guidelines/SKILL.md`, and `.claude/skills/frontend-library-references/SKILL.md` (fetch the relevant `llms.txt` URLs for any library you will use)
-2. **Check for reusability** — Search `frontend/packages/nexus-ui/src/components/` and PatternFly docs before creating new components
+2. **Check for reusability** — Search `frontend/packages/syntara-ui/src/components/` and PatternFly docs before creating new components
 3. **Implement incrementally** — Happy path first, then edge cases
 4. **Write tests concurrently** — Tests alongside implementation
 5. **Verify accessibility** — Keyboard navigation, ARIA attributes, axe tests

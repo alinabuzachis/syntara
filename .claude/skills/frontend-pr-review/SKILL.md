@@ -78,7 +78,7 @@ Check whether the changes follow:
 
 **Project-Specific:**
 
-- Components in correct location (frontend/packages/nexus-ui/src/components/)
+- Components in correct location (frontend/packages/syntara-ui/src/components/)
 - Uses PatternFly 6 components for UI foundation, styling, and design system
 - TanStack Query for server state, Zustand (useWorkflowStore) for workflow state
 - No `any` types, uses generated OpenAPI types
@@ -99,7 +99,7 @@ Check whether the changes follow:
 | Copy-pasted dialogs or action handlers                      | #6 -- extract to shared component/hook                                          |
 | String literals for type discriminators                     | #9 -- use enum constants from `@syntara/contracts`                        |
 | Display strings in conditionals                             | #10 -- compare API values, not translatable labels                              |
-| New route in `AppRoute.tsx` without registry entry          | Add to `e2e/visual-regression/page-registry.ts` (see `frontend/packages/nexus-ui/VISUAL_REGRESSION.md`)    |
+| New route in `AppRoute.tsx` without registry entry          | Add to `e2e/visual-regression/page-registry.ts` (see `frontend/packages/syntara-ui/VISUAL_REGRESSION.md`)    |
 | Title Case in alert titles                                  | Use sentence case: "Workflow created", not "Created"                            |
 | Derived data without `useMemo` in custom hooks              | #13 -- wrap computed maps/arrays in `useMemo`                                   |
 | New `use*.ts` hook without `use*.test.ts(x)`                | #14 -- every new hook needs a dedicated test file                               |
@@ -115,7 +115,7 @@ Check whether the changes follow:
 | `useEffect` + `useState` for API calls                      | #25 -- use TanStack Query (`useQuery`/`useMutation`/`useQueries`)               |
 | Manual `Promise.all` + cancellation for parallel fetches    | #25 -- use `useQueries` from TanStack Query                                     |
 | `// TODO` / `// FIXME` / `// HACK` / `// XXX`               | #26 -- track deferred work in an issue, not code comments                           |
-| Hardcoded documentation URLs      | #30 -- use `useDocLink('key')` from `frontend/packages/nexus-ui/src/utils/docs/useDocLink.ts`              |
+| Hardcoded documentation URLs      | #30 -- use `useDocLink('key')` from `frontend/packages/syntara-ui/src/utils/docs/useDocLink.ts`              |
 | `NxPageHeader` without `docLink` prop                       | #30 -- every page header should pass `docLink={useDocLink('key')}`              |
 | Hardcoded colors in CSS modules                             | ESLint can't catch these; review CSS module files manually                      |
 | `new Date()` in `syntara-mock-api/src/resources/` or `utils/` | #31 -- use `mockDate.*` from `mockDates.ts` for deterministic visual regression |
@@ -169,7 +169,7 @@ git diff main...HEAD -- '*.ts' '*.tsx' | grep '^+' | grep -v '^+++' | grep -iE '
 | **New resources have mock `can_i` handlers**    | `frontend/packages/syntara-mock-api/src/handlers.ts` must include role-aware responses for all 4 roles (admin, viewer, auditor, user)                                         |
 | **Permission hooks include `isError`**          | Any `useCanI` mock must include `isError: false`; real hook returns `{ allowed, isChecking, isError }`                                                             |
 | **Permission cache invalidation**               | After role/assignment mutations, verify `queryClient.invalidateQueries({ queryKey: ['authz', 'can_i'] })` is called                                                |
-| **New shared components have stories**          | Components in `frontend/packages/nexus-ui/src/components/` (especially `Nx*`) should have Storybook stories for documentation                                                                 |
+| **New shared components have stories**          | Components in `frontend/packages/syntara-ui/src/components/` (especially `Nx*`) should have Storybook stories for documentation                                                                 |
 | **Unrelated snapshot changes explained**        | If visual regression screenshots changed for pages not related to the PR, ask why                                                                                  |
 | **Visual regression uses stable data**          | Screenshot baselines must use deterministic mock data -- no timestamps, random IDs, or flaky API state                                                             |
 | **Gated content hidden during loading**         | Permission-dependent UI (tabs, buttons) should hide until permission check resolves, not flash then disappear                                                      |
@@ -295,7 +295,7 @@ When reviewing your own implementation before committing, verify these gates pas
 
 ### Implementation Workflow Check
 
-1. **Checked for reusability** — searched `frontend/packages/nexus-ui/src/components/` and PatternFly docs before creating new components
+1. **Checked for reusability** — searched `frontend/packages/syntara-ui/src/components/` and PatternFly docs before creating new components
 2. **Implemented incrementally** — happy path first, then edge cases
 3. **Wrote tests concurrently** — tests alongside implementation, not after
 4. **Verified accessibility** — keyboard navigation, ARIA attributes, axe tests

@@ -48,10 +48,10 @@ backend repo               @syntara/contracts    factory is updated          v2 
 ## How the UI Connects to the Backend
 
 ```
-Backend (nexus/)                      Contracts                              UI (nexus-ui/)
+Backend (nexus/)                      Contracts                              UI (syntara-ui/)
 ────────────────                      ─────────                              ──────────────
 
-src/nexus/schemas/                    packages/syntara-contracts/              packages/nexus-ui/
+src/nexus/schemas/                    packages/syntara-contracts/              packages/syntara-ui/
   workflows/openapi.yaml     ──┐
   executions_openapi.yaml    ──┤
   approvals/openapi.yaml     ──┼──  npm run gen  ──►  openapi-typescript
@@ -72,7 +72,7 @@ The backend repository (`syntara-orchestration/syntara`) contains YAML OpenAPI s
 
 **2. Type generation: `npm run gen`**
 
-Running `npm run gen` in the nexus-ui repo:
+Running `npm run gen` in the syntara-ui package:
 
 - Clones the backend repository
 - Runs `openapi-typescript` on each YAML spec
@@ -83,7 +83,7 @@ The generated files include full path types (every endpoint with request/respons
 
 **3. Type-safe API clients**
 
-`packages/nexus-ui/src/client.tsx` creates API clients using the generated types:
+`packages/syntara-ui/src/client.tsx` creates API clients using the generated types:
 
 ```typescript
 import createFetchClient from 'openapi-fetch'
@@ -97,7 +97,7 @@ Every API call is type-checked at compile time. If the backend changes a field n
 
 **4. Factory functions create workflow data**
 
-`packages/nexus-ui/src/stores/workflowFactories.ts` contains pure functions that create properly-typed workflow entities (nodes, triggers, edges). These are what the builder UI calls when a user adds a step.
+`packages/syntara-ui/src/stores/workflowFactories.ts` contains pure functions that create properly-typed workflow entities (nodes, triggers, edges). These are what the builder UI calls when a user adds a step.
 
 **5. Step types are hardcoded in the UI**
 

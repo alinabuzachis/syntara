@@ -6,7 +6,7 @@ name: Visual Regression (Weekly Baseline Refresh)
 # team reviews the week's visual drift via GitHub's native image diff (Files
 # changed tab), files issues for anything that looks wrong, and merges to
 # accept the rest as the new baseline. This is deliberately decoupled from
-# individual PRs — see frontend/packages/nexus-ui/VISUAL_REGRESSION.md for
+# individual PRs — see frontend/packages/syntara-ui/VISUAL_REGRESSION.md for
 # the full system (there is no per-PR VR check; this cron and the on-demand
 # /update-screenshots command are the only two ways VR runs).
 #
@@ -51,12 +51,12 @@ jobs:
 
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
-        working-directory: frontend/packages/nexus-ui
+        working-directory: frontend/packages/syntara-ui
 
       - name: Check visual baseline coverage
         id: baselines
         run: npm exec tsx -- scripts/check-visual-baselines.ts
-        working-directory: frontend/packages/nexus-ui
+        working-directory: frontend/packages/syntara-ui
         continue-on-error: true
 
       # --update-snapshots=all rewrites every screenshot it captures (the bare
@@ -68,7 +68,7 @@ jobs:
       - name: Regenerate screenshots
         id: screenshots
         run: npx playwright test e2e/visual-regression/page-screenshots.spec.ts --update-snapshots=all --workers=1
-        working-directory: frontend/packages/nexus-ui
+        working-directory: frontend/packages/syntara-ui
         continue-on-error: true
 
       - name: Upload Playwright results on failure
@@ -77,8 +77,8 @@ jobs:
         with:
           name: visual-regression-weekly-results
           path: |
-            frontend/packages/nexus-ui/test-results/
-            frontend/packages/nexus-ui/playwright-report/
+            frontend/packages/syntara-ui/test-results/
+            frontend/packages/syntara-ui/playwright-report/
           retention-days: 30
 
       # With --update-snapshots=all, Playwright rewrites every PNG it captures.
@@ -89,7 +89,7 @@ jobs:
       # on-demand /update-screenshots flow.
       - name: Detect changed baselines
         id: detect
-        working-directory: frontend/packages/nexus-ui
+        working-directory: frontend/packages/syntara-ui
         run: |
           git add e2e/visual-regression/page-screenshots.spec.ts-snapshots/
           if git diff --cached --quiet; then
@@ -111,7 +111,7 @@ jobs:
           base: devel
           branch: ${{ env.BASELINE_REFRESH_BRANCH }}
           delete-branch: true
-          add-paths: frontend/packages/nexus-ui/e2e/visual-regression/page-screenshots.spec.ts-snapshots/**
+          add-paths: frontend/packages/syntara-ui/e2e/visual-regression/page-screenshots.spec.ts-snapshots/**
           commit-message: >-
             chore: weekly visual regression baseline refresh
             (${{ steps.detect.outputs.added }} new, ${{ steps.detect.outputs.modified }} changed)

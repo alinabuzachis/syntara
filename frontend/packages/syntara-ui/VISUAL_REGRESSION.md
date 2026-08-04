@@ -45,7 +45,7 @@ flowchart TD
     C --> S["scope-visual-regression.ts checks changed files"]
     S -- "Confined to isolated section(s)" --> S1["Run only those sections"]
     S -- "Touches shared code / test infra" --> S2["Run the full suite"]
-    S -- "Nothing under nexus-ui/" --> S3["Skip — nothing to screenshot"]
+    S -- "Nothing under syntara-ui/" --> S3["Skip — nothing to screenshot"]
     S1 --> D{Screenshots match / regenerate}
     S2 --> D
     D -- Committed --> E[Baselines updated on this PR's branch]
@@ -87,7 +87,7 @@ flowchart TD
 | Only files under an isolated route folder, e.g. `src/routes/workflows/**`                                                                                                                                                      | Just that section's tests (`--grep`)                                                                                                                                       | Nothing else in the app renders that code, so nothing else could need a new baseline                                                                                                                                                                                         |
 | Files in two isolated folders, e.g. `src/routes/workflows/**` and `src/routes/approvals/**`                                                                                                                                    | Both sections' tests, nothing else                                                                                                                                         | Same reasoning, per changed folder                                                                                                                                                                                                                                           |
 | A shared file — `src/components/`, `src/hooks/`, `src/providers/`, `src/stores/`, or the VR test infrastructure itself (`page-registry.ts`, `page-entries-interactive.ts`, `page-screenshots.spec.ts`, `stabilizeViewport.ts`) | The **full suite**                                                                                                                                                         | Shared code can affect pages in any section — there's no folder boundary to trust                                                                                                                                                                                            |
-| Anything under `frontend/packages/syntara-mock-api/**` or `frontend/packages/nexus-contracts/**` (alone or with other UI files)                                                                                                | The **full suite**                                                                                                                                                         | Mock handlers and contract types can change what every page renders — scoping to one route would under-update                                                                                                                                                                |
+| Anything under `frontend/packages/syntara-mock-api/**` or `frontend/packages/syntara-contracts/**` (alone or with other UI files)                                                                                              | The **full suite**                                                                                                                                                         | Mock handlers and contract types can change what every page renders — scoping to one route would under-update                                                                                                                                                                |
 | Nothing VR-relevant at all (e.g. a backend-only PR with no frontend package changes)                                                                                                                                           | **Nothing** — the job skips screenshot generation and Chromium install entirely                                                                                            | There's nothing to screenshot                                                                                                                                                                                                                                                |
 | Anything under `src/routes/access-management/**`                                                                                                                                                                               | The **whole access-management bucket** (all `access-management/*` sections, plus `authentication` and `permission-gating`) — one combined group, never sub-divided further | Tab/panel components (role assignments, policies, check-access) are shared across users, groups, and projects, and `authentication`/`permission-gating` exercise those same shared permission hooks — see the comment in `scope-visual-regression.ts` for the full reasoning |
 
@@ -210,7 +210,7 @@ The `playwright.config.ts` webServer command switches automatically: when `CI` i
 
 ## Running Locally
 
-From the **repo root** (uses `packages/nexus-ui` so `playwright.config.ts` and `webServer` start mock API + UI on **4173** / **3300**):
+From the **repo root** (uses `packages/syntara-ui` so `playwright.config.ts` and `webServer` start mock API + UI on **4173** / **3300**):
 
 ```bash
 # Compare baselines (macOS — results will differ from CI baselines due to font rendering)
@@ -267,7 +267,7 @@ npm run e2e:visual-regression:container:update
 After updating, review changes with:
 
 ```bash
-git diff --stat frontend/packages/nexus-ui/e2e/visual-regression/page-screenshots.spec.ts-snapshots/
+git diff --stat frontend/packages/syntara-ui/e2e/visual-regression/page-screenshots.spec.ts-snapshots/
 ```
 
 ### What Happens Under the Hood

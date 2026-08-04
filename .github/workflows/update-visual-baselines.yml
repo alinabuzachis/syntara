@@ -85,7 +85,7 @@ jobs:
       - name: Determine visual regression scope
         id: scope
         if: steps.checkout.outcome != 'failure'
-        working-directory: frontend/packages/nexus-ui
+        working-directory: frontend/packages/syntara-ui
         run: |
           set -uo pipefail
           if ! CHANGED=$(git diff --name-only HEAD^1 HEAD^2); then
@@ -108,7 +108,7 @@ jobs:
       - name: Install Playwright Chromium
         if: steps.checkout.outcome != 'failure' && steps.scope.outcome != 'failure' && steps.scope.outputs.result != 'NONE'
         run: npx playwright install --with-deps chromium
-        working-directory: frontend/packages/nexus-ui
+        working-directory: frontend/packages/syntara-ui
 
       - name: Generate screenshots
         id: screenshots
@@ -127,7 +127,7 @@ jobs:
           else
             npx playwright test e2e/visual-regression/page-screenshots.spec.ts --update-snapshots=all --workers=1 --grep "$VR_SCOPE"
           fi
-        working-directory: frontend/packages/nexus-ui
+        working-directory: frontend/packages/syntara-ui
 
       - name: Upload Playwright results on failure
         if: steps.screenshots.outcome == 'failure'
@@ -135,14 +135,14 @@ jobs:
         with:
           name: frontend-update-baselines-results
           path: |
-            frontend/packages/nexus-ui/test-results/
-            frontend/packages/nexus-ui/playwright-report/
+            frontend/packages/syntara-ui/test-results/
+            frontend/packages/syntara-ui/playwright-report/
           retention-days: 7
 
       - name: Detect changed baselines
         id: detect
         if: steps.checkout.outcome != 'failure'
-        working-directory: frontend/packages/nexus-ui
+        working-directory: frontend/packages/syntara-ui
         run: |
           git add e2e/visual-regression/page-screenshots.spec.ts-snapshots/
           if git diff --cached --quiet; then
@@ -213,7 +213,7 @@ jobs:
 
             const treeEntries = [];
             for (const file of changedFiles) {
-              const fullPath = `frontend/packages/nexus-ui/${file}`;
+              const fullPath = `frontend/packages/syntara-ui/${file}`;
               const content = fs.readFileSync(
                 path.join(process.env.GITHUB_WORKSPACE, fullPath)
               );
@@ -287,7 +287,7 @@ jobs:
             const vrScope = process.env.VR_SCOPE || '';
             const scopeNote =
               vrScope === 'NONE'
-                ? '_No files under `frontend/packages/nexus-ui/` changed — nothing to screenshot._'
+                ? '_No files under `frontend/packages/syntara-ui/` changed — nothing to screenshot._'
                 : vrScope === 'FULL' || vrScope === ''
                   ? '_Ran the full page suite (either a shared file changed, or scoping could not be determined)._'
                   : `_Ran only the pages this PR could affect — filtered with \`--grep\`. The full suite still runs every Monday._`;

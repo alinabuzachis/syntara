@@ -61,7 +61,7 @@ const ACCESS_MANAGEMENT_SECTIONS = [
 const CONFIGURATION_SECTIONS = ['configuration/credentials', 'configuration/integrations', 'settings']
 
 // Ordered by specificity — first match wins for a given file. Prefixes are
-// relative to `frontend/packages/nexus-ui/`.
+// relative to `frontend/packages/syntara-ui/`.
 const SCOPE_RULES: Array<{ prefix: string; sections: string[] }> = [
   { prefix: 'src/routes/workflows/', sections: ['workflows'] },
   { prefix: 'src/routes/builder/', sections: ['workflows'] },
@@ -79,14 +79,14 @@ const SCOPE_RULES: Array<{ prefix: string; sections: string[] }> = [
   { prefix: 'src/app/AppLogin.test.tsx', sections: ['login'] },
 ]
 
-const NEXUS_UI_PREFIX = 'frontend/packages/nexus-ui/'
+const SYNTARA_UI_PREFIX = 'frontend/packages/syntara-ui/'
 
 /**
  * Repo-relative prefixes that can affect any VR page. Checked before the
- * nexus-ui-only filter so they force SCOPE=FULL instead of being dropped as
- * "outside nexus-ui" → SCOPE=NONE.
+ * syntara-ui-only filter so they force SCOPE=FULL instead of being dropped as
+ * "outside syntara-ui" → SCOPE=NONE.
  */
-const FULL_SUITE_PREFIXES = ['frontend/packages/syntara-mock-api/', 'frontend/packages/nexus-contracts/']
+const FULL_SUITE_PREFIXES = ['frontend/packages/syntara-mock-api/', 'frontend/packages/syntara-contracts/']
 
 export type ScopeResult = { full: true } | { full: false; sections: string[] }
 
@@ -97,7 +97,7 @@ export function resolveScope(changedFiles: string[]): ScopeResult {
     return { full: true }
   }
 
-  const relevant = files.filter((f) => f.startsWith(NEXUS_UI_PREFIX)).map((f) => f.slice(NEXUS_UI_PREFIX.length))
+  const relevant = files.filter((f) => f.startsWith(SYNTARA_UI_PREFIX)).map((f) => f.slice(SYNTARA_UI_PREFIX.length))
 
   if (relevant.length === 0) {
     return { full: false, sections: [] }
