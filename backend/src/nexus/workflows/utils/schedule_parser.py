@@ -304,6 +304,9 @@ def build_schedule_policy(missed_policy: MissedSchedulePolicy) -> SchedulePolicy
     return SchedulePolicy(catchup_window=catchup, overlap=overlap)
 
 
+SCHEDULE_ID_PREFIX = "nexus-sched-"
+
+
 def build_schedule_id(workflow_id: str, trigger_node_id: str) -> str:
     """Build a deterministic Temporal Schedule ID.
 
@@ -317,7 +320,7 @@ def build_schedule_id(workflow_id: str, trigger_node_id: str) -> str:
         Deterministic schedule ID string.
 
     """
-    return f"nexus-sched-{workflow_id}-{trigger_node_id}"
+    return f"{SCHEDULE_ID_PREFIX}{workflow_id}-{trigger_node_id}"
 
 
 def config_to_temporal_schedule(

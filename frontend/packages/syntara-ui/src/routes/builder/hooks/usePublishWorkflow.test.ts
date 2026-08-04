@@ -12,7 +12,7 @@ const mockPublishMutate = vi.fn()
 const mockUnpublishMutate = vi.fn()
 const mockShowSuccess = vi.fn()
 const mockShowError = vi.fn()
-const mockShowAlert = vi.fn()
+const mockShowWarning = vi.fn()
 const mockMarkClean = vi.fn()
 const mockBuildWorkflowDefinition = vi.fn()
 
@@ -56,7 +56,7 @@ vi.mock('../../../providers/alerts', () => ({
   useAlerts: () => ({
     showSuccess: mockShowSuccess,
     showError: mockShowError,
-    showAlert: mockShowAlert,
+    showWarning: mockShowWarning,
   }),
 }))
 
@@ -155,10 +155,10 @@ describe('usePublishWorkflow', () => {
     })
 
     expect(mockShowSuccess).toHaveBeenCalledWith({ title: 'Workflow published successfully' })
-    expect(mockShowAlert).not.toHaveBeenCalled()
+    expect(mockShowWarning).not.toHaveBeenCalled()
   })
 
-  it('shows persistent warning alert when publish returns a warning', () => {
+  it('shows transient warning alert when publish returns a warning', () => {
     const warningMessage =
       'Scheduled triggers could not be activated because the scheduling service is temporarily unavailable.'
     mockPublishMutate.mockImplementation(
@@ -175,11 +175,9 @@ describe('usePublishWorkflow', () => {
       result.current.publish('v1.0')
     })
 
-    expect(mockShowAlert).toHaveBeenCalledWith({
-      variant: 'warning',
+    expect(mockShowWarning).toHaveBeenCalledWith({
       title: 'Workflow published with warnings',
       description: warningMessage,
-      autoDismiss: false,
     })
     expect(mockShowSuccess).not.toHaveBeenCalled()
   })
@@ -200,7 +198,7 @@ describe('usePublishWorkflow', () => {
     })
 
     expect(mockShowSuccess).toHaveBeenCalledWith({ title: 'Workflow published successfully' })
-    expect(mockShowAlert).not.toHaveBeenCalled()
+    expect(mockShowWarning).not.toHaveBeenCalled()
   })
 
   it('shows error alert on publish failure', () => {

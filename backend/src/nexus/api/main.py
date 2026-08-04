@@ -225,6 +225,13 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:  # noqa: PLR0915
     multipart_cleanup_worker = get_multipart_cleanup_worker()
     multipart_cleanup_worker.start()
 
+    from nexus.workflows.workers.schedule_reconciliation import (  # noqa: PLC0415
+        get_schedule_reconciliation_worker,
+    )
+
+    schedule_reconciliation_worker = get_schedule_reconciliation_worker()
+    schedule_reconciliation_worker.start()
+
     periodic_collector.start()
     logger.info("Periodic analytics collector started")
 
@@ -239,6 +246,7 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:  # noqa: PLR0915
         "queue_depth_poller": queue_depth_poller,
         "session_cleanup_worker": session_cleanup_worker,
         "multipart_cleanup_worker": multipart_cleanup_worker,
+        "schedule_reconciliation_worker": schedule_reconciliation_worker,
         "runtime_settings": runtime_settings,
         "rate_limit_redis": rate_limit_redis,
     }
@@ -246,6 +254,7 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:  # noqa: PLR0915
 
 async def _lifespan_shutdown(resources: dict[str, Any]) -> None:
     """Clean up application resources during shutdown."""
+    await resources["schedule_reconciliation_worker"].stop()
     await resources["multipart_cleanup_worker"].stop()
     await resources["queue_depth_poller"].stop()
     await resources["session_cleanup_worker"].stop()

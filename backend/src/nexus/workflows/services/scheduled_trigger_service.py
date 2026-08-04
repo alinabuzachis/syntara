@@ -34,6 +34,7 @@ from nexus.core.config.base import get_settings
 from nexus.core.tls.temporal import build_temporal_tls_config
 from nexus.workflows.exceptions import ScheduledTriggerSyncError, TriggerValidationError
 from nexus.workflows.utils.schedule_parser import (
+    SCHEDULE_ID_PREFIX,
     build_schedule_id,
     config_to_temporal_schedule,
 )
@@ -186,7 +187,7 @@ class ScheduledTriggerService:
         """
         self._temporal_client = temporal_client
 
-    async def _get_client(self) -> Client | None:
+    async def get_client(self) -> Client | None:
         """Get a Temporal client.
 
         Uses the injected client if provided, otherwise the shared connection.
@@ -206,8 +207,9 @@ class ScheduledTriggerService:
 
         Creates or updates schedules for each scheduled trigger node and
         deletes schedules for trigger nodes that were removed.  Only called
-        on publish — unpublish and delete use ``delete_triggers_for_workflow``
-        instead.
+        on publish.  Unpublish and delete use
+        ``WorkflowService._delete_scheduled_triggers`` for best-effort
+        cleanup; the schedule reconciliation worker handles any orphans.
 
         Args:
             workflow_id: The workflow UUID (as string).
@@ -238,7 +240,7 @@ class ScheduledTriggerService:
                     continue
                 scheduled_nodes[node_id] = trigger.get("parameters", {})
 
-        client = await self._get_client()
+        client = await self.get_client()
         if client is None:
             if scheduled_nodes:
                 raise ScheduledTriggerSyncError(workflow_id, len(scheduled_nodes))
@@ -267,7 +269,7 @@ class ScheduledTriggerService:
             existing_ids = await self._list_workflow_schedules(client, workflow_id)
             stale_ids = existing_ids - expected_ids
             for stale_id in stale_ids:
-                await self._delete_schedule(client, stale_id)
+                await self.delete_schedule(client, stale_id)
                 logger.info(
                     "Deleted stale Temporal Schedule for removed trigger node",
                     schedule_id=stale_id,
@@ -302,7 +304,7 @@ class ScheduledTriggerService:
             Number of schedules deleted.
 
         """
-        client = await self._get_client()
+        client = await self.get_client()
         if client is None:
             logger.warning(
                 "Skipping schedule deletion: Temporal unavailable",
@@ -315,7 +317,7 @@ class ScheduledTriggerService:
             deleted = 0
 
             for schedule_id in all_schedule_ids:
-                if await self._delete_schedule(client, schedule_id):
+                if await self.delete_schedule(client, schedule_id):
                     deleted += 1
         except (OSError, RuntimeError, RPCError) as exc:
             raise ScheduledTriggerSyncError(workflow_id, 0) from exc
@@ -328,6 +330,50 @@ class ScheduledTriggerService:
             )
 
         return deleted
+
+    async def create_schedule(
+        self,
+        workflow_id: str,
+        trigger_node_id: str,
+        config: dict[str, Any],
+    ) -> str:
+        """Create or update a single Temporal Schedule for a trigger node.
+
+        Validates the trigger config and delegates to the low-level
+        create-or-update helper.  Intended for reconciliation — when a
+        schedule is known to be missing and needs to be (re-)created
+        without running a full ``sync_scheduled_triggers`` cycle.
+
+        Args:
+            workflow_id: The workflow UUID (as string).
+            trigger_node_id: The trigger node ID within the workflow definition.
+            config: The scheduled trigger parameters dict.
+
+        Returns:
+            The deterministic schedule ID.
+
+        Raises:
+            TriggerValidationError: If the trigger config is invalid.
+            RuntimeError: If the Temporal client is unavailable.
+
+        """
+        client = await self.get_client()
+        if client is None:
+            msg = "Temporal client unavailable"
+            raise RuntimeError(msg)
+
+        try:
+            ScheduledTriggerConfig.model_validate(config)
+        except ValidationError as e:
+            msg = f"Invalid scheduled trigger config for node '{trigger_node_id}': {e}"
+            raise TriggerValidationError(msg) from e
+
+        settings = get_settings()
+        schedule_id = build_schedule_id(workflow_id, trigger_node_id)
+        await self._create_or_update_schedule(
+            client, schedule_id, workflow_id, trigger_node_id, config, settings.task_queue
+        )
+        return schedule_id
 
     async def _create_or_update_schedule(
         self,
@@ -398,39 +444,61 @@ class ScheduledTriggerService:
         """
         can_use_search_attr = await _ensure_search_attribute(client) and workflow_id.replace("-", "").isalnum()
         if can_use_search_attr:
-            try:
-                return await self._list_schedules_by_search_attr(client, workflow_id)
-            except RPCError as e:
-                if e.status in _CONNECTION_ERRORS:
-                    _invalidate_client_cache()
-                    raise
-                logger.warning(
-                    "Search attribute query failed (may be expected after initial registration),"
-                    " falling back to prefix scan",
-                    workflow_id=workflow_id,
-                    error=str(e),
-                )
+            query = f'{SA_NEXUS_WORKFLOW_ID.name} = "{workflow_id}"'
+            result = await self._list_schedules_by_query(client, query)
+            if result is not None:
+                return result
 
-        return await self._list_schedules_by_prefix(client, workflow_id)
+        return await self.list_schedules_by_prefix(client, workflow_id)
 
-    async def _list_schedules_by_search_attr(self, client: Client, workflow_id: str) -> set[str]:
-        """List schedules using server-side NexusWorkflowId filter."""
-        query = f'{SA_NEXUS_WORKFLOW_ID.name} = "{workflow_id}"'
-        schedule_ids: set[str] = set()
-        async for entry in await client.list_schedules(query=query):
-            schedule_ids.add(entry.id)
-        return schedule_ids
+    async def list_all_schedules(self, client: Client) -> set[str]:
+        """List all nexus-managed Temporal Schedule IDs.
 
-    async def _list_schedules_by_prefix(self, client: Client, workflow_id: str) -> set[str]:
-        """List schedules using client-side prefix scan (fallback)."""
-        prefix = f"nexus-sched-{workflow_id}-"
+        Uses server-side filtering via the NexusWorkflowId search attribute
+        when available, falling back to client-side prefix scan otherwise.
+        """
+        if await _ensure_search_attribute(client):
+            query = f'{SA_NEXUS_WORKFLOW_ID.name} != ""'
+            result = await self._list_schedules_by_query(client, query)
+            if result is not None:
+                return result
+
+        return await self.list_schedules_by_prefix(client)
+
+    async def _list_schedules_by_query(self, client: Client, query: str) -> set[str] | None:
+        """Run a server-side schedule query, returning None on non-connection errors."""
+        try:
+            schedule_ids: set[str] = set()
+            async for entry in await client.list_schedules(query=query):
+                schedule_ids.add(entry.id)
+            return schedule_ids
+        except RPCError as e:
+            if e.status in _CONNECTION_ERRORS:
+                _invalidate_client_cache()
+                raise
+            logger.warning(
+                "Search attribute query failed, falling back to prefix scan",
+                query=query,
+                error=str(e),
+            )
+            return None
+
+    @staticmethod
+    async def list_schedules_by_prefix(client: Client, prefix: str = "") -> set[str]:
+        """List nexus-managed Temporal Schedule IDs, optionally narrowed by *prefix*.
+
+        Matches IDs starting with ``nexus-sched-{prefix}-`` when *prefix*
+        is given, or ``nexus-sched-`` when omitted.
+        """
+        full_prefix = f"{SCHEDULE_ID_PREFIX}{prefix}-" if prefix else SCHEDULE_ID_PREFIX
         schedule_ids: set[str] = set()
         async for entry in await client.list_schedules():
-            if entry.id.startswith(prefix):
+            if entry.id.startswith(full_prefix):
                 schedule_ids.add(entry.id)
         return schedule_ids
 
-    async def _delete_schedule(self, client: Client, schedule_id: str) -> bool:
+    @staticmethod
+    async def delete_schedule(client: Client, schedule_id: str) -> bool:
         """Delete a Temporal Schedule if it exists.
 
         Returns True if a schedule was deleted, False if it didn't exist.

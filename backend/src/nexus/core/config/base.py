@@ -1230,6 +1230,12 @@ class TemporalSettings(BaseSettings):
         description="Maximum concurrent activity executions",
     )
 
+    schedule_reconciliation_interval_seconds: float = Field(
+        default=60.0,
+        description="Seconds between schedule reconciliation cycles",
+        gt=0,
+    )
+
 
 @lru_cache(maxsize=4)
 def _read_cert_cn(cert_path: str) -> str:

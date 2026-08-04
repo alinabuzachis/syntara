@@ -605,7 +605,7 @@ class TestPublishImplicitUnpublishEvent:
         assert workflow == mock_workflow
         assert warning == (
             "Scheduled triggers could not be activated because the scheduling service is "
-            "temporarily unavailable. Re-publish the workflow to retry."
+            "temporarily unavailable. They will be activated automatically when the service recovers."
         )
 
 

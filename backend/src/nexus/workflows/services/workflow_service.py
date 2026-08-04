@@ -236,13 +236,35 @@ class WorkflowService(BaseService):
         """Create/update Temporal Schedules for scheduled trigger nodes.
 
         Only called on publish.  Unpublish and delete use
-        ``ScheduledTriggerService.delete_triggers_for_workflow`` instead.
+        ``_delete_scheduled_triggers`` for best-effort cleanup; the
+        schedule reconciliation worker handles any orphans that remain
+        when Temporal is unreachable.
         """
         scheduled_service = ScheduledTriggerService()
         await scheduled_service.sync_scheduled_triggers(
             workflow_id=str(workflow_id),
             workflow_definition=workflow_definition,
         )
+
+    @staticmethod
+    async def _delete_scheduled_triggers(workflow_id: UUID) -> None:
+        """Best-effort deletion of Temporal Schedules for a workflow.
+
+        Swallows errors so the caller (unpublish / delete) always succeeds.
+        The schedule reconciliation worker will clean up any orphans that
+        remain when Temporal is unreachable.
+        """
+        try:
+            scheduled_service = ScheduledTriggerService()
+            await scheduled_service.delete_triggers_for_workflow(
+                workflow_id=str(workflow_id),
+            )
+        except ScheduledTriggerSyncError:
+            logger.warning(
+                "Best-effort scheduled trigger deletion failed — reconciliation worker will clean up orphans",
+                workflow_id=str(workflow_id),
+                exc_info=True,
+            )
 
     @staticmethod
     def _extract_credential_ids(workflow_definition: dict[str, Any]) -> set[str]:
@@ -1248,7 +1270,7 @@ class WorkflowService(BaseService):
             )
             warning = (
                 "Scheduled triggers could not be activated because the scheduling service is "
-                "temporarily unavailable. Re-publish the workflow to retry."
+                "temporarily unavailable. They will be activated automatically when the service recovers."
             )
 
         if stale_tool_findings:
@@ -1330,15 +1352,7 @@ class WorkflowService(BaseService):
             )
         )
 
-        # Delete scheduled triggers (best-effort — launcher will fail with
-        # WorkflowNotPublishedError if schedules keep firing)
-        try:
-            scheduled_service = ScheduledTriggerService()
-            await scheduled_service.delete_triggers_for_workflow(
-                workflow_id=str(workflow.id),
-            )
-        except ScheduledTriggerSyncError:
-            logger.warning("Failed to delete scheduled triggers", workflow_id=str(workflow.id), exc_info=True)
+        await self._delete_scheduled_triggers(workflow.id)
 
         return workflow
 
@@ -1488,18 +1502,4 @@ class WorkflowService(BaseService):
             project_id=workflow.project_id,
         )
 
-        # Delete scheduled triggers (Temporal Schedules, outside DB transaction).
-        # If this fails, schedules are orphaned — the launcher will fail with
-        # WorkflowNotPublishedError on each fire but the schedule won't stop.
-        try:
-            scheduled_service = ScheduledTriggerService()
-            await scheduled_service.delete_triggers_for_workflow(
-                workflow_id=str(workflow_id),
-            )
-        except ScheduledTriggerSyncError:
-            logger.warning(
-                "Failed to delete scheduled triggers for deleted workflow — "
-                "orphaned Temporal Schedules may continue firing",
-                workflow_id=str(workflow_id),
-                exc_info=True,
-            )
+        await self._delete_scheduled_triggers(workflow_id)

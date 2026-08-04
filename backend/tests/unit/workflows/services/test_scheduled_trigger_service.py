@@ -501,7 +501,7 @@ class TestGracefulTemporalUnavailability:
 
         definition = _make_workflow_definition(triggers=[_make_scheduled_trigger("trigger_1")])
         with (
-            patch.object(service, "_get_client", return_value=None),
+            patch.object(service, "get_client", return_value=None),
             pytest.raises(ScheduledTriggerSyncError) as exc_info,
         ):
             await service.sync_scheduled_triggers(
@@ -516,7 +516,7 @@ class TestGracefulTemporalUnavailability:
         """Should return 0 silently when Temporal is down but no scheduled triggers exist."""
         service = ScheduledTriggerService(temporal_client=None)
 
-        with patch.object(service, "_get_client", return_value=None):
+        with patch.object(service, "get_client", return_value=None):
             count = await service.sync_scheduled_triggers(
                 workflow_id="wf-123",
                 workflow_definition=_make_workflow_definition(triggers=[]),
@@ -547,7 +547,7 @@ class TestGracefulTemporalUnavailability:
         """Should skip deletion gracefully when Temporal is unavailable."""
         service = ScheduledTriggerService(temporal_client=None)
 
-        with patch.object(service, "_get_client", return_value=None):
+        with patch.object(service, "get_client", return_value=None):
             deleted = await service.delete_triggers_for_workflow(
                 workflow_id="wf-123",
             )
@@ -987,3 +987,153 @@ class TestGetSharedClient:
         ):
             result = await _mod._get_shared_client()
         assert result is None
+
+
+class TestCreateSchedule:
+    """Tests for the create_schedule reconciliation helper."""
+
+    async def test_happy_path_returns_schedule_id(self) -> None:
+        """Should validate config, create the schedule, and return its deterministic ID."""
+        client = _make_mock_client(search_attr_available=True)
+        service = ScheduledTriggerService(temporal_client=client)
+
+        schedule_id = await service.create_schedule(
+            workflow_id="wf-123",
+            trigger_node_id="trigger_1",
+            config={"schedule_type": "cron", "cron": "0 9 * * *"},
+        )
+
+        assert schedule_id == "nexus-sched-wf-123-trigger_1"
+        client.create_schedule.assert_called_once()
+
+    async def test_temporal_unavailable_raises_runtime_error(self) -> None:
+        """Should raise RuntimeError when Temporal client is unavailable."""
+        service = ScheduledTriggerService(temporal_client=None)
+
+        with (
+            patch.object(service, "get_client", return_value=None),
+            pytest.raises(RuntimeError, match="Temporal client unavailable"),
+        ):
+            await service.create_schedule(
+                workflow_id="wf-123",
+                trigger_node_id="trigger_1",
+                config={"schedule_type": "cron", "cron": "0 9 * * *"},
+            )
+
+    async def test_invalid_config_raises_validation_error(self) -> None:
+        """Should raise TriggerValidationError for invalid trigger config."""
+        client = _make_mock_client(search_attr_available=True)
+        service = ScheduledTriggerService(temporal_client=client)
+
+        with pytest.raises(TriggerValidationError):
+            await service.create_schedule(
+                workflow_id="wf-123",
+                trigger_node_id="trigger_1",
+                config={"schedule_type": "cron"},  # Missing 'cron' field
+            )
+
+
+class TestListAllSchedules:
+    """Tests for the list_all_schedules method."""
+
+    async def test_uses_query_when_search_attr_available(self) -> None:
+        """Should query with NexusWorkflowId != '' for server-side filtering."""
+        client = _make_mock_client(search_attr_available=True)
+        client.list_schedules = AsyncMock(
+            return_value=_async_iter_from(
+                [
+                    _make_schedule_list_entry("nexus-sched-wf-1-t1"),
+                    _make_schedule_list_entry("nexus-sched-wf-2-t1"),
+                ]
+            )
+        )
+
+        service = ScheduledTriggerService(temporal_client=client)
+        result = await service.list_all_schedules(client)
+
+        assert result == {"nexus-sched-wf-1-t1", "nexus-sched-wf-2-t1"}
+        client.list_schedules.assert_called_once_with(query='NexusWorkflowId != ""')
+
+    async def test_falls_back_to_prefix_scan_when_search_attr_unavailable(self) -> None:
+        """Should use prefix scan when search attribute is not available."""
+        client = _make_mock_client(
+            list_raises=RPCError("not implemented", RPCStatusCode.UNIMPLEMENTED, b""),
+        )
+        client.list_schedules = AsyncMock(
+            return_value=_async_iter_from(
+                [
+                    _make_schedule_list_entry("nexus-sched-wf-1-t1"),
+                    _make_schedule_list_entry("unrelated-schedule"),
+                ]
+            )
+        )
+
+        service = ScheduledTriggerService(temporal_client=client)
+        result = await service.list_all_schedules(client)
+
+        assert result == {"nexus-sched-wf-1-t1"}
+        client.list_schedules.assert_called_once_with()
+
+    async def test_query_error_falls_back_to_prefix_scan(self) -> None:
+        """Non-connection RPCError from query should fall back to prefix scan."""
+        client = _make_mock_client(search_attr_available=True)
+
+        call_count = 0
+
+        async def _list_side_effect(query: str | None = None) -> AsyncIterator[Any]:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1 and query is not None:
+                msg = "bad query"
+                raise RPCError(msg, RPCStatusCode.INVALID_ARGUMENT, b"")
+            return _async_iter_from(
+                [
+                    _make_schedule_list_entry("nexus-sched-wf-1-t1"),
+                    _make_schedule_list_entry("other-system-schedule"),
+                ]
+            )
+
+        client.list_schedules = AsyncMock(side_effect=_list_side_effect)
+
+        service = ScheduledTriggerService(temporal_client=client)
+        result = await service.list_all_schedules(client)
+
+        assert result == {"nexus-sched-wf-1-t1"}
+        assert client.list_schedules.call_count == 2
+
+
+class TestListSchedulesByPrefix:
+    """Tests for the list_schedules_by_prefix static method."""
+
+    async def test_no_prefix_matches_all_nexus_schedules(self) -> None:
+        """Empty prefix should match all nexus-sched-* schedule IDs."""
+        client = _make_mock_client()
+        client.list_schedules = AsyncMock(
+            return_value=_async_iter_from(
+                [
+                    _make_schedule_list_entry("nexus-sched-wf-1-t1"),
+                    _make_schedule_list_entry("nexus-sched-wf-2-t2"),
+                    _make_schedule_list_entry("other-system-schedule"),
+                ]
+            )
+        )
+
+        result = await ScheduledTriggerService.list_schedules_by_prefix(client)
+
+        assert result == {"nexus-sched-wf-1-t1", "nexus-sched-wf-2-t2"}
+
+    async def test_with_prefix_narrows_to_workflow(self) -> None:
+        """Non-empty prefix should match only schedules for that workflow."""
+        client = _make_mock_client()
+        client.list_schedules = AsyncMock(
+            return_value=_async_iter_from(
+                [
+                    _make_schedule_list_entry("nexus-sched-wf-123-t1"),
+                    _make_schedule_list_entry("nexus-sched-wf-456-t1"),
+                ]
+            )
+        )
+
+        result = await ScheduledTriggerService.list_schedules_by_prefix(client, "wf-123")
+
+        assert result == {"nexus-sched-wf-123-t1"}
