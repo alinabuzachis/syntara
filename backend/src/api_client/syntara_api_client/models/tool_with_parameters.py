@@ -26,6 +26,7 @@ class ToolWithParameters:
     Attributes:
         created_by (UUID): User (or automation) that created the resource Example: 770e8400-e29b-41d4-a716-446655440000.
         name (str): Human-readable name for the resource Example: Authentication Service.
+        integration_id (UUID): UUID of the owning Integration (mcp_server)
         namespaced_name (str): Unique namespaced name for the tool
         parameters (list[ToolParameter]): Tool parameters
         id (UUID | Unset): Unique identifier for the resource Example: 550e8400-e29b-41d4-a716-446655440000.
@@ -37,7 +38,6 @@ class ToolWithParameters:
             880e8400-e29b-41d4-a716-446655440000.
         description (None | str | Unset): Detailed description of the resource Example: Handles user authentication and
             authorization workflows.
-        integration_id (None | Unset | UUID): UUID of the owning Integration (mcp_server)
         enabled (bool | Unset): Whether the tool is enabled Default: True.
         status (ToolStatus | Unset): Status of a tool.
         last_executed_at (datetime.datetime | None | Unset): Timestamp of last execution
@@ -47,6 +47,7 @@ class ToolWithParameters:
 
     created_by: UUID
     name: str
+    integration_id: UUID
     namespaced_name: str
     parameters: list[ToolParameter]
     id: UUID | Unset = UNSET
@@ -55,7 +56,6 @@ class ToolWithParameters:
     labels: ToolWithParametersLabels | Unset = UNSET
     updated_by: None | Unset | UUID = UNSET
     description: None | str | Unset = UNSET
-    integration_id: None | Unset | UUID = UNSET
     enabled: bool | Unset = True
     status: ToolStatus | Unset = UNSET
     last_executed_at: datetime.datetime | None | Unset = UNSET
@@ -66,6 +66,8 @@ class ToolWithParameters:
         created_by = str(self.created_by)
 
         name = self.name
+
+        integration_id = str(self.integration_id)
 
         namespaced_name = self.namespaced_name
 
@@ -104,14 +106,6 @@ class ToolWithParameters:
         else:
             description = self.description
 
-        integration_id: None | str | Unset
-        if isinstance(self.integration_id, Unset):
-            integration_id = UNSET
-        elif isinstance(self.integration_id, UUID):
-            integration_id = str(self.integration_id)
-        else:
-            integration_id = self.integration_id
-
         enabled = self.enabled
 
         status: str | Unset = UNSET
@@ -146,6 +140,7 @@ class ToolWithParameters:
             {
                 "created_by": created_by,
                 "name": name,
+                "integration_id": integration_id,
                 "namespaced_name": namespaced_name,
                 "parameters": parameters,
             }
@@ -162,8 +157,6 @@ class ToolWithParameters:
             field_dict["updated_by"] = updated_by
         if description is not UNSET:
             field_dict["description"] = description
-        if integration_id is not UNSET:
-            field_dict["integration_id"] = integration_id
         if enabled is not UNSET:
             field_dict["enabled"] = enabled
         if status is not UNSET:
@@ -186,6 +179,8 @@ class ToolWithParameters:
         created_by = UUID(d.pop("created_by"))
 
         name = d.pop("name")
+
+        integration_id = UUID(d.pop("integration_id"))
 
         namespaced_name = d.pop("namespaced_name")
 
@@ -250,23 +245,6 @@ class ToolWithParameters:
 
         description = _parse_description(d.pop("description", UNSET))
 
-        def _parse_integration_id(data: object) -> None | Unset | UUID:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            try:
-                if not isinstance(data, str):
-                    raise TypeError()
-                integration_id_type_0 = UUID(data)
-
-                return integration_id_type_0
-            except (TypeError, ValueError, AttributeError, KeyError):
-                pass
-            return cast(None | Unset | UUID, data)
-
-        integration_id = _parse_integration_id(d.pop("integration_id", UNSET))
-
         enabled = d.pop("enabled", UNSET)
 
         _status = d.pop("status", UNSET)
@@ -322,6 +300,7 @@ class ToolWithParameters:
         tool_with_parameters = cls(
             created_by=created_by,
             name=name,
+            integration_id=integration_id,
             namespaced_name=namespaced_name,
             parameters=parameters,
             id=id,
@@ -330,7 +309,6 @@ class ToolWithParameters:
             labels=labels,
             updated_by=updated_by,
             description=description,
-            integration_id=integration_id,
             enabled=enabled,
             status=status,
             last_executed_at=last_executed_at,

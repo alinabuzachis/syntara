@@ -43,9 +43,7 @@ def filter_base_tools_by_enabled(
     if not namespaced_tools or not enabled_tools:
         return []
 
-    enabled_keys: set[tuple[UUID, str]] = {
-        (tool.integration_id, tool.name) for tool in enabled_tools if tool.integration_id is not None
-    }
+    enabled_keys: set[tuple[UUID, str]] = {(tool.integration_id, tool.name) for tool in enabled_tools}
 
     filtered_tools = []
     for nbt in namespaced_tools:
@@ -82,7 +80,6 @@ def enhance_namespaced_tools_with_metadata(
     key_to_db_info: dict[tuple[UUID, str], tuple[UUID, str, str]] = {
         (tool.integration_id, tool.name): (tool.id, str(tool.integration_id), tool.namespaced_name)
         for tool in enabled_tools
-        if tool.integration_id is not None
     }
 
     enhanced_tools = []

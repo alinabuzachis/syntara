@@ -104,7 +104,7 @@ class ToolBase(NamedResource, UserOwnedResource):
     Extends NamedResource and UserOwnedResource with tool-specific fields.
 
     Attributes:
-        integration_id: UUID of the owning Integration (nullable, SET NULL on delete)
+        integration_id: UUID of the owning Integration (CASCADE on delete)
         namespaced_name: Unique namespaced name for the tool (max 200 chars)
         enabled: Whether the tool is enabled (default: True)
         status: Current status of the tool (default: available)
@@ -124,12 +124,11 @@ class ToolBase(NamedResource, UserOwnedResource):
 
     """
 
-    integration_id: UUID | None = Field(
-        default=None,
+    integration_id: UUID = Field(
         sa_column=Column(
             PG_UUID(as_uuid=True),
-            ForeignKey("integrations.id", ondelete="SET NULL"),
-            nullable=True,
+            ForeignKey("integrations.id", ondelete="CASCADE"),
+            nullable=False,
             index=True,
         ),
         description="UUID of the owning Integration (mcp_server)",

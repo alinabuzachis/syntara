@@ -304,11 +304,14 @@ async def test_tool_cascade_delete_parameters(test_db_session: AsyncSession, tes
 
 
 @pytest.mark.asyncio
-async def test_tool_namespaced_name_unique_constraint(test_db_session: AsyncSession, test_user: User) -> None:
+async def test_tool_namespaced_name_unique_constraint(
+    test_db_session: AsyncSession, test_mcp_integration: Integration, test_user: User
+) -> None:
     """Test that Tool.namespaced_name unique constraint works correctly."""
     # Create first tool with a specific namespaced_name
     tool1 = Tool(
         id=uuid4(),
+        integration_id=test_mcp_integration.id,
         name="Test Tool",
         namespaced_name="test_provider::unique_tool",
         created_by=test_user.id,
@@ -319,6 +322,7 @@ async def test_tool_namespaced_name_unique_constraint(test_db_session: AsyncSess
     # Try to create another tool with the same namespaced_name (should fail)
     tool2 = Tool(
         id=uuid4(),
+        integration_id=test_mcp_integration.id,
         name="Another Tool",
         namespaced_name="test_provider::unique_tool",  # Same namespaced_name (should fail)
         created_by=test_user.id,

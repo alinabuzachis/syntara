@@ -1039,9 +1039,10 @@ export interface components {
       components['schemas']['NamedResource'] & {
         /**
          * Integration Id
+         * Format: uuid
          * @description UUID of the owning Integration (mcp_server)
          */
-        integration_id?: string | null
+        integration_id: string
         /**
          * Namespaced Name
          * @description Unique namespaced name for the tool

@@ -33103,10 +33103,8 @@ components:
           description: Detailed description of the resource
           example: Handles user authentication and authorization workflows
         integration_id:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
+          type: string
+          format: uuid
           title: Integration Id
           description: UUID of the owning Integration (mcp_server)
         namespaced_name:
@@ -33153,6 +33151,7 @@ components:
       required:
         - created_by
         - name
+        - integration_id
         - namespaced_name
         - parameters
       type: object

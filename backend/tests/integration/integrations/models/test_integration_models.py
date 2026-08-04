@@ -101,21 +101,21 @@ class TestIntegrationToolsRelationship:
         assert result.all() == []
 
 
-class TestIntegrationDeleteNullifies:
-    """Tests for SET NULL behavior on Tool.integration_id when Integration is deleted."""
+class TestIntegrationDeleteCascadesToTools:
+    """Tests for CASCADE behavior on Tool.integration_id when Integration is deleted."""
 
-    async def test_delete_integration_cascades_to_tools(
+    async def test_delete_integration_deletes_tools(
         self,
         test_db_session: AsyncSession,
         test_user: User,
         integration_factory: IntegrationFactory,
     ) -> None:
-        """Deleting an Integration with SET NULL on tools sets integration_id to NULL."""
+        """Deleting an Integration cascade-deletes its tools."""
         integration = await integration_factory.create()
         tool = Tool(
             integration_id=integration.id,
-            name="Orphan Tool",
-            namespaced_name=f"ns::orphan_{uuid4().hex[:6]}",
+            name="Cascade Tool",
+            namespaced_name=f"ns::cascade_{uuid4().hex[:6]}",
             created_by=test_user.id,
         )
         test_db_session.add(tool)
@@ -127,10 +127,9 @@ class TestIntegrationDeleteNullifies:
         test_db_session.expire_all()
 
         remaining = (await test_db_session.exec(select(Tool).where(Tool.id == tool_id))).one_or_none()
-        assert remaining is not None
-        assert remaining.integration_id is None
+        assert remaining is None
 
-    async def test_delete_integration_only_nullifies_its_own_tools(
+    async def test_delete_integration_only_deletes_its_own_tools(
         self,
         test_db_session: AsyncSession,
         test_user: User,
@@ -157,6 +156,9 @@ class TestIntegrationDeleteNullifies:
 
         await test_db_session.delete(int_a)
         await test_db_session.commit()
+
+        remaining_a = (await test_db_session.exec(select(Tool).where(Tool.id == tool_a.id))).one_or_none()
+        assert remaining_a is None
 
         reloaded_b = (await test_db_session.exec(select(Tool).where(Tool.id == tool_b.id))).one()
         assert reloaded_b.integration_id == int_b.id
