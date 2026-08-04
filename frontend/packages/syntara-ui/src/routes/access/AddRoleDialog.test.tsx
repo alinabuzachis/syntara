@@ -8,6 +8,7 @@ import { axe } from 'vitest-axe'
 import { AlertProvider } from '../../providers/alerts'
 
 import { accessClient } from './accessClient'
+import { POLICIES_HELP, SCOPE_HELP } from './accessControlFieldHelpText'
 import { AddRoleDialog } from './AddRoleDialog'
 import { useSelectableProjects } from './useAllProjects'
 
@@ -166,6 +167,25 @@ describe('AddRoleDialog', () => {
     it('shows helper text for name format', () => {
       renderDialog()
       expect(screen.getByText(/lowercase alphanumeric with hyphens/i)).toBeInTheDocument()
+    })
+
+    it('does not add a name help popover', () => {
+      renderDialog()
+      expect(screen.queryByRole('button', { name: 'More info for Name' })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('field help popovers', () => {
+    it('shows scope and policies help on click', async () => {
+      const user = userEvent.setup()
+      renderDialog()
+
+      await user.click(screen.getByRole('button', { name: 'More info for Scope' }))
+      expect(screen.getByText(SCOPE_HELP)).toBeInTheDocument()
+
+      await user.keyboard('{Escape}')
+      await user.click(screen.getByRole('button', { name: 'More info for Policies' }))
+      expect(screen.getByText(POLICIES_HELP)).toBeInTheDocument()
     })
   })
 

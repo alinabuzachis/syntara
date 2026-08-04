@@ -27,6 +27,7 @@ import { useFormMutationErrorHandler } from '../../hooks/useFormMutationErrorHan
 import { useAlerts } from '../../providers/alerts'
 
 import { accessClient } from './accessClient'
+import { accessControlHelp } from './accessControlFieldHelp'
 import { addRoleSchema } from './addRoleSchema'
 import type { AddRoleFormData } from './addRoleSchema'
 import { PolicySelect } from './PolicySelect'
@@ -136,7 +137,7 @@ function AddRoleFormFields({
         )}
       </FormGroup>
 
-      <FormGroup label="Scope" isRequired fieldId="role-scope">
+      <FormGroup label="Scope" isRequired fieldId="role-scope" labelHelp={accessControlHelp.scope}>
         <RoleScopeSelect value={scope} onChange={onScopeChange} hasError={!!errors.scope} />
         <FormHelperText>
           <HelperText>
@@ -170,7 +171,7 @@ function AddRoleFormFields({
         </FormGroup>
       )}
 
-      <FormGroup label="Policies" isRequired fieldId="role-policies">
+      <FormGroup label="Policies" isRequired fieldId="role-policies" labelHelp={accessControlHelp.policies}>
         <Controller
           name="policies"
           control={control}

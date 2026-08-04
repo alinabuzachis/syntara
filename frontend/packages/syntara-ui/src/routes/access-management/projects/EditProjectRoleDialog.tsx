@@ -17,6 +17,7 @@ import { Controller, useForm } from 'react-hook-form'
 import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../providers/alerts'
 import { accessClient } from '../../access/accessClient'
+import { accessControlHelp } from '../../access/accessControlFieldHelp'
 import type { ProjectRoleRead } from '../../access/types'
 
 import { addProjectRoleSchema } from './addProjectRoleSchema'
@@ -116,7 +117,7 @@ export function EditProjectRoleDialog({ projectId, role, onClose, onSuccess }: R
             )}
           </FormGroup>
 
-          <FormGroup label="Policies" isRequired fieldId="project-role-policies">
+          <FormGroup label="Policies" isRequired fieldId="project-role-policies" labelHelp={accessControlHelp.policies}>
             <Controller
               name="policies"
               control={control}

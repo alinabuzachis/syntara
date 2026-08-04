@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button, Form, FormGroup, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/react-core'
-import { useMemo, useState } from 'react'
+import { type ReactElement, useMemo, useState } from 'react'
 import type { Control, FieldValues, Path } from 'react-hook-form'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
@@ -10,6 +10,7 @@ import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../providers/alerts'
 import { accessClient } from '../../access/accessClient'
+import { accessControlHelp } from '../../access/accessControlFieldHelp'
 import { PrincipalTypeSelect } from '../../access/PrincipalTypeSelect'
 import { TypeaheadSelect } from '../../access/TypeaheadSelect'
 import { useAllProjectRoles } from '../../access/useAllProjectRoles'
@@ -50,6 +51,7 @@ type TypeaheadFormFieldProps<T extends FieldValues> = {
   hasMore?: boolean
   isLoading?: boolean
   onValueChange?: () => void
+  labelHelp?: ReactElement
 }
 
 function TypeaheadFormField<T extends FieldValues>({
@@ -65,9 +67,10 @@ function TypeaheadFormField<T extends FieldValues>({
   hasMore,
   isLoading,
   onValueChange,
+  labelHelp,
 }: Readonly<TypeaheadFormFieldProps<T>>) {
   return (
-    <FormGroup label={label} fieldId={fieldId} isRequired role="group">
+    <FormGroup label={label} fieldId={fieldId} isRequired role="group" labelHelp={labelHelp}>
       <Controller
         name={name}
         control={control}
@@ -218,7 +221,13 @@ export function AssignProjectRoleModal({
       <ModalHeader title="Assign role" />
       <ModalBody>
         <Form id="assign-project-role-form" onSubmit={onSubmit}>
-          <FormGroup label="Principal type" isRequired fieldId="principal-type" role="group">
+          <FormGroup
+            label="Principal type"
+            isRequired
+            fieldId="principal-type"
+            role="group"
+            labelHelp={accessControlHelp.principalType}
+          >
             <Controller
               name="principalOrGroup"
               control={control}
@@ -277,6 +286,7 @@ export function AssignProjectRoleModal({
             options={roleOptions}
             placeholder={rolesLoading ? 'Loading roles...' : 'Select a role...'}
             isDisabled={rolesLoading || !selectedPrincipalId}
+            labelHelp={accessControlHelp.role}
           />
         </Form>
       </ModalBody>

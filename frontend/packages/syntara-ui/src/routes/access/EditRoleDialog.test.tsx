@@ -8,6 +8,7 @@ import { axe } from 'vitest-axe'
 import { AlertProvider } from '../../providers/alerts'
 
 import { accessClient } from './accessClient'
+import { POLICIES_HELP } from './accessControlFieldHelpText'
 import { EditRoleDialog } from './EditRoleDialog'
 import type { RoleRead } from './types'
 
@@ -102,6 +103,17 @@ describe('EditRoleDialog', () => {
       const { container } = renderDialog()
       const results = await axe(container)
       expect(results).toHaveNoViolations()
+    })
+  })
+
+  describe('field help popovers', () => {
+    it('shows policies help on click and keeps name without a popover', async () => {
+      const user = userEvent.setup()
+      renderDialog()
+
+      expect(screen.queryByRole('button', { name: 'More info for Name' })).not.toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'More info for Policies' }))
+      expect(screen.getByText(POLICIES_HELP)).toBeInTheDocument()
     })
   })
 

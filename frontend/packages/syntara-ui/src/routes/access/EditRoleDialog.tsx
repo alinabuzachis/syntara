@@ -20,6 +20,7 @@ import { useFormMutationErrorHandler } from '../../hooks/useFormMutationErrorHan
 import { useAlerts } from '../../providers/alerts'
 
 import { accessClient } from './accessClient'
+import { accessControlHelp } from './accessControlFieldHelp'
 import { roleBaseSchema } from './addRoleSchema'
 import type { EditRoleFormData } from './addRoleSchema'
 import { PolicySelect } from './PolicySelect'
@@ -119,7 +120,7 @@ export function EditRoleDialog({ role, onClose, onSuccess }: Readonly<EditRoleDi
             )}
           </FormGroup>
 
-          <FormGroup label="Policies" isRequired fieldId="role-policies">
+          <FormGroup label="Policies" isRequired fieldId="role-policies" labelHelp={accessControlHelp.policies}>
             <Controller
               name="policies"
               control={control}

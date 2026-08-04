@@ -8,6 +8,7 @@ import { axe } from 'vitest-axe'
 import { AlertProvider } from '../../providers/alerts'
 
 import { accessClient } from './accessClient'
+import { PRINCIPAL_TYPE_HELP, ROLE_HELP, SCOPE_HELP } from './accessControlFieldHelpText'
 import { AssignRoleDialog } from './AssignRoleDialog'
 import { useSelectableProjects } from './useAllProjects'
 
@@ -815,6 +816,24 @@ describe('AssignRoleDialog', () => {
         principal_id: 'sa-1',
         role_name: 'ProjectAdmin',
       })
+    })
+  })
+
+  describe('field help popovers', () => {
+    it('shows principal type, scope, and role help on click', async () => {
+      const user = userEvent.setup()
+      render(<AssignRoleDialog {...defaultProps} />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'More info for Principal type' }))
+      expect(screen.getByText(PRINCIPAL_TYPE_HELP)).toBeInTheDocument()
+
+      await user.keyboard('{Escape}')
+      await user.click(screen.getByRole('button', { name: 'More info for Scope' }))
+      expect(screen.getByText(SCOPE_HELP)).toBeInTheDocument()
+
+      await user.keyboard('{Escape}')
+      await user.click(screen.getByRole('button', { name: 'More info for Role' }))
+      expect(screen.getByText(ROLE_HELP)).toBeInTheDocument()
     })
   })
 

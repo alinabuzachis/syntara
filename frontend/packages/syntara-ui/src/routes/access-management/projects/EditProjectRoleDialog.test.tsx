@@ -7,6 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../../providers/alerts'
 import { accessClient } from '../../access/accessClient'
+import { POLICIES_HELP } from '../../access/accessControlFieldHelpText'
 import type { ProjectRoleRead } from '../../access/types'
 
 import { EditProjectRoleDialog } from './EditProjectRoleDialog'
@@ -96,6 +97,15 @@ describe('EditProjectRoleDialog', () => {
   it('renders the modal header', () => {
     renderDialog()
     expect(screen.getByText('Edit Project Role')).toBeInTheDocument()
+  })
+
+  it('shows policies help on click and keeps name without a popover', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    expect(screen.queryByRole('button', { name: 'More info for Name' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'More info for Policies' }))
+    expect(screen.getByText(POLICIES_HELP)).toBeInTheDocument()
   })
 
   it('pre-populates the name field from the role', () => {

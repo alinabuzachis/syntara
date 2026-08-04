@@ -8,6 +8,7 @@ import { axe } from 'vitest-axe'
 import { AlertProvider } from '../../providers/alerts'
 
 import { accessClient } from './accessClient'
+import { ROLE_HELP, SCOPE_HELP } from './accessControlFieldHelpText'
 import { EditAssignmentDialog } from './EditAssignmentDialog'
 import type { PermissionRow } from './types'
 import { useAllRoles } from './useAllRoles'
@@ -240,6 +241,18 @@ describe('EditAssignmentDialog', () => {
       render(<EditAssignmentDialog {...defaultProps} />, { wrapper })
 
       expect(screen.getByText('Scope')).toBeInTheDocument()
+    })
+
+    it('shows scope and role help on click', async () => {
+      const user = userEvent.setup()
+      render(<EditAssignmentDialog {...defaultProps} />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'More info for Scope' }))
+      expect(screen.getByText(SCOPE_HELP)).toBeInTheDocument()
+
+      await user.keyboard('{Escape}')
+      await user.click(screen.getByRole('button', { name: 'More info for Role' }))
+      expect(screen.getByText(ROLE_HELP)).toBeInTheDocument()
     })
   })
 

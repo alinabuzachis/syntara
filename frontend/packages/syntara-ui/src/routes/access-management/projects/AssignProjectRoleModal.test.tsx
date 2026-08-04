@@ -7,6 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../../providers/alerts'
 import { accessClient } from '../../access/accessClient'
+import { PRINCIPAL_TYPE_HELP, ROLE_HELP } from '../../access/accessControlFieldHelpText'
 import { useAllProjectRoles } from '../../access/useAllProjectRoles'
 
 import { AssignProjectRoleModal } from './AssignProjectRoleModal'
@@ -221,6 +222,18 @@ describe('AssignProjectRoleModal', () => {
     renderModal()
 
     expect(screen.getByText('Role')).toBeInTheDocument()
+  })
+
+  it('shows principal type and role help on click', async () => {
+    const user = userEvent.setup()
+    renderModal()
+
+    await user.click(screen.getByRole('button', { name: 'More info for Principal type' }))
+    expect(screen.getByText(PRINCIPAL_TYPE_HELP)).toBeInTheDocument()
+
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByRole('button', { name: 'More info for Role' }))
+    expect(screen.getByText(ROLE_HELP)).toBeInTheDocument()
   })
 
   it('calls onClose when Cancel is clicked', async () => {

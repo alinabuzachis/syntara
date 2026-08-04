@@ -24,6 +24,7 @@ import { useAlerts } from '../../providers/alerts'
 import { buildAssignmentBody } from '../access-management/RoleAssignmentTypes'
 
 import { accessClient } from './accessClient'
+import { accessControlHelp } from './accessControlFieldHelp'
 import { assignNewThenDeleteOldWithRollback } from './editAssignmentMutations'
 import { TypeaheadSelect } from './TypeaheadSelect'
 import type { PermissionRow } from './types'
@@ -145,11 +146,11 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
             <Content component={ContentVariants.p}>{displayName}</Content>
           </FormGroup>
 
-          <FormGroup label="Scope" fieldId="scope-display">
+          <FormGroup label="Scope" fieldId="scope-display" labelHelp={accessControlHelp.scope}>
             <Content component={ContentVariants.p}>{row.scopeType === 'project' ? row.scopeName : 'System'}</Content>
           </FormGroup>
 
-          <FormGroup label="Role" isRequired fieldId="role-select">
+          <FormGroup label="Role" isRequired fieldId="role-select" labelHelp={accessControlHelp.role}>
             <Controller
               name="roleName"
               control={control}

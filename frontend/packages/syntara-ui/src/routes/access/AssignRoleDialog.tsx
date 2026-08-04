@@ -26,6 +26,7 @@ import { useAlerts } from '../../providers/alerts'
 import { buildAssignmentBody, RolePrincipalType } from '../access-management/RoleAssignmentTypes'
 
 import { accessClient } from './accessClient'
+import { accessControlHelp } from './accessControlFieldHelp'
 import { assignRoleSchema } from './assignRoleSchema'
 import type { AssignRoleFormData } from './assignRoleSchema'
 import { PrincipalTypeSelect } from './PrincipalTypeSelect'
@@ -179,7 +180,7 @@ function AssignRoleFormBody({
 }: Readonly<AssignRoleFormBodyProps>) {
   return (
     <>
-      <FormGroup label="Principal type" isRequired fieldId="principal-type">
+      <FormGroup label="Principal type" isRequired fieldId="principal-type" labelHelp={accessControlHelp.principalType}>
         <Controller
           name="principalType"
           control={control}
@@ -202,7 +203,7 @@ function AssignRoleFormBody({
       </FormGroup>
 
       {principalType !== RolePrincipalType.SERVICE_ACCOUNT && (
-        <FormGroup label="Scope" isRequired fieldId="scope">
+        <FormGroup label="Scope" isRequired fieldId="scope" labelHelp={accessControlHelp.scope}>
           <Controller
             name="scope"
             control={control}
@@ -294,7 +295,7 @@ function AssignRoleFormBody({
         />
       )}
 
-      <FormGroup label="Role" isRequired fieldId="role-select">
+      <FormGroup label="Role" isRequired fieldId="role-select" labelHelp={accessControlHelp.role}>
         <Controller
           name="roleName"
           control={control}

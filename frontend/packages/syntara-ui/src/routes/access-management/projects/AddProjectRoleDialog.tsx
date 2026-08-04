@@ -17,6 +17,7 @@ import { Controller, useForm } from 'react-hook-form'
 import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
 import { useAlerts } from '../../../providers/alerts'
 import { accessClient } from '../../access/accessClient'
+import { accessControlHelp } from '../../access/accessControlFieldHelp'
 
 import { addProjectRoleSchema } from './addProjectRoleSchema'
 import type { AddProjectRoleFormData } from './addProjectRoleSchema'
@@ -114,7 +115,7 @@ export function AddProjectRoleDialog({ projectId, onClose, onSuccess }: Readonly
             )}
           </FormGroup>
 
-          <FormGroup label="Policies" isRequired fieldId="project-role-policies">
+          <FormGroup label="Policies" isRequired fieldId="project-role-policies" labelHelp={accessControlHelp.policies}>
             <Controller
               name="policies"
               control={control}

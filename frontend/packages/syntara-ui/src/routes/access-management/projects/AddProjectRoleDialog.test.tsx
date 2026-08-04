@@ -7,6 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../../providers/alerts'
 import { accessClient } from '../../access/accessClient'
+import { POLICIES_HELP } from '../../access/accessControlFieldHelpText'
 
 import { AddProjectRoleDialog } from './AddProjectRoleDialog'
 
@@ -96,6 +97,15 @@ describe('AddProjectRoleDialog', () => {
   it('renders the Policies field', () => {
     renderDialog()
     expect(screen.getByText('Policies')).toBeInTheDocument()
+  })
+
+  it('shows policies help on click and keeps name without a popover', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    expect(screen.queryByRole('button', { name: 'More info for Name' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'More info for Policies' }))
+    expect(screen.getByText(POLICIES_HELP)).toBeInTheDocument()
   })
 
   it('calls onClose when Cancel is clicked', async () => {
