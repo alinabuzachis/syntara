@@ -16,7 +16,7 @@ describe('useApprovalSelection', () => {
     created_at: '2024-01-01T00:00:00Z',
     next_step_approved: { id: 'step-1', name: 'Next Step', type: 'task' },
     workflow_context: {
-      workflow_version_id: 'wf-1',
+      workflow_id: 'wf-1',
       workflow_name: 'Test Workflow 1',
       inputs: {},
     },
@@ -36,7 +36,7 @@ describe('useApprovalSelection', () => {
     decided_at: '2024-01-01T01:00:00Z',
     next_step_approved: { id: 'step-2', name: 'Next Step', type: 'task' },
     workflow_context: {
-      workflow_version_id: 'wf-2',
+      workflow_id: 'wf-2',
       workflow_name: 'Test Workflow 2',
       inputs: {},
     },
@@ -56,7 +56,7 @@ describe('useApprovalSelection', () => {
     decided_at: '2024-01-01T01:00:00Z',
     next_step_approved: { id: 'step-3', name: 'Next Step', type: 'task' },
     workflow_context: {
-      workflow_version_id: 'wf-3',
+      workflow_id: 'wf-3',
       workflow_name: 'Test Workflow 3',
       inputs: {},
     },

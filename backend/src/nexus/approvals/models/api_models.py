@@ -116,7 +116,8 @@ class WorkflowContext(SQLModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)  # type: ignore[assignment]
 
-    workflow_version_id: UUID = Field(..., description="ID of the workflow version being executed")
+    workflow_id: UUID | None = Field(None, description="ID of the workflow")
+    workflow_version: int | None = Field(None, description="Integer version number of the workflow version executed")
     workflow_name: str = Field(..., description="Name of the workflow")
     inputs: dict[str, Any] = Field(
         ..., description="Original workflow input parameters (structure varies per workflow)"

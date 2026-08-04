@@ -94,11 +94,11 @@ class TestGetApprovalContract:
         # Validate WorkflowContext structure
         workflow_context = data["workflow_context"]
         assert isinstance(workflow_context, dict)
-        context_required_fields = ["workflow_version_id", "workflow_name", "inputs"]
+        context_required_fields = ["workflow_name", "inputs"]
         for field in context_required_fields:
             assert field in workflow_context, f"Required WorkflowContext field '{field}' missing"
 
-        assert isinstance(workflow_context["workflow_version_id"], str)
+        assert isinstance(workflow_context["workflow_id"], str)
         assert isinstance(workflow_context["workflow_name"], str)
         assert isinstance(workflow_context["inputs"], dict)
 
@@ -189,7 +189,7 @@ class TestGetApprovalContract:
         """Test detailed WorkflowContext structure validation.
 
         Validates:
-        - workflow_version_id is valid UUID string
+        - workflow_id is valid UUID string
         - workflow_name is non-empty string
         - inputs is object (can be empty)
         - previous_step structure when present
@@ -209,16 +209,16 @@ class TestGetApprovalContract:
 
         workflow_context = data["workflow_context"]
 
-        # Validate workflow_version_id is UUID format
-        workflow_version_id = workflow_context["workflow_version_id"]
-        assert isinstance(workflow_version_id, str)
+        # Validate workflow_id is UUID format
+        workflow_id = workflow_context["workflow_id"]
+        assert isinstance(workflow_id, str)
         # Validate it's a valid UUID by trying to parse it
         uuid_obj = uuid4()
         try:
-            parsed_uuid = type(uuid_obj)(workflow_version_id)
-            assert str(parsed_uuid) == workflow_version_id
+            parsed_uuid = type(uuid_obj)(workflow_id)
+            assert str(parsed_uuid) == workflow_id
         except ValueError:
-            pytest.fail(f"workflow_version_id '{workflow_version_id}' is not a valid UUID")
+            pytest.fail(f"workflow_id '{workflow_id}' is not a valid UUID")
 
         # Validate workflow_name
         assert isinstance(workflow_context["workflow_name"], str)

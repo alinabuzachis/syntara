@@ -41,6 +41,7 @@ export type ApprovalWithDetails = Approval & {
   approvalName?: string
   workflowName?: string
   workflowId?: string
+  workflowVersion?: number
   description?: string | null
 }
 

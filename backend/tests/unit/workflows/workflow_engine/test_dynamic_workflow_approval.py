@@ -283,7 +283,61 @@ class TestPrepareApprovalArgs:
         ctx = args[4]
         assert ctx["workflow_name"] == "Production Pipeline"
         assert ctx["inputs"] == {"target": "prod", "version": "2.0"}
-        assert ctx["workflow_version_id"] is not None
+        assert ctx["workflow_id"] is not None
+
+    @pytest.mark.asyncio
+    async def test_workflow_context_includes_workflow_id_and_version(self) -> None:
+        """workflow_id and workflow_version are read from the workflow_context.workflow namespace.
+
+        Regression test for AAP-85146: the approvals UI links to
+        /workflow-builder/{workflow_id}, so these fields must be populated
+        from the parent workflow.
+        """
+        from uuid import uuid4
+
+        workflow_id = str(uuid4())
+        resolver = NamespaceResolver()
+        resolver.set_namespace(
+            "workflow_context",
+            {
+                "workflow": {"id": workflow_id, "version": 5},
+                "execution": {"workflow_version_id": "wfv-789"},
+            },
+        )
+        wf = _make_workflow(resolver=resolver)
+        graph = _build_approval_graph()
+        node = ActivityNode("approval", "approval", {}, name="Review")
+
+        mock_execute = AsyncMock(return_value={"user_ids": [], "group_ids": []})
+        with patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_execute):
+            args = await wf._prepare_approval_args(node, graph, node.parameters)
+
+        ctx = args[4]
+        assert ctx["workflow_id"] == workflow_id
+        assert ctx["workflow_version"] == 5
+        assert "workflow_version_id" not in ctx
+
+    @pytest.mark.asyncio
+    async def test_workflow_context_falls_back_to_execution_workflow_version_id(self) -> None:
+        """workflow_id falls back to execution.workflow_version_id when workflow.id is absent."""
+        resolver = NamespaceResolver()
+        resolver.set_namespace(
+            "workflow_context",
+            {
+                "execution": {"workflow_version_id": "wfv-fallback"},
+            },
+        )
+        wf = _make_workflow(resolver=resolver)
+        graph = _build_approval_graph()
+        node = ActivityNode("approval", "approval", {}, name="Review")
+
+        mock_execute = AsyncMock(return_value={"user_ids": [], "group_ids": []})
+        with patch("nexus.workflows.workflow_engine.approval_mixin.workflow.execute_activity", mock_execute):
+            args = await wf._prepare_approval_args(node, graph, node.parameters)
+
+        ctx = args[4]
+        assert ctx["workflow_id"] == "wfv-fallback"
+        assert ctx["workflow_version"] is None
 
     @pytest.mark.asyncio
     async def test_workflow_context_empty_inputs_when_trigger_missing(self) -> None:

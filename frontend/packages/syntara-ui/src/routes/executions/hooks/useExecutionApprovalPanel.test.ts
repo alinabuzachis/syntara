@@ -57,7 +57,7 @@ const mockApproval: Approval = {
   created_at: '2026-01-01T00:00:00Z',
   next_step_approved: { id: 'step-a', name: 'Approved Step', type: 'task' },
   workflow_context: {
-    workflow_version_id: 'wfv-1',
+    workflow_id: 'wfv-1',
     workflow_name: 'Test Workflow',
     inputs: {},
   },

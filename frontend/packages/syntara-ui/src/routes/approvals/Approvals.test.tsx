@@ -150,7 +150,7 @@ describe('Approvals Component', () => {
         type: 'task',
       },
       workflow_context: {
-        workflow_version_id: '880e8400-e29b-41d4-a716-446655440001',
+        workflow_id: '880e8400-e29b-41d4-a716-446655440001',
         workflow_name: 'Test Workflow',
         inputs: {
           target_environment: 'production',
@@ -187,7 +187,7 @@ describe('Approvals Component', () => {
       },
       next_step_rejected: null,
       workflow_context: {
-        workflow_version_id: '880e8400-e29b-41d4-a716-446655440002',
+        workflow_id: '880e8400-e29b-41d4-a716-446655440002',
         workflow_name: 'Another Workflow',
         inputs: {
           workflow_name: 'Another Workflow',
@@ -230,7 +230,7 @@ describe('Approvals Component', () => {
         type: 'task',
       },
       workflow_context: {
-        workflow_version_id: '880e8400-e29b-41d4-a716-446655440003',
+        workflow_id: '880e8400-e29b-41d4-a716-446655440003',
         workflow_name: 'Policy Check Workflow',
         inputs: {
           policy_check: true,
@@ -884,7 +884,7 @@ describe('Approvals Component', () => {
         id: 'no-workflow-approval',
         workflow_context: {
           ...mockApprovals[0].workflow_context,
-          workflow_version_id: undefined,
+          workflow_id: undefined,
         },
       }
       mockApprovalsQuery([approvalWithoutWorkflow] as unknown as Approval[])

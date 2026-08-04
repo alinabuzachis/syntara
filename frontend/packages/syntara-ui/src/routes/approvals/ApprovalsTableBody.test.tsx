@@ -41,6 +41,7 @@ function makeApproval(overrides: Partial<ApprovalWithDetails> = {}): ApprovalWit
     approvalName: 'Test Approval',
     workflowName: 'Test Workflow',
     workflowId: 'wf-1',
+    workflowVersion: 3,
     description: 'A test approval',
     ...overrides,
   } as ApprovalWithDetails
@@ -106,7 +107,7 @@ describe('FlatApprovalsTableBody', () => {
     )
 
     const workflowLink = screen.getByRole('link', { name: 'Test Workflow' })
-    expect(workflowLink).toHaveAttribute('href', '/workflow-builder/wf-1')
+    expect(workflowLink).toHaveAttribute('href', '/workflow-builder/wf-1?version=3')
   })
 
   it('falls back to id when approvalName is missing', () => {

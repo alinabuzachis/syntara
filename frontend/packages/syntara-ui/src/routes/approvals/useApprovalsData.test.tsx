@@ -30,7 +30,8 @@ describe('useApprovalsData', () => {
     status: 'pending',
     created_at: '2024-01-01T00:00:00Z',
     workflow_context: {
-      workflow_version_id: 'wf-1',
+      workflow_id: 'wf-1',
+      workflow_version: 3,
       workflow_name: 'Test Workflow 1',
       inputs: {},
     },
@@ -43,7 +44,8 @@ describe('useApprovalsData', () => {
     created_at: '2024-01-02T00:00:00Z',
     decided_at: '2024-01-02T01:00:00Z',
     workflow_context: {
-      workflow_version_id: 'wf-2',
+      workflow_id: 'wf-2',
+      workflow_version: 5,
       workflow_name: 'Test Workflow 2',
       inputs: {},
     },
@@ -123,6 +125,7 @@ describe('useApprovalsData', () => {
     expect(enriched[0]?.approvalName).toBe('Test Approval 1')
     expect(enriched[0]?.workflowName).toBe('Test Workflow 1')
     expect(enriched[0]?.workflowId).toBe('wf-1')
+    expect(enriched[0]?.workflowVersion).toBe(3)
   })
 
   it('uses approval ID as fallback for approvalName when name is missing', async () => {
@@ -131,7 +134,8 @@ describe('useApprovalsData', () => {
       status: 'pending',
       created_at: '2024-01-03T00:00:00Z',
       workflow_context: {
-        workflow_version_id: 'wf-3',
+        workflow_id: 'wf-3',
+        workflow_version: 1,
         workflow_name: 'Test Workflow 3',
         inputs: {},
       },

@@ -87,7 +87,8 @@ const mockApproval: Approval = {
   execution_id: 'exec-1',
   approval_node_id: 'node-1',
   workflow_context: {
-    workflow_version_id: 'wfv-1',
+    workflow_id: 'wf-1',
+    workflow_version: 3,
     workflow_name: 'Test Workflow',
     inputs: {},
   },
@@ -303,7 +304,7 @@ describe('ApprovalDetailContent', () => {
     expect(workflowLink).toBeInTheDocument()
 
     await user.click(workflowLink)
-    expect(onWorkflowClick).toHaveBeenCalledWith('/workflow-builder/wfv-1')
+    expect(onWorkflowClick).toHaveBeenCalledWith('/workflow-builder/wf-1?version=3')
   })
 
   it('renders workflow name as plain text when no onWorkflowClick', () => {
@@ -420,18 +421,18 @@ describe('ApprovalDetailContent', () => {
     expect(workflowElements.length).toBeGreaterThan(0)
   })
 
-  it('shows workflow link when workflow_version_id is present', () => {
+  it('shows workflow link when workflow_id is present', () => {
     render(<ApprovalDetailContent approval={mockApproval} onWorkflowClick={vi.fn()} />, { wrapper })
 
     expect(screen.getByRole('button', { name: 'Test Workflow' })).toBeInTheDocument()
   })
 
-  it('does not show workflow link when workflow_version_id is missing', () => {
-    const noVersion = {
+  it('does not show workflow link when workflow_id is missing', () => {
+    const noIds = {
       ...mockApproval,
-      workflow_context: { ...mockApproval.workflow_context, workflow_version_id: undefined },
+      workflow_context: { ...mockApproval.workflow_context, workflow_id: undefined },
     } as unknown as Approval
-    render(<ApprovalDetailContent approval={noVersion} onWorkflowClick={vi.fn()} />, { wrapper })
+    render(<ApprovalDetailContent approval={noIds} onWorkflowClick={vi.fn()} />, { wrapper })
 
     // Should render as plain text, not a button
     expect(screen.queryByRole('button', { name: 'Test Workflow' })).not.toBeInTheDocument()

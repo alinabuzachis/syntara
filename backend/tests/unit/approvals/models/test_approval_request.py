@@ -100,7 +100,7 @@ class TestApprovalRequestValidation:
             name="Test",
             next_step_approved={"id": "test", "name": "Test Step", "type": "task"},
             workflow_context={
-                "workflow_version_id": str(uuid4()),
+                "workflow_id": str(uuid4()),
                 "workflow_name": "Test Workflow",
                 "inputs": {},
             },

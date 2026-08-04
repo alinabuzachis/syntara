@@ -25,7 +25,7 @@ const mockApprovals: Approval[] = [
     execution_id: 'exec-1',
     created_at: '2024-01-01T00:00:00Z',
     next_step_approved: { id: 'step-1', name: 'Next Step 1', type: 'step' },
-    workflow_context: { workflow_version_id: 'wf-1', workflow_name: 'Workflow 1', inputs: {} },
+    workflow_context: { workflow_id: 'wf-1', workflow_name: 'Workflow 1', inputs: {} },
   },
   {
     id: 'approval-2',
@@ -36,7 +36,7 @@ const mockApprovals: Approval[] = [
     execution_id: 'exec-1',
     created_at: '2024-01-01T00:01:00Z',
     next_step_approved: { id: 'step-2', name: 'Next Step 2', type: 'step' },
-    workflow_context: { workflow_version_id: 'wf-1', workflow_name: 'Workflow 1', inputs: {} },
+    workflow_context: { workflow_id: 'wf-1', workflow_name: 'Workflow 1', inputs: {} },
   },
   {
     id: 'approval-3',
@@ -47,7 +47,7 @@ const mockApprovals: Approval[] = [
     execution_id: 'exec-1',
     created_at: '2024-01-01T00:02:00Z',
     next_step_approved: { id: 'step-3', name: 'Next Step 3', type: 'step' },
-    workflow_context: { workflow_version_id: 'wf-1', workflow_name: 'Workflow 1', inputs: {} },
+    workflow_context: { workflow_id: 'wf-1', workflow_name: 'Workflow 1', inputs: {} },
   },
 ]
 

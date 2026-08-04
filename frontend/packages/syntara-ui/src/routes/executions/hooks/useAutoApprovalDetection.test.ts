@@ -55,7 +55,7 @@ const mockApproval: Approval = {
   execution_id: 'exec-1',
   approval_node_id: 'approval-node-1',
   workflow_context: {
-    workflow_version_id: 'wfv-1',
+    workflow_id: 'wfv-1',
     workflow_name: 'Test Workflow',
     inputs: {},
   },

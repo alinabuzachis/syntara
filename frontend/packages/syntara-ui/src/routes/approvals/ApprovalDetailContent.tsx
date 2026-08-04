@@ -29,6 +29,7 @@ import { formatDateTime } from '../../utils/dateUtils'
 
 import styles from './ApprovalDetailContent.module.css'
 import { ApprovalStatusBadges } from './approvalUtils'
+import { buildWorkflowBuilderLink } from './buildWorkflowBuilderLink'
 import { canDecideOnApproval } from './canDecideOnApproval'
 import { useApprovalDecideProjects } from './useApprovalDecideProjects'
 import { useCanDecideApproval } from './useCanDecideApproval'
@@ -86,8 +87,8 @@ function getDecideTooltip(
     return permissionTooltip('approve or reject this approval', 'approval:decide')
   }
   if (!canDecideBasedOnApproverList) {
-    const approverUsers = approval.approver_users?.map((u) => u.username) ?? []
-    const approverGroups = approval.approver_groups?.map((g) => g.name) ?? []
+    const approverUsers = approval.approver_users?.map((u: { username: string }) => u.username) ?? []
+    const approverGroups = approval.approver_groups?.map((g: { name: string }) => g.name) ?? []
 
     if (approverUsers.length === 0 && approverGroups.length === 0) {
       return 'This approval has no authorized approvers configured.'
@@ -281,8 +282,9 @@ export function ApprovalDetailContent({
   const approvalStatus = approval.status ?? 'pending'
   const isPending = approvalStatus === 'pending'
   const workflowName = approval.workflow_context?.workflow_name || 'Workflow'
-  const workflowId = approval.workflow_context?.workflow_version_id
-  const workflowLink = workflowId ? `/workflow-builder/${workflowId}` : undefined
+  const workflowId = approval.workflow_context?.workflow_id
+  const workflowVersion = approval.workflow_context?.workflow_version
+  const workflowLink = workflowId ? buildWorkflowBuilderLink(workflowId, workflowVersion) : undefined
   const approvalInitiated = formatDateTime(approval.created_at ?? null)
   const approvalMessage = message || getApprovalMessage(approval)
   const approvalDisplayName = resolveApprovalName(approval, activityNameMap)

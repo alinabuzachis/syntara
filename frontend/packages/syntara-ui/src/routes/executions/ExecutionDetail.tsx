@@ -405,6 +405,7 @@ export default function ExecutionDetail() {
                   activityNameMap={activityNameMap}
                   onClose={approval.close}
                   onDecisionSubmitted={approval.dismiss}
+                  onNavigate={(path) => detachPromise(navigate({ to: path }))}
                   currentIndex={currentIndex}
                   totalCount={approvals.length}
                   hasPrev={approvalNavigation.hasPrev}

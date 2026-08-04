@@ -54,7 +54,7 @@ def next_step_approved() -> dict[str, Any]:
 def workflow_context() -> dict[str, Any]:
     """Workflow context for approval request."""
     return {
-        "workflow_version_id": str(uuid4()),
+        "workflow_id": str(uuid4()),
         "workflow_name": "Production Deployment",
         "inputs": {"target": "production", "version": "2.1.0"},
         "previous_step": {
@@ -79,7 +79,7 @@ def mock_approval_response(execution_id: str) -> dict[str, Any]:
         "next_step_approved": {"id": "deploy", "name": "Deploy to Production", "type": "task"},
         "next_step_rejected": None,
         "workflow_context": {
-            "workflow_version_id": str(uuid4()),
+            "workflow_id": str(uuid4()),
             "workflow_name": "Production Deployment",
             "inputs": {"target": "production"},
             "previous_step": None,

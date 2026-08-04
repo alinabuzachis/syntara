@@ -20,6 +20,7 @@ import type { ProjectRead } from '../access/types'
 import type { ApprovalWithDetails } from './Approvals'
 import styles from './ApprovalsTableBody.module.css'
 import { ApprovalStatusBadges } from './approvalUtils'
+import { buildWorkflowBuilderLink } from './buildWorkflowBuilderLink'
 import { getDisabledTooltip } from './getDisabledTooltip'
 import { isApprovalSelectable } from './isApprovalSelectable'
 import { useCanDecideApproval } from './useCanDecideApproval'
@@ -167,7 +168,7 @@ function ApprovalRow({
         </Td>
         <Td dataLabel="Workflow">
           {approval.workflowId ? (
-            <LinkCell href={`/workflow-builder/${approval.workflowId}`}>
+            <LinkCell href={buildWorkflowBuilderLink(approval.workflowId, approval.workflowVersion)}>
               {approval.workflowName || approval.workflowId}
             </LinkCell>
           ) : (

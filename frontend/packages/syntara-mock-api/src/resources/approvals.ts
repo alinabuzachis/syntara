@@ -9,6 +9,7 @@ export const approvals: Approval[] = [
     created_at: mockDate.minutesAgo10, // 10 minutes ago
     updated_at: mockDate.minutesAgo10,
     labels: {},
+    project_id: 'p-001',
     execution_id: 'exec-approval',
     approval_node_id: 'approval_gate',
     name: 'Production Deployment Approval',
@@ -28,7 +29,8 @@ export const approvals: Approval[] = [
       type: 'task',
     },
     workflow_context: {
-      workflow_version_id: '54',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000001',
+      workflow_version: 1,
       workflow_name: 'deployment-approval',
       inputs: {
         environment: 'production',
@@ -75,7 +77,8 @@ export const approvals: Approval[] = [
       description: 'Reverts to previous stable version',
     },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440001',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000002',
+      workflow_version: 2,
       workflow_name: 'Basic Condition Then Else',
       inputs: {
         target_environment: 'production',
@@ -122,7 +125,8 @@ export const approvals: Approval[] = [
       description: 'Escalates to security team for manual review',
     },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440001',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000003',
+      workflow_version: 3,
       workflow_name: 'Basic Condition Then Else',
       inputs: {
         policy_violations: ['missing_mfa', 'weak_password'],
@@ -165,7 +169,8 @@ export const approvals: Approval[] = [
     },
     next_step_rejected: null, // Rejection path ends the workflow
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440002',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000004',
+      workflow_version: 4,
       workflow_name: 'Basic Condition No Else Branch',
       inputs: {
         resource_type: 'compute',
@@ -215,7 +220,8 @@ export const approvals: Approval[] = [
       type: 'task',
     },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440003',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000005',
+      workflow_version: 5,
       workflow_name: 'Basic Condition Then Else',
       inputs: {
         change_type: 'configuration',
@@ -261,7 +267,8 @@ export const approvals: Approval[] = [
       type: 'task',
     },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440004',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000006',
+      workflow_version: 6,
       workflow_name: 'Ansible Playbook Deployment',
       inputs: {
         playbook_name: 'deploy_app.yml',
@@ -289,7 +296,7 @@ export const approvals: Approval[] = [
     created_at: mockDate.minutesAgo30, // 30 minutes ago
     updated_at: mockDate.minutesAgo30,
     labels: {},
-    project_id: null,
+    project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440006',
     approval_node_id: 'approval-activity-6',
     name: 'Standalone Approval Request',
@@ -303,7 +310,8 @@ export const approvals: Approval[] = [
     },
     next_step_rejected: null, // No rejection path
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440005',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000007',
+      workflow_version: 7,
       workflow_name: 'External System Sync',
       inputs: {
         external_system: 'crm',
@@ -346,7 +354,8 @@ export const approvals: Approval[] = [
       type: 'task',
     },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440006',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000008',
+      workflow_version: 8,
       workflow_name: 'Scheduled Maintenance',
       inputs: {
         maintenance_window: '2025-01-15T02:00:00Z',
@@ -389,7 +398,8 @@ export const approvals: Approval[] = [
       type: 'task',
     },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440007',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000009',
+      workflow_version: 9,
       workflow_name: 'Deployment Pipeline',
       inputs: {
         environment: 'staging',
@@ -427,7 +437,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'migrate_db', name: 'Migrate Database', type: 'task' },
     next_step_rejected: { id: 'cancel_migration', name: 'Cancel Migration', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440008',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000010',
+      workflow_version: 10,
       workflow_name: 'Database Migration',
       inputs: { schema_version: '2.0', environment: 'production' },
       previous_step: { id: 'backup', name: 'Backup', type: 'task', output: { backup_id: 'bk-001' } },
@@ -451,7 +462,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'deploy_patch', name: 'Deploy Patch', type: 'task' },
     next_step_rejected: { id: 'skip_patch', name: 'Skip Patch', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440009',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000011',
+      workflow_version: 11,
       workflow_name: 'Security Patching',
       inputs: { patch_id: 'CVE-2025-0001', severity: 'critical' },
       previous_step: { id: 'scan', name: 'Vulnerability Scan', type: 'task', output: { vulnerabilities: 1 } },
@@ -475,7 +487,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'scale_up', name: 'Scale Up', type: 'task' },
     next_step_rejected: { id: 'maintain', name: 'Maintain Current', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440010',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000012',
+      workflow_version: 12,
       workflow_name: 'Auto Scaling',
       inputs: { current_instances: 5, recommended_instances: 10 },
       previous_step: { id: 'analyze_load', name: 'Analyze Load', type: 'task', output: { cpu_avg: 85 } },
@@ -499,7 +512,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'restore', name: 'Restore Backup', type: 'task' },
     next_step_rejected: null,
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440011',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000013',
+      workflow_version: 13,
       workflow_name: 'Disaster Recovery',
       inputs: { backup_id: 'bk-002', restore_point: '2025-01-20T10:00:00Z' },
       previous_step: { id: 'verify_backup', name: 'Verify Backup', type: 'task', output: { valid: true } },
@@ -523,7 +537,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'renew_cert', name: 'Renew Certificate', type: 'task' },
     next_step_rejected: { id: 'extend_old', name: 'Extend Old Certificate', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440012',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000014',
+      workflow_version: 14,
       workflow_name: 'Certificate Management',
       inputs: { domain: 'example.com', expiry_days: 30 },
       previous_step: { id: 'check_cert', name: 'Check Certificate', type: 'task', output: { valid: false } },
@@ -547,7 +562,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'grant_access', name: 'Grant Access', type: 'task' },
     next_step_rejected: { id: 'deny_access', name: 'Deny Access', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440013',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000015',
+      workflow_version: 15,
       workflow_name: 'Access Management',
       inputs: { user: 'bob@example.com', role: 'admin' },
       previous_step: { id: 'verify_user', name: 'Verify User', type: 'task', output: { verified: true } },
@@ -561,7 +577,7 @@ export const approvals: Approval[] = [
     created_at: mockDate.hoursAgo14,
     updated_at: mockDate.hoursAgo14,
     labels: {},
-    project_id: null,
+    project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440015',
     approval_node_id: 'approval-activity-15',
     name: 'Data Deletion Request',
@@ -571,7 +587,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'delete_data', name: 'Delete Data', type: 'task' },
     next_step_rejected: { id: 'archive_data', name: 'Archive Data', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440014',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000016',
+      workflow_version: 16,
       workflow_name: 'Data Management',
       inputs: { dataset: 'customer_data_2020', size_gb: 500 },
       previous_step: { id: 'verify_retention', name: 'Verify Retention', type: 'task', output: { expired: true } },
@@ -595,7 +612,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'promote', name: 'Promote to Production', type: 'task' },
     next_step_rejected: { id: 'rollback_staging', name: 'Rollback Staging', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440015',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000017',
+      workflow_version: 17,
       workflow_name: 'CI/CD Pipeline',
       inputs: { build_id: 'build-67890', version: '3.0.0' },
       previous_step: { id: 'test_staging', name: 'Test Staging', type: 'task', output: { passed: true } },
@@ -619,7 +637,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'apply_config', name: 'Apply Configuration', type: 'task' },
     next_step_rejected: { id: 'revert_config', name: 'Revert Configuration', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440016',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000018',
+      workflow_version: 18,
       workflow_name: 'Configuration Management',
       inputs: { config_file: 'app.config', changes: 5 },
       previous_step: { id: 'validate_config', name: 'Validate Config', type: 'task', output: { valid: true } },
@@ -643,7 +662,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'update_firewall', name: 'Update Firewall', type: 'task' },
     next_step_rejected: { id: 'cancel_change', name: 'Cancel Change', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440017',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000019',
+      workflow_version: 19,
       workflow_name: 'Network Security',
       inputs: { rule: 'allow_port_8080', direction: 'inbound' },
       previous_step: { id: 'analyze_impact', name: 'Analyze Impact', type: 'task', output: { risk: 'medium' } },
@@ -667,7 +687,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'allocate_budget', name: 'Allocate Budget', type: 'task' },
     next_step_rejected: { id: 'revise_budget', name: 'Revise Budget', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440018',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000020',
+      workflow_version: 20,
       workflow_name: 'Financial Planning',
       inputs: { quarter: 'Q2', amount: 100000 },
       previous_step: { id: 'review_expenses', name: 'Review Expenses', type: 'task', output: { total: 95000 } },
@@ -691,7 +712,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'sign_contract', name: 'Sign Contract', type: 'task' },
     next_step_rejected: { id: 'negotiate', name: 'Negotiate Terms', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440019',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000021',
+      workflow_version: 21,
       workflow_name: 'Vendor Management',
       inputs: { vendor: 'CloudCorp', contract_value: 50000 },
       previous_step: { id: 'review_terms', name: 'Review Terms', type: 'task', output: { acceptable: true } },
@@ -715,7 +737,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'upgrade_service', name: 'Upgrade Service', type: 'task' },
     next_step_rejected: { id: 'maintain_tier', name: 'Maintain Current Tier', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440020',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000022',
+      workflow_version: 22,
       workflow_name: 'Service Management',
       inputs: { current_tier: 'standard', new_tier: 'premium' },
       previous_step: { id: 'estimate_cost', name: 'Estimate Cost', type: 'task', output: { monthly_cost: 500 } },
@@ -739,7 +762,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'remediate', name: 'Remediate Findings', type: 'task' },
     next_step_rejected: { id: 'escalate_audit', name: 'Escalate to Compliance', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440021',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000023',
+      workflow_version: 23,
       workflow_name: 'Compliance Management',
       inputs: { audit_id: 'audit-2025-01', findings: 3 },
       previous_step: { id: 'run_audit', name: 'Run Audit', type: 'task', output: { severity: 'low' } },
@@ -763,7 +787,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'run_dr_test', name: 'Run DR Test', type: 'task' },
     next_step_rejected: { id: 'postpone_test', name: 'Postpone Test', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440022',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000024',
+      workflow_version: 24,
       workflow_name: 'DR Testing',
       inputs: { test_type: 'full_failover', duration_hours: 4 },
       previous_step: { id: 'prepare_test', name: 'Prepare Test', type: 'task', output: { ready: true } },
@@ -777,7 +802,7 @@ export const approvals: Approval[] = [
     created_at: mockDate.hoursAgo23,
     updated_at: mockDate.hoursAgo21,
     labels: {},
-    project_id: null,
+    project_id: 'p-001',
     execution_id: '660e8400-e29b-41d4-a716-446655440024',
     approval_node_id: 'approval-activity-24',
     name: 'Performance Optimization',
@@ -787,7 +812,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'apply_optimization', name: 'Apply Optimization', type: 'task' },
     next_step_rejected: { id: 'revert_changes', name: 'Revert Changes', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440023',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000025',
+      workflow_version: 25,
       workflow_name: 'Performance Tuning',
       inputs: { optimization: 'cache_increase', impact: 'high' },
       previous_step: { id: 'benchmark', name: 'Benchmark', type: 'task', output: { improvement: '15%' } },
@@ -811,7 +837,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'update_limits', name: 'Update Rate Limits', type: 'task' },
     next_step_rejected: { id: 'keep_limits', name: 'Keep Current Limits', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440024',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000026',
+      workflow_version: 26,
       workflow_name: 'API Management',
       inputs: { endpoint: '/api/v1/users', new_limit: 1000 },
       previous_step: { id: 'analyze_usage', name: 'Analyze Usage', type: 'task', output: { current_avg: 750 } },
@@ -835,7 +862,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'enable_alert', name: 'Enable Alert', type: 'task' },
     next_step_rejected: { id: 'disable_alert', name: 'Disable Alert', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440025',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000027',
+      workflow_version: 27,
       workflow_name: 'Monitoring Setup',
       inputs: { metric: 'cpu_usage', threshold: 80 },
       previous_step: { id: 'test_alert', name: 'Test Alert', type: 'task', output: { working: true } },
@@ -859,7 +887,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'update_lb', name: 'Update Load Balancer', type: 'task' },
     next_step_rejected: { id: 'rollback_lb', name: 'Rollback Load Balancer', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440026',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000028',
+      workflow_version: 28,
       workflow_name: 'Infrastructure Update',
       inputs: { algorithm: 'least_connections', health_check_interval: 30 },
       previous_step: { id: 'validate_config', name: 'Validate Config', type: 'task', output: { valid: true } },
@@ -883,7 +912,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'expand_storage', name: 'Expand Storage', type: 'task' },
     next_step_rejected: { id: 'cleanup_storage', name: 'Cleanup Storage', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440027',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000029',
+      workflow_version: 29,
       workflow_name: 'Storage Management',
       inputs: { current_size_tb: 10, new_size_tb: 15 },
       previous_step: { id: 'check_usage', name: 'Check Usage', type: 'task', output: { usage_percent: 85 } },
@@ -907,7 +937,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'update_logging', name: 'Update Logging', type: 'task' },
     next_step_rejected: { id: 'keep_logging', name: 'Keep Current Logging', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440028',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000030',
+      workflow_version: 30,
       workflow_name: 'Logging Management',
       inputs: { current_level: 'info', new_level: 'debug' },
       previous_step: { id: 'assess_impact', name: 'Assess Impact', type: 'task', output: { disk_impact: 'medium' } },
@@ -931,7 +962,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'enable_integration', name: 'Enable Integration', type: 'task' },
     next_step_rejected: { id: 'review_vendor', name: 'Review Vendor', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440029',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000031',
+      workflow_version: 31,
       workflow_name: 'Integration Management',
       inputs: { vendor: 'DataProvider Inc', service: 'analytics' },
       previous_step: { id: 'security_review', name: 'Security Review', type: 'task', output: { approved: false } },
@@ -955,7 +987,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'update_retention', name: 'Update Retention Policy', type: 'task' },
     next_step_rejected: { id: 'keep_retention', name: 'Keep Current Policy', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440030',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000032',
+      workflow_version: 32,
       workflow_name: 'Data Governance',
       inputs: { current_days: 90, new_days: 180 },
       previous_step: { id: 'legal_review', name: 'Legal Review', type: 'task', output: { compliant: true } },
@@ -979,7 +1012,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'rotate_keys', name: 'Rotate Encryption Keys', type: 'task' },
     next_step_rejected: { id: 'postpone_rotation', name: 'Postpone Rotation', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440031',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000033',
+      workflow_version: 33,
       workflow_name: 'Security Operations',
       inputs: { key_age_days: 180, rotation_type: 'scheduled' },
       previous_step: { id: 'backup_keys', name: 'Backup Keys', type: 'task', output: { backup_complete: true } },
@@ -1003,7 +1037,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'update_dependency', name: 'Update Dependency', type: 'task' },
     next_step_rejected: { id: 'skip_update', name: 'Skip Update', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440032',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000034',
+      workflow_version: 34,
       workflow_name: 'Dependency Management',
       inputs: { package: 'react', current_version: '18.0.0', new_version: '19.0.0' },
       previous_step: { id: 'test_compatibility', name: 'Test Compatibility', type: 'task', output: { passed: true } },
@@ -1027,7 +1062,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'promote_image', name: 'Promote Image', type: 'task' },
     next_step_rejected: { id: 'reject_image', name: 'Reject Image', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440033',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000035',
+      workflow_version: 35,
       workflow_name: 'Container Deployment',
       inputs: { image: 'app:v2.5.0', registry: 'production' },
       previous_step: { id: 'scan_image', name: 'Scan Image', type: 'task', output: { vulnerabilities: 0 } },
@@ -1051,7 +1087,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'update_dns', name: 'Update DNS Record', type: 'task' },
     next_step_rejected: { id: 'cancel_dns_update', name: 'Cancel DNS Update', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440034',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000036',
+      workflow_version: 36,
       workflow_name: 'DNS Management',
       inputs: { record_type: 'A', domain: 'api.example.com', ip: '192.168.1.100' },
       previous_step: { id: 'verify_ip', name: 'Verify IP', type: 'task', output: { reachable: true } },
@@ -1075,7 +1112,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'enable_feature', name: 'Enable Feature', type: 'task' },
     next_step_rejected: { id: 'keep_disabled', name: 'Keep Disabled', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440035',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000037',
+      workflow_version: 37,
       workflow_name: 'Feature Management',
       inputs: { feature: 'new_ui_dashboard', rollout_percentage: 10 },
       previous_step: { id: 'test_feature', name: 'Test Feature', type: 'task', output: { tests_passed: true } },
@@ -1099,7 +1137,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'register_webhook', name: 'Register Webhook', type: 'task' },
     next_step_rejected: { id: 'reject_webhook', name: 'Reject Webhook', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440036',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000038',
+      workflow_version: 38,
       workflow_name: 'Webhook Management',
       inputs: { endpoint: 'https://partner.com/webhook', event_types: ['order.created', 'order.updated'] },
       previous_step: { id: 'verify_endpoint', name: 'Verify Endpoint', type: 'task', output: { ssl_valid: true } },
@@ -1123,7 +1162,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'deallocate', name: 'Deallocate Resources', type: 'task' },
     next_step_rejected: { id: 'keep_resources', name: 'Keep Resources', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440037',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000039',
+      workflow_version: 39,
       workflow_name: 'Resource Optimization',
       inputs: { resource_type: 'compute', count: 5 },
       previous_step: { id: 'analyze_usage', name: 'Analyze Usage', type: 'task', output: { utilization: 75 } },
@@ -1147,7 +1187,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'update_schedule', name: 'Update Schedule', type: 'task' },
     next_step_rejected: { id: 'keep_schedule', name: 'Keep Current Schedule', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440038',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000040',
+      workflow_version: 40,
       workflow_name: 'Job Scheduling',
       inputs: { job_name: 'daily_backup', current_schedule: '0 2 * * *', new_schedule: '0 3 * * *' },
       previous_step: { id: 'check_conflicts', name: 'Check Conflicts', type: 'task', output: { conflicts: 0 } },
@@ -1171,7 +1212,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'update_template', name: 'Update Email Template', type: 'task' },
     next_step_rejected: { id: 'revert_template', name: 'Revert Template', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440039',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000041',
+      workflow_version: 41,
       workflow_name: 'Communication Management',
       inputs: { template: 'welcome_email', changes: 'updated_branding' },
       previous_step: { id: 'preview_template', name: 'Preview Template', type: 'task', output: { looks_good: true } },
@@ -1195,7 +1237,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'update_cdn', name: 'Update CDN Config', type: 'task' },
     next_step_rejected: { id: 'rollback_cdn', name: 'Rollback CDN Config', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440040',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000042',
+      workflow_version: 42,
       workflow_name: 'CDN Management',
       inputs: { cache_ttl: 3600, compression: 'enabled' },
       previous_step: { id: 'test_config', name: 'Test Config', type: 'task', output: { performance_gain: '20%' } },
@@ -1219,7 +1262,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'update_queue', name: 'Update Queue Config', type: 'task' },
     next_step_rejected: { id: 'keep_queue_config', name: 'Keep Queue Config', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440041',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000043',
+      workflow_version: 43,
       workflow_name: 'Queue Management',
       inputs: { queue: 'orders', max_size: 10000, retention_hours: 72 },
       previous_step: { id: 'analyze_queue', name: 'Analyze Queue', type: 'task', output: { avg_messages: 5000 } },
@@ -1243,7 +1287,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'create_account', name: 'Create Service Account', type: 'task' },
     next_step_rejected: { id: 'deny_account', name: 'Deny Service Account', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440042',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000044',
+      workflow_version: 44,
       workflow_name: 'Identity Management',
       inputs: { account_name: 'api-service', permissions: ['read', 'write'] },
       previous_step: { id: 'verify_need', name: 'Verify Need', type: 'task', output: { justified: true } },
@@ -1267,7 +1312,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'run_failover', name: 'Run Failover Test', type: 'task' },
     next_step_rejected: { id: 'cancel_test', name: 'Cancel Test', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440043',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000045',
+      workflow_version: 45,
       workflow_name: 'HA Testing',
       inputs: { primary_region: 'us-east-1', failover_region: 'us-west-2' },
       previous_step: { id: 'prepare_failover', name: 'Prepare Failover', type: 'task', output: { ready: true } },
@@ -1291,7 +1337,8 @@ export const approvals: Approval[] = [
     next_step_approved: { id: 'schedule_maintenance', name: 'Schedule Maintenance', type: 'task' },
     next_step_rejected: { id: 'reschedule', name: 'Reschedule Maintenance', type: 'task' },
     workflow_context: {
-      workflow_version_id: '880e8400-e29b-41d4-a716-446655440044',
+      workflow_id: 'aa0e8400-e29b-41d4-a716-000000000046',
+      workflow_version: 46,
       workflow_name: 'Maintenance Planning',
       inputs: { window_start: '2025-02-01T02:00:00Z', duration_hours: 6 },
       previous_step: { id: 'check_calendar', name: 'Check Calendar', type: 'task', output: { conflicts: 0 } },

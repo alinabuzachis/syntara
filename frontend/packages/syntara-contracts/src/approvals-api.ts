@@ -279,11 +279,15 @@ export interface components {
      */
     WorkflowContext: {
       /**
-       * Workflow Version Id
-       * Format: uuid
-       * @description ID of the workflow version being executed
+       * Workflow Id
+       * @description ID of the workflow
        */
-      workflow_version_id: string
+      workflow_id?: string | null
+      /**
+       * Workflow Version
+       * @description Integer version number of the workflow version executed
+       */
+      workflow_version?: number | null
       /**
        * Workflow Name
        * @description Name of the workflow

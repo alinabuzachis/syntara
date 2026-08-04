@@ -44,7 +44,7 @@ class TestCreateApprovalContract:
         # Create execution first to get valid execution_id
         executions = await executions_factory.create_executions(count=1)
         execution_id = str(executions[0].id)
-        workflow_version_id = str(uuid4())
+        workflow_id = str(uuid4())
 
         request_payload = {
             "execution_id": execution_id,
@@ -66,7 +66,7 @@ class TestCreateApprovalContract:
                 "description": "Step to execute when rejected",
             },
             "workflow_context": {
-                "workflow_version_id": workflow_version_id,
+                "workflow_id": workflow_id,
                 "workflow_name": "Test Workflow",
                 "inputs": {"environment": "test", "version": "1.0.0"},
                 "previous_step": {
@@ -116,7 +116,7 @@ class TestCreateApprovalContract:
         assert data["next_step_rejected"]["name"] == "Rejected Step"
 
         # Validate WorkflowContext structure
-        assert data["workflow_context"]["workflow_version_id"] == workflow_version_id
+        assert data["workflow_context"]["workflow_id"] == workflow_id
         assert data["workflow_context"]["workflow_name"] == "Test Workflow"
         assert data["workflow_context"]["inputs"]["environment"] == "test"
         assert data["workflow_context"]["previous_step"]["id"] == "prep_step"
@@ -139,7 +139,7 @@ class TestCreateApprovalContract:
         # Create execution first to get valid execution_id
         executions = await executions_factory.create_executions(count=1)
         execution_id = str(executions[0].id)
-        workflow_version_id = str(uuid4())
+        workflow_id = str(uuid4())
 
         request_payload = {
             "execution_id": execution_id,
@@ -152,7 +152,7 @@ class TestCreateApprovalContract:
                 "type": "task",
             },
             "workflow_context": {
-                "workflow_version_id": workflow_version_id,
+                "workflow_id": workflow_id,
                 "workflow_name": "Minimal Workflow",
                 "inputs": {},
             },
@@ -205,7 +205,7 @@ class TestCreateApprovalContract:
                 "type": "task",
             },
             "workflow_context": {
-                "workflow_version_id": str(uuid4()),
+                "workflow_id": str(uuid4()),
                 "workflow_name": "UUID Test Workflow",
                 "inputs": {},
             },
@@ -233,10 +233,10 @@ class TestCreateApprovalContract:
             retryable=False,
         )
 
-        # Act & Assert - Invalid workflow_version_id format
+        # Act & Assert - Invalid workflow_id format
         invalid_payload = dict(valid_payload)
         invalid_payload["workflow_context"] = {
-            "workflow_version_id": "not-a-uuid",
+            "workflow_id": "not-a-uuid",
             "workflow_name": "Test",
             "inputs": {},
         }
@@ -248,7 +248,7 @@ class TestCreateApprovalContract:
             error_type="https://api.example.com/errors/validation-error",
             title="Request Validation Error",
             detail=(
-                "Validation failed: workflow_context -> workflow_version_id: Input should be a valid UUID, "
+                "Validation failed: workflow_context -> workflow_id: Input should be a valid UUID, "
                 "invalid character: expected an optional prefix of `urn:uuid:` followed by [0-9a-fA-F-], found `n` at 1"
             ),
             code="REQUEST_VALIDATION_ERROR",
@@ -280,7 +280,7 @@ class TestCreateApprovalContract:
             "approval_node_id": "test_node",
             "name": "Test Name",
             "next_step_approved": {"id": "next_step", "name": "Next Step", "type": "task"},
-            "workflow_context": {"workflow_version_id": str(uuid4()), "workflow_name": "Test Workflow", "inputs": {}},
+            "workflow_context": {"workflow_id": str(uuid4()), "workflow_name": "Test Workflow", "inputs": {}},
         }
 
         # Test missing execution_id
@@ -374,7 +374,7 @@ class TestCreateApprovalContract:
             "execution_id": str(executions[0].id),
             "project_id": str(test_workflow.project_id),
             "name": "Activity Test",
-            "workflow_context": {"workflow_version_id": str(uuid4()), "workflow_name": "Test Workflow", "inputs": {}},
+            "workflow_context": {"workflow_id": str(uuid4()), "workflow_name": "Test Workflow", "inputs": {}},
         }
 
         # Test valid ActivitySummary with all fields
@@ -443,7 +443,7 @@ class TestCreateApprovalContract:
         payload_1: dict[str, Any] = dict(base_payload)
         payload_1["approval_node_id"] = "context_test_1"
         payload_1["workflow_context"] = {
-            "workflow_version_id": str(uuid4()),
+            "workflow_id": str(uuid4()),
             "workflow_name": "Test Workflow",
             "inputs": {"key": "value"},
             "previous_step": {
@@ -460,7 +460,7 @@ class TestCreateApprovalContract:
         payload_2: dict[str, Any] = dict(base_payload)
         payload_2["approval_node_id"] = "context_test_2"
         payload_2["workflow_context"] = {
-            "workflow_version_id": str(uuid4()),
+            "workflow_id": str(uuid4()),
             "workflow_name": "Test Workflow",
             "inputs": {},
         }
@@ -471,7 +471,7 @@ class TestCreateApprovalContract:
         payload_2b: dict[str, Any] = dict(base_payload)
         payload_2b["approval_node_id"] = "context_test_2b"
         payload_2b["workflow_context"] = {
-            "workflow_version_id": str(uuid4()),
+            "workflow_id": str(uuid4()),
             "workflow_name": "Test Workflow",
             "inputs": {},
             "previous_step": None,
@@ -484,7 +484,7 @@ class TestCreateApprovalContract:
         payload_3: dict[str, Any] = dict(base_payload)
         payload_3["approval_node_id"] = "context_test_3"
         payload_3["workflow_context"] = {
-            "workflow_version_id": str(uuid4()),
+            "workflow_id": str(uuid4()),
             "inputs": {},
             # Missing workflow_name
         }
@@ -521,7 +521,7 @@ class TestCreateApprovalContract:
             "name": "Orphan Approval Request",
             "next_step_approved": {"id": "next_step", "name": "Next Step", "type": "task"},
             "workflow_context": {
-                "workflow_version_id": str(uuid4()),
+                "workflow_id": str(uuid4()),
                 "workflow_name": "Orphan Test Workflow",
                 "inputs": {},
             },
@@ -566,7 +566,7 @@ class TestCreateApprovalContract:
         # Arrange - Create execution first to get valid execution_id
         executions = await executions_factory.create_executions(count=1)
         execution_id = str(executions[0].id)
-        workflow_version_id = str(uuid4())
+        workflow_id = str(uuid4())
 
         base_payload = {
             "execution_id": execution_id,
@@ -575,7 +575,7 @@ class TestCreateApprovalContract:
             "name": "First Approval Request",
             "next_step_approved": {"id": "next_step", "name": "Next Step", "type": "task"},
             "workflow_context": {
-                "workflow_version_id": workflow_version_id,
+                "workflow_id": workflow_id,
                 "workflow_name": "Duplicate Test Workflow",
                 "inputs": {"test": "data"},
             },

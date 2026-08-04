@@ -164,8 +164,10 @@ class WorkflowApprovalMixin:
             self.resolver.get_namespace("workflow_context") if self.resolver.has_namespace("workflow_context") else {}
         )
         execution_ns = wf_ctx.get("execution", {}) if isinstance(wf_ctx, dict) else {}
+        workflow_ns = wf_ctx.get("workflow", {}) if isinstance(wf_ctx, dict) else {}
         workflow_context = {
-            "workflow_version_id": execution_ns.get("workflow_version_id", "unknown"),
+            "workflow_id": workflow_ns.get("id") or execution_ns.get("workflow_version_id", "unknown"),
+            "workflow_version": workflow_ns.get("version"),
             "workflow_name": graph.metadata.get("name") or "Unknown",
             "inputs": self.resolver.namespaces.get("trigger", {}),
             "previous_step": previous_step,

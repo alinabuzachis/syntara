@@ -75,7 +75,7 @@ class TestApprovalLifecycleFlow:
     ) -> ApprovalCreateRequest:
         """Create approval request with approved and rejected paths."""
         workflow_context = WorkflowContext(
-            workflow_version_id=uuid4(),
+            workflow_id=uuid4(),
             workflow_name="Deploy Workflow",
             inputs={"environment": "production"},
         )
@@ -286,7 +286,7 @@ class TestApprovalLifecycleFlow:
 
         # Create approval with previous step context
         workflow_context = WorkflowContext(
-            workflow_version_id=uuid4(),
+            workflow_id=uuid4(),
             workflow_name="Analysis Workflow",
             inputs={"dataset": "production_logs"},
             previous_step=PreviousStepContext(

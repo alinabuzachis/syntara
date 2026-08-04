@@ -20,7 +20,7 @@ const mockApprovals: Approval[] = [
     },
     workflow_context: {
       workflow_name: 'Test Workflow',
-      workflow_version_id: 'wfv-1',
+      workflow_id: 'wfv-1',
       inputs: {},
     },
   },
@@ -39,7 +39,7 @@ const mockApprovals: Approval[] = [
     },
     workflow_context: {
       workflow_name: 'Test Workflow',
-      workflow_version_id: 'wfv-1',
+      workflow_id: 'wfv-1',
       inputs: {},
     },
   },
@@ -58,7 +58,7 @@ const mockApprovals: Approval[] = [
     },
     workflow_context: {
       workflow_name: 'Test Workflow',
-      workflow_version_id: 'wfv-1',
+      workflow_id: 'wfv-1',
       inputs: {},
     },
   },

@@ -37,7 +37,7 @@ class TestApprovalFKValidation:
         invalid_user_id = uuid4()  # Non-existent user
 
         workflow_context = WorkflowContext(
-            workflow_version_id=uuid4(),
+            workflow_id=uuid4(),
             workflow_name="Test Workflow",
             inputs={"environment": "test"},
         )
@@ -78,7 +78,7 @@ class TestApprovalFKValidation:
         invalid_group_id = uuid4()  # Non-existent group
 
         workflow_context = WorkflowContext(
-            workflow_version_id=uuid4(),
+            workflow_id=uuid4(),
             workflow_name="Test Workflow",
             inputs={"environment": "test"},
         )
@@ -123,7 +123,7 @@ class TestApprovalFKValidation:
         await test_db_session.refresh(group)
 
         workflow_context = WorkflowContext(
-            workflow_version_id=uuid4(),
+            workflow_id=uuid4(),
             workflow_name="Test Workflow",
             inputs={"environment": "test"},
         )

@@ -628,6 +628,7 @@ export function BuilderContent(props: BuilderContentProps) {
                           message={approvalMessage}
                           onClose={handleApprovalClose}
                           onDecisionSubmitted={handleApprovalDismiss}
+                          onNavigate={setLocation}
                         />
                       </FlexItem>
                     )}

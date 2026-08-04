@@ -26,26 +26,40 @@ class WorkflowContext:
     preceding activity.
 
         Attributes:
-            workflow_version_id (UUID): ID of the workflow version being executed
             workflow_name (str): Name of the workflow
             inputs (WorkflowContextInputs): Original workflow input parameters (structure varies per workflow)
+            workflow_id (None | Unset | UUID): ID of the workflow
+            workflow_version (int | None | Unset): Integer version number of the workflow version executed
             previous_step (None | PreviousStepContext | Unset): Previous step context and output
     """
 
-    workflow_version_id: UUID
     workflow_name: str
     inputs: WorkflowContextInputs
+    workflow_id: None | Unset | UUID = UNSET
+    workflow_version: int | None | Unset = UNSET
     previous_step: None | PreviousStepContext | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         from ..models.previous_step_context import PreviousStepContext
 
-        workflow_version_id = str(self.workflow_version_id)
-
         workflow_name = self.workflow_name
 
         inputs = self.inputs.to_dict()
+
+        workflow_id: None | str | Unset
+        if isinstance(self.workflow_id, Unset):
+            workflow_id = UNSET
+        elif isinstance(self.workflow_id, UUID):
+            workflow_id = str(self.workflow_id)
+        else:
+            workflow_id = self.workflow_id
+
+        workflow_version: int | None | Unset
+        if isinstance(self.workflow_version, Unset):
+            workflow_version = UNSET
+        else:
+            workflow_version = self.workflow_version
 
         previous_step: dict[str, Any] | None | Unset
         if isinstance(self.previous_step, Unset):
@@ -59,11 +73,14 @@ class WorkflowContext:
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "workflow_version_id": workflow_version_id,
                 "workflow_name": workflow_name,
                 "inputs": inputs,
             }
         )
+        if workflow_id is not UNSET:
+            field_dict["workflow_id"] = workflow_id
+        if workflow_version is not UNSET:
+            field_dict["workflow_version"] = workflow_version
         if previous_step is not UNSET:
             field_dict["previous_step"] = previous_step
 
@@ -75,11 +92,35 @@ class WorkflowContext:
         from ..models.workflow_context_inputs import WorkflowContextInputs
 
         d = dict(src_dict)
-        workflow_version_id = UUID(d.pop("workflow_version_id"))
-
         workflow_name = d.pop("workflow_name")
 
         inputs = WorkflowContextInputs.from_dict(d.pop("inputs"))
+
+        def _parse_workflow_id(data: object) -> None | Unset | UUID:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                workflow_id_type_0 = UUID(data)
+
+                return workflow_id_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(None | Unset | UUID, data)
+
+        workflow_id = _parse_workflow_id(d.pop("workflow_id", UNSET))
+
+        def _parse_workflow_version(data: object) -> int | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(int | None | Unset, data)
+
+        workflow_version = _parse_workflow_version(d.pop("workflow_version", UNSET))
 
         def _parse_previous_step(data: object) -> None | PreviousStepContext | Unset:
             if data is None:
@@ -99,9 +140,10 @@ class WorkflowContext:
         previous_step = _parse_previous_step(d.pop("previous_step", UNSET))
 
         workflow_context = cls(
-            workflow_version_id=workflow_version_id,
             workflow_name=workflow_name,
             inputs=inputs,
+            workflow_id=workflow_id,
+            workflow_version=workflow_version,
             previous_step=previous_step,
         )
 

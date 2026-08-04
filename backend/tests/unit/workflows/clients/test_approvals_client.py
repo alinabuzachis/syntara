@@ -43,7 +43,7 @@ def create_request_data() -> dict[str, Any]:
         "next_step_approved": {"id": "deploy", "name": "Deploy", "type": "task"},
         "next_step_rejected": None,
         "workflow_context": {
-            "workflow_version_id": str(uuid4()),
+            "workflow_id": str(uuid4()),
             "workflow_name": "Deploy Pipeline",
             "inputs": {"env": "prod"},
             "previous_step": None,
@@ -64,7 +64,7 @@ def approval_response_data() -> dict[str, Any]:
         "next_step_approved": {"id": "deploy", "name": "Deploy", "type": "task"},
         "next_step_rejected": None,
         "workflow_context": {
-            "workflow_version_id": str(uuid4()),
+            "workflow_id": str(uuid4()),
             "workflow_name": "Deploy Pipeline",
             "inputs": {"env": "prod"},
             "previous_step": None,

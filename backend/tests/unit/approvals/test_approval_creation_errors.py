@@ -26,7 +26,7 @@ def _create_test_approval_request(
 ) -> ApprovalCreateRequest:
     """Helper to create a valid ApprovalCreateRequest for testing."""
     workflow_context = WorkflowContext(
-        workflow_version_id=uuid4(),
+        workflow_id=uuid4(),
         workflow_name="Test Workflow",
         inputs={},
     )

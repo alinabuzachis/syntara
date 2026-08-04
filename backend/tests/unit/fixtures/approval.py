@@ -48,7 +48,7 @@ def create_test_approval_request(
 
     if workflow_context is None:
         workflow_context = {
-            "workflow_version_id": str(uuid4()),
+            "workflow_id": str(uuid4()),
             "workflow_name": "Test Workflow",
             "inputs": {"environment": "production", "version": "1.0.0"},
             "previous_step": {

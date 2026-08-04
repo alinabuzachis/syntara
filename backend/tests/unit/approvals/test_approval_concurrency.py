@@ -84,7 +84,7 @@ def _mock_evaluator_for_concurrency_tests(monkeypatch: pytest.MonkeyPatch) -> No
 def _valid_workflow_context() -> dict[str, object]:
     """Return a valid workflow context structure for testing."""
     return {
-        "workflow_version_id": str(uuid4()),
+        "workflow_id": str(uuid4()),
         "workflow_name": "Test Workflow",
         "inputs": {},
     }

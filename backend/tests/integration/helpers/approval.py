@@ -75,7 +75,7 @@ class ApprovalsFactory:
             if index % 2 == 0
             else None,
             workflow_context={
-                "workflow_version_id": str(uuid4()),
+                "workflow_id": str(uuid4()),
                 "workflow_name": f"Test Workflow {index + 1}",
                 "inputs": {
                     "environment": "test",

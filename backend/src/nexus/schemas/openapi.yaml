@@ -29241,15 +29241,22 @@ components:
         Contains workflow identification, inputs, and the output from the immediately
         preceding activity.
       required:
-        - workflow_version_id
         - workflow_name
         - inputs
       properties:
-        workflow_version_id:
-          type: string
-          format: uuid
-          description: ID of the workflow version being executed
-          title: Workflow Version Id
+        workflow_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          description: ID of the workflow
+          title: Workflow Id
+        workflow_version:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          description: Integer version number of the workflow version executed
+          title: Workflow Version
         workflow_name:
           type: string
           description: Name of the workflow

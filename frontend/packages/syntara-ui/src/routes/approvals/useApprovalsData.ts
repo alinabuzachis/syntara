@@ -7,11 +7,14 @@ import type { ProjectRead } from '../access/types'
 import type { ApprovalWithDetails } from './Approvals'
 
 const getApprovalDetails = (approval: ApprovalWithDetails) => {
-  const wfCtx = approval.workflow_context as { workflow_name?: string; workflow_version_id?: string } | undefined
+  const wfCtx = approval.workflow_context as
+    | { workflow_name?: string; workflow_id?: string; workflow_version?: number }
+    | undefined
   return {
     approvalName: approval.name || approval.id,
     workflowName: wfCtx?.workflow_name || 'Unknown',
-    workflowId: wfCtx?.workflow_version_id,
+    workflowId: wfCtx?.workflow_id,
+    workflowVersion: wfCtx?.workflow_version,
   }
 }
 
@@ -61,12 +64,13 @@ export function useApprovalsData({
   const enrichedApprovals = useMemo(() => {
     const approvals = (approvalsData?.resources ?? []) as ApprovalWithDetails[]
     return approvals.map((approval) => {
-      const { approvalName, workflowName, workflowId } = getApprovalDetails(approval)
+      const { approvalName, workflowName, workflowId, workflowVersion } = getApprovalDetails(approval)
       return {
         ...approval,
         approvalName,
         workflowName,
         workflowId,
+        workflowVersion,
       }
     })
   }, [approvalsData?.resources])

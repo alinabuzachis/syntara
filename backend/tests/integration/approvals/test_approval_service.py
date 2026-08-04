@@ -79,7 +79,7 @@ class TestApprovalServiceBase:
     ) -> ApprovalCreateRequest:
         """Create a typed approval request for testing."""
         workflow_context = WorkflowContext(
-            workflow_version_id=uuid4(),
+            workflow_id=uuid4(),
             workflow_name="Test Workflow",
             inputs={"environment": "test"},
         )
