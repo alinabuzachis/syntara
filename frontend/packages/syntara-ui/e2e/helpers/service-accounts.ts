@@ -57,11 +57,11 @@ export async function createServiceAccountViaUI(
   await app.getByRole('option', { name: projectName, exact: true }).click()
 
   // Fill name
-  await modal.getByLabel('Name').fill(name)
+  await modal.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
 
   // Fill description if provided
   if (options.description) {
-    await modal.getByLabel('Description').fill(options.description)
+    await modal.getByRole('textbox', { name: 'Description', exact: true }).fill(options.description)
   }
 
   // Submit

@@ -9,6 +9,7 @@ import { AlertProvider } from '../../../providers/alerts'
 import { accessClient } from '../../access/accessClient'
 
 import { EditServiceAccountModal } from './EditServiceAccountModal'
+import { DESCRIPTION_HELP, NAME_HELP } from './serviceAccountFieldHelpText'
 import type { ServiceAccountRead } from './serviceAccountTypes'
 
 vi.mock('../../../client', () => ({
@@ -100,6 +101,26 @@ describe('EditServiceAccountModal', () => {
 
     expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue('my-service-account')
     expect(screen.getByRole('textbox', { name: 'Description' })).toHaveValue('A test service account')
+  })
+
+  it('shows name and description help on click', async () => {
+    const user = userEvent.setup()
+    render(
+      <EditServiceAccountModal
+        serviceAccount={mockServiceAccount}
+        isOpen={true}
+        onClose={mockOnClose}
+        onSuccess={mockOnSuccess}
+      />,
+      { wrapper }
+    )
+
+    await user.click(screen.getByRole('button', { name: 'More info for Name' }))
+    expect(screen.getByText(NAME_HELP)).toBeInTheDocument()
+
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByRole('button', { name: 'More info for Description' }))
+    expect(screen.getByText(DESCRIPTION_HELP)).toBeInTheDocument()
   })
 
   it('calls mutation with correct body on submit', async () => {

@@ -20,6 +20,7 @@ import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationError
 import { useAlerts } from '../../../providers/alerts'
 import { accessClient } from '../../access/accessClient'
 
+import { serviceAccountHelp } from './serviceAccountFieldHelp'
 import { editServiceAccountSchema, type EditServiceAccountFormData } from './serviceAccountFormSchema'
 import type { ServiceAccountRead } from './serviceAccountTypes'
 
@@ -102,7 +103,7 @@ function EditServiceAccountForm({ serviceAccount, onClose, onSuccess }: Readonly
             name="name"
             control={control}
             render={({ field, fieldState }) => (
-              <FormGroup label="Name" fieldId="edit-sa-name" isRequired>
+              <FormGroup label="Name" fieldId="edit-sa-name" isRequired labelHelp={serviceAccountHelp.name}>
                 <TextInput
                   id="edit-sa-name"
                   aria-label="Name"
@@ -129,7 +130,7 @@ function EditServiceAccountForm({ serviceAccount, onClose, onSuccess }: Readonly
             name="description"
             control={control}
             render={({ field, fieldState }) => (
-              <FormGroup label="Description" fieldId="edit-sa-description">
+              <FormGroup label="Description" fieldId="edit-sa-description" labelHelp={serviceAccountHelp.description}>
                 <TextArea
                   id="edit-sa-description"
                   aria-label="Description"

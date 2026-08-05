@@ -1,4 +1,5 @@
 import { DatePicker, FormGroup, FormHelperText, HelperText, HelperTextItem } from '@patternfly/react-core'
+import type { ReactElement } from 'react'
 
 import { formatDateYMD, parseDateYMD } from '../../../utils/dateUtils'
 
@@ -10,6 +11,7 @@ export function CredentialExpirationField({
   helperText,
   label = 'Expiration date',
   fieldId = 'credential-expires-at',
+  labelHelp,
 }: Readonly<{
   selectedDate: string
   onDateChange: (event: React.FormEvent<HTMLInputElement>, value: string, dateValue?: Date) => void
@@ -18,9 +20,10 @@ export function CredentialExpirationField({
   helperText: string
   label?: string
   fieldId?: string
+  labelHelp?: ReactElement
 }>) {
   return (
-    <FormGroup label={label} fieldId={fieldId} isRequired>
+    <FormGroup label={label} fieldId={fieldId} isRequired labelHelp={labelHelp}>
       <DatePicker
         value={selectedDate}
         onChange={onDateChange}

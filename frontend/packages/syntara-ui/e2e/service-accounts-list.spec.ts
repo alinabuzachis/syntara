@@ -233,16 +233,16 @@ test.describe('UI-3: Create Service Account — Form and One-Time Secret Modal',
 
     // Verify form fields are present
     await expect(modal.getByRole('button', { name: 'Select a project' })).toBeVisible()
-    await expect(modal.getByLabel('Name')).toBeVisible()
-    await expect(modal.getByLabel('Description')).toBeVisible()
+    await expect(modal.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible()
+    await expect(modal.getByRole('textbox', { name: 'Description', exact: true })).toBeVisible()
 
     // Fill form: project first, then name and description
     // Project Select menu is portaled to document body (PatternFly default)
     await modal.getByRole('button', { name: 'Select a project' }).click()
     await app.getByRole('option', { name: 'default', exact: true }).click()
 
-    await modal.getByLabel('Name').fill(saName)
-    await modal.getByLabel('Description').fill('E2E test service account')
+    await modal.getByRole('textbox', { name: 'Name', exact: true }).fill(saName)
+    await modal.getByRole('textbox', { name: 'Description', exact: true }).fill('E2E test service account')
 
     // Submit
     await modal.getByRole('button', { name: 'Create service account' }).click()
@@ -297,7 +297,7 @@ test.describe('UI-4: Create Service Account — Validation Errors', () => {
     const modal = app.getByRole('dialog')
 
     // Fill name but don't select project
-    await modal.getByLabel('Name').fill('valid-name')
+    await modal.getByRole('textbox', { name: 'Name', exact: true }).fill('valid-name')
 
     // Submit without selecting project
     await modal.getByRole('button', { name: 'Create service account' }).click()
@@ -319,7 +319,7 @@ test.describe('UI-4: Create Service Account — Validation Errors', () => {
     await app.getByRole('option', { name: 'default', exact: true }).click()
 
     // Fill name with uppercase characters (invalid)
-    await modal.getByLabel('Name').fill('Invalid-Name')
+    await modal.getByRole('textbox', { name: 'Name', exact: true }).fill('Invalid-Name')
 
     // Submit
     await modal.getByRole('button', { name: 'Create service account' }).click()
@@ -383,7 +383,7 @@ test.describe('UI-13: Create Service Account — Zero-Role Creation Allowed', ()
     // Fill only required fields — no role assignment
     await modal.getByRole('button', { name: 'Select a project' }).click()
     await app.getByRole('option', { name: 'default', exact: true }).click()
-    await modal.getByLabel('Name').fill(saName)
+    await modal.getByRole('textbox', { name: 'Name', exact: true }).fill(saName)
 
     // Submit
     await modal.getByRole('button', { name: 'Create service account' }).click()

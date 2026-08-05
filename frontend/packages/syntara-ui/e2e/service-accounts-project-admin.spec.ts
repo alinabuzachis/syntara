@@ -57,8 +57,8 @@ test.describe('UI-11: Service Account CRUD Lifecycle', () => {
       const editedName = `${sa.name}-edited`
       await app.getByRole('button', { name: 'Edit service account' }).click()
       const editModal = app.getByRole('dialog')
-      await editModal.getByLabel('Name').clear()
-      await editModal.getByLabel('Name').fill(editedName)
+      await editModal.getByRole('textbox', { name: 'Name', exact: true }).clear()
+      await editModal.getByRole('textbox', { name: 'Name', exact: true }).fill(editedName)
       await editModal.getByRole('button', { name: 'Save' }).click()
 
       await expect(app.getByText('Service account updated')).toBeVisible()

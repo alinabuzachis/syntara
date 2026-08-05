@@ -109,7 +109,7 @@ test.describe('Project Admin — Manage Service Accounts in Own Project', () => 
       const modal = projectAdminApp.getByRole('dialog')
       await expect(modal).toBeVisible()
 
-      const nameInput = modal.getByLabel('Name')
+      const nameInput = modal.getByRole('textbox', { name: 'Name', exact: true })
       await expect(nameInput).toHaveValue(originalName)
 
       await nameInput.clear()

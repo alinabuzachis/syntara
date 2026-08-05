@@ -37,6 +37,7 @@ import { useSelectableProjects } from '../../access/useAllProjects'
 import { getServiceAccountDetailPath } from '../accessManagementPaths'
 
 import { CredentialExpirationField } from './CredentialExpirationField'
+import { serviceAccountHelp } from './serviceAccountFieldHelp'
 import { createServiceAccountSchema, type CreateServiceAccountFormData } from './serviceAccountFormSchema'
 import { useCredentialExpirationDate } from './useCredentialExpirationDate'
 
@@ -321,7 +322,7 @@ function CreateServiceAccountFormPhase({
             name="project_id"
             control={control}
             render={({ field, fieldState }) => (
-              <FormGroup label="Project" fieldId="sa-project" isRequired>
+              <FormGroup label="Project" fieldId="sa-project" isRequired labelHelp={serviceAccountHelp.project}>
                 <ProjectSelect
                   value={field.value}
                   onChange={field.onChange}
@@ -336,7 +337,7 @@ function CreateServiceAccountFormPhase({
             name="name"
             control={control}
             render={({ field, fieldState }) => (
-              <FormGroup label="Name" fieldId="sa-name" isRequired>
+              <FormGroup label="Name" fieldId="sa-name" isRequired labelHelp={serviceAccountHelp.name}>
                 <TextInput
                   id="sa-name"
                   aria-label="Name"
@@ -365,7 +366,7 @@ function CreateServiceAccountFormPhase({
             name="description"
             control={control}
             render={({ field, fieldState }) => (
-              <FormGroup label="Description" fieldId="sa-description">
+              <FormGroup label="Description" fieldId="sa-description" labelHelp={serviceAccountHelp.description}>
                 <TextArea
                   id="sa-description"
                   aria-label="Description"
@@ -389,6 +390,7 @@ function CreateServiceAccountFormPhase({
             helperText={helperText}
             label="Credential expiration date"
             fieldId="sa-credential-expires-at"
+            labelHelp={serviceAccountHelp.credentialExpiration}
           />
         </Form>
       </ModalBody>

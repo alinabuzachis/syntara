@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { RotateDialogBody } from './RotateDialogBody'
+import { GRACE_PERIOD_HELP } from './serviceAccountFieldHelpText'
 import type { SACredentialRead } from './serviceAccountTypes'
 
 const mockCredential: SACredentialRead = {
@@ -42,6 +43,14 @@ describe('RotateDialogBody', () => {
     render(<RotateDialogBody {...defaultProps} />)
 
     expect(screen.getByRole('button', { name: '1 hour' })).toBeInTheDocument()
+  })
+
+  it('shows grace period help on click', async () => {
+    const user = userEvent.setup()
+    render(<RotateDialogBody {...defaultProps} />)
+
+    await user.click(screen.getByRole('button', { name: 'More info for Current secret grace period' }))
+    expect(screen.getByText(GRACE_PERIOD_HELP)).toBeInTheDocument()
   })
 
   it('calls onGracePeriodChange when a different option is selected', async () => {

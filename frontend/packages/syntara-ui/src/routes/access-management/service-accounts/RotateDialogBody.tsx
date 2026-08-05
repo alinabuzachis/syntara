@@ -14,6 +14,7 @@ import { type Ref, useCallback, useState } from 'react'
 import { NxSelect } from '../../../components/NxSelect'
 
 import { computeRemainingGracePeriod, DEFAULT_GRACE_PERIOD, GRACE_PERIOD_OPTIONS } from './rotateDialogUtils'
+import { serviceAccountHelp } from './serviceAccountFieldHelp'
 import type { SACredentialRead } from './serviceAccountTypes'
 
 export function RotateDialogBody({
@@ -63,7 +64,11 @@ export function RotateDialogBody({
       )}
 
       <StackItem>
-        <FormGroup label="Current secret grace period" fieldId="rotate-grace-period">
+        <FormGroup
+          label="Current secret grace period"
+          fieldId="rotate-grace-period"
+          labelHelp={serviceAccountHelp.gracePeriod}
+        >
           <NxSelect
             id="rotate-grace-period"
             aria-label="Current secret grace period"

@@ -62,13 +62,13 @@ test.describe('UI-5: Service Account Detail — View and Edit', () => {
     await expect(modal).toBeVisible()
     await expect(modal.getByText(`Edit ${sa.name}`)).toBeVisible()
 
-    const nameInput = modal.getByLabel('Name')
+    const nameInput = modal.getByRole('textbox', { name: 'Name', exact: true })
     await expect(nameInput).toHaveValue(sa.name)
 
     const newName = buildUniqueName('sa-edited')
     await nameInput.clear()
     await nameInput.fill(newName)
-    await modal.getByLabel('Description').fill('Updated description')
+    await modal.getByRole('textbox', { name: 'Description', exact: true }).fill('Updated description')
 
     await modal.getByRole('button', { name: 'Save' }).click()
 

@@ -11,6 +11,7 @@ import { accessClient } from '../../access/accessClient'
 import { useSelectableProjects } from '../../access/useAllProjects'
 
 import { CreateServiceAccountModal } from './CreateServiceAccountModal'
+import { CREDENTIAL_EXPIRATION_HELP, DESCRIPTION_HELP, NAME_HELP, PROJECT_HELP } from './serviceAccountFieldHelpText'
 
 const FUTURE_DATE = format(addDays(new Date(), 30), 'yyyy-MM-dd')
 
@@ -132,6 +133,29 @@ describe('CreateServiceAccountModal', () => {
       render(<CreateServiceAccountModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
 
       expect(screen.getByLabelText('Credential expiration date')).toBeInTheDocument()
+    })
+
+    it('shows project, name, description, and credential expiration help on click', async () => {
+      const user = userEvent.setup()
+      render(<CreateServiceAccountModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />, { wrapper })
+
+      await user.click(screen.getByRole('button', { name: 'More info for Project' }))
+      expect(screen.getByText(PROJECT_HELP)).toBeInTheDocument()
+
+      await user.keyboard('{Escape}')
+      await user.click(screen.getByRole('button', { name: 'More info for Name' }))
+      expect(screen.getByText(NAME_HELP)).toBeInTheDocument()
+      expect(
+        screen.getByText('Lowercase letters, numbers, and hyphens. Must start and end with a letter or number.')
+      ).toBeInTheDocument()
+
+      await user.keyboard('{Escape}')
+      await user.click(screen.getByRole('button', { name: 'More info for Description' }))
+      expect(screen.getByText(DESCRIPTION_HELP)).toBeInTheDocument()
+
+      await user.keyboard('{Escape}')
+      await user.click(screen.getByRole('button', { name: 'More info for Credential expiration date' }))
+      expect(screen.getByText(CREDENTIAL_EXPIRATION_HELP)).toBeInTheDocument()
     })
 
     it('pre-populates expiration date with default value', () => {
