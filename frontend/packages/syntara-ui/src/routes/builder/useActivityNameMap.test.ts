@@ -3,7 +3,14 @@ import { describe, expect, it, vi } from 'vitest'
 
 import type { ActivityState } from '../workflows/execution/types'
 
-import { resolveNodeName, useActivityNameMap, type WorkflowDefShape } from './useActivityNameMap'
+import type { ActivityOrderItem } from './ExecutionActivityTable'
+import {
+  resolveNodeName,
+  sortActivityOrder,
+  useActivityNameMap,
+  type WorkflowDefEdge,
+  type WorkflowDefShape,
+} from './useActivityNameMap'
 
 vi.mock('../../stores/workflowStoreSelectors', () => ({
   useActivities: vi.fn(() => undefined),
@@ -309,5 +316,164 @@ describe('useActivityNameMap', () => {
       expect(result.current.nameMap.get('task-1')).toBeUndefined()
       expect(result.current.nameMap.get('task-2')).toBeUndefined()
     })
+  })
+})
+
+describe('sortActivityOrder', () => {
+  function makeItem(id: string, name?: string): ActivityOrderItem {
+    return { id, name }
+  }
+
+  function makeState(id: string, startedAt?: string | null): [string, ActivityState] {
+    return [id, { activityId: id, status: 'completed', startedAt }]
+  }
+
+  it('returns items as-is when there is 0 or 1 item', () => {
+    const empty: ActivityOrderItem[] = []
+    const single = [makeItem('a')]
+    const states = new Map<string, ActivityState>()
+
+    expect(sortActivityOrder(empty, undefined, states)).toEqual([])
+    expect(sortActivityOrder(single, undefined, states)).toEqual([makeItem('a')])
+  })
+
+  it('sorts a linear workflow in topological order', () => {
+    const items = [makeItem('C'), makeItem('A'), makeItem('B')]
+    const edges: WorkflowDefEdge[] = [
+      { from: 'A', to: 'B' },
+      { from: 'B', to: 'C' },
+    ]
+    const states = new Map<string, ActivityState>()
+
+    const result = sortActivityOrder(items, edges, states)
+    expect(result.map((r) => r.id)).toEqual(['A', 'B', 'C'])
+  })
+
+  it('uses startedAt as tiebreaker for parallel branches', () => {
+    // trigger → branchA and trigger → branchB (both have in-degree 1 from trigger)
+    // branchA started later than branchB
+    const items = [makeItem('branchA'), makeItem('branchB'), makeItem('trigger')]
+    const edges: WorkflowDefEdge[] = [
+      { from: 'trigger', to: 'branchA' },
+      { from: 'trigger', to: 'branchB' },
+    ]
+    const states = new Map([
+      makeState('trigger', '2024-01-01T00:00:00Z'),
+      makeState('branchA', '2024-01-01T00:00:05Z'),
+      makeState('branchB', '2024-01-01T00:00:02Z'),
+    ])
+
+    const result = sortActivityOrder(items, edges, states)
+    expect(result.map((r) => r.id)).toEqual(['trigger', 'branchB', 'branchA'])
+  })
+
+  it('falls back to startedAt sort when no edges are provided', () => {
+    const items = [makeItem('c'), makeItem('a'), makeItem('b')]
+    const states = new Map([
+      makeState('a', '2024-01-01T00:00:01Z'),
+      makeState('b', '2024-01-01T00:00:02Z'),
+      makeState('c', '2024-01-01T00:00:03Z'),
+    ])
+
+    const result = sortActivityOrder(items, undefined, states)
+    expect(result.map((r) => r.id)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('falls back to startedAt sort when edges array is empty', () => {
+    const items = [makeItem('c'), makeItem('a'), makeItem('b')]
+    const states = new Map([
+      makeState('a', '2024-01-01T00:00:01Z'),
+      makeState('b', '2024-01-01T00:00:02Z'),
+      makeState('c', '2024-01-01T00:00:03Z'),
+    ])
+
+    const result = sortActivityOrder(items, [], states)
+    expect(result.map((r) => r.id)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('places activities without startedAt after those with timestamps', () => {
+    const items = [makeItem('no-time'), makeItem('has-time')]
+    const states = new Map([makeState('has-time', '2024-01-01T00:00:01Z'), makeState('no-time', null)])
+
+    const result = sortActivityOrder(items, undefined, states)
+    expect(result.map((r) => r.id)).toEqual(['has-time', 'no-time'])
+  })
+
+  it('groups loop iterations after their base activity', () => {
+    const items = [
+      makeItem('step-2'),
+      makeItem('loop-1#iter-1', 'Loop (Iteration 2)'),
+      makeItem('step-1'),
+      makeItem('loop-1', 'Loop (Iteration 1)'),
+      makeItem('loop-1#iter-2', 'Loop (Iteration 3)'),
+    ]
+    const edges: WorkflowDefEdge[] = [
+      { from: 'step-1', to: 'loop-1' },
+      { from: 'loop-1', to: 'step-2' },
+    ]
+    const states = new Map<string, ActivityState>()
+
+    const result = sortActivityOrder(items, edges, states)
+    expect(result.map((r) => r.id)).toEqual(['step-1', 'loop-1', 'loop-1#iter-1', 'loop-1#iter-2', 'step-2'])
+  })
+
+  it('appends activities not in the graph at the end', () => {
+    const items = [makeItem('orphan'), makeItem('B'), makeItem('A')]
+    const edges: WorkflowDefEdge[] = [{ from: 'A', to: 'B' }]
+    const states = new Map<string, ActivityState>()
+
+    const result = sortActivityOrder(items, edges, states)
+    expect(result.map((r) => r.id)).toEqual(['A', 'B', 'orphan'])
+  })
+
+  it('skips loop-back edges (to_port === iterate)', () => {
+    // loop-1 → body (iterate port), body → loop-1 (loop-back with to_port=iterate)
+    const items = [makeItem('body'), makeItem('loop-1')]
+    const edges: WorkflowDefEdge[] = [
+      { from: 'loop-1', to: 'body', from_port: 'iterate' },
+      { from: 'body', to: 'loop-1', to_port: 'iterate' },
+    ]
+    const states = new Map<string, ActivityState>()
+
+    const result = sortActivityOrder(items, edges, states)
+    // loop-1 should come before body (the iterate edge creates loop-1 → body dependency)
+    expect(result.map((r) => r.id)).toEqual(['loop-1', 'body'])
+  })
+
+  it('handles condition branches (from_port true/false)', () => {
+    const items = [makeItem('else-step'), makeItem('then-step'), makeItem('condition')]
+    const edges: WorkflowDefEdge[] = [
+      { from: 'condition', to: 'then-step', from_port: 'true' },
+      { from: 'condition', to: 'else-step', from_port: 'false' },
+    ]
+    const states = new Map([
+      makeState('condition', '2024-01-01T00:00:00Z'),
+      makeState('then-step', '2024-01-01T00:00:01Z'),
+      makeState('else-step', null),
+    ])
+
+    const result = sortActivityOrder(items, edges, states)
+    expect(result.map((r) => r.id)).toEqual(['condition', 'then-step', 'else-step'])
+  })
+
+  it('ignores self-referencing edges', () => {
+    const items = [makeItem('B'), makeItem('A')]
+    const edges: WorkflowDefEdge[] = [
+      { from: 'A', to: 'B' },
+      { from: 'A', to: 'A' },
+    ]
+    const states = new Map<string, ActivityState>()
+
+    const result = sortActivityOrder(items, edges, states)
+    expect(result.map((r) => r.id)).toEqual(['A', 'B'])
+  })
+
+  it('handles orphan iteration items whose base node is not present', () => {
+    const items = [makeItem('other'), makeItem('missing#iter-0'), makeItem('missing#iter-1')]
+    const states = new Map<string, ActivityState>()
+
+    const result = sortActivityOrder(items, undefined, states)
+    // 'other' is a base item, iterations of 'missing' are appended at the end
+    expect(result.map((r) => r.id)).toEqual(['other', 'missing#iter-0', 'missing#iter-1'])
   })
 })

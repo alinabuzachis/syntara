@@ -18,10 +18,13 @@ type ActivityLike = {
   converge?: { branches?: string[] }
 }
 
+export type WorkflowDefEdge = { from: string; to: string; from_port?: string; to_port?: string }
+
 export type WorkflowDefShape = {
   workflow?: { activities?: ActivityLike[] }
   /** v2 format stores nodes at top level */
   nodes?: ActivityLike[]
+  edges?: Array<WorkflowDefEdge | Record<string, unknown>>
 }
 
 const CHILD_KEYS: (keyof ActivityLike)[] = ['steps', 'then', 'else']
@@ -110,6 +113,152 @@ function buildDefinitionNameMap(def: WorkflowDefShape | null | undefined): {
   return { nameMap: mergedNames, typeMap: mergedTypes }
 }
 
+function compareTimestamps(a: string | null | undefined, b: string | null | undefined): number {
+  if (a && b) {
+    if (a < b) return -1
+    if (a > b) return 1
+    return 0
+  }
+  if (a) return -1
+  if (b) return 1
+  return 0
+}
+
+function compareByStartedAt(
+  aId: string,
+  bId: string,
+  activityStates: Map<string, ActivityState>,
+  fallback = 0
+): number {
+  const result = compareTimestamps(activityStates.get(aId)?.startedAt, activityStates.get(bId)?.startedAt)
+  return result !== 0 ? result : fallback
+}
+
+function sortIterationItems(items: ActivityOrderItem[]): ActivityOrderItem[] {
+  return [...items].sort((a, b) => (parseCompositeKey(a.id).iteration ?? 0) - (parseCompositeKey(b.id).iteration ?? 0))
+}
+
+function isWorkflowDefEdge(edge: WorkflowDefEdge | Record<string, unknown>): edge is WorkflowDefEdge {
+  return typeof (edge as WorkflowDefEdge).from === 'string' && typeof (edge as WorkflowDefEdge).to === 'string'
+}
+
+function buildAdjacencyGraph(
+  edges: Array<WorkflowDefEdge | Record<string, unknown>>,
+  nodeIds: Set<string>
+): { adjacencyList: Map<string, string[]>; inDegree: Map<string, number> } {
+  const adjacencyList = new Map<string, string[]>()
+  const inDegree = new Map<string, number>()
+
+  for (const id of nodeIds) {
+    adjacencyList.set(id, [])
+    inDegree.set(id, 0)
+  }
+
+  for (const edge of edges) {
+    if (!isWorkflowDefEdge(edge)) continue
+    if (edge.to_port === 'iterate') continue
+    if (!nodeIds.has(edge.from) || !nodeIds.has(edge.to) || edge.from === edge.to) continue
+
+    const neighbors = adjacencyList.get(edge.from)!
+    if (!neighbors.includes(edge.to)) {
+      neighbors.push(edge.to)
+      inDegree.set(edge.to, (inDegree.get(edge.to) ?? 0) + 1)
+    }
+  }
+
+  return { adjacencyList, inDegree }
+}
+
+function topoSortIds(
+  edges: Array<WorkflowDefEdge | Record<string, unknown>>,
+  nodeIds: Set<string>,
+  activityStates: Map<string, ActivityState>
+): string[] {
+  const { adjacencyList, inDegree } = buildAdjacencyGraph(edges, nodeIds)
+
+  const queue: string[] = []
+  const sortedIds: string[] = []
+
+  for (const [id, degree] of inDegree) {
+    if (degree === 0) queue.push(id)
+  }
+
+  while (queue.length > 0) {
+    queue.sort((a, b) => compareByStartedAt(a, b, activityStates, a.localeCompare(b, 'en')))
+    const current = queue.shift()!
+    sortedIds.push(current)
+
+    for (const neighbor of adjacencyList.get(current) ?? []) {
+      const newDegree = (inDegree.get(neighbor) ?? 0) - 1
+      inDegree.set(neighbor, newDegree)
+      if (newDegree === 0) queue.push(neighbor)
+    }
+  }
+
+  return sortedIds
+}
+
+/**
+ * Topological sort of activity IDs using Kahn's algorithm on workflow definition edges.
+ * Groups loop iterations after their base activity and uses startedAt as a tiebreaker
+ * for nodes at the same topological level.
+ */
+export function sortActivityOrder(
+  items: ActivityOrderItem[],
+  edges: Array<WorkflowDefEdge | Record<string, unknown>> | undefined,
+  activityStates: Map<string, ActivityState>
+): ActivityOrderItem[] {
+  if (items.length <= 1) return items
+
+  const baseItems: ActivityOrderItem[] = []
+  const iterationItems = new Map<string, ActivityOrderItem[]>()
+
+  for (const item of items) {
+    const { baseId, iteration } = parseCompositeKey(item.id)
+    if (iteration != null) {
+      const list = iterationItems.get(baseId) ?? []
+      list.push(item)
+      iterationItems.set(baseId, list)
+    } else {
+      baseItems.push(item)
+    }
+  }
+
+  let sortedBaseItems: ActivityOrderItem[]
+
+  if (edges && edges.length > 0) {
+    const nodeIds = new Set(baseItems.map((item) => item.id))
+    const sortedIds = topoSortIds(edges, nodeIds, activityStates)
+
+    const sortedIdSet = new Set(sortedIds)
+    const remaining = baseItems.filter((item) => !sortedIdSet.has(item.id))
+    remaining.sort((a, b) => compareByStartedAt(a.id, b.id, activityStates))
+
+    const itemMap = new Map(baseItems.map((item) => [item.id, item]))
+    sortedBaseItems = [
+      ...sortedIds.map((id) => itemMap.get(id)).filter((item): item is ActivityOrderItem => item != null),
+      ...remaining,
+    ]
+  } else {
+    sortedBaseItems = [...baseItems].sort((a, b) => compareByStartedAt(a.id, b.id, activityStates))
+  }
+
+  const result: ActivityOrderItem[] = []
+  for (const item of sortedBaseItems) {
+    result.push(item)
+    const iterations = iterationItems.get(item.id)
+    if (iterations) result.push(...sortIterationItems(iterations))
+  }
+
+  for (const [baseId, iterations] of iterationItems) {
+    if (!sortedBaseItems.some((item) => item.id === baseId)) {
+      result.push(...sortIterationItems(iterations))
+    }
+  }
+
+  return result
+}
+
 export function useActivityNameMap(
   workflowDefinition: WorkflowDefShape | null | undefined,
   activityStates: Map<string, ActivityState>
@@ -125,22 +274,22 @@ export function useActivityNameMap(
     return buildDefinitionNameMap(workflowDefinition)
   }, [storeActivities, storeTriggers, workflowDefinition])
 
-  const activityOrder = useMemo<ActivityOrderItem[]>(
-    () =>
-      Array.from(activityStates.keys()).map((id) => {
-        const { baseId, iteration } = parseCompositeKey(id)
-        const baseName = nameMap.get(baseId)
-        const effectiveIteration = iteration ?? activityStates.get(id)?.iteration
-        let name: string | undefined
-        if (effectiveIteration != null && baseName) {
-          name = `${baseName} (Iteration ${effectiveIteration + 1})`
-        } else {
-          name = nameMap.get(id)
-        }
-        return { id, name, type: typeMap.get(baseId) ?? typeMap.get(id) }
-      }),
-    [activityStates, nameMap, typeMap]
-  )
+  const activityOrder = useMemo<ActivityOrderItem[]>(() => {
+    const unsorted = Array.from(activityStates.keys()).map((id) => {
+      const { baseId, iteration } = parseCompositeKey(id)
+      const baseName = nameMap.get(baseId)
+      const effectiveIteration = iteration ?? activityStates.get(id)?.iteration
+      let name: string | undefined
+      if (effectiveIteration != null && baseName) {
+        name = `${baseName} (Iteration ${effectiveIteration + 1})`
+      } else {
+        name = nameMap.get(id)
+      }
+      return { id, name, type: typeMap.get(baseId) ?? typeMap.get(id) }
+    })
+
+    return sortActivityOrder(unsorted, workflowDefinition?.edges, activityStates)
+  }, [activityStates, nameMap, typeMap, workflowDefinition])
 
   return { nameMap, activityOrder }
 }
