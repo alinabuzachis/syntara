@@ -29,6 +29,7 @@ import { InputEmptyState } from './InputEmptyState'
 import { InputNodeContent, InputPanelNodeSection } from './InputNodeContent'
 import { MockDataEditor } from './MockDataEditor'
 import styles from './panels.module.css'
+import { getUpstreamNodeDisplayName } from './utils/getUpstreamNodeDisplayName'
 import { buildMockJsonSkeleton } from './utils/mockDataUtils'
 import { getTriggerInputSchemaFields } from './utils/triggerSchemaUtils'
 import { VariablesAndContextTree } from './VariablesAndContextTree'
@@ -204,7 +205,7 @@ function InputPanelMockControls({
             <DropdownList>
               {effectiveUpstream.map((node) => (
                 <DropdownItem key={node.id} onClick={() => handleSetMockData(node.id)}>
-                  {node.name ?? node.id}
+                  {getUpstreamNodeDisplayName(node)}
                 </DropdownItem>
               ))}
             </DropdownList>
@@ -238,7 +239,7 @@ function InputPanelMockControls({
                         setIsUnpinDropdownOpen(false)
                       }}
                     >
-                      {node.name ?? node.id}
+                      {getUpstreamNodeDisplayName(node)}
                     </DropdownItem>
                   ))}
                 <DropdownItem isDanger onClick={() => unpinAllInputMocks(nodeId)}>
@@ -329,7 +330,7 @@ export function InputPanel({
 
     return (
       <MockDataEditor
-        predecessorName={editingNode?.name ?? editingPredecessorId}
+        predecessorName={getUpstreamNodeDisplayName(editingNode ?? { id: editingPredecessorId, type: 'unknown' })}
         initialJson={initialJson}
         onPin={(parsed) => {
           pinInputMock(nodeId, editingPredecessorId, parsed)
@@ -408,7 +409,7 @@ export function InputPanel({
                 return (
                   <ExpandableSection
                     key={upstreamNode.id}
-                    toggleText={upstreamNode.name}
+                    toggleText={getUpstreamNodeDisplayName(upstreamNode)}
                     isIndented
                     isExpanded={isExpanded}
                     onToggle={(_event, expanded) =>

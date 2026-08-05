@@ -211,6 +211,68 @@ describe('InputPanel', () => {
     expect(screen.getByText('T now')).toBeInTheDocument()
   })
 
+  it('shows type-label section headers when upstream activity names are empty', () => {
+    mockUseUpstreamNodes.mockReturnValue([
+      { id: 'up-1', name: '', type: 'converge' },
+      { id: 'up-2', name: '   ', type: 'script' },
+      { id: 'up-3', name: 'Custom Name', type: 'script' },
+    ])
+
+    render(<InputPanel nodeId="node-1" />)
+
+    expect(screen.getByRole('button', { name: 'Converge' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Script' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Custom Name' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Variables and context/i })).toBeInTheDocument()
+  })
+
+  it('uses type labels in set mock data dropdown for unnamed upstream nodes', async () => {
+    const user = userEvent.setup()
+    mockUseUpstreamNodes.mockReturnValue([
+      { id: 'up-1', name: '', type: 'converge' },
+      { id: 'up-2', name: '', type: 'script' },
+    ])
+
+    render(<InputPanel nodeId="node-1" />)
+
+    await user.click(screen.getByRole('button', { name: /Set mock data/i }))
+
+    expect(screen.getByRole('menuitem', { name: 'Converge' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Script' })).toBeInTheDocument()
+  })
+
+  it('opens mock editor with type-label predecessor name for unnamed upstream', async () => {
+    const user = userEvent.setup()
+    mockUseUpstreamNodes.mockReturnValue([{ id: 'up-1', name: '', type: 'http_request' }])
+
+    renderWithProvider(<InputPanel nodeId="node-1" />)
+
+    await user.click(screen.getByRole('button', { name: /Set mock data/i }))
+    await user.click(screen.getByRole('menuitem', { name: 'REST API' }))
+
+    expect(screen.getByText(/Editing mock data for: REST API/i)).toBeInTheDocument()
+  })
+
+  it('falls back to predecessor id in mock editor when upstream node disappears', async () => {
+    const user = userEvent.setup()
+    mockUseUpstreamNodes.mockReturnValue([{ id: 'up-1', name: '', type: 'http_request' }])
+
+    const { rerender } = renderWithProvider(<InputPanel nodeId="node-1" />)
+
+    await user.click(screen.getByRole('button', { name: /Set mock data/i }))
+    await user.click(screen.getByRole('menuitem', { name: 'REST API' }))
+    expect(screen.getByText(/Editing mock data for: REST API/i)).toBeInTheDocument()
+
+    mockUseUpstreamNodes.mockReturnValue([])
+    rerender(
+      <ColorSchemeProvider>
+        <InputPanel nodeId="node-1" />
+      </ColorSchemeProvider>
+    )
+
+    expect(screen.getByText(/Editing mock data for: up-1/i)).toBeInTheDocument()
+  })
+
   it('shows schema preview via sourceNodeId fallback when no edges exist', () => {
     mockUseUpstreamNodes.mockReturnValue([])
     mockActivities.mockReturnValue([{ id: 'source-1', name: 'Fetch Data', type: 'script' }])

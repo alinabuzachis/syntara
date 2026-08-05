@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState, type Ref } from 'react'
 
 import type { UpstreamNodeInfo } from './hooks/useUpstreamNodes'
 import styles from './NodePanelNavigationArrow.module.css'
+import { getUpstreamNodeDisplayName } from './utils/getUpstreamNodeDisplayName'
 
 type NavigationDirection = 'previous' | 'next'
 
@@ -12,10 +13,6 @@ type NodePanelNavigationArrowProps = {
   direction: NavigationDirection
   nodes: UpstreamNodeInfo[]
   onNavigate: (nodeId: string) => void
-}
-
-function getNodeDisplayName(node: UpstreamNodeInfo): string {
-  return node.name ?? node.id
 }
 
 function getMultiTargetTooltip(direction: NavigationDirection): string {
@@ -46,7 +43,7 @@ type SingleTargetArrowProps = {
 }
 
 function SingleTargetArrow({ direction, node, onNavigate }: Readonly<SingleTargetArrowProps>) {
-  const nodeName = getNodeDisplayName(node)
+  const nodeName = getUpstreamNodeDisplayName(node)
 
   return (
     <Tooltip content={nodeName}>
@@ -143,7 +140,7 @@ function MultiTargetArrow({ direction, nodes, onNavigate }: Readonly<MultiTarget
         <DropdownList>
           {nodes.map((node) => (
             <DropdownItem key={node.id} onClick={() => handleSelect(node.id)}>
-              {getNodeDisplayName(node)}
+              {getUpstreamNodeDisplayName(node)}
             </DropdownItem>
           ))}
         </DropdownList>

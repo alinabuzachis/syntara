@@ -49,6 +49,29 @@ describe('NodePanelNavigationArrow', () => {
     expect(screen.getByRole('button', { name: /Next step/i })).toBeInTheDocument()
   })
 
+  it('falls back to type label when single target name is empty', () => {
+    const unnamed: UpstreamNodeInfo[] = [{ id: 'node-a', name: '', type: 'converge' }]
+
+    render(<NodePanelNavigationArrow direction="previous" nodes={unnamed} onNavigate={vi.fn()} />)
+
+    expect(screen.getByRole('button', { name: /Go to previous step: Converge/i })).toBeInTheDocument()
+  })
+
+  it('falls back to type labels in multi-target dropdown when names are empty', async () => {
+    const user = userEvent.setup()
+    const unnamed: UpstreamNodeInfo[] = [
+      { id: 'node-a', name: '', type: 'script' },
+      { id: 'node-b', name: '   ', type: 'wait' },
+    ]
+
+    render(<NodePanelNavigationArrow direction="previous" nodes={unnamed} onNavigate={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: /Previous step/i }))
+
+    expect(screen.getByRole('menuitem', { name: 'Script' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Wait' })).toBeInTheDocument()
+  })
+
   it('has no accessibility violations for single-target arrow', async () => {
     const { container } = render(
       <NodePanelNavigationArrow direction="previous" nodes={singleNode} onNavigate={vi.fn()} />
