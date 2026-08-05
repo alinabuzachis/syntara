@@ -1,10 +1,11 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../providers/alerts'
 import { BrandProvider } from '../providers/brand'
+import { ColorSchemeContext, type ColorSchemeContextValue } from '../providers/theme/colorSchemeReactContext'
 import { AuthError } from '../stores/useAuthStore'
 
 import { AppLogin } from './AppLogin'
@@ -46,10 +47,17 @@ vi.mock('./useAuthProviders', () => ({
   }),
 }))
 
-function renderWithAlerts(ui: React.ReactNode) {
+function renderWithAlerts(ui: React.ReactNode, colorScheme: ColorSchemeContextValue['colorScheme'] = 'light') {
+  const schemeCtx: ColorSchemeContextValue = {
+    colorScheme,
+    setColorScheme: vi.fn(),
+    toggleColorScheme: vi.fn(),
+  }
   return render(
     <BrandProvider>
-      <AlertProvider>{ui}</AlertProvider>
+      <ColorSchemeContext value={schemeCtx}>
+        <AlertProvider>{ui}</AlertProvider>
+      </ColorSchemeContext>
     </BrandProvider>
   )
 }
@@ -168,6 +176,110 @@ describe('AppLogin', () => {
     })
   })
 
+  describe('session expired return URL', () => {
+    afterEach(() => {
+      sessionStorage.removeItem('ao_session_expired')
+      sessionStorage.removeItem('ao_return_to')
+    })
+
+    it('restores previous location after successful refresh when session expired', async () => {
+      mockRefresh.mockResolvedValue(undefined)
+      sessionStorage.setItem('ao_session_expired', 'true')
+      sessionStorage.setItem('ao_return_to', '/workflows/123')
+      const replaceStateSpy = vi.spyOn(window.history, 'replaceState')
+
+      renderWithAlerts(
+        <AppLogin>
+          <div>Content</div>
+        </AppLogin>
+      )
+
+      await waitFor(() => {
+        expect(replaceStateSpy).toHaveBeenCalledWith({}, '', '/workflows/123')
+      })
+
+      replaceStateSpy.mockRestore()
+    })
+
+    it('does not restore location when session expired flag is missing', async () => {
+      mockRefresh.mockResolvedValue(undefined)
+      sessionStorage.setItem('ao_return_to', '/workflows/123')
+      const replaceStateSpy = vi.spyOn(window.history, 'replaceState')
+
+      renderWithAlerts(
+        <AppLogin>
+          <div>Content</div>
+        </AppLogin>
+      )
+
+      await waitFor(() => {
+        expect(mockRefresh).toHaveBeenCalled()
+      })
+      expect(replaceStateSpy).not.toHaveBeenCalled()
+
+      replaceStateSpy.mockRestore()
+    })
+
+    it('does not restore location when returnTo is root path', async () => {
+      mockRefresh.mockResolvedValue(undefined)
+      sessionStorage.setItem('ao_session_expired', 'true')
+      sessionStorage.setItem('ao_return_to', '/')
+      const replaceStateSpy = vi.spyOn(window.history, 'replaceState')
+
+      renderWithAlerts(
+        <AppLogin>
+          <div>Content</div>
+        </AppLogin>
+      )
+
+      await waitFor(() => {
+        expect(mockRefresh).toHaveBeenCalled()
+      })
+      expect(replaceStateSpy).not.toHaveBeenCalled()
+
+      replaceStateSpy.mockRestore()
+    })
+
+    it('does not restore location when returnTo contains protocol', async () => {
+      mockRefresh.mockResolvedValue(undefined)
+      sessionStorage.setItem('ao_session_expired', 'true')
+      sessionStorage.setItem('ao_return_to', '/foo://bar')
+      const replaceStateSpy = vi.spyOn(window.history, 'replaceState')
+
+      renderWithAlerts(
+        <AppLogin>
+          <div>Content</div>
+        </AppLogin>
+      )
+
+      await waitFor(() => {
+        expect(mockRefresh).toHaveBeenCalled()
+      })
+      expect(replaceStateSpy).not.toHaveBeenCalled()
+
+      replaceStateSpy.mockRestore()
+    })
+
+    it('clears session storage keys after consuming them', async () => {
+      mockRefresh.mockResolvedValue(undefined)
+      sessionStorage.setItem('ao_session_expired', 'true')
+      sessionStorage.setItem('ao_return_to', '/workflows/123')
+
+      renderWithAlerts(
+        <AppLogin>
+          <div>Content</div>
+        </AppLogin>
+      )
+
+      await waitFor(() => {
+        expect(mockRefresh).toHaveBeenCalled()
+      })
+
+      expect(sessionStorage.getItem('ao_session_expired')).toBeNull()
+      expect(sessionStorage.getItem('ao_return_to')).toBeNull()
+    })
+  })
+
   it('does not call login automatically — only on button click', async () => {
     renderWithAlerts(
       <AppLogin>
@@ -256,7 +368,7 @@ describe('AppLogin', () => {
       expect(screen.getByRole('button', { name: /log in with azure ad/i })).toBeInTheDocument()
     })
 
-    it('shows subtitle "Choose your identity provider" when providers exist', async () => {
+    it('shows subtitle with identity provider instructions when providers exist', async () => {
       // Act
       renderWithAlerts(
         <AppLogin>
@@ -266,7 +378,7 @@ describe('AppLogin', () => {
 
       // Assert
       await waitFor(() => {
-        expect(screen.getByText('Choose your identity provider')).toBeInTheDocument()
+        expect(screen.getByText(/Select your identity provider/)).toBeInTheDocument()
       })
     })
 
@@ -458,7 +570,7 @@ describe('AppLogin', () => {
       })
 
       expect(screen.getByText('Enter your credentials to continue')).toBeInTheDocument()
-      expect(screen.queryByText('Choose your identity provider')).not.toBeInTheDocument()
+      expect(screen.queryByText(/Select your identity provider/)).not.toBeInTheDocument()
     })
 
     it('does not show IDP buttons when no providers', async () => {
@@ -766,6 +878,128 @@ describe('AppLogin', () => {
         })
       })
     })
+  })
+
+  it('renders login page with dark color scheme', async () => {
+    renderWithAlerts(
+      <AppLogin>
+        <div>Content</div>
+      </AppLogin>,
+      'dark'
+    )
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Log in' })).toBeInTheDocument()
+    })
+
+    expect(screen.getByRole('img')).toBeInTheDocument()
+  })
+
+  it('submits form via Enter key and prevents default', async () => {
+    const user = userEvent.setup()
+    mockLogin.mockRejectedValueOnce(new Error('Login failed'))
+
+    renderWithAlerts(
+      <AppLogin>
+        <div>Content</div>
+      </AppLogin>
+    )
+
+    await screen.findByRole('button', { name: 'Log in' })
+
+    await user.type(screen.getByRole('textbox', { name: /username/i }), 'demo')
+    await user.type(screen.getByLabelText(/^Password/, { selector: 'input' }), 'coffee{Enter}')
+
+    await waitFor(() => {
+      expect(mockLogin).toHaveBeenCalledWith({ username: 'demo', password: 'coffee' })
+    })
+  })
+
+  it('uses fallback message when Error has empty message', async () => {
+    const user = userEvent.setup()
+    mockLogin.mockRejectedValueOnce(new Error(''))
+
+    renderWithAlerts(
+      <AppLogin>
+        <div>Content</div>
+      </AppLogin>
+    )
+
+    await screen.findByRole('button', { name: 'Log in' })
+    await user.type(screen.getByRole('textbox', { name: /username/i }), 'demo')
+    await user.type(screen.getByLabelText(/^Password/, { selector: 'input' }), 'wrong')
+    await user.click(screen.getByRole('button', { name: 'Log in' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Incorrect login credentials')).toBeInTheDocument()
+    })
+  })
+
+  it('does not restore location when returnTo matches current pathname', async () => {
+    mockRefresh.mockResolvedValue(undefined)
+    sessionStorage.setItem('ao_session_expired', 'true')
+    sessionStorage.setItem('ao_return_to', window.location.pathname)
+    const replaceStateSpy = vi.spyOn(window.history, 'replaceState')
+
+    renderWithAlerts(
+      <AppLogin>
+        <div>Content</div>
+      </AppLogin>
+    )
+
+    await waitFor(() => {
+      expect(mockRefresh).toHaveBeenCalled()
+    })
+    expect(replaceStateSpy).not.toHaveBeenCalled()
+
+    replaceStateSpy.mockRestore()
+    sessionStorage.removeItem('ao_session_expired')
+    sessionStorage.removeItem('ao_return_to')
+  })
+
+  it('handles unmount during bootstrap without calling setState', async () => {
+    let resolveRefresh!: () => void
+    mockRefresh.mockReturnValue(
+      new Promise<void>((r) => {
+        resolveRefresh = r
+      })
+    )
+
+    const { unmount } = renderWithAlerts(
+      <AppLogin>
+        <div>Content</div>
+      </AppLogin>
+    )
+
+    unmount()
+
+    await act(async () => {
+      resolveRefresh()
+      await new Promise((r) => setTimeout(r, 0))
+    })
+
+    expect(mockRefresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not restore location when returnTo is missing', async () => {
+    mockRefresh.mockResolvedValue(undefined)
+    sessionStorage.setItem('ao_session_expired', 'true')
+    // No ao_return_to set
+    const replaceStateSpy = vi.spyOn(window.history, 'replaceState')
+
+    renderWithAlerts(
+      <AppLogin>
+        <div>Content</div>
+      </AppLogin>
+    )
+
+    await waitFor(() => {
+      expect(mockRefresh).toHaveBeenCalled()
+    })
+    expect(replaceStateSpy).not.toHaveBeenCalled()
+
+    replaceStateSpy.mockRestore()
+    sessionStorage.removeItem('ao_session_expired')
   })
 
   describe('auth_error URL parameter sanitization', () => {

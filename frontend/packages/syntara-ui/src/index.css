@@ -86,6 +86,16 @@ body {
   background-attachment: fixed;
 }
 
+/* Pin the login container to the top so the brand logo does not jump
+   when the local-login form expands or collapses (PF uses align-items:center
+   which re-centers the whole block on every height change). */
+@media (min-width: 75rem) {
+  .bg-deep-space-login.pf-v6-c-login {
+    align-items: start;
+    padding-block-start: 15vh;
+  }
+}
+
 /* Prevent horizontal scrollbar from PF portaled menus (Select/Dropdown) that
    extend past the viewport edge. */
 html {

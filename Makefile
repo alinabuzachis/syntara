@@ -1,5 +1,5 @@
 .PHONY: help install format lint test test-all typecheck dev gen-contracts \
-       services-up services-down services-logs secrets db-migrate db-seed admin-password setup \
+       services-up services-down services-logs secrets db-migrate db-seed admin-password setup sync \
        pre-commit-install
 
 help: ## Show available targets
@@ -120,3 +120,8 @@ run-standards-checks-backend: ## Run backend standards checks (API specs, code q
 	$(MAKE) -C backend verify-test-structure
 
 run-standards-checks-all: run-standards-checks-frontend run-standards-checks-backend ## Run all standards checks (frontend + backend)
+
+# --- Upstream sync (transition period) ---
+
+sync: ## Pull latest changes from upstream nexus and nexus-ui repos
+	bash scripts/sync-from-upstream.sh

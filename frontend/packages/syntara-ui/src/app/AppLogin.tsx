@@ -1,6 +1,7 @@
 import {
   ActionGroup,
   Alert,
+  Brand,
   Bullseye,
   Button,
   Content,
@@ -11,16 +12,20 @@ import {
   HelperText,
   HelperTextItem,
   Icon,
-  LoginPage,
+  Login,
+  LoginHeader,
+  LoginMainBody,
+  LoginMainHeader,
   TextInput,
   ValidatedOptions,
 } from '@patternfly/react-core'
-import { ExclamationCircleIcon } from '@patternfly/react-icons'
+import { RhUiErrorIcon } from '@patternfly/react-icons'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { RETURN_TO_KEY, SESSION_EXPIRED_KEY } from '../components/session/sessionTimeoutConstants'
 import { NxLoadingState } from '../components/states/NxLoadingState'
 import { useBrand } from '../providers/brand'
+import { useColorScheme } from '../providers/theme/useColorScheme'
 import { AuthError, useAuthStore, selectIsAuthenticated, selectIsRefreshing } from '../stores/useAuthStore'
 
 import styles from './AppLogin.module.css'
@@ -110,7 +115,7 @@ function LocalLoginForm({
               variant={!isValidUsername || !isValidPassword ? 'error' : 'default'}
               icon={
                 <Icon status="danger">
-                  <ExclamationCircleIcon />
+                  <RhUiErrorIcon />
                 </Icon>
               }
             >
@@ -172,6 +177,8 @@ export function AppLogin(props: { children?: ReactNode }) {
 
 function AppLoginForm() {
   const brand = useBrand()
+  const { colorScheme } = useColorScheme()
+  const loginLogo = colorScheme === 'dark' ? brand.logoLoginDark : brand.logoLoginLight
   const isRefreshing = useAuthStore(selectIsRefreshing)
   const login = useAuthStore((s) => s.login)
   const refresh = useAuthStore((s) => s.refresh)
@@ -304,77 +311,73 @@ function AppLoginForm() {
     />
   ) : null
 
+  const header = (
+    <LoginHeader>
+      <Brand src={loginLogo} alt={brand.appTitle} className={`${styles.loginLogo} vr-login-brand-logo`} />
+    </LoginHeader>
+  )
+
   // State A: No IDPs — show original login form
   if (!hasProviders) {
     return (
-      <LoginPage
-        className="bg-deep-space-login"
-        brandImgSrc={brand.logoLogin}
-        brandImgProps={{
-          alt: brand.appTitle,
-          className: `${styles.loginLogo} vr-login-brand-logo`,
-        }}
-        loginTitle={`Log in to ${brand.appTitle}`}
-        loginSubtitle="Enter your credentials to continue"
-      >
-        {sessionExpiredAlert}
-        <LocalLoginForm {...localFormProps} />
-      </LoginPage>
+      <Login className="bg-deep-space-login" header={header}>
+        <LoginMainHeader title={`Log in to ${brand.appTitle}`} subtitle="Enter your credentials to continue" />
+        <LoginMainBody>
+          {sessionExpiredAlert}
+          <LocalLoginForm {...localFormProps} />
+        </LoginMainBody>
+      </Login>
     )
   }
 
   // State B/C: IDPs exist
   return (
-    <LoginPage
-      className="bg-deep-space-login"
-      brandImgSrc={brand.logoLogin}
-      brandImgProps={{
-        alt: brand.appTitle,
-        className: `${styles.loginLogo} vr-login-brand-logo`,
-      }}
-      loginTitle={`Log in to ${brand.appTitle}`}
-      loginSubtitle="Choose your identity provider"
-      textContent={`Select your identity provider to access ${brand.appTitle}. Contact your administrator if you need assistance.`}
-    >
-      {sessionExpiredAlert}
+    <Login className="bg-deep-space-login" header={header}>
+      <LoginMainHeader
+        title={`Log in to ${brand.appTitle}`}
+        subtitle={`Select your identity provider to access ${brand.appTitle}. Contact your administrator if you need assistance.`}
+      />
+      <LoginMainBody>
+        {sessionExpiredAlert}
 
-      {loginError && loginErrorField === LoginErrorField.Credentials && (
-        <Alert
-          variant="danger"
-          title={isLogoutError ? 'Identity provider sign-out failed' : 'Authentication failed'}
-          isInline
-          style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}
-        >
-          {loginError}
-        </Alert>
-      )}
+        {loginError && loginErrorField === LoginErrorField.Credentials && (
+          <Alert
+            variant="danger"
+            title={isLogoutError ? 'Identity provider sign-out failed' : 'Authentication failed'}
+            isInline
+            style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}
+          >
+            {loginError}
+          </Alert>
+        )}
 
-      <IdentityProviderButtons providers={providers} />
+        <IdentityProviderButtons providers={providers} />
 
-      {showLocalLogin ? (
-        <>
-          <Divider
-            style={{ marginTop: 'var(--pf-t--global--spacer--lg)', marginBottom: 'var(--pf-t--global--spacer--lg)' }}
-          />
-          <HelperText style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}>
-            <HelperTextItem>
-              For local account access only. Other users should sign in using the identity provider above.
-            </HelperTextItem>
-          </HelperText>
-          <LocalLoginForm {...localFormProps} />
-          <Content style={{ marginTop: 'var(--pf-t--global--spacer--md)', textAlign: 'center' }}>
-            <Button variant="link" onClick={() => setShowLocalLogin(false)} style={toggleLinkStyle}>
-              Hide local account login
+        {showLocalLogin ? (
+          <>
+            <Divider
+              style={{ marginTop: 'var(--pf-t--global--spacer--lg)', marginBottom: 'var(--pf-t--global--spacer--lg)' }}
+            />
+            <HelperText style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}>
+              <HelperTextItem>
+                For local account access only. Other users should sign in using the identity provider above.
+              </HelperTextItem>
+            </HelperText>
+            <LocalLoginForm {...localFormProps} />
+            <Content style={{ marginTop: 'var(--pf-t--global--spacer--md)', textAlign: 'center' }}>
+              <Button variant="link" onClick={() => setShowLocalLogin(false)} style={toggleLinkStyle}>
+                Hide local account login
+              </Button>
+            </Content>
+          </>
+        ) : (
+          <Content style={{ marginTop: 'var(--pf-t--global--spacer--lg)', textAlign: 'center' }}>
+            <Button variant="link" onClick={() => setShowLocalLogin(true)} style={toggleLinkStyle}>
+              Sign in using local account
             </Button>
           </Content>
-        </>
-      ) : (
-        <Content style={{ marginTop: 'var(--pf-t--global--spacer--lg)', textAlign: 'center' }}>
-          <Button variant="link" onClick={() => setShowLocalLogin(true)} style={toggleLinkStyle}>
-            Sign in using local account
-          </Button>
-        </Content>
-      )}
-    </LoginPage>
+        )}
+      </LoginMainBody>
+    </Login>
   )
 }

@@ -11,6 +11,16 @@ function BrandConsumer() {
   return <span data-testid="app-title">{brand.appTitle}</span>
 }
 
+function LoginBrandConsumer() {
+  const brand = useBrand()
+  return (
+    <>
+      <span data-testid="login-light">{brand.logoLoginLight}</span>
+      <span data-testid="login-dark">{brand.logoLoginDark}</span>
+    </>
+  )
+}
+
 describe('BrandProvider', () => {
   it('provides the default brand config', () => {
     render(
@@ -21,6 +31,19 @@ describe('BrandProvider', () => {
     expect(screen.getByTestId('app-title')).toHaveTextContent('Syntara')
   })
 
+  it('uses the same community login asset for light and dark', () => {
+    render(
+      <BrandProvider>
+        <LoginBrandConsumer />
+      </BrandProvider>
+    )
+    const light = screen.getByTestId('login-light').textContent
+    const dark = screen.getByTestId('login-dark').textContent
+    expect(light).toBeTruthy()
+    expect(light).toBe(dark)
+    expect(light).toMatch(/login/)
+  })
+
   it('accepts a custom config override', () => {
     const customConfig: BrandConfig = {
       appTitle: 'Custom Product',
@@ -28,7 +51,8 @@ describe('BrandProvider', () => {
       logoExpandedLight: '/custom-logo-light.svg',
       logoExpandedDark: '/custom-logo-dark.svg',
       logoCollapsed: '/custom-icon.svg',
-      logoLogin: '/custom-login.svg',
+      logoLoginLight: '/custom-login-light.svg',
+      logoLoginDark: '/custom-login-dark.svg',
     }
     render(
       <BrandProvider config={customConfig}>
@@ -68,7 +92,7 @@ describe('BrandProvider', () => {
           <BrandConsumer />
         </BrandProvider>
       )
-      expect(faviconLink.href).toContain('syntara-icon')
+      expect(faviconLink.href).toContain('icon')
     })
 
     it('updates the favicon link href from custom config', () => {
@@ -78,7 +102,8 @@ describe('BrandProvider', () => {
         logoExpandedLight: '/logo-light.svg',
         logoExpandedDark: '/logo-dark.svg',
         logoCollapsed: '/icon.svg',
-        logoLogin: '/login.svg',
+        logoLoginLight: '/login-light.svg',
+        logoLoginDark: '/login-dark.svg',
       }
       render(
         <BrandProvider config={customConfig}>

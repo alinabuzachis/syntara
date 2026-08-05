@@ -1,7 +1,5 @@
 # Konflux-specific Containerfile using UBI9 for Red Hat certification
-# This is used by Konflux pipelines for official builds
-# For local development, use packages/syntara-ui/Containerfile
-
+# This is used by Konflux pipelines for official product builds.
 # Build stage
 FROM registry.access.redhat.com/ubi9/nodejs-24:latest@sha256:09ec365eac116f996dd07507784d06f648401c949eb48c40fe2d961341edd3fb AS builder
 
@@ -45,21 +43,17 @@ EXPOSE 8080
 
 CMD ["nginx", "-g", "daemon off;"]
 
-# Container labels — defaults are upstream-neutral; downstream values are
-# passed as build-args by the Konflux pipeline (see .tekton/).
-ARG DESCRIPTION_LABEL="Syntara UI"
-ARG REDHAT_COMPONENT="syntara-ui-container"
-ARG IMAGE_NAME="syntara-ui"
-ARG MAINTAINER="Syntara Maintainers"
+# Downstream specific labels
 
-ENV container=oci
+ENV DESCRIPTION="Syntara UI" \
+    container=oci
 
-LABEL com.redhat.component="${REDHAT_COMPONENT}" \
-      name="${IMAGE_NAME}" \
-      summary="${DESCRIPTION_LABEL}" \
+LABEL com.redhat.component="ansible-automation-orchestrator-ui-container" \
+      name="ansible-automation-platform/ansible-automation-orchestrator-ui-rhel9" \
+      summary="${DESCRIPTION}" \
       io.openshift.expose-services="" \
       io.openshift.tags="automation,ansible,orchestrator" \
-      io.k8s.display-name="${IMAGE_NAME}" \
-      io.k8s.description="${DESCRIPTION_LABEL}" \
-      maintainer="${MAINTAINER}" \
-      description="${DESCRIPTION_LABEL}"
+      io.k8s.display-name="ansible-automation-orchestrator-ui-rhel9" \
+      io.k8s.description="${DESCRIPTION}" \
+      maintainer="Ansible Automation Platform Productization Team" \
+      description="${DESCRIPTION}"

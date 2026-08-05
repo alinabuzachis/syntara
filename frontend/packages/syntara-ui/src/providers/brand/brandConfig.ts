@@ -1,8 +1,9 @@
-import syntaraHeaderDark from '../../assets/syntara-header-dark.svg'
-import syntaraHeaderLight from '../../assets/syntara-header-light.svg'
-import syntaraIcon from '../../assets/syntara-icon.svg'
-import syntaraLogin from '../../assets/syntara-login.svg'
+import headerDark from '../../assets/header-dark.svg'
+import headerLight from '../../assets/header-light.svg'
+import icon from '../../assets/icon.svg'
 import { APP_TITLE } from '../../utils/appTitle'
+
+import { logoLoginDark, logoLoginLight } from './loginBrandAssets'
 
 export type BrandConfig = {
   appTitle: string
@@ -10,7 +11,8 @@ export type BrandConfig = {
   logoExpandedLight: string
   logoExpandedDark: string
   logoCollapsed: string
-  logoLogin: string
+  logoLoginLight: string
+  logoLoginDark: string
 }
 
 /**
@@ -18,14 +20,16 @@ export type BrandConfig = {
  * brand assets from a downstream overlay repo before `vite build`
  * (and optionally passing a `config` prop to `BrandProvider`).
  *
- * `index.html` already points at the Syntara favicon for community; `BrandProvider`
+ * `index.html` already points at the community favicon (`icon.svg`); `BrandProvider`
  * still syncs `link[rel="icon"]` at runtime so a swapped `faviconPath` applies.
  */
+
 export const defaultBrandConfig: BrandConfig = {
   appTitle: APP_TITLE,
-  faviconPath: syntaraIcon,
-  logoExpandedLight: syntaraHeaderLight,
-  logoExpandedDark: syntaraHeaderDark,
-  logoCollapsed: syntaraIcon,
-  logoLogin: syntaraLogin,
+  faviconPath: icon,
+  logoExpandedLight: headerLight,
+  logoExpandedDark: headerDark,
+  logoCollapsed: icon,
+  logoLoginLight,
+  logoLoginDark,
 }
