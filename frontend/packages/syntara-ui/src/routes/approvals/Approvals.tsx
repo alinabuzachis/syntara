@@ -455,6 +455,8 @@ function ApprovalsPage({ approvalsDocLink }: { approvalsDocLink: string | null |
     })
   }
 
+  const isEmpty = sortedApprovals.length === 0
+
   return (
     <NxPage>
       <NxPageTitle segments={['Approvals']} />
@@ -463,31 +465,35 @@ function ApprovalsPage({ approvalsDocLink }: { approvalsDocLink: string | null |
         docLink={approvalsDocLink ?? undefined}
         projectSelector={ProjectSelector}
         toolbar={
-          <ApprovalsBulkActions
-            selectedCount={selectedApprovalIds.size}
-            onApprove={() => setBulkApproveDialogOpen(true)}
-            onReject={() => setBulkRejectDialogOpen(true)}
-            isDisabled={isBulkActionPending}
-            permissionTooltip={
-              !canDecideAllProjects && canDecideProjectNames.size === 0 && !isLoadingDecideProjects
-                ? permissionTooltip('approve or reject approvals', 'approval:decide')
-                : undefined
-            }
-          />
+          !isEmpty || hasActiveFilters ? (
+            <ApprovalsBulkActions
+              selectedCount={selectedApprovalIds.size}
+              onApprove={() => setBulkApproveDialogOpen(true)}
+              onReject={() => setBulkRejectDialogOpen(true)}
+              isDisabled={isBulkActionPending}
+              permissionTooltip={
+                !canDecideAllProjects && canDecideProjectNames.size === 0 && !isLoadingDecideProjects
+                  ? permissionTooltip('approve or reject approvals', 'approval:decide')
+                  : undefined
+              }
+            />
+          ) : undefined
         }
       />
 
       <NxPageBody>
         <NxPanel isFullHeight>
           <NxPanelContentStack variant="inset">
-            <StackItem>
-              <FilterBar
-                fieldDefinitions={filterFieldDefinitions}
-                filters={filters}
-                onFilterChange={handleFilterChange}
-                showClearAll={true}
-              />
-            </StackItem>
+            {(!isEmpty || hasActiveFilters) && (
+              <StackItem>
+                <FilterBar
+                  fieldDefinitions={filterFieldDefinitions}
+                  filters={filters}
+                  onFilterChange={handleFilterChange}
+                  showClearAll={true}
+                />
+              </StackItem>
+            )}
 
             <ApprovalsContent
               sortedApprovals={sortedApprovals}

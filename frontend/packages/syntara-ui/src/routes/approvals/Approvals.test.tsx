@@ -3,6 +3,7 @@ import { render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import React from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import { approvalsClient } from '../../client'
 import { useFilterState } from '../../hooks/useFilterState'
@@ -256,6 +257,7 @@ describe('Approvals Component', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockSetSearchParams.mockClear()
+    mockSearchParams.forEach((_, key) => mockSearchParams.delete(key))
     // Reset useFilterState to its default implementation (not mocked)
     vi.mocked(useFilterState).mockRestore?.()
 
@@ -358,12 +360,48 @@ describe('Approvals Component', () => {
     expect(screen.getByText('Rejected')).toBeInTheDocument()
   })
 
-  it('shows empty state when no approvals', () => {
-    mockApprovalsQuery([])
+  describe('Empty States', () => {
+    it('has no accessibility violations in the no-data empty state', async () => {
+      mockApprovalsQuery([])
 
-    render(<Approvals />)
+      const { container } = render(<Approvals />)
 
-    expect(screen.getByText('No approvals found')).toBeInTheDocument()
+      expect(await axe(container)).toHaveNoViolations()
+    })
+
+    it('has no accessibility violations with active filters', async () => {
+      mockSearchParams.set('name[contains]', 'zzz-no-match-zzz')
+      mockApprovalsQuery([])
+
+      const { container } = render(<Approvals />)
+
+      expect(await axe(container)).toHaveNoViolations()
+    })
+
+    it('shows no-data empty state when there are no approvals and no active filters', () => {
+      mockApprovalsQuery([])
+
+      render(<Approvals />)
+
+      expect(screen.getByText('No approvals found')).toBeInTheDocument()
+      expect(screen.queryByRole('textbox', { name: /name filter/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('search', { name: 'Filters' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /approve/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /reject/i })).not.toBeInTheDocument()
+    })
+
+    it('shows filter empty state when filters are active but no results match', () => {
+      mockSearchParams.set('name[contains]', 'zzz-no-match-zzz')
+      mockApprovalsQuery([])
+
+      render(<Approvals />)
+
+      expect(screen.getByText('No results found')).toBeInTheDocument()
+      expect(screen.queryByText('No approvals found')).not.toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: /name filter/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /approve/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /reject/i })).toBeInTheDocument()
+    })
   })
 
   describe('API sorting', () => {
