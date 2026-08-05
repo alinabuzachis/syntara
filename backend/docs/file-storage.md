@@ -39,7 +39,7 @@ graph TD
     B --> C[S3FileRetriever<br>boto3 client]
     C --> D[(S3 / ODF<br>NooBaa)]
     B --> E[(PostgreSQL<br>FileMetadata)]
-    F[Health Endpoint<br>GET /health] --> G[check_file_storage_health]
+    F[Storage Status Endpoint<br>GET /files/storage_status] --> G[check_file_storage_health]
     G --> C
     H[Frontend<br>useFileStorageStatus] --> F
     H --> I[Settings Banner]
@@ -55,7 +55,7 @@ graph TD
 | **FileMetadata** | SQLModel for file metadata (id, filename, path, size, mime_type, content_hash, status) | `src/nexus/files/models/file_metadata.py` |
 | **FileStorageSettings** | Pydantic settings for S3 env vars | `src/nexus/core/config/base.py` |
 | **Health** | Startup validation and runtime health probes | `src/nexus/files/health.py` |
-| **useFileStorageStatus** | React hook; queries `/health`, returns `isConfigured` boolean | `frontend/.../hooks/useFileStorageStatus.ts` |
+| **useFileStorageStatus** | React hook; queries `/files/storage_status`, returns `isConfigured` boolean | `frontend/.../hooks/useFileStorageStatus.ts` |
 
 ## Configuration
 
@@ -186,7 +186,7 @@ Audit events are dispatched via `AuditEventDispatcher.dispatch()` and flow throu
 
 ### Health States
 
-The health endpoint (`GET /health`) includes a `file_storage` field:
+The storage status endpoint (`GET /api/v1/files/storage_status`) reports a `status` field:
 
 | State | Meaning |
 |-------|---------|
@@ -194,6 +194,11 @@ The health endpoint (`GET /health`) includes a `file_storage` field:
 | `degraded` | S3 is configured but health check failed (transient error) |
 | `unconfigured` | `APP_S3_ENDPOINT_URL` is not set; file uploads disabled |
 | `error` | Health check threw an unexpected exception |
+
+Object storage is deliberately **absent** from the readiness probe (`GET /healthz/ready`). It is not a
+hard dependency — an unconfigured or degraded S3 backend only disables file uploads while the rest of
+the API serves normally — so it must never take a replica out of rotation. The deprecated `GET /health`
+still reports it as `checks.file_storage` until that endpoint is removed.
 
 ### Startup Validation
 
@@ -207,7 +212,7 @@ The app never hard-fails at startup due to S3. This lets developers work on non-
 
 ### Frontend Integration
 
-The `useFileStorageStatus` React hook polls `GET /health` (5-minute stale time via TanStack Query) and exposes `{ isConfigured, isLoading }`:
+The `useFileStorageStatus` React hook polls `GET /api/v1/files/storage_status` every 5 minutes (`refetchInterval`, paused while the tab is backgrounded) and exposes `{ isConfigured, isLoading }`. The interval is what makes the gate self-correcting in both directions — uploads re-enable after storage recovers and disable if it breaks — without requiring a reload:
 
 - **Settings page** — shows a PatternFly `Alert` warning banner when S3 is unconfigured: "File uploads are disabled. Contact your platform administrator to configure S3 storage."
 - **Workflow builder** — disables the file upload section in `AIAgentNodeForm` with a tooltip explaining the S3 requirement

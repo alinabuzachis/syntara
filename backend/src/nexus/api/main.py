@@ -1,10 +1,13 @@
 """Main FastAPI application module for Nexus."""
 
+import asyncio
 import json
 import ssl
 import sys
+import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any
@@ -40,7 +43,7 @@ from nexus.authz.exceptions import (  # noqa: F401
     RoleNotFoundError,
 )
 from nexus.core.config.base import get_settings, validate_encryption_key_at_startup
-from nexus.core.database.session import AsyncSessionLocal, engine, get_db
+from nexus.core.database.session import AsyncSessionLocal, engine
 from nexus.core.error_handlers import (
     generic_exception_handler,
     integrity_error_handler,
@@ -84,6 +87,42 @@ from nexus.workflows.error_handlers import (
 )
 
 logger = structlog.stdlib.get_logger(__name__)
+
+# Upper bound on the readiness database probe.  Must stay comfortably below
+# the smallest probe ``timeoutSeconds`` the operator configures (3s) so the
+# check fails fast instead of outliving the probe that started it.
+DB_PROBE_TIMEOUT_SECONDS = 2.0
+
+# How long a probe outcome is reused before the database is queried again.
+# Kept below the shortest probe period (5s) so every interval still gets a
+# fresh answer, while bursts of near-simultaneous probes collapse into one
+# query.
+DB_PROBE_CACHE_TTL_SECONDS = 2.0
+
+
+@dataclass(frozen=True)
+class _DbProbeOutcome:
+    """A memoised database probe result.
+
+    ``error_detail`` is stored rather than an ``HTTPException`` so each
+    caller raises a fresh exception instead of re-raising one shared
+    instance, which would accumulate tracebacks across requests.
+    """
+
+    expires_at: float
+    error_detail: str | None
+
+    def resolve(self) -> str:
+        """Return ``"ok"``, or raise the 503 this outcome represents."""
+        if self.error_detail is not None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=self.error_detail,
+            )
+        return "ok"
+
+
+_db_probe_cache: _DbProbeOutcome | None = None
 
 
 async def _check_settings_catalog(session_factory: Any = None) -> None:  # noqa: ANN401
@@ -410,16 +449,92 @@ app.add_exception_handler(Exception, generic_exception_handler)
 # See lifespan function above for router registration logic
 
 
-@app.get("/health", tags=["Health"], include_in_schema=False)
+async def _check_database() -> str:
+    """Verify database connectivity, the API's only hard dependency.
+
+    The probe is bounded well below the orchestrator's ``timeoutSeconds``
+    so it fails fast rather than piling up.  Without a bound, a saturated
+    pool makes the check wait out ``db_pool_timeout_seconds`` (30s by
+    default) and a slow-but-alive database hangs it indefinitely — long
+    past the point where the kubelet has abandoned the probe.  Each
+    abandoned check keeps its place in the pool's FIFO queue, so probes
+    accumulate and contend for connections exactly when they are
+    scarcest, which is self-amplifying: the pool saturates, readiness
+    fails, the replica leaves the Service endpoints, and its load shifts
+    onto pods in the same state.
+
+    The session is opened directly rather than via the ``get_db()``
+    yield-dependency: driving that generator with ``async for ... break``
+    leaves it suspended at its ``yield``, so ``session.close()`` never
+    runs and the pooled connection stays checked out until asyncgen
+    finalization — on the success path of every probe. ``async with``
+    releases it deterministically, which is what makes the bound above
+    limit how long the probe *holds* a slot rather than only how long it
+    waits for one.
+
+    The outcome is cached for ``DB_PROBE_CACHE_TTL_SECONDS``.  Three probes
+    (startup, readiness, and the deprecated ``/health``) can fire within the
+    same second, and without a cache each one opens its own connection —
+    precisely when the pool is most contended.  Failures are cached too, so
+    an outage does not turn every probe into another query against a
+    database that is already struggling.  The TTL is short enough that
+    recovery is still noticed within one probe interval.
+
+    Returns:
+        str: ``"ok"`` when the connectivity probe succeeded.
+
+    Raises:
+        HTTPException: 503 when the database is unreachable or too slow.
+
+    """
+    # The memo is deliberately process-wide: every probe served by this
+    # worker shares it, which is what collapses a burst into one query.
+    global _db_probe_cache  # noqa: PLW0603
+
+    cached = _db_probe_cache
+    if cached is not None and cached.expires_at > time.monotonic():
+        return cached.resolve()
+
+    error_detail: str | None = None
+    try:
+        async with asyncio.timeout(DB_PROBE_TIMEOUT_SECONDS), AsyncSessionLocal() as session:
+            result = await session.exec(text("SELECT 1"))  # type: ignore[call-overload]
+            result.scalar()
+    except TimeoutError:
+        logger.warning(
+            "Readiness check failed: database probe timed out",
+            timeout_seconds=DB_PROBE_TIMEOUT_SECONDS,
+        )
+        error_detail = f"Database probe did not complete within {DB_PROBE_TIMEOUT_SECONDS}s"
+    except Exception as e:  # noqa: BLE001
+        # Any failure at all means "not ready"; a probe has no use for the
+        # distinction between one connectivity error and another.
+        logger.debug("Readiness check failed: database connectivity error", error=str(e), exc_info=True)
+        error_detail = "Database is unreachable"
+
+    _db_probe_cache = _DbProbeOutcome(
+        expires_at=time.monotonic() + DB_PROBE_CACHE_TTL_SECONDS,
+        error_detail=error_detail,
+    )
+    return _db_probe_cache.resolve()
+
+
+@app.get("/health", tags=["Health"], include_in_schema=False, deprecated=True)
 async def health_check(request: Request) -> dict[str, Any]:  # noqa: ARG001
     """Health check endpoint with database connectivity test.
+
+    Deprecated: use ``/healthz/live`` for liveness and ``/healthz/ready``
+    for readiness.  This endpoint is retained until every consumer (the
+    operator's probes in particular) has migrated, and is removed in a
+    follow-up change.
 
     Returns:
         dict: Health status with database status
 
     Responses:
         200: Service is healthy and database is connected
-        503: Service is unavailable (database connection failed)
+        503: Database unreachable or too slow. The body is an RFC 9457
+            problem document, not the 200 payload shape.
 
     Example:
         ```bash
@@ -440,26 +555,7 @@ async def health_check(request: Request) -> dict[str, Any]:  # noqa: ARG001
 
     """
     timestamp = datetime.now(UTC).isoformat()
-
-    # Check database connectivity
-    db_status = "unknown"
-    try:
-        async for session in get_db():
-            result = await session.exec(text("SELECT 1"))  # type: ignore[call-overload]
-            result.scalar()
-            db_status = "ok"
-            break
-    except Exception as e:
-        logger.debug("Health check failed: database connectivity error", error=str(e), exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={
-                "status": "unhealthy",
-                "timestamp": timestamp,
-                "checks": {"database": "error"},
-            },
-        ) from e
-
+    db_status = await _check_database()
     file_storage_status = await check_file_storage_health()
 
     return {
@@ -469,6 +565,87 @@ async def health_check(request: Request) -> dict[str, Any]:  # noqa: ARG001
             "database": db_status,
             "file_storage": file_storage_status,
         },
+    }
+
+
+@app.get("/healthz/live", tags=["Health"])
+async def liveness_check() -> dict[str, str]:
+    """Liveness probe: report whether the process itself is still serving.
+
+    Deliberately checks no backing service.  A liveness failure causes the
+    orchestrator to restart the container, so depending on the database
+    here would turn a transient database blip into a restart storm across
+    every replica.  Dependency health belongs in ``/healthz/ready``.
+
+    Returns:
+        dict: Liveness status
+
+    Responses:
+        200: The process is alive and able to serve requests
+
+    Example:
+        ```bash
+        curl http://localhost:8000/healthz/live
+        ```
+
+        Response:
+        ```json
+        {
+            "status": "alive",
+            "timestamp": "2025-10-09T12:00:00Z"
+        }
+        ```
+
+    """
+    return {
+        "status": "alive",
+        "timestamp": datetime.now(UTC).isoformat(),
+    }
+
+
+@app.get("/healthz/ready", tags=["Health"])
+async def readiness_check() -> dict[str, Any]:
+    """Readiness probe: report whether the API can serve traffic.
+
+    Verifies database connectivity, the API's only hard dependency.  A
+    failure removes the pod from the Service endpoints without restarting
+    it, so the replica rejoins automatically once the database recovers.
+
+    Object storage is deliberately excluded: it is not a hard dependency,
+    since an unconfigured or degraded S3 backend only disables file
+    uploads while the rest of the API serves normally.  Its status is
+    reported by ``GET /api/v1/files/storage_status`` instead.
+
+    Returns:
+        dict: Readiness status with database status
+
+    Responses:
+        200: Service is ready and the database is connected
+        503: Database unreachable or slower than
+            ``DB_PROBE_TIMEOUT_SECONDS``. The body is an RFC 9457 problem
+            document, not the 200 payload shape.
+
+    Example:
+        ```bash
+        curl http://localhost:8000/healthz/ready
+        ```
+
+        Response:
+        ```json
+        {
+            "status": "ready",
+            "timestamp": "2025-10-09T12:00:00Z",
+            "checks": {
+                "database": "ok"
+            }
+        }
+        ```
+
+    """
+    return {
+        "status": "ready",
+        "timestamp": datetime.now(UTC).isoformat(),
+        "checks": {"database": await _check_database()},
     }
 
 

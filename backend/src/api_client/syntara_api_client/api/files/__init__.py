@@ -32,6 +32,14 @@ class FilesApi:
         endpoint_module = self._load_endpoint_module("upload_files")
         return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
 
+    def get_storage_status(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("get_file_storage_status")
+        return endpoint_module.sync_detailed(client=self._client, **kwargs)
+
+    async def async_get_storage_status(self, **kwargs: Any) -> Response[Any]:
+        endpoint_module = self._load_endpoint_module("get_file_storage_status")
+        return await endpoint_module.asyncio_detailed(client=self._client, **kwargs)
+
     def get_metadata(self, **kwargs: Any) -> Response[Any]:
         endpoint_module = self._load_endpoint_module("get_files_metadata")
         return endpoint_module.sync_detailed(client=self._client, **kwargs)

@@ -138,6 +138,8 @@ __all__ = (
     "FileDetailResponse",
     "FilesMetadataResponse",
     "FileStatus",
+    "FileStorageStatus",
+    "FileStorageStatusResponse",
     "FileUploadInfo",
     "FileUploadResponse",
     "ForEachLoopParameters",

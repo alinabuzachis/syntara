@@ -90,6 +90,46 @@ paths:
       security:
         - bearerAuth: []
 
+  /files/storage_status:
+    get:
+      summary: Get File Storage Status
+      description: >-
+        Report whether the S3-compatible object storage backend is configured
+        and reachable. Clients use this to disable file upload controls when
+        uploads cannot succeed. Object storage is not a hard dependency of the
+        API, so this is reported here rather than on the readiness probe.
+      operationId: get_file_storage_status
+      tags:
+        - Files
+      x-app-permission:
+        resource: null
+        action: null
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileStorageStatusResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "429":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      security:
+        - bearerAuth: []
+
   /files/metadata:
     get:
       summary: Get files metadata (batch)
@@ -236,6 +276,31 @@ paths:
 
 components:
   schemas:
+    FileStorageStatus:
+      type: string
+      enum:
+        - ok
+        - degraded
+        - unconfigured
+        - error
+      title: FileStorageStatus
+      description: Availability of the S3-compatible object storage backend.
+
+    FileStorageStatusResponse:
+      type: object
+      title: FileStorageStatusResponse
+      description: Response model for GET /files/storage_status endpoint.
+      required:
+        - status
+      properties:
+        status:
+          $ref: '#/components/schemas/FileStorageStatus'
+          description: >-
+            Availability of the object storage backend. Anything other than
+            'ok' means file uploads are unavailable.
+          examples:
+            - ok
+
     UploadFilesBody:
       type: object
       title: UploadFilesBody

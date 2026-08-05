@@ -3548,6 +3548,11 @@ export const handlers = [
     })
   }),
 
+  // Mock deployments always have object storage available, so upload
+  // controls stay enabled. Change to 'unconfigured' to exercise the
+  // disabled-upload states.
+  http.get('/api/v1/files/storage_status', () => HttpResponse.json({ status: 'ok' })),
+
   http.get('/api/v1/files/metadata', ({ request }) => {
     const url = new URL(request.url)
     const fileIds = url.searchParams.getAll('file_ids')

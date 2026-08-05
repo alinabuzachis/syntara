@@ -30,9 +30,10 @@ from nexus.authz.dependencies import PermissionChecker, VisibilityFilter
 from nexus.authz.engine import VisibilityResult
 from nexus.core.database.session import get_db
 from nexus.core.models import User
-from nexus.core.nexus_router import NexusRouter
+from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 from nexus.files.audit.file_downloaded import FileDownloadedEvent
 from nexus.files.file_manager import FileManager, get_file_manager
+from nexus.files.health import FileStorageStatus, check_file_storage_health
 from nexus.files.models.file_metadata import FileMetadata, FileStatus
 from nexus.files.storage import sanitize_filename
 from nexus.workflows.executions_router import get_temporal_execution_service
@@ -259,6 +260,38 @@ class FilesMetadataResponse(BaseModel):
     files: list[FileUploadInfo] = Field(
         description="Metadata for each found file (missing IDs are silently omitted)",
     )
+
+
+class FileStorageStatusResponse(BaseModel):
+    """Response model for GET /files/storage_status endpoint."""
+
+    status: FileStorageStatus = Field(
+        description="Availability of the object storage backend. Anything other than 'ok' means file uploads "
+        "are unavailable.",
+        examples=["ok"],
+    )
+
+
+@router.get(
+    "/storage_status",
+    summary="Get File Storage Status",
+    description="Report whether the S3-compatible object storage backend is configured and reachable. "
+    "Clients use this to disable file upload controls when uploads cannot succeed. "
+    "Object storage is not a hard dependency of the API, so this is reported here rather than "
+    "on the readiness probe.",
+    dependencies=[NO_PERMISSION],
+    operation_id="get_file_storage_status",
+)
+async def get_file_storage_status(
+    current_user: Annotated[User, Depends(get_current_user)],  # noqa: ARG001
+) -> FileStorageStatusResponse:
+    """Report object storage availability.
+
+    Permission-free beyond authentication: this exposes deployment
+    configuration state rather than any project-scoped resource, and every
+    authenticated user needs it to render upload controls correctly.
+    """
+    return FileStorageStatusResponse(status=await check_file_storage_health())
 
 
 _files_visibility = VisibilityFilter("files", "download")

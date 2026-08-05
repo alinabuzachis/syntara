@@ -1,62 +1,124 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { renderHook, waitFor } from '@testing-library/react'
-import { createElement } from 'react'
-import type { ReactNode } from 'react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { renderHook } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { filesClient } from '../client'
 
 import { useFileStorageStatus } from './useFileStorageStatus'
 
-function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  })
-  return function Wrapper({ children }: { children: ReactNode }) {
-    return createElement(QueryClientProvider, { client: queryClient }, children)
-  }
+// ---------------------------------------------------------------------------
+// Mocks
+// ---------------------------------------------------------------------------
+
+vi.mock('../client', () => ({
+  filesClient: {
+    useQuery: vi.fn(),
+  },
+  filesFetchClient: {
+    use: vi.fn(),
+  },
+}))
+
+const mockUseQuery = vi.mocked(filesClient.useQuery)
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+type MockQueryResult = {
+  data: unknown
+  isLoading: boolean
+  isError: boolean
 }
 
-function mockFetchResponse(body: unknown, ok = true) {
-  vi.mocked(global.fetch).mockResolvedValue({
-    ok,
-    status: ok ? 200 : 500,
-    json: () => Promise.resolve(body),
-  } as Response)
+function settled(status: string): MockQueryResult {
+  return { data: { status }, isLoading: false, isError: false }
 }
+
+const FIVE_MINUTES_MS = 5 * 60 * 1000
+
+const loadingResult: MockQueryResult = { data: undefined, isLoading: true, isError: false }
+const errorResult: MockQueryResult = { data: undefined, isLoading: false, isError: true }
+
+function mockResult(result: MockQueryResult) {
+  mockUseQuery.mockReturnValue(result as unknown as ReturnType<typeof filesClient.useQuery>)
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
 
 describe('useFileStorageStatus', () => {
   beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn())
+    vi.clearAllMocks()
   })
 
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
+  it('returns isConfigured true and status "ok" when storage is ok', () => {
+    mockResult(settled('ok'))
 
-  it('returns isConfigured true and status "ok" when file_storage is "ok"', async () => {
-    mockFetchResponse({ status: 'ok', checks: { file_storage: 'ok' } })
-
-    const { result } = renderHook(() => useFileStorageStatus(), { wrapper: createWrapper() })
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false)
-    })
+    const { result } = renderHook(() => useFileStorageStatus())
 
     expect(result.current.isConfigured).toBe(true)
     expect(result.current.status).toBe('ok')
     expect(result.current.isError).toBe(false)
-    expect(global.fetch).toHaveBeenCalledWith('/health')
+  })
+
+  it('queries the file storage status endpoint', () => {
+    mockResult(settled('ok'))
+
+    renderHook(() => useFileStorageStatus())
+
+    expect(mockUseQuery).toHaveBeenCalledWith('get', '/files/storage_status', {}, expect.objectContaining({ retry: 1 }))
+  })
+
+  it('polls on an interval so the gate recovers without a reload', () => {
+    // staleTime alone only marks data stale — it never schedules a refetch,
+    // so without refetchInterval a long-lived page keeps its first answer.
+    mockResult(settled('ok'))
+
+    renderHook(() => useFileStorageStatus())
+
+    expect(mockUseQuery).toHaveBeenCalledWith(
+      'get',
+      '/files/storage_status',
+      {},
+      expect.objectContaining({ refetchInterval: FIVE_MINUTES_MS })
+    )
+  })
+
+  it('re-enables uploads once storage recovers from degraded to ok', () => {
+    mockResult(settled('degraded'))
+
+    const { result, rerender } = renderHook(() => useFileStorageStatus())
+
+    expect(result.current.isConfigured).toBe(false)
+
+    mockResult(settled('ok'))
+    rerender()
+
+    expect(result.current.isConfigured).toBe(true)
+    expect(result.current.status).toBe('ok')
+  })
+
+  it('disables uploads when storage breaks while the page is open', () => {
+    mockResult(settled('ok'))
+
+    const { result, rerender } = renderHook(() => useFileStorageStatus())
+
+    expect(result.current.isConfigured).toBe(true)
+
+    mockResult(settled('degraded'))
+    rerender()
+
+    expect(result.current.isConfigured).toBe(false)
+    expect(result.current.status).toBe('degraded')
   })
 
   it.each(['degraded', 'error', 'unconfigured'] as const)(
-    'returns isConfigured false and status "%s" when file_storage is "%s"',
-    async (status) => {
-      mockFetchResponse({ status, checks: { file_storage: status } })
+    'returns isConfigured false and status "%s" when storage is "%s"',
+    (status) => {
+      mockResult(settled(status))
 
-      const { result } = renderHook(() => useFileStorageStatus(), { wrapper: createWrapper() })
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false)
-      })
+      const { result } = renderHook(() => useFileStorageStatus())
 
       expect(result.current.isConfigured).toBe(false)
       expect(result.current.status).toBe(status)
@@ -64,60 +126,19 @@ describe('useFileStorageStatus', () => {
   )
 
   it('defaults to isConfigured true and isLoading true while in flight', () => {
-    vi.mocked(global.fetch).mockReturnValue(new Promise(() => {}))
+    mockResult(loadingResult)
 
-    const { result } = renderHook(() => useFileStorageStatus(), { wrapper: createWrapper() })
+    const { result } = renderHook(() => useFileStorageStatus())
 
     expect(result.current.isConfigured).toBe(true)
     expect(result.current.isLoading).toBe(true)
     expect(result.current.status).toBeUndefined()
   })
 
-  it('defaults to isConfigured true when fetch fails', async () => {
-    vi.mocked(global.fetch).mockRejectedValue(new Error('network error'))
+  it('defaults to isConfigured true when the query fails', () => {
+    mockResult(errorResult)
 
-    const { result } = renderHook(() => useFileStorageStatus(), { wrapper: createWrapper() })
-
-    await waitFor(
-      () => {
-        expect(result.current.isLoading).toBe(false)
-      },
-      { timeout: 5000 }
-    )
-
-    expect(result.current.isConfigured).toBe(true)
-    expect(result.current.isError).toBe(true)
-    expect(result.current.status).toBeUndefined()
-  })
-
-  it('defaults to isConfigured true when response is not ok', async () => {
-    mockFetchResponse(null, false)
-
-    const { result } = renderHook(() => useFileStorageStatus(), { wrapper: createWrapper() })
-
-    await waitFor(
-      () => {
-        expect(result.current.isLoading).toBe(false)
-      },
-      { timeout: 5000 }
-    )
-
-    expect(result.current.isConfigured).toBe(true)
-    expect(result.current.isError).toBe(true)
-    expect(result.current.status).toBeUndefined()
-  })
-
-  it('defaults to isConfigured true when response has unexpected shape', async () => {
-    mockFetchResponse({ unexpected: 'shape' })
-
-    const { result } = renderHook(() => useFileStorageStatus(), { wrapper: createWrapper() })
-
-    await waitFor(
-      () => {
-        expect(result.current.isLoading).toBe(false)
-      },
-      { timeout: 5000 }
-    )
+    const { result } = renderHook(() => useFileStorageStatus())
 
     expect(result.current.isConfigured).toBe(true)
     expect(result.current.isError).toBe(true)

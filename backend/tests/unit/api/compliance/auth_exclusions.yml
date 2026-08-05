@@ -79,6 +79,11 @@ authenticated:
     path: /api/v1/executions
     justification: Authorization enforced inline via authorize()
 
+  # -- files --
+  - method: GET
+    path: /api/v1/files/storage_status
+    justification: Deployment configuration state, not a project-scoped resource; every authenticated user needs it to render upload controls
+
   # -- credentials --
   - method: GET
     path: /api/v1/credential_types

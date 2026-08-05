@@ -1,14 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
+import type { FilesAPI } from '@syntara/contracts'
 
-export type HealthCheckStatus = 'ok' | 'degraded' | 'unconfigured' | 'error'
+import { filesClient } from '../client'
 
-type HealthzResponse = {
-  status: string
-  checks: {
-    file_storage: HealthCheckStatus
-    [key: string]: unknown
-  }
-}
+export type HealthCheckStatus = FilesAPI.components['schemas']['FileStorageStatus']
 
 type UseFileStorageStatusResult = {
   isConfigured: boolean
@@ -17,36 +11,26 @@ type UseFileStorageStatusResult = {
   status: HealthCheckStatus | undefined
 }
 
-function isHealthzResponse(data: unknown): data is HealthzResponse {
-  return (
-    typeof data === 'object' &&
-    data !== null &&
-    'checks' in data &&
-    typeof (data as Record<string, unknown>).checks === 'object'
-  )
-}
-
 const FIVE_MINUTES_MS = 5 * 60 * 1000
 
 export function useFileStorageStatus(): UseFileStorageStatusResult {
-  const query = useQuery({
-    queryKey: ['health', 'file_storage'],
-    queryFn: async () => {
-      const response = await fetch('/health')
-      if (!response.ok) {
-        throw new Error(`Health check failed: ${response.status}`)
-      }
-      const json: unknown = await response.json()
-      if (!isHealthzResponse(json)) {
-        throw new Error('Unexpected health check response shape')
-      }
-      return json
-    },
-    staleTime: FIVE_MINUTES_MS,
-    retry: 1,
-  })
+  const query = filesClient.useQuery(
+    'get',
+    '/files/storage_status',
+    {},
+    {
+      staleTime: FIVE_MINUTES_MS,
+      // staleTime alone only marks cached data stale; it never schedules a
+      // refetch. Without this, a page open across an S3 outage keeps its
+      // first answer forever — uploads stay disabled after storage recovers,
+      // and stay enabled after it breaks. Polling both directions is what
+      // makes the gate self-correcting. Paused while the tab is backgrounded.
+      refetchInterval: FIVE_MINUTES_MS,
+      retry: 1,
+    }
+  )
 
-  const fileStorageStatus = query.data?.checks.file_storage
+  const fileStorageStatus = query.data?.status
   // Fail-open: undefined (network error, loading, malformed response) defaults to configured
   const isConfigured = fileStorageStatus === 'ok' || fileStorageStatus === undefined
 

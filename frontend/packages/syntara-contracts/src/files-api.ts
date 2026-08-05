@@ -24,6 +24,26 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/files/storage_status': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get File Storage Status
+     * @description Report whether the S3-compatible object storage backend is configured and reachable. Clients use this to disable file upload controls when uploads cannot succeed. Object storage is not a hard dependency of the API, so this is reported here rather than on the readiness probe.
+     */
+    get: operations['get_file_storage_status']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/files/metadata': {
     parameters: {
       query?: never
@@ -88,6 +108,23 @@ export interface paths {
 export type webhooks = Record<string, never>
 export interface components {
   schemas: {
+    /**
+     * FileStorageStatus
+     * @description Availability of the S3-compatible object storage backend.
+     * @enum {string}
+     */
+    FileStorageStatus: 'ok' | 'degraded' | 'unconfigured' | 'error'
+    /**
+     * FileStorageStatusResponse
+     * @description Response model for GET /files/storage_status endpoint.
+     */
+    FileStorageStatusResponse: {
+      /**
+       * @description Availability of the object storage backend. Anything other than 'ok' means file uploads are unavailable.
+       * @example ok
+       */
+      status: components['schemas']['FileStorageStatus']
+    }
     /**
      * UploadFilesBody
      * @description Request body for POST /files endpoint.
@@ -465,6 +502,34 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['FileUploadResponse']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      429: components['responses']['RateLimitError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  get_file_storage_status: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['FileStorageStatusResponse']
         }
       }
       400: components['responses']['BadRequestError']

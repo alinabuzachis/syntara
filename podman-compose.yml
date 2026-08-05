@@ -196,7 +196,7 @@ services:
       moto:
         condition: service_healthy
     healthcheck:
-      test: [CMD-SHELL, 'python3 -c "import urllib.request,ssl;ctx=ssl.create_default_context(cafile=\"/run/secrets/s2s-ca.pem\");urllib.request.urlopen(\"https://localhost:8000/health\",context=ctx)"']
+      test: [CMD-SHELL, 'python3 -c "import urllib.request,ssl;ctx=ssl.create_default_context(cafile=\"/run/secrets/s2s-ca.pem\");urllib.request.urlopen(\"https://localhost:8000/healthz/ready\",context=ctx)"']
       interval: 10s
       timeout: 10s
       retries: 5

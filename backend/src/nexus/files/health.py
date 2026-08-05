@@ -6,6 +6,7 @@ Provides startup validation and runtime health probes for S3 storage.
 from __future__ import annotations
 
 import asyncio
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 import structlog
@@ -18,6 +19,22 @@ if TYPE_CHECKING:
 logger = structlog.stdlib.get_logger(__name__)
 
 HEALTH_CHECK_TIMEOUT_SECONDS = 10
+
+
+class FileStorageStatus(StrEnum):
+    """Availability of the S3-compatible object storage backend."""
+
+    OK = "ok"
+    """Configured and reachable."""
+
+    DEGRADED = "degraded"
+    """Configured but the reachability probe failed or timed out."""
+
+    UNCONFIGURED = "unconfigured"
+    """``APP_S3_ENDPOINT_URL`` is not set; file uploads are disabled."""
+
+    ERROR = "error"
+    """The probe raised an unexpected exception."""
 
 
 async def validate_file_storage_at_startup(settings: Settings) -> None:
@@ -52,24 +69,23 @@ async def validate_file_storage_at_startup(settings: Settings) -> None:
         logger.info("S3 file storage connected", bucket_name=settings.s3_bucket_name)
 
 
-async def check_file_storage_health() -> str:
+async def check_file_storage_health() -> FileStorageStatus:
     """Probe S3 file storage.
 
-    Returns one of: ``"ok"``, ``"degraded"``, ``"unconfigured"``, ``"error"``.
-    Never raises — all failures are caught and mapped to a status string.
+    Never raises — all failures are caught and mapped to a status value.
     """
     try:
         file_manager = get_file_manager()
         if not file_manager.s3_configured:
-            return "unconfigured"
+            return FileStorageStatus.UNCONFIGURED
         healthy = await asyncio.wait_for(
             file_manager.get_retriever().health_check(),
             timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
         )
-        return "ok" if healthy else "degraded"
+        return FileStorageStatus.OK if healthy else FileStorageStatus.DEGRADED
     except TimeoutError:
         logger.debug("Health check: file storage timed out")
-        return "degraded"
+        return FileStorageStatus.DEGRADED
     except Exception:  # noqa: BLE001
         logger.debug("Health check: file storage check failed", exc_info=True)
-        return "error"
+        return FileStorageStatus.ERROR
