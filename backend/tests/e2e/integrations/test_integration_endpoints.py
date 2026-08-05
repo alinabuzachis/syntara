@@ -346,8 +346,12 @@ class TestValidateIntegration:
         assert result.error is not None
         assert result.error_type in ["connection_error", "timeout"]
 
+    @pytest.mark.mcp
     def test_validate_success_against_real_mcp_server(
-        self, nexus_api: SyntaraApiRegistry, integration_factory: Callable[..., dict[str, Any]]
+        self,
+        nexus_api: SyntaraApiRegistry,
+        integration_factory: Callable[..., dict[str, Any]],
+        mcp_integration_id: str,
     ) -> None:
         """Validate performs real MCP ping against test server — succeeds and returns success=True."""
         created = integration_factory(
