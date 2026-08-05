@@ -37,12 +37,12 @@ function makeApproval(overrides: Partial<ApprovalWithDetails> = {}): ApprovalWit
     created_at: '2026-07-01T10:00:00Z',
     decided_at: null,
     decided_by: null,
+    decision_notes: null,
     execution_id: 'exec-1',
     approvalName: 'Test Approval',
     workflowName: 'Test Workflow',
     workflowId: 'wf-1',
     workflowVersion: 3,
-    description: 'A test approval',
     ...overrides,
   } as ApprovalWithDetails
 }
@@ -139,34 +139,88 @@ describe('FlatApprovalsTableBody', () => {
     expect(screen.getByText('—')).toBeInTheDocument()
   })
 
-  it('shows expanded row content with description', () => {
-    const Wrapper = createWrapper()
-    render(
-      <Wrapper>
-        <Table aria-label="Approvals" isExpandable>
-          <FlatApprovalsTableBody {...defaultProps} expandedRows={new Set(['approval-1'])} onToggleRow={vi.fn()} />
-        </Table>
-      </Wrapper>
-    )
-
-    expect(screen.getByText('A test approval')).toBeInTheDocument()
-  })
-
-  it('shows fallback text when description is empty', () => {
+  it('shows expanded row content with approval notes for an approved decision', () => {
     const Wrapper = createWrapper()
     render(
       <Wrapper>
         <Table aria-label="Approvals" isExpandable>
           <FlatApprovalsTableBody
             {...defaultProps}
-            approvals={[makeApproval({ description: null })]}
+            approvals={[makeApproval({ status: 'approved', decision_notes: 'Looks good, approved.' })]}
             expandedRows={new Set(['approval-1'])}
           />
         </Table>
       </Wrapper>
     )
 
-    expect(screen.getByText('No description provided')).toBeInTheDocument()
+    expect(screen.getByText('Approval notes')).toBeInTheDocument()
+    expect(screen.getByText('Looks good, approved.')).toBeInTheDocument()
+  })
+
+  it('shows expanded row content with rejection notes for a rejected decision', () => {
+    const Wrapper = createWrapper()
+    render(
+      <Wrapper>
+        <Table aria-label="Approvals" isExpandable>
+          <FlatApprovalsTableBody
+            {...defaultProps}
+            approvals={[makeApproval({ status: 'rejected', decision_notes: 'Not ready yet.' })]}
+            expandedRows={new Set(['approval-1'])}
+          />
+        </Table>
+      </Wrapper>
+    )
+
+    expect(screen.getByText('Rejection notes')).toBeInTheDocument()
+    expect(screen.getByText('Not ready yet.')).toBeInTheDocument()
+  })
+
+  it('does not render an expand toggle for a pending approval with no decision notes', () => {
+    const Wrapper = createWrapper()
+    render(
+      <Wrapper>
+        <Table aria-label="Approvals" isExpandable>
+          <FlatApprovalsTableBody {...defaultProps} approvals={[makeApproval({ decision_notes: null })]} />
+        </Table>
+      </Wrapper>
+    )
+
+    expect(screen.queryByRole('button', { name: /details/i })).not.toBeInTheDocument()
+  })
+
+  it('does not render an expand toggle for a decided approval with no decision notes', () => {
+    const Wrapper = createWrapper()
+    render(
+      <Wrapper>
+        <Table aria-label="Approvals" isExpandable>
+          <FlatApprovalsTableBody
+            {...defaultProps}
+            approvals={[makeApproval({ status: 'approved', decision_notes: null })]}
+          />
+        </Table>
+      </Wrapper>
+    )
+
+    expect(screen.queryByRole('button', { name: /details/i })).not.toBeInTheDocument()
+  })
+
+  it('renders an expand toggle only for approvals with decision notes', () => {
+    const Wrapper = createWrapper()
+    render(
+      <Wrapper>
+        <Table aria-label="Approvals" isExpandable>
+          <FlatApprovalsTableBody
+            {...defaultProps}
+            approvals={[
+              makeApproval({ id: 'approval-1', status: 'pending', decision_notes: null }),
+              makeApproval({ id: 'approval-2', status: 'approved', decision_notes: 'Approved after review.' }),
+            ]}
+          />
+        </Table>
+      </Wrapper>
+    )
+
+    expect(screen.getAllByRole('button', { name: /details/i })).toHaveLength(1)
   })
 
   it('has no accessibility violations', async () => {
@@ -175,6 +229,23 @@ describe('FlatApprovalsTableBody', () => {
       <Wrapper>
         <Table aria-label="Approvals" isExpandable>
           <FlatApprovalsTableBody {...defaultProps} />
+        </Table>
+      </Wrapper>
+    )
+
+    expect(await axe(container)).toHaveNoViolations()
+  })
+
+  it('has no accessibility violations with an expanded row showing decision notes', async () => {
+    const Wrapper = createWrapper()
+    const { container } = render(
+      <Wrapper>
+        <Table aria-label="Approvals" isExpandable>
+          <FlatApprovalsTableBody
+            {...defaultProps}
+            approvals={[makeApproval({ status: 'approved', decision_notes: 'Looks good, approved.' })]}
+            expandedRows={new Set(['approval-1'])}
+          />
         </Table>
       </Wrapper>
     )

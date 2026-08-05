@@ -11,6 +11,8 @@ export type ApprovalsTableHeadProps = {
   allRowsExpanded: boolean
   collapseAllAriaLabel: string
   onCollapseAll: (event: unknown, rowIndex: number, isOpen: boolean) => void
+  /** Whether any approval on the current page has expandable decision notes. Hides the expand-all toggle when false. */
+  hasExpandableRows?: boolean
   showSelect?: boolean
   allPendingSelected?: boolean
   onSelectAll?: (checked: boolean) => void
@@ -25,6 +27,7 @@ export function ApprovalsTableHead(props: Readonly<ApprovalsTableHeadProps>) {
     allRowsExpanded,
     collapseAllAriaLabel,
     onCollapseAll,
+    hasExpandableRows = true,
     showSelect = false,
     allPendingSelected = false,
     onSelectAll,
@@ -64,12 +67,17 @@ export function ApprovalsTableHead(props: Readonly<ApprovalsTableHeadProps>) {
             />
           ))}
         <Th
-          expand={{
-            areAllExpanded: !allRowsExpanded,
-            collapseAllAriaLabel,
-            onToggle: onCollapseAll,
-          }}
-          aria-label="Row expansion"
+          expand={
+            hasExpandableRows
+              ? {
+                  areAllExpanded: !allRowsExpanded,
+                  collapseAllAriaLabel,
+                  onToggle: onCollapseAll,
+                }
+              : undefined
+          }
+          aria-label={hasExpandableRows ? 'Row expansion' : undefined}
+          screenReaderText={hasExpandableRows ? undefined : 'Row expansion'}
         />
         <Th modifier="nowrap" sort={getSortParams('name')}>
           Approval name

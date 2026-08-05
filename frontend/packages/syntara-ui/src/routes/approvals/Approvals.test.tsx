@@ -137,7 +137,6 @@ describe('Approvals Component', () => {
       execution_id: '660e8400-e29b-41d4-a716-446655440001',
       approval_node_id: 'approval-activity-1',
       name: 'Test Approval 1',
-      description: 'This is a test approval requiring manual review',
       status: 'pending',
       timeout_at: new Date(now + 22 * 60 * 60 * 1000).toISOString(),
       next_step_approved: {
@@ -178,7 +177,6 @@ describe('Approvals Component', () => {
       execution_id: '660e8400-e29b-41d4-a716-446655440002',
       approval_node_id: 'approval-activity-2',
       name: 'Test Approval 2',
-      description: 'Automated approval for workflow execution',
       status: 'approved',
       timeout_at: null,
       next_step_approved: {
@@ -217,7 +215,6 @@ describe('Approvals Component', () => {
       execution_id: '660e8400-e29b-41d4-a716-446655440003',
       approval_node_id: 'approval-activity-3',
       name: 'Test Approval 3',
-      description: 'Policy compliance review required',
       status: 'rejected',
       timeout_at: null,
       next_step_approved: {
@@ -482,18 +479,30 @@ describe('Approvals Component', () => {
   })
 
   describe('Row Expansion', () => {
+    // mockApprovals[0] is pending with no decision_notes, so it has no expand toggle.
+    // Only mockApprovals[1] (approved) and mockApprovals[2] (rejected) are expandable.
+
+    it('does not render an expand toggle for the pending approval with no decision notes', async () => {
+      mockApprovalsQuery(mockApprovals)
+
+      render(<Approvals />)
+
+      const expandButtons = await screen.findAllByRole('button', { name: /details/i })
+      expect(expandButtons).toHaveLength(2)
+    })
+
     it('expands a row when clicking the expand button', async () => {
       const user = userEvent.setup()
       mockApprovalsQuery(mockApprovals)
 
       render(<Approvals />)
 
-      // Find and click the first expand toggle
-      const expandButtons = screen.getAllByRole('button', { name: /details/i })
+      // First expand toggle belongs to mockApprovals[1] (the first expandable row)
+      const expandButtons = await screen.findAllByRole('button', { name: /details/i })
       await user.click(expandButtons[0])
 
-      // The expanded content should show the description
-      expect(screen.getByText('This is a test approval requiring manual review')).toBeInTheDocument()
+      expect(screen.getByText('Approval notes')).toBeInTheDocument()
+      expect(screen.getByText('Approved after review')).toBeInTheDocument()
     })
 
     it('collapses an expanded row when clicking the expand button again', async () => {
@@ -502,11 +511,11 @@ describe('Approvals Component', () => {
 
       render(<Approvals />)
 
-      const expandButtons = screen.getAllByRole('button', { name: /details/i })
+      const expandButtons = await screen.findAllByRole('button', { name: /details/i })
 
       // Expand then collapse
       await user.click(expandButtons[0])
-      expect(screen.getByText('This is a test approval requiring manual review')).toBeInTheDocument()
+      expect(screen.getByText('Approved after review')).toBeInTheDocument()
 
       await user.click(expandButtons[0])
       // Row toggle was clicked again - state should be collapsed
@@ -521,13 +530,12 @@ describe('Approvals Component', () => {
       render(<Approvals />)
 
       // Find the expand all button in the header
-      const expandAllButton = screen.getByRole('button', { name: /expand all/i })
+      const expandAllButton = await screen.findByRole('button', { name: /expand all/i })
       await user.click(expandAllButton)
 
-      // All descriptions should be visible
-      expect(screen.getByText('This is a test approval requiring manual review')).toBeInTheDocument()
-      expect(screen.getByText('Automated approval for workflow execution')).toBeInTheDocument()
-      expect(screen.getByText('Policy compliance review required')).toBeInTheDocument()
+      // Both expandable approvals' notes should be visible
+      expect(screen.getByText('Approved after review')).toBeInTheDocument()
+      expect(screen.getByText('Rejected due to policy violation')).toBeInTheDocument()
     })
 
     it('can collapse all rows using the header collapse toggle', async () => {
@@ -537,11 +545,11 @@ describe('Approvals Component', () => {
       render(<Approvals />)
 
       // Expand all first
-      const expandAllButton = screen.getByRole('button', { name: /expand all/i })
+      const expandAllButton = await screen.findByRole('button', { name: /expand all/i })
       await user.click(expandAllButton)
 
-      // All descriptions should be visible after expanding
-      expect(screen.getByText('This is a test approval requiring manual review')).toBeInTheDocument()
+      // Notes should be visible after expanding
+      expect(screen.getByText('Approved after review')).toBeInTheDocument()
 
       // The onCollapseAll function is tested by clicking again
       // After expanding all, clicking the toggle should collapse
@@ -551,22 +559,19 @@ describe('Approvals Component', () => {
       expect(expandAllButton).toBeInTheDocument()
     })
 
-    it('shows "No description provided" for approvals without description', async () => {
-      const user = userEvent.setup()
-      const approvalWithoutDesc = {
+    it('hides the header expand-all toggle when no approvals have decision notes', async () => {
+      const pendingOnly = {
         ...mockApprovals[0],
-        id: 'no-desc-approval',
-        description: null,
+        id: 'no-notes-approval',
       }
-      mockApprovalsQuery([approvalWithoutDesc] as Approval[])
+      mockApprovalsQuery([pendingOnly] as Approval[])
 
       render(<Approvals />)
 
-      // Expand the row
-      const expandButton = screen.getByRole('button', { name: /details/i })
-      await user.click(expandButton)
-
-      expect(screen.getByText('No description provided')).toBeInTheDocument()
+      await waitFor(() => {
+        expect(screen.queryByRole('button', { name: /expand all/i })).not.toBeInTheDocument()
+      })
+      expect(screen.queryByRole('button', { name: /details/i })).not.toBeInTheDocument()
     })
   })
 

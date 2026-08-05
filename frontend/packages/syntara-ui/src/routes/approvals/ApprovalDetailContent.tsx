@@ -28,6 +28,7 @@ import { useAlerts } from '../../providers/alerts'
 import { formatDateTime } from '../../utils/dateUtils'
 
 import styles from './ApprovalDetailContent.module.css'
+import { getNotesLabel } from './approvalNotes'
 import { ApprovalStatusBadges } from './approvalUtils'
 import { buildWorkflowBuilderLink } from './buildWorkflowBuilderLink'
 import { canDecideOnApproval } from './canDecideOnApproval'
@@ -51,12 +52,6 @@ const getDecisionCopy = (decision: 'approved' | 'rejected') => ({
   label: decision === 'approved' ? 'Approval notes' : 'Rejection notes',
   verb: decision === 'approved' ? 'approving' : 'rejecting',
 })
-
-const getNotesLabel = (status: string) => {
-  if (status === 'approved') return 'Approval notes'
-  if (status === 'rejected') return 'Rejection notes'
-  return 'Notes'
-}
 
 /** Resolve human-readable approval node name from activity name map. */
 function resolveApprovalName(approval: Approval, activityNameMap?: Map<string, string>): string {

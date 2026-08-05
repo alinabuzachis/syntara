@@ -23,6 +23,7 @@ import { detachPromise } from '../../utils/detachPromise'
 import { useDocLink } from '../../utils/docs/useDocLink'
 
 import { getApprovalNameFilterDefinition, getApprovalStatusFilterDefinition } from './approvalFilters'
+import { hasExpandableNotes } from './approvalNotes'
 import { ApprovalsBulkActions } from './ApprovalsBulkActions'
 import { FlatApprovalsTableBody, GroupedApprovalsTableBody } from './ApprovalsTableBody'
 import { ApprovalsTableHead } from './ApprovalsTableHead'
@@ -42,7 +43,6 @@ export type ApprovalWithDetails = Approval & {
   workflowName?: string
   workflowId?: string
   workflowVersion?: number
-  description?: string | null
 }
 
 type ApprovalsAction = { type: 'SET_EXPANDED_ROWS'; payload: Set<string> } | { type: 'TOGGLE_ROW'; payload: string }
@@ -117,6 +117,7 @@ type ApprovalsContentProps = {
   allRowsExpanded: boolean
   collapseAllAriaLabel: string
   onCollapseAll: (event: unknown, rowIndex: number, isOpen: boolean) => void
+  hasExpandableRows: boolean
   allPendingSelected: boolean
   onSelectAll: (checked: boolean) => void
   hasPendingApprovals: boolean
@@ -142,6 +143,7 @@ function ApprovalsContent({
   allRowsExpanded,
   collapseAllAriaLabel,
   onCollapseAll,
+  hasExpandableRows,
   allPendingSelected,
   onSelectAll,
   hasPendingApprovals,
@@ -180,6 +182,7 @@ function ApprovalsContent({
       allRowsExpanded={allRowsExpanded}
       collapseAllAriaLabel={collapseAllAriaLabel}
       onCollapseAll={onCollapseAll}
+      hasExpandableRows={hasExpandableRows}
       allPendingSelected={allPendingSelected}
       onSelectAll={onSelectAll}
       hasPendingApprovals={hasPendingApprovals}
@@ -205,6 +208,7 @@ type ApprovalsTableContentProps = {
   allRowsExpanded: boolean
   collapseAllAriaLabel: string
   onCollapseAll: (event: unknown, rowIndex: number, isOpen: boolean) => void
+  hasExpandableRows: boolean
   allPendingSelected: boolean
   onSelectAll: (checked: boolean) => void
   hasPendingApprovals: boolean
@@ -228,6 +232,7 @@ function ApprovalsTableContent({
   allRowsExpanded,
   collapseAllAriaLabel,
   onCollapseAll,
+  hasExpandableRows,
   allPendingSelected,
   onSelectAll,
   hasPendingApprovals,
@@ -249,6 +254,7 @@ function ApprovalsTableContent({
         allRowsExpanded={allRowsExpanded}
         collapseAllAriaLabel={collapseAllAriaLabel}
         onCollapseAll={onCollapseAll}
+        hasExpandableRows={hasExpandableRows}
         showSelect={true}
         allPendingSelected={allPendingSelected}
         onSelectAll={onSelectAll}
@@ -391,6 +397,12 @@ function ApprovalsPage({ approvalsDocLink }: { approvalsDocLink: string | null |
     return map
   }, [sortedApprovals, canDecideAllProjects, canDecideProjectNames, projects])
 
+  // Only approvals with non-empty decision notes render an expand toggle
+  const expandableApprovalIds = useMemo(
+    () => sortedApprovals.filter(hasExpandableNotes).map((approval) => approval.id),
+    [sortedApprovals]
+  )
+
   // Compute which approvals are selectable (checkbox enabled) for select-all logic
   const selectableApprovalIds = useSelectableApprovalIds(sortedApprovals, approvalPermissions, isLoadingDecideProjects)
 
@@ -444,14 +456,15 @@ function ApprovalsPage({ approvalsDocLink }: { approvalsDocLink: string | null |
 
   const toggleRow = (approvalId: string) => dispatch({ type: 'TOGGLE_ROW', payload: approvalId })
 
-  // Check if all rows are currently expanded
-  const allRowsExpanded = sortedApprovals.length > 0 && expandedRows.size === sortedApprovals.length
+  // Check if all expandable rows are currently expanded (rows without decision notes never expand)
+  const hasExpandableRows = expandableApprovalIds.length > 0
+  const allRowsExpanded = hasExpandableRows && expandableApprovalIds.every((id) => expandedRows.has(id))
   const collapseAllAriaLabel = allRowsExpanded ? 'Collapse all' : 'Expand all'
 
   const onCollapseAll = (_event: unknown, _rowIndex: number, isOpen: boolean) => {
     dispatch({
       type: 'SET_EXPANDED_ROWS',
-      payload: isOpen ? new Set(sortedApprovals.map((a) => a.id)) : new Set<string>(),
+      payload: isOpen ? new Set(expandableApprovalIds) : new Set<string>(),
     })
   }
 
@@ -505,6 +518,7 @@ function ApprovalsPage({ approvalsDocLink }: { approvalsDocLink: string | null |
               allRowsExpanded={allRowsExpanded}
               collapseAllAriaLabel={collapseAllAriaLabel}
               onCollapseAll={onCollapseAll}
+              hasExpandableRows={hasExpandableRows}
               allPendingSelected={allPendingSelected}
               onSelectAll={handleSelectAll}
               hasPendingApprovals={pendingApprovals.length > 0}
