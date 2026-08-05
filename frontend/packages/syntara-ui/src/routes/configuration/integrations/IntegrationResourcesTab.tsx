@@ -12,7 +12,7 @@ import {
   ToolbarContent,
   ToolbarItem,
 } from '@patternfly/react-core'
-import { RhUiSyncIcon, RhUiWarningFillIcon } from '@patternfly/react-icons'
+import { RhUiSyncIcon, RhUiWarningIcon } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import type { IntegrationsAPI, Tool } from '@syntara/contracts'
 import { useMemo, useState } from 'react'
@@ -65,6 +65,7 @@ export function IntegrationResourcesTab({
     )
   }, [tools, nameFilter])
 
+  const missingCount = tools.filter((t) => t.status === 'missing').length
   const allSelected = filteredTools.length > 0 && filteredTools.every((t) => enabledToolIds.has(t.id))
 
   function handleSelectAll(checked: boolean) {
@@ -153,6 +154,13 @@ export function IntegrationResourcesTab({
             <ToolbarItem>
               <Content component={ContentVariants.small}>Last refreshed: {formatTimeAgo(lastRefreshedAt)}</Content>
             </ToolbarItem>
+            {missingCount > 0 && (
+              <ToolbarItem>
+                <NxLabel variant="outline" status="warning" icon={<RhUiWarningIcon />}>
+                  {missingCount} not found
+                </NxLabel>
+              </ToolbarItem>
+            )}
           </ToolbarContent>
         </Toolbar>
       </StackItem>
@@ -160,7 +168,6 @@ export function IntegrationResourcesTab({
       <NxScrollableTableContainer aria-label="tools table" caption="Integration tools">
         <colgroup>
           <col className={styles.checkboxCol} />
-          <col />
           <col />
         </colgroup>
         <Thead>
@@ -175,7 +182,6 @@ export function IntegrationResourcesTab({
               screenReaderText="Select all tools"
             />
             <Th>Name</Th>
-            <Th>Status</Th>
           </Tr>
         </Thead>
         <Tbody>
@@ -190,19 +196,24 @@ export function IntegrationResourcesTab({
                 }}
               />
               <Td dataLabel="Name">
-                <DescriptionList>
-                  <DescriptionListGroup>
-                    <DescriptionListTerm>{tool.name}</DescriptionListTerm>
-                    <DescriptionListDescription>{tool.description}</DescriptionListDescription>
-                  </DescriptionListGroup>
-                </DescriptionList>
-              </Td>
-              <Td dataLabel="Status">
-                {tool.status === 'missing' && (
-                  <NxLabel status="warning" icon={<RhUiWarningFillIcon />}>
-                    Missing
-                  </NxLabel>
-                )}
+                <div className={styles.nameCell}>
+                  <DescriptionList>
+                    <DescriptionListGroup>
+                      <DescriptionListTerm>{tool.name}</DescriptionListTerm>
+                      <DescriptionListDescription>{tool.description}</DescriptionListDescription>
+                    </DescriptionListGroup>
+                  </DescriptionList>
+                  {tool.status === 'missing' && (
+                    <NxLabel
+                      variant="outline"
+                      status="warning"
+                      icon={<RhUiWarningIcon />}
+                      className={styles.notFoundLabel}
+                    >
+                      Not found
+                    </NxLabel>
+                  )}
+                </div>
               </Td>
             </Tr>
           ))}

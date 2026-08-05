@@ -138,21 +138,40 @@ describe('IntegrationResourcesTab', () => {
       expect(screen.getByRole('textbox', { name: /filter tools/i })).toBeInTheDocument()
     })
 
-    it('shows Missing label for tools with status missing', () => {
+    it("shows an inline Not found label in the missing tool's row and no Status column", () => {
       const toolsWithMissing = [
         { ...mockTools[0], status: 'available' as const },
         { ...mockTools[1], status: 'missing' as const },
       ] as Tool[]
       renderTab({ tools: toolsWithMissing, enabledToolIds: new Set(['t1', 't2']), enabledCount: 2 })
 
-      expect(screen.getByText('Missing')).toBeInTheDocument()
+      // The Status column was replaced by the inline label; guard against it sneaking back.
+      expect(screen.queryByRole('columnheader', { name: 'Status' })).not.toBeInTheDocument()
+
+      // The label belongs to the missing tool's own row, not anywhere else on the page.
+      const missingRow = screen.getByRole('row', { name: /create_pr/i })
+      expect(within(missingRow).getByText('Not found')).toBeInTheDocument()
+
+      const availableRow = screen.getByRole('row', { name: /get_repo/i })
+      expect(within(availableRow).queryByText('Not found')).not.toBeInTheDocument()
     })
 
-    it('does not show Missing label for available tools', () => {
+    it('does not show a Not found label when all tools are available', () => {
       const toolsAllAvailable = mockTools.map((t) => ({ ...t, status: 'available' as const })) as Tool[]
       renderTab({ tools: toolsAllAvailable })
 
-      expect(screen.queryByText('Missing')).not.toBeInTheDocument()
+      expect(screen.queryByText('Not found')).not.toBeInTheDocument()
+    })
+
+    it('shows a not-found count in the toolbar when tools are missing', () => {
+      const toolsWithMissing = [
+        { ...mockTools[0], status: 'missing' as const },
+        { ...mockTools[1], status: 'missing' as const },
+        { ...mockTools[2], status: 'available' as const },
+      ] as Tool[]
+      renderTab({ tools: toolsWithMissing })
+
+      expect(screen.getByText('2 not found')).toBeInTheDocument()
     })
   })
 
