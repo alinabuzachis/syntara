@@ -1,17 +1,17 @@
 ---
-# Rulebook: Forward webhook events to Automation Orchestrator
+# Rulebook: Forward webhook events to the workflow trigger
 #
-# Listens for incoming webhook events and triggers an AO EDA
+# Listens for incoming webhook events and triggers an EDA
 # webhook endpoint via a job template.
 #
-# The job template's credential (custom type) provides ao_base_url,
-# ao_client_id, and ao_client_secret. This rulebook only passes
-# ao_webhook_path and the event data as extra vars.
+# The job template's credential (custom type) provides webhook_base_url,
+# webhook_client_id, and webhook_client_secret. This rulebook only passes
+# webhook_path and the event data as extra vars.
 #
 # Required extra vars on the rulebook activation:
-#   ao_webhook_path: webhook path slug from the AO trigger config
+#   webhook_path: webhook path slug from the trigger config
 
-- name: Forward events to Automation Orchestrator
+- name: Forward events to the workflow trigger
   hosts: all
   sources:
     - ansible.eda.webhook:
@@ -19,15 +19,15 @@
         port: 5000
 
   rules:
-    - name: Forward all webhook events to AO
+    - name: Forward all webhook events to the workflow trigger
       condition: event.payload is defined
       action:
         run_job_template:
-          name: "Trigger AO EDA Webhook"
+          name: "Trigger EDA Webhook"
           organization: Default
           job_args:
             extra_vars:
-              ao_webhook_path: "{{ ao_webhook_path }}"
+              webhook_path: "{{ webhook_path }}"
               alert_name: "{{ event.payload.alert_name | default('unknown') }}"
               instance: "{{ event.payload.instance | default('unknown') }}"
               severity: "{{ event.payload.severity | default('info') }}"

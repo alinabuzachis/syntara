@@ -1,51 +1,51 @@
 ---
-# Playbook: Trigger an Automation Orchestrator EDA webhook
+# Playbook: Trigger an EDA webhook
 #
-# Called as a rulebook action to fire an AO EDA trigger endpoint.
+# Called as a rulebook action to fire an EDA trigger endpoint.
 # Obtains an OAuth token via client credentials, then POSTs the
 # event payload to the webhook.
 #
 # Usage:
 #   ansible-playbook eda-trigger-webhook.yml \
-#     -e ao_base_url=https://nexus.example.com \
-#     -e ao_webhook_path=my-eda-trigger \
-#     -e ao_client_id=nx_sa_abc123 \
-#     -e ao_client_secret=<secret> \
+#     -e webhook_base_url=https://nexus.example.com \
+#     -e webhook_path=my-eda-trigger \
+#     -e webhook_client_id=nx_sa_abc123 \
+#     -e webhook_client_secret=<secret> \
 #     -e alert_name=high_cpu \
 #     -e instance=web-server-01 \
 #     -e severity=critical
 
-- name: Trigger AO EDA webhook
+- name: Trigger EDA webhook
   hosts: localhost
   connection: local
   gather_facts: false
 
   vars:
-    ao_base_url: "https://localhost:8000"
-    ao_webhook_path: ""
-    ao_client_id: ""
-    ao_client_secret: ""
+    webhook_base_url: "https://localhost:8000"
+    webhook_path: ""
+    webhook_client_id: ""
+    webhook_client_secret: ""
     alert_name: "test_alert"
     instance: "localhost"
     severity: "info"
 
   tasks:
-    - name: Obtain OAuth token from Automation Orchestrator
+    - name: Obtain OAuth token
       ansible.builtin.uri:
-        url: "{{ ao_base_url }}/api/v1/auth/token"
+        url: "{{ webhook_base_url }}/api/v1/auth/token"
         method: POST
         body_format: form-urlencoded
         body:
           grant_type: client_credentials
-          client_id: "{{ ao_client_id }}"
-          client_secret: "{{ ao_client_secret }}"
+          client_id: "{{ webhook_client_id }}"
+          client_secret: "{{ webhook_client_secret }}"
         status_code: 200
-        validate_certs: "{{ ao_validate_certs | default(true) }}" # set to false for local dev with self-signed certs
+        validate_certs: "{{ webhook_validate_certs | default(true) }}" # set to false for local dev with self-signed certs
       register: token_response
 
-    - name: Post event payload to AO EDA trigger endpoint
+    - name: Post event payload to EDA trigger endpoint
       ansible.builtin.uri:
-        url: "{{ ao_base_url }}/api/v1/webhooks/eda/{{ ao_webhook_path }}"
+        url: "{{ webhook_base_url }}/api/v1/webhooks/eda/{{ webhook_path }}"
         method: POST
         body_format: json
         headers:
@@ -58,7 +58,7 @@
             severity: "{{ severity }}"
             timestamp: "{{ ansible_date_time.iso8601 | default(omit) }}"
         status_code: 202
-        validate_certs: "{{ ao_validate_certs | default(true) }}" # set to false for local dev with self-signed certs
+        validate_certs: "{{ webhook_validate_certs | default(true) }}" # set to false for local dev with self-signed certs
       register: webhook_response
 
     - name: Display execution ID

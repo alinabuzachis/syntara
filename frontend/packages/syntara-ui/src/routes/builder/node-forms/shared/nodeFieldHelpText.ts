@@ -4,7 +4,7 @@ export const SETTINGS_CONTINUE_ON_FAILURE_HELP =
   'Controls what happens when this step fails. System default uses the administrator setting. Continue on failure marks the step as failed but lets downstream steps continue. Stop workflow or branch on failure halts execution at this step.'
 
 export const SETTINGS_TIMEOUT_HELP =
-  'The maximum duration this step can run before it is marked as failed. Automation Orchestrator stops the step and records a timeout error. If you do not set a value, the step uses the global default timeout.'
+  'The maximum duration this step can run before it is marked as failed. If the step exceeds the limit, it is stopped and a timeout error is recorded. If you do not set a value, the step uses the global default timeout.'
 
 export const SETTINGS_RETRY_TOGGLE_HELP =
   'When enabled, you can customize the retry behavior for this step. When disabled, the system default retry policy applies. Retries are available for HTTP request, AAP job template, and AAP workflow template steps.'
