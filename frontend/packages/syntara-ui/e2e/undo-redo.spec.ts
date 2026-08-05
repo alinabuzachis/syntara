@@ -131,10 +131,10 @@ test('selecting execution from history navigates to execution page', async ({ ap
     // Open run history via kebab menu — the execution we just created should appear
     await app.getByLabel('Workflow actions').click()
     await app.getByRole('menuitem', { name: 'Run history' }).click()
-    await expect(app.getByRole('heading', { name: 'Run History' })).toBeVisible()
+    await expect(app.getByRole('heading', { name: 'Run history' })).toBeVisible()
 
     // Click the execution to navigate to the execution page
-    const runHistoryPanel = app.getByRole('heading', { name: 'Run History' }).locator('..')
+    const runHistoryPanel = app.getByRole('heading', { name: 'Run history' }).locator('..')
     const executionItems = runHistoryPanel.locator('button[class*="simpleList"]')
     const itemCount = await executionItems.count()
     if (itemCount > 0) {

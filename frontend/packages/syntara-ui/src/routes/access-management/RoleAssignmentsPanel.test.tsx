@@ -343,7 +343,7 @@ describe('RoleAssignmentsPanel', () => {
       const table = screen.getByRole('grid', { name: 'Role assignments table' })
       expect(table).toBeInTheDocument()
 
-      expect(screen.getByRole('columnheader', { name: 'Role Name' })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: 'Role name' })).toBeInTheDocument()
       expect(screen.getByRole('columnheader', { name: 'Description' })).toBeInTheDocument()
       expect(screen.getByRole('columnheader', { name: 'Scope' })).toBeInTheDocument()
       expect(screen.getByRole('columnheader', { name: 'Project' })).toBeInTheDocument()
@@ -871,7 +871,7 @@ describe('RoleAssignmentsPanel', () => {
 
       const table = screen.getByRole('grid', { name: 'Role assignments table' })
       expect(within(table).queryByRole('columnheader', { name: 'Scope' })).not.toBeInTheDocument()
-      expect(within(table).getByRole('columnheader', { name: 'Role Name' })).toBeInTheDocument()
+      expect(within(table).getByRole('columnheader', { name: 'Role name' })).toBeInTheDocument()
       expect(within(table).getByRole('columnheader', { name: 'Description' })).toBeInTheDocument()
       expect(within(table).getByRole('columnheader', { name: 'Project' })).toBeInTheDocument()
       expect(within(table).getByRole('columnheader', { name: 'Policies' })).toBeInTheDocument()
@@ -919,7 +919,7 @@ describe('RoleAssignmentsPanel', () => {
         wrapper,
       })
 
-      const roleNameHeader = screen.getByRole('columnheader', { name: 'Role Name' })
+      const roleNameHeader = screen.getByRole('columnheader', { name: 'Role name' })
       const sortButton = within(roleNameHeader).getByRole('button')
       await user.click(sortButton)
 

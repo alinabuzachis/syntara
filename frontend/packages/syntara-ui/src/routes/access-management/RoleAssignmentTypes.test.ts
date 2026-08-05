@@ -12,9 +12,9 @@ describe('RoleAssignmentTypes', () => {
       expect(principalTypeDisplay[RolePrincipalType.GROUP]).toEqual({ text: 'Group', color: 'orange' })
     })
 
-    it('maps service account principal type to purple Service Account label', () => {
+    it('maps service account principal type to purple Service account label', () => {
       expect(principalTypeDisplay[RolePrincipalType.SERVICE_ACCOUNT]).toEqual({
-        text: 'Service Account',
+        text: 'Service account',
         color: 'purple',
       })
     })

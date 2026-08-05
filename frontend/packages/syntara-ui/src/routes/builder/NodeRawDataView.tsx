@@ -19,7 +19,7 @@ export function NodeRawDataView({ node }: NodeRawDataViewProps) {
   return (
     <DescriptionList>
       <DescriptionListGroup>
-        <DescriptionListTerm>Node Type</DescriptionListTerm>
+        <DescriptionListTerm>Node type</DescriptionListTerm>
         <DescriptionListDescription>{node.type}</DescriptionListDescription>
       </DescriptionListGroup>
       <DescriptionListGroup>
@@ -31,7 +31,7 @@ export function NodeRawDataView({ node }: NodeRawDataViewProps) {
         </DescriptionListDescription>
       </DescriptionListGroup>
       <DescriptionListGroup>
-        <DescriptionListTerm>Node Data</DescriptionListTerm>
+        <DescriptionListTerm>Node data</DescriptionListTerm>
         <DescriptionListDescription>
           <NxCodeBlock jsonObject={node.data} />
         </DescriptionListDescription>

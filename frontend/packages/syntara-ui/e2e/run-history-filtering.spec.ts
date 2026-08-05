@@ -164,7 +164,7 @@ async function openRunHistoryPanel(app: Page, workflowId: string, expectedRunIdP
   await expect(runHistoryItem).toBeVisible()
   await runHistoryItem.click()
 
-  await expect(app.getByRole('heading', { name: 'Run History', level: 2 })).toBeVisible()
+  await expect(app.getByRole('heading', { name: 'Run history', level: 2 })).toBeVisible()
   await expect(app.getByText(`Run ID: ${expectedRunIdPrefix}`)).toBeVisible({ timeout: 10_000 })
 }
 
@@ -336,7 +336,7 @@ test.describe('Run History Panel Filtering', { tag: '@pr-check' }, () => {
   test('panel can be opened and closed', async ({ app }) => {
     await openRunHistoryPanel(app, workflowId!, truncatedRunId(COMPLETED_ID))
 
-    const runHistoryHeading = app.getByRole('heading', { name: 'Run History', level: 2 })
+    const runHistoryHeading = app.getByRole('heading', { name: 'Run history', level: 2 })
     await expect(runHistoryHeading).toBeVisible()
     await expect(app.getByText('View past runs of this workflow.')).toBeVisible()
 

@@ -166,7 +166,7 @@ test.describe('UI-7: Service Account Detail — Delete with Confirmation', () =>
 
     // Redirect only fires on successful deletion (onSuccess callback)
     await app.waitForURL(/\/service-accounts$/)
-    await expect(app.getByRole('tab', { name: 'Service Accounts', exact: true })).toBeVisible()
+    await expect(app.getByRole('tab', { name: 'Service accounts', exact: true })).toBeVisible()
 
     // Wait for list data to load, then verify SA is gone
     const emptyState = app.getByText('No service accounts yet')

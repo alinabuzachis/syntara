@@ -257,7 +257,7 @@ export function ServiceAccountsTab() {
     <>
       <NxListPanelView
         tabKey="service-accounts"
-        tabLabel="Service Accounts"
+        tabLabel="Service accounts"
         isPending={query.isPending}
         isFetching={query.isFetching}
         error={query.error}

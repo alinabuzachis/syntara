@@ -112,10 +112,10 @@ describe('AccessManagement', () => {
     expect(screen.getByRole('tab', { name: 'Roles' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Assignments' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Check access' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Token Revocation' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Token revocation' })).toBeInTheDocument()
   })
 
-  it('hides Token Revocation tab when user lacks token-revocation:read permission', async () => {
+  it('hides Token revocation tab when user lacks token-revocation:read permission', async () => {
     vi.mocked(accessFetchClient.POST).mockImplementation((path: string, options: never) => {
       if (path === '/authz/what_can_i') {
         return Promise.resolve({ data: { resources: [], next: null } } as never)
@@ -127,7 +127,7 @@ describe('AccessManagement', () => {
     await renderAndSettle(<AccessManagement />)
 
     await waitFor(() => {
-      expect(screen.queryByRole('tab', { name: 'Token Revocation' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('tab', { name: 'Token revocation' })).not.toBeInTheDocument()
     })
     expect(screen.getByRole('tab', { name: 'Users' })).toBeInTheDocument()
   })

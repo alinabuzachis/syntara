@@ -12,7 +12,7 @@ export { createServiceAccountViaApi, deleteServiceAccountViaApi }
 /** Navigate to the service accounts list page and wait for it to load. */
 export async function goToServiceAccountsList(app: Page) {
   await app.goto(toAppUrl(SERVICE_ACCOUNTS_URL))
-  await expect(app.getByRole('tab', { name: 'Service Accounts', exact: true })).toBeVisible({
+  await expect(app.getByRole('tab', { name: 'Service accounts', exact: true })).toBeVisible({
     timeout: 20_000,
   })
 }

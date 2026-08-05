@@ -45,9 +45,9 @@ test.describe('Execution URL unification', () => {
 
       await app.getByLabel('Workflow actions').click()
       await app.getByRole('menuitem', { name: 'Run history' }).click()
-      await expect(app.getByRole('heading', { name: 'Run History' })).toBeVisible()
+      await expect(app.getByRole('heading', { name: 'Run history' })).toBeVisible()
 
-      const runHistoryPanel = app.getByRole('region', { name: 'Run History' })
+      const runHistoryPanel = app.getByRole('region', { name: 'Run history' })
       const executionButton = runHistoryPanel.locator('button[class*="simpleList"]').nth(0)
       const hasExecution = await executionButton
         .waitFor({ state: 'visible', timeout: 5000 })
@@ -116,7 +116,7 @@ test.describe('Execution URL unification', () => {
 
       // History card is closed by default when navigating from builder; open it
       await app.getByRole('button', { name: 'Run history' }).click()
-      await expect(app.getByRole('heading', { name: 'Run History' })).toBeVisible()
+      await expect(app.getByRole('heading', { name: 'Run history' })).toBeVisible()
 
       // Click a different execution in the history card
       const executionItems = app.locator('button[class*="simpleList"]')
@@ -158,10 +158,10 @@ test.describe('Execution URL unification', () => {
       // Open run history via kebab menu
       await app.getByLabel('Workflow actions').click()
       await app.getByRole('menuitem', { name: 'Run history' }).click()
-      await expect(app.getByRole('heading', { name: 'Run History' })).toBeVisible()
+      await expect(app.getByRole('heading', { name: 'Run history' })).toBeVisible()
 
       // Click an execution — should trigger unsaved changes prompt
-      const runHistoryPanel = app.getByRole('region', { name: 'Run History' })
+      const runHistoryPanel = app.getByRole('region', { name: 'Run history' })
       const executionButton = runHistoryPanel.locator('button[class*="simpleList"]').nth(0)
       const hasExecution = await executionButton
         .waitFor({ state: 'visible', timeout: 5000 })

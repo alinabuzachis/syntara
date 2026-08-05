@@ -311,11 +311,11 @@ describe('UserDetail', () => {
 
       expect(screen.getByText('Username')).toBeInTheDocument()
       expect(screen.getByText('User ID')).toBeInTheDocument()
-      expect(screen.getByText('First Name')).toBeInTheDocument()
-      expect(screen.getByText('Last Name')).toBeInTheDocument()
+      expect(screen.getByText('First name')).toBeInTheDocument()
+      expect(screen.getByText('Last name')).toBeInTheDocument()
       expect(screen.getByText('Email')).toBeInTheDocument()
-      expect(screen.getByText('Identity Provider')).toBeInTheDocument()
-      expect(screen.getByText('Last Login')).toBeInTheDocument()
+      expect(screen.getByText('Identity provider')).toBeInTheDocument()
+      expect(screen.getByText('Last login')).toBeInTheDocument()
       expect(screen.getByText('Created')).toBeInTheDocument()
     })
 
@@ -437,7 +437,7 @@ describe('UserDetail', () => {
       render(<UserDetail />, { wrapper })
 
       expect(screen.getByText('Okta')).toBeInTheDocument()
-      expect(screen.getByText('Identity Provider')).toBeInTheDocument()
+      expect(screen.getByText('Identity provider')).toBeInTheDocument()
     })
 
     it('uses plural Identity Providers label when user has multiple providers', () => {
@@ -470,7 +470,7 @@ describe('UserDetail', () => {
 
       render(<UserDetail />, { wrapper })
 
-      expect(screen.getByText('Identity Providers')).toBeInTheDocument()
+      expect(screen.getByText('Identity providers')).toBeInTheDocument()
       expect(screen.getByText('Okta')).toBeInTheDocument()
       expect(screen.getByText('Azure AD')).toBeInTheDocument()
     })
@@ -527,7 +527,7 @@ describe('UserDetail', () => {
 
       // totalProviders = 0 → no Local or identity provider labels rendered
       expect(screen.queryByText('Local')).not.toBeInTheDocument()
-      expect(screen.getByText('Identity Provider')).toBeInTheDocument()
+      expect(screen.getByText('Identity provider')).toBeInTheDocument()
     })
 
     it('deduplicates identity providers with the same ID', () => {
@@ -561,7 +561,7 @@ describe('UserDetail', () => {
       render(<UserDetail />, { wrapper })
 
       // uniqueProviders deduplicates: size=1, so label is singular
-      expect(screen.getByText('Identity Provider')).toBeInTheDocument()
+      expect(screen.getByText('Identity provider')).toBeInTheDocument()
       expect(screen.getAllByText('Okta')).toHaveLength(1)
     })
 
@@ -591,7 +591,7 @@ describe('UserDetail', () => {
       render(<UserDetail />, { wrapper })
 
       // provider_name ?? '' → renders an empty-string label (still a <Label>)
-      expect(screen.getByText('Identity Provider')).toBeInTheDocument()
+      expect(screen.getByText('Identity provider')).toBeInTheDocument()
     })
 
     it('uses total for group count when available', () => {
@@ -1222,7 +1222,7 @@ describe('UserDetail', () => {
   // ---- Identity Provider rendering ----------------------------------------
 
   describe('Identity Provider display', () => {
-    it('shows "Identity Provider" label (singular) for a single IdP', () => {
+    it('shows "Identity provider" label (singular) for a single IdP', () => {
       mockQueryByPath({
         '/users/{user_id}': mockFederatedUser,
         '/users/{user_id}/groups': mockGroupsData,
@@ -1233,11 +1233,11 @@ describe('UserDetail', () => {
       })
       render(<UserDetail />, { wrapper })
 
-      expect(screen.getByText('Identity Provider')).toBeInTheDocument()
+      expect(screen.getByText('Identity provider')).toBeInTheDocument()
       expect(screen.getByText('Okta')).toBeInTheDocument()
     })
 
-    it('shows "Identity Providers" label (plural) for multiple IdPs', () => {
+    it('shows "Identity providers" label (plural) for multiple IdPs', () => {
       mockQueryByPath({
         '/users/{user_id}': mockFederatedUser,
         '/users/{user_id}/groups': mockGroupsData,
@@ -1246,7 +1246,7 @@ describe('UserDetail', () => {
       })
       render(<UserDetail />, { wrapper })
 
-      expect(screen.getByText('Identity Providers')).toBeInTheDocument()
+      expect(screen.getByText('Identity providers')).toBeInTheDocument()
       expect(screen.getByText('Okta')).toBeInTheDocument()
       expect(screen.getByText('Azure AD')).toBeInTheDocument()
     })
@@ -1286,14 +1286,14 @@ describe('UserDetail', () => {
       })
       render(<UserDetail />, { wrapper })
 
-      expect(screen.getByText('Identity Provider')).toBeInTheDocument()
+      expect(screen.getByText('Identity provider')).toBeInTheDocument()
       expect(screen.getAllByText('Okta')).toHaveLength(1)
     })
 
     it('shows "Local" label for local auth type users', () => {
       render(<UserDetail />, { wrapper })
 
-      expect(screen.getByText('Identity Provider')).toBeInTheDocument()
+      expect(screen.getByText('Identity provider')).toBeInTheDocument()
       expect(screen.getByText('Local')).toBeInTheDocument()
     })
 
@@ -1306,7 +1306,7 @@ describe('UserDetail', () => {
       })
       render(<UserDetail />, { wrapper })
 
-      expect(screen.getByText('Identity Provider')).toBeInTheDocument()
+      expect(screen.getByText('Identity provider')).toBeInTheDocument()
       expect(screen.getByText('-')).toBeInTheDocument()
     })
 
@@ -1321,7 +1321,7 @@ describe('UserDetail', () => {
       })
       render(<UserDetail />, { wrapper })
 
-      expect(screen.getByText('Identity Provider')).toBeInTheDocument()
+      expect(screen.getByText('Identity provider')).toBeInTheDocument()
     })
   })
 

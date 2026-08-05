@@ -52,7 +52,7 @@ test.describe('AAP-76528: Roles & Assignments', () => {
       const table = app.getByRole('grid', { name: 'Role assignments' })
       const saRow = table.getByRole('row').filter({ hasText: saName })
       await expect(saRow).toBeVisible()
-      await expect(saRow.getByText('Service Account')).toBeVisible()
+      await expect(saRow.getByText('Service account')).toBeVisible()
     } finally {
       await deleteRoleAssignmentViaApi(app, assignment.id)
       await deleteServiceAccountViaApi(app, sa.id)

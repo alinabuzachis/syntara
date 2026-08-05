@@ -21,7 +21,7 @@ describe('NodeRawDataView Component', () => {
 
     render(<NodeRawDataView node={node} />)
 
-    expect(screen.getByText('Node Type')).toBeInTheDocument()
+    expect(screen.getByText('Node type')).toBeInTheDocument()
     expect(screen.getByText('converge')).toBeInTheDocument()
   })
 
@@ -39,7 +39,7 @@ describe('NodeRawDataView Component', () => {
     expect(screen.getByText('my-custom-id')).toBeInTheDocument()
   })
 
-  it('renders Node Data as formatted JSON', () => {
+  it('renders Node data as formatted JSON', () => {
     const node: Node<NodeType['data']> = {
       id: 'data-test',
       type: 'converge',
@@ -54,7 +54,7 @@ describe('NodeRawDataView Component', () => {
 
     render(<NodeRawDataView node={node} />)
 
-    expect(screen.getByText('Node Data')).toBeInTheDocument()
+    expect(screen.getByText('Node data')).toBeInTheDocument()
 
     // Check that the JSON is displayed
     const preElement = screen.getByText(/Test Data/)
@@ -104,7 +104,7 @@ describe('NodeRawDataView Component', () => {
 
     render(<NodeRawDataView node={node} />)
 
-    expect(screen.getByText('Node Data')).toBeInTheDocument()
+    expect(screen.getByText('Node data')).toBeInTheDocument()
     const preElement = screen.getByText('{}')
     expect(preElement).toBeInTheDocument()
   })
@@ -155,6 +155,6 @@ describe('NodeRawDataView Component', () => {
 
     render(<NodeRawDataView node={node} />)
 
-    expect(screen.getByText('Node Type')).toBeInTheDocument()
+    expect(screen.getByText('Node type')).toBeInTheDocument()
   })
 })

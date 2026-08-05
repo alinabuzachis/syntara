@@ -111,7 +111,7 @@ describe('WorkflowHistoryCard', () => {
 
   it('renders the component with title', () => {
     renderCard(<WorkflowHistoryCard {...defaultProps} />)
-    expect(screen.getByText('Run History')).toBeInTheDocument()
+    expect(screen.getByText('Run history')).toBeInTheDocument()
   })
 
   it('renders the subtext', () => {

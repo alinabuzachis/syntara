@@ -118,7 +118,7 @@ function UserDetailsTab({
   }, new Map())
   // Local users always show exactly one provider: 'Local'
   const totalProviders = isLocal ? 1 : uniqueProviders.size
-  const providerLabel = totalProviders > 1 ? 'Identity Providers' : 'Identity Provider'
+  const providerLabel = totalProviders > 1 ? 'Identity providers' : 'Identity provider'
 
   return (
     <DescriptionList isHorizontal isAutoColumnWidths>
@@ -133,11 +133,11 @@ function UserDetailsTab({
         </DescriptionListDescription>
       </DescriptionListGroup>
       <DescriptionListGroup>
-        <DescriptionListTerm>First Name</DescriptionListTerm>
+        <DescriptionListTerm>First name</DescriptionListTerm>
         <DescriptionListDescription>{first_name}</DescriptionListDescription>
       </DescriptionListGroup>
       <DescriptionListGroup>
-        <DescriptionListTerm>Last Name</DescriptionListTerm>
+        <DescriptionListTerm>Last name</DescriptionListTerm>
         <DescriptionListDescription>{last_name}</DescriptionListDescription>
       </DescriptionListGroup>
       <DescriptionListGroup>
@@ -178,7 +178,7 @@ function UserDetailsTab({
         </DescriptionListDescription>
       </DescriptionListGroup>
       <DescriptionListGroup>
-        <DescriptionListTerm>Last Login</DescriptionListTerm>
+        <DescriptionListTerm>Last login</DescriptionListTerm>
         <DescriptionListDescription>{formatDateTime(user.last_login)}</DescriptionListDescription>
       </DescriptionListGroup>
       <DescriptionListGroup>

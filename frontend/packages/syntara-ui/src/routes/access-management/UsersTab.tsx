@@ -57,7 +57,7 @@ const filterFieldDefinitions: FilterFieldDefinition[] = [
   },
   {
     key: 'first_name',
-    label: 'First Name',
+    label: 'First name',
     type: FilterTypeEnum.TEXT,
     operators: [FilterOperatorEnum.CONTAINS],
     defaultOperator: FilterOperatorEnum.CONTAINS,
@@ -65,7 +65,7 @@ const filterFieldDefinitions: FilterFieldDefinition[] = [
   },
   {
     key: 'last_name',
-    label: 'Last Name',
+    label: 'Last name',
     type: FilterTypeEnum.TEXT,
     operators: [FilterOperatorEnum.CONTAINS],
     defaultOperator: FilterOperatorEnum.CONTAINS,
@@ -244,7 +244,7 @@ export function UsersTab() {
                   <Th sort={getSortParams(1)}>Name</Th>
                   <Th sort={getSortParams(3)}>Email</Th>
                   <Th>Authentication</Th>
-                  <Th sort={getSortParams(4)}>Last Login</Th>
+                  <Th sort={getSortParams(4)}>Last login</Th>
                   <Th screenReaderText="Actions" />
                 </Tr>
               </Thead>
@@ -272,7 +272,7 @@ export function UsersTab() {
                         ))}
                       </Flex>
                     </Td>
-                    <Td dataLabel="Last Login">{formatDateTime(user.last_login)}</Td>
+                    <Td dataLabel="Last login">{formatDateTime(user.last_login)}</Td>
                     <Td isActionCell>
                       {!user.is_builtin && (
                         <ActionsColumn

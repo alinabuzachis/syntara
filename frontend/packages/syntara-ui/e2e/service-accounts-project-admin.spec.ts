@@ -73,7 +73,7 @@ test.describe('UI-11: Service Account CRUD Lifecycle', () => {
       await deleteDialog.getByRole('button', { name: 'Delete' }).click()
 
       // Verify redirect to list
-      await expect(app.getByRole('tab', { name: 'Service Accounts', exact: true })).toBeVisible()
+      await expect(app.getByRole('tab', { name: 'Service accounts', exact: true })).toBeVisible()
     })
   })
 })

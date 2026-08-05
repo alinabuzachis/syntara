@@ -262,7 +262,7 @@ describe('AssignmentsTab', () => {
       const table = screen.getByRole('grid', { name: 'Role assignments' })
       const rows = within(table).getAllByRole('row')
       // Row 4 is my-service-account (service_account)
-      expect(within(rows[4]).getByText('Service Account')).toBeInTheDocument()
+      expect(within(rows[4]).getByText('Service account')).toBeInTheDocument()
     })
 
     it('renders role names as truncated text instead of colored labels', () => {
@@ -281,7 +281,7 @@ describe('AssignmentsTab', () => {
       const rows = within(table).getAllByRole('row')
       expect(within(rows[1]).getByText('User', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
       expect(within(rows[2]).getByText('Group', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
-      expect(within(rows[4]).getByText('Service Account', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
+      expect(within(rows[4]).getByText('Service account', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
     })
 
     it('renders project name for project-scoped rows', () => {

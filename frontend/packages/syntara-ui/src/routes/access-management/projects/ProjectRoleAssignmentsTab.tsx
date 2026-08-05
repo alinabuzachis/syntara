@@ -34,7 +34,7 @@ const SORT_FIELDS = ['principal_name', 'role_name'] as const
 const filterFieldDefinitions: FilterFieldDefinition[] = [
   {
     key: 'principal_name',
-    label: 'Principal Name',
+    label: 'Principal name',
     type: FilterTypeEnum.TEXT,
     operators: [FilterOperatorEnum.CONTAINS],
     defaultOperator: FilterOperatorEnum.CONTAINS,
@@ -42,7 +42,7 @@ const filterFieldDefinitions: FilterFieldDefinition[] = [
   },
   {
     key: 'role_name',
-    label: 'Role Name',
+    label: 'Role name',
     type: FilterTypeEnum.TEXT,
     operators: [FilterOperatorEnum.CONTAINS],
     defaultOperator: FilterOperatorEnum.CONTAINS,
@@ -80,9 +80,9 @@ function RoleAssignmentsTable({
     <>
       <Thead>
         <Tr>
-          <Th sort={getSortParams(0)}>Principal Name</Th>
-          <Th>Principal Type</Th>
-          <Th sort={getSortParams(1)}>Role Name</Th>
+          <Th sort={getSortParams(0)}>Principal name</Th>
+          <Th>Principal type</Th>
+          <Th sort={getSortParams(1)}>Role name</Th>
           <Th>Policies</Th>
           <Th screenReaderText="Actions" />
         </Tr>
@@ -92,13 +92,13 @@ function RoleAssignmentsTable({
           const { color, text } = principalTypeDisplay[derivePrincipalType(assignment)]
           return (
             <Tr key={assignment.id}>
-              <Td dataLabel="Principal Name">
+              <Td dataLabel="Principal name">
                 <Truncate content={assignment.principal_name} />
               </Td>
-              <Td dataLabel="Principal Type">
+              <Td dataLabel="Principal type">
                 <NxLabel color={color}>{text}</NxLabel>
               </Td>
-              <Td dataLabel="Role Name">
+              <Td dataLabel="Role name">
                 <Truncate content={assignment.role_name} />
               </Td>
               <Td dataLabel="Policies">

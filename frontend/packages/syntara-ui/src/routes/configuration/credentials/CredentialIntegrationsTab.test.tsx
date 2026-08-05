@@ -150,7 +150,7 @@ describe('CredentialIntegrationsTab', () => {
 
     render(<CredentialIntegrationsTab credentialId="cred-1" />, { wrapper })
 
-    expect(screen.getByText('Integration Name')).toBeInTheDocument()
+    expect(screen.getByText('Integration name')).toBeInTheDocument()
     expect(screen.getByText('Type')).toBeInTheDocument()
     expect(screen.getByText('Status')).toBeInTheDocument()
     expect(screen.getByText('Scope')).toBeInTheDocument()
@@ -375,7 +375,7 @@ describe('CredentialIntegrationsTab', () => {
     expect(screen.getByText('AI coding assistant')).toBeInTheDocument()
   })
 
-  it('renders Created By column with username', () => {
+  it('renders Created by column with username', () => {
     const integrationsWithCreator = [
       {
         id: 'int-1',
@@ -397,7 +397,7 @@ describe('CredentialIntegrationsTab', () => {
 
     render(<CredentialIntegrationsTab credentialId="cred-1" />, { wrapper })
 
-    expect(screen.getByText('Created By')).toBeInTheDocument()
+    expect(screen.getByText('Created by')).toBeInTheDocument()
     expect(screen.getByText('admin')).toBeInTheDocument()
   })
 

@@ -28,7 +28,7 @@ export const filterKeyToColumn: Record<string, RoleAssignmentColumnKey> = {
 export const allFilterFieldDefinitions: FilterFieldDefinition[] = [
   {
     key: 'name',
-    label: 'Role Name',
+    label: 'Role name',
     type: FilterTypeEnum.TEXT,
     operators: [FilterOperatorEnum.CONTAINS],
     defaultOperator: FilterOperatorEnum.CONTAINS,

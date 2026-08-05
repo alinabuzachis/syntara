@@ -12,7 +12,7 @@ type PrincipalTypeLabelColor = 'teal' | 'orange' | 'purple'
 export const principalTypeDisplay: Record<RolePrincipalType, { text: string; color: PrincipalTypeLabelColor }> = {
   [RolePrincipalType.USER]: { text: 'User', color: 'teal' },
   [RolePrincipalType.GROUP]: { text: 'Group', color: 'orange' },
-  [RolePrincipalType.SERVICE_ACCOUNT]: { text: 'Service Account', color: 'purple' },
+  [RolePrincipalType.SERVICE_ACCOUNT]: { text: 'Service account', color: 'purple' },
 }
 
 export const principalTypeLabel: Record<RolePrincipalType, string> = {

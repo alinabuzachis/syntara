@@ -120,7 +120,7 @@ describe('CredentialWorkflowsTab', () => {
 
     render(<CredentialWorkflowsTab credentialId="cred-1" />, { wrapper })
 
-    expect(screen.getByText('Workflow Name')).toBeInTheDocument()
+    expect(screen.getByText('Workflow name')).toBeInTheDocument()
   })
 
   it('renders footer with workflow count (plural)', () => {

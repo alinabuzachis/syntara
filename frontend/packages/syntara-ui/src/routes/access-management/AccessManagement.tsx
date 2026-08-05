@@ -44,10 +44,10 @@ const allTabDefs: TabDef[] = [
   { key: 'projects', label: 'Projects' },
   { key: 'policies', label: 'Policies' },
   { key: 'roles', label: 'Roles' },
-  { key: 'service-accounts', label: 'Service Accounts' },
+  { key: 'service-accounts', label: 'Service accounts' },
   { key: 'assignments', label: 'Assignments' },
   { key: 'check-access', label: 'Check access' },
-  { key: 'token-revocation', label: 'Token Revocation' },
+  { key: 'token-revocation', label: 'Token revocation' },
 ]
 
 const basePath = AppRoute.AccessManagement.Root
@@ -165,7 +165,7 @@ export function AccessManagement() {
           {activeTab === 'token-revocation' && (
             <NxListPanelView
               tabKey="token-revocation"
-              tabLabel="Token Revocation"
+              tabLabel="Token revocation"
               isPending={false}
               error={null}
               isEmpty={false}

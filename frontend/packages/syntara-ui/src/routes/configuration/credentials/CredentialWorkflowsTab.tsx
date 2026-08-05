@@ -84,17 +84,17 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
         >
           <Thead>
             <Tr>
-              <Th>Workflow Name</Th>
-              <Th>Created By</Th>
-              <Th>Steps Using Credential</Th>
-              <Th>Last Execution</Th>
+              <Th>Workflow name</Th>
+              <Th>Created by</Th>
+              <Th>Steps using credential</Th>
+              <Th>Last execution</Th>
               <Th>Status</Th>
             </Tr>
           </Thead>
           <Tbody>
             {paginatedWorkflows.map((workflow) => (
               <Tr key={workflow.id}>
-                <Td dataLabel="Workflow Name">
+                <Td dataLabel="Workflow name">
                   <NxLink to={`/workflow-builder/${workflow.id}`}>{workflow.name}</NxLink>
                   {workflow.description && (
                     <Content component={ContentVariants.small} style={descriptionStyle}>
@@ -102,10 +102,10 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
                     </Content>
                   )}
                 </Td>
-                <Td dataLabel="Created By">
+                <Td dataLabel="Created by">
                   <Truncate content={workflow.created_by ?? DASH} />
                 </Td>
-                <Td dataLabel="Steps Using Credential">
+                <Td dataLabel="Steps using credential">
                   {workflow.node_names && workflow.node_names.length > 0
                     ? workflow.node_names.map((nodeName: string) => (
                         <Label key={nodeName} variant="outline" isCompact style={labelMarginStyle}>
@@ -114,7 +114,7 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
                       ))
                     : DASH}
                 </Td>
-                <Td dataLabel="Last Execution">
+                <Td dataLabel="Last execution">
                   {workflow.last_execution_at ? formatDateTime(workflow.last_execution_at) : DASH}
                 </Td>
                 <Td dataLabel="Status">

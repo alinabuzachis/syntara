@@ -175,7 +175,7 @@ test.describe('Retry Execution', () => {
       await app.getByText('Run history').click()
 
       // Wait for the run history panel to render
-      await expect(app.getByRole('heading', { name: 'Run History', level: 2 })).toBeVisible({ timeout: 15_000 })
+      await expect(app.getByRole('heading', { name: 'Run history', level: 2 })).toBeVisible({ timeout: 15_000 })
 
       // The kebab button only renders for retryable executions (terminal status,
       // non-test mode), so its presence proves retry is available. We don't click

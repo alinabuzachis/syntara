@@ -1098,7 +1098,7 @@ describe('BuilderContent', () => {
 
       // Wait for history card to render
       await waitFor(() => {
-        expect(screen.getByText('Run History')).toBeInTheDocument()
+        expect(screen.getByText('Run history')).toBeInTheDocument()
       })
 
       // Find and click close button (tests onClose callback - line 1156)
@@ -1107,7 +1107,7 @@ describe('BuilderContent', () => {
 
       // Panel should close
       await waitFor(() => {
-        expect(screen.queryByText('Run History')).not.toBeInTheDocument()
+        expect(screen.queryByText('Run history')).not.toBeInTheDocument()
       })
     })
 
@@ -1145,7 +1145,7 @@ describe('BuilderContent', () => {
       await clickKebabItem('Run history')
 
       await waitFor(() => {
-        expect(screen.getByText('Run History')).toBeInTheDocument()
+        expect(screen.getByText('Run history')).toBeInTheDocument()
       })
 
       const user = userEvent.setup()
@@ -1869,7 +1869,7 @@ describe('BuilderContent', () => {
       // Open history first
       await clickKebabItem('Run history')
       await waitFor(() => {
-        expect(screen.getByText('Run History')).toBeInTheDocument()
+        expect(screen.getByText('Run history')).toBeInTheDocument()
       })
 
       // Then open add step panel - should close history
@@ -1878,7 +1878,7 @@ describe('BuilderContent', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('region', { name: 'Add step' })).toBeInTheDocument()
-        expect(screen.queryByText('Run History')).not.toBeInTheDocument()
+        expect(screen.queryByText('Run history')).not.toBeInTheDocument()
       })
     })
 
@@ -1892,7 +1892,7 @@ describe('BuilderContent', () => {
       await clickKebabItem('Run history')
 
       await waitFor(() => {
-        expect(screen.getByText('Run History')).toBeInTheDocument()
+        expect(screen.getByText('Run history')).toBeInTheDocument()
       })
     })
   })
@@ -2367,7 +2367,7 @@ describe('BuilderContent', () => {
       // Open history panel
       await clickKebabItem('Run history')
       await waitFor(() => {
-        expect(screen.getByText('Run History')).toBeInTheDocument()
+        expect(screen.getByText('Run history')).toBeInTheDocument()
       })
 
       // Toggle details - should close history
@@ -2375,7 +2375,7 @@ describe('BuilderContent', () => {
 
       // History should be closed
       await waitFor(() => {
-        expect(screen.queryByText('Run History')).not.toBeInTheDocument()
+        expect(screen.queryByText('Run history')).not.toBeInTheDocument()
       })
     })
   })

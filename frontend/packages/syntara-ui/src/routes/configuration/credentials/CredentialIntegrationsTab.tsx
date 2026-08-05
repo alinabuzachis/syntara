@@ -82,9 +82,9 @@ export function CredentialIntegrationsTab({ credentialId }: Readonly<CredentialI
         >
           <Thead>
             <Tr>
-              <Th>Integration Name</Th>
+              <Th>Integration name</Th>
               <Th>Type</Th>
-              <Th>Created By</Th>
+              <Th>Created by</Th>
               <Th>Status</Th>
               <Th>Scope</Th>
             </Tr>
@@ -102,7 +102,7 @@ export function CredentialIntegrationsTab({ credentialId }: Readonly<CredentialI
                   )
                 }}
               >
-                <Td dataLabel="Integration Name">
+                <Td dataLabel="Integration name">
                   <Content component={ContentVariants.p} style={nameStyle}>
                     {integration.name}
                   </Content>
@@ -115,7 +115,7 @@ export function CredentialIntegrationsTab({ credentialId }: Readonly<CredentialI
                 <Td dataLabel="Type">
                   {INTEGRATION_TYPE_LABELS[integration.integration_type ?? ''] ?? integration.integration_type ?? ''}
                 </Td>
-                <Td dataLabel="Created By">
+                <Td dataLabel="Created by">
                   <Truncate content={integration.created_by ?? DASH} />
                 </Td>
                 <Td dataLabel="Status">

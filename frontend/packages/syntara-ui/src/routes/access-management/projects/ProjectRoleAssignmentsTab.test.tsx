@@ -311,7 +311,7 @@ describe('ProjectRoleAssignmentsTab', () => {
     ])
     render(<ProjectRoleAssignmentsTab projectId="proj-1" />, { wrapper })
 
-    expect(screen.getByText('Service Account', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
+    expect(screen.getByText('Service account', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
     expect(screen.getAllByText('User', { selector: '.pf-v6-c-label__text' }).length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('Group', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
     expect(screen.getByText('ci-bot')).toBeInTheDocument()
@@ -507,9 +507,9 @@ describe('ProjectRoleAssignmentsTab', () => {
     render(<ProjectRoleAssignmentsTab projectId="proj-1" />, { wrapper })
 
     const grid = screen.getByRole('grid', { name: 'Project role assignments' })
-    expect(within(grid).getByText('Principal Name')).toBeInTheDocument()
-    expect(within(grid).getByText('Principal Type')).toBeInTheDocument()
-    expect(within(grid).getByText('Role Name')).toBeInTheDocument()
+    expect(within(grid).getByText('Principal name')).toBeInTheDocument()
+    expect(within(grid).getByText('Principal type')).toBeInTheDocument()
+    expect(within(grid).getByText('Role name')).toBeInTheDocument()
     expect(within(grid).getByText('Policies')).toBeInTheDocument()
   })
 

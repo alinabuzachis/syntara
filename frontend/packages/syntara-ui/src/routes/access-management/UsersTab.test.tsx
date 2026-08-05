@@ -963,11 +963,11 @@ describe('UsersTab Component', () => {
       })
     })
 
-    it('sorts by Last Login when Last Login column is clicked', async () => {
+    it('sorts by Last login when Last login column is clicked', async () => {
       const user = userEvent.setup()
       render(<UsersTab />, { wrapper })
 
-      const loginHeader = screen.getByRole('columnheader', { name: /Last Login/i })
+      const loginHeader = screen.getByRole('columnheader', { name: /Last login/i })
       const sortButton = within(loginHeader).getByRole('button')
       await user.click(sortButton)
 

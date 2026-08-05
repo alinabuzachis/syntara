@@ -680,7 +680,7 @@ export const pages: PageEntry[] = [
     path: AppRoute.AccessManagement.TokenRevocation,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { name: 'Access Management' })).toBeVisible()
-      await expect(page.getByRole('tab', { name: 'Token Revocation' })).toBeVisible()
+      await expect(page.getByRole('tab', { name: 'Token revocation' })).toBeVisible()
     },
   },
   {
@@ -689,7 +689,7 @@ export const pages: PageEntry[] = [
     path: AppRoute.AccessManagement.TokenRevocation,
     waitFor: async (page) => {
       await expect(page.getByRole('heading', { name: 'Access Management' })).toBeVisible()
-      await expect(page.getByRole('tab', { name: 'Token Revocation' })).toBeVisible()
+      await expect(page.getByRole('tab', { name: 'Token revocation' })).toBeVisible()
     },
     setup: async (page) => {
       await page.getByRole('button', { name: 'Revoke all tokens' }).click()

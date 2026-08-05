@@ -30,7 +30,7 @@ import { useAssignmentPermissions } from './useAssignmentPermissions'
 const BASE_FILTER_FIELD_DEFS = [
   {
     key: 'name',
-    label: 'Principal Name',
+    label: 'Principal name',
     type: FilterTypeEnum.TEXT,
     operators: [FilterOperatorEnum.CONTAINS],
     defaultOperator: FilterOperatorEnum.CONTAINS,
@@ -38,7 +38,7 @@ const BASE_FILTER_FIELD_DEFS = [
   },
   {
     key: 'role_name',
-    label: 'Role Name',
+    label: 'Role name',
     type: FilterTypeEnum.TEXT,
     operators: [FilterOperatorEnum.CONTAINS],
     defaultOperator: FilterOperatorEnum.CONTAINS,
@@ -46,12 +46,12 @@ const BASE_FILTER_FIELD_DEFS = [
   },
   {
     key: 'type',
-    label: 'Principal Type',
+    label: 'Principal type',
     type: FilterTypeEnum.SELECT,
     options: [
       { value: RolePrincipalType.USER, label: 'User' },
       { value: RolePrincipalType.GROUP, label: 'Group' },
-      { value: RolePrincipalType.SERVICE_ACCOUNT, label: 'Service Account' },
+      { value: RolePrincipalType.SERVICE_ACCOUNT, label: 'Service account' },
     ],
     placeholder: 'Filter by principal type',
   },
@@ -124,11 +124,11 @@ function AssignmentsTableBody({
     <>
       <Thead>
         <Tr>
-          <Th sort={getSortParams(0)}>Principal Name</Th>
+          <Th sort={getSortParams(0)}>Principal name</Th>
           <Th sort={getSortParams(1)} modifier="nowrap">
-            Principal Type
+            Principal type
           </Th>
-          <Th sort={getSortParams(2)}>Role Name</Th>
+          <Th sort={getSortParams(2)}>Role name</Th>
           <Th sort={getSortParams(3)} modifier="nowrap">
             Scope
           </Th>
@@ -142,15 +142,15 @@ function AssignmentsTableBody({
       <Tbody>
         {rows.map((row) => (
           <Tr key={`${row.sourceEndpoint}-${row.id}`}>
-            <Td dataLabel="Principal Name">
+            <Td dataLabel="Principal name">
               <Truncate content={row.principalName} />
             </Td>
-            <Td dataLabel="Principal Type">
+            <Td dataLabel="Principal type">
               <NxLabel color={principalTypeDisplay[row.principalType].color}>
                 {principalTypeDisplay[row.principalType].text}
               </NxLabel>
             </Td>
-            <Td dataLabel="Role Name">
+            <Td dataLabel="Role name">
               <Truncate content={row.assignmentName} />
             </Td>
             <Td dataLabel="Scope">

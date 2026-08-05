@@ -157,7 +157,7 @@ test.describe('Permission gating — Access Management tabs', () => {
     'Roles',
     'Assignments',
     'Check access',
-    'Token Revocation',
+    'Token revocation',
   ] as const
 
   /** Auditors do not have query:authz permission, so Check access is hidden. */
@@ -195,7 +195,7 @@ test.describe('Permission gating — Access Management tabs', () => {
       await expect(userApp.getByRole('tab', { name: tab })).toBeVisible()
     }
 
-    const hiddenTabs = ['Projects', 'Assignments', 'Token Revocation'] as const
+    const hiddenTabs = ['Projects', 'Assignments', 'Token revocation'] as const
     for (const tab of hiddenTabs) {
       await expect(userApp.getByRole('tab', { name: tab })).not.toBeVisible()
     }

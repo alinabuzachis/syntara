@@ -106,7 +106,7 @@ function RoleAssignmentsTable({
     >
       <Thead>
         <Tr>
-          {isVisible('roleName') && <Th sort={getSortParams(sortIndex('roleName'))}>Role Name</Th>}
+          {isVisible('roleName') && <Th sort={getSortParams(sortIndex('roleName'))}>Role name</Th>}
           {isVisible('description') && <Th sort={getSortParams(sortIndex('description'))}>Description</Th>}
           {isVisible('scope') && <Th sort={getSortParams(sortIndex('scope'))}>Scope</Th>}
           {isVisible('project') && <Th sort={getSortParams(sortIndex('project'))}>Project</Th>}
@@ -118,7 +118,7 @@ function RoleAssignmentsTable({
         {paginatedRows.map((row) => (
           <Tr key={row.id}>
             {isVisible('roleName') && (
-              <Td dataLabel="Role Name">
+              <Td dataLabel="Role name">
                 <Truncate content={row.roleName} />
               </Td>
             )}
