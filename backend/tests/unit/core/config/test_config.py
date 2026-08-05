@@ -444,7 +444,7 @@ class TestTemporalSettings:
             settings = Settings(_env_file=None)
             assert settings.temporal_address == "localhost:7233"
             assert settings.temporal_namespace == "default"
-            assert settings.task_queue == "nexus-workflow-queue"
+            assert settings.task_queue == "orchestrator-workflow-queue"
             assert settings.max_cached_workflows == 50
             assert settings.max_concurrent_workflow_tasks == 50
             assert settings.max_concurrent_activities == 50
@@ -656,7 +656,7 @@ class TestFileStorageSettings:
         """Test default file storage configuration values."""
         settings = Settings()
         assert settings.s3_endpoint_url is None
-        assert settings.s3_bucket_name == "nexus-files"
+        assert settings.s3_bucket_name == "orchestrator-files"
         assert settings.s3_region == "us-east-1"
         assert settings.s3_access_key_id is None
         assert settings.s3_secret_access_key is None

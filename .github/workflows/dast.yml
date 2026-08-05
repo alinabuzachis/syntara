@@ -38,7 +38,7 @@ jobs:
       - name: Start services with podman-compose
         timeout-minutes: 5
         run: |
-          uvx podman-compose -p nexus-ci up --build -d database redis temporal nexus
+          uvx podman-compose -p syntara-ci up --build -d database redis temporal syntara
         working-directory: backend
 
       - name: Verify services are healthy
@@ -46,12 +46,12 @@ jobs:
         run: |
           echo "Waiting for services to become healthy..."
           podman wait --condition=healthy \
-            nexus-ci_database_1 \
-            nexus-ci_temporal_1 \
-            nexus-ci_nexus_1
+            syntara-ci_database_1 \
+            syntara-ci_temporal_1 \
+            syntara-ci_syntara_1
           echo "All services are healthy"
 
-      - name: Verify Nexus API is reachable
+      - name: Verify Syntara API is reachable
         run: |
           curl -sf http://localhost:8000/health
 
@@ -85,11 +85,11 @@ jobs:
         if: failure()
         run: |
           echo "=== Compose logs ==="
-          uvx podman-compose -p nexus-ci logs database redis temporal nexus
+          uvx podman-compose -p syntara-ci logs database redis temporal syntara
         working-directory: backend
 
       - name: Cleanup
         if: always()
         run: |
-          uvx podman-compose -p nexus-ci down -v || true
+          uvx podman-compose -p syntara-ci down -v || true
         working-directory: backend

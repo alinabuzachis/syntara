@@ -10,7 +10,7 @@ Usage:
 Environment Variables:
     APP_TEMPORAL_ADDRESS: Temporal server address (default: localhost:7233)
     APP_TEMPORAL_NAMESPACE: Temporal namespace (default: default)
-    APP_TASK_QUEUE: Task queue name (default: nexus-workflow-queue)
+    APP_TASK_QUEUE: Task queue name (default: orchestrator-workflow-queue)
     APP_FALLBACK_LOG_LEVEL: Logging level before runtime settings load (default: INFO)
 
 """
@@ -32,7 +32,7 @@ async def main() -> None:
     """Run the Temporal workflow worker."""
     validate_encryption_key_at_startup()
     try:
-        await run_worker(start_worker, worker_name="nexus-workflow-worker")
+        await run_worker(start_worker, worker_name="orchestrator-workflow-worker")
     finally:
         stop_loggers()
 

@@ -109,7 +109,7 @@ Your original `feature-auth` work remains untouched, and you can switch back any
 
 **Main Repository** (`~/repos/nexus/.env`):
 ```bash
-PODMAN_PROJECT=nexus
+PODMAN_PROJECT=syntara
 APP_API_PORT=8000
 APP_DB_PORT=5432
 APP_TEMPORAL_UI_PORT=8081
@@ -118,7 +118,7 @@ APP_CACHE_PORT=6379
 
 **Feature Worktree** (`~/repos/nexus/worktrees/feature-auth/.env`):
 ```bash
-PODMAN_PROJECT=nexus-feature-auth
+PODMAN_PROJECT=syntara-feature-auth
 APP_API_PORT=8001
 APP_DB_PORT=5433
 APP_TEMPORAL_UI_PORT=8082
@@ -197,7 +197,7 @@ The `PODMAN_PROJECT` variable determines the project name for `podman-compose`, 
 
 - Container names: `${PODMAN_PROJECT}_database_1`, `${PODMAN_PROJECT}_redis_1`, etc.
 - Network names: `${PODMAN_PROJECT}_default`
-- Volume names: `${PODMAN_PROJECT}_nexus_postgres_data`
+- Volume names: `${PODMAN_PROJECT}_syntara_postgres_data`
 
 Setting different `PODMAN_PROJECT` values ensures complete isolation between worktrees.
 

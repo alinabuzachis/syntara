@@ -76,7 +76,7 @@ class ScheduledWorkflowLauncher:
         temporal_workflow_id = setup_result["temporal_workflow_id"]
 
         await workflow.execute_child_workflow(
-            "nexus_workflow",
+            "orchestrator_workflow",
             args=[
                 setup_result["workflow_definition"],
                 execution_id,

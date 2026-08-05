@@ -352,7 +352,7 @@ class TestLauncherWorkflow:
 
         mock_child.assert_called_once()
         call_kwargs = mock_child.call_args
-        assert call_kwargs[0][0] == "nexus_workflow"
+        assert call_kwargs[0][0] == "orchestrator_workflow"
         assert call_kwargs[1]["id"] == "wf-exec-123"
         assert call_kwargs[1]["task_queue"] == "test-queue"
         assert result == {"execution_id": "exec-123", "temporal_workflow_id": "wf-exec-123"}

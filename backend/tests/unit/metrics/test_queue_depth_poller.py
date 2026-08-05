@@ -97,7 +97,7 @@ class TestQueryQueueDepth:
         mock_client = MagicMock()
         mock_client.workflow_service.describe_task_queue = AsyncMock(return_value=mock_resp)
 
-        depth = await _query_queue_depth(mock_client, "nexus-task-queue", "default")
+        depth = await _query_queue_depth(mock_client, "orchestrator-task-queue", "default")
         assert depth == 42
 
     @pytest.mark.asyncio
@@ -110,7 +110,7 @@ class TestQueryQueueDepth:
         mock_client = MagicMock()
         mock_client.workflow_service.describe_task_queue = AsyncMock(return_value=mock_resp)
 
-        depth = await _query_queue_depth(mock_client, "nexus-task-queue", "default")
+        depth = await _query_queue_depth(mock_client, "orchestrator-task-queue", "default")
         assert depth == 7
 
     @pytest.mark.asyncio
@@ -123,7 +123,7 @@ class TestQueryQueueDepth:
         mock_client = MagicMock()
         mock_client.workflow_service.describe_task_queue = AsyncMock(return_value=mock_resp)
 
-        depth = await _query_queue_depth(mock_client, "nexus-task-queue", "default")
+        depth = await _query_queue_depth(mock_client, "orchestrator-task-queue", "default")
         assert depth == 0
 
 
@@ -158,7 +158,7 @@ class TestPollCallback:
                 return_value=mock_recorder,
             ),
         ):
-            callback = _make_poll_callback("localhost:7233", "default", ["nexus-workflow-queue"])
+            callback = _make_poll_callback("localhost:7233", "default", ["orchestrator-workflow-queue"])
             await callback(None)
 
         from nexus.metrics.types import ComponentLabel, MetricType
@@ -167,7 +167,7 @@ class TestPollCallback:
             MetricType.TEMPORAL_QUEUE_DEPTH,
             5.0,
             component=ComponentLabel.TEMPORAL_WORKER,
-            labels={"task_queue": "nexus-workflow-queue"},
+            labels={"task_queue": "orchestrator-workflow-queue"},
         )
 
     @pytest.mark.asyncio
@@ -181,7 +181,7 @@ class TestPollCallback:
 
         mock_recorder = MagicMock()
 
-        queues = ["nexus-workflow-queue", "nexus-background-queue"]
+        queues = ["orchestrator-workflow-queue", "orchestrator-background-queue"]
 
         with (
             patch(
@@ -259,7 +259,7 @@ class TestPollCallback:
             ),
         ):
             callback = _make_poll_callback(
-                "localhost:7233", "default", ["nexus-workflow-queue", "nexus-background-queue"]
+                "localhost:7233", "default", ["orchestrator-workflow-queue", "orchestrator-background-queue"]
             )
             await callback(None)
 
@@ -269,7 +269,7 @@ class TestPollCallback:
             MetricType.TEMPORAL_QUEUE_DEPTH,
             7.0,
             component=ComponentLabel.TEMPORAL_WORKER,
-            labels={"task_queue": "nexus-background-queue"},
+            labels={"task_queue": "orchestrator-background-queue"},
         )
 
 
@@ -296,16 +296,16 @@ class TestGetQueueDepthPoller:
 
         with (
             override_settings(
-                task_queue="nexus-workflow-queue",
-                background_task_queue="nexus-background-queue",
+                task_queue="orchestrator-workflow-queue",
+                background_task_queue="orchestrator-background-queue",
             ),
             patch("nexus.metrics.queue_depth_poller._make_poll_callback", mock_factory),
         ):
             get_queue_depth_poller()
 
         assert mock_factory.call_args.kwargs["task_queues"] == [
-            "nexus-workflow-queue",
-            "nexus-background-queue",
+            "orchestrator-workflow-queue",
+            "orchestrator-background-queue",
         ]
 
     def test_deduplicates_queues_when_both_settings_are_identical(

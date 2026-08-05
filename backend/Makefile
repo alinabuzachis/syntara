@@ -1,4 +1,4 @@
-# Nexus Development Makefile
+# Syntara Development Makefile
 # Local makefile (optional).
 -include Makefile.local
 
@@ -13,10 +13,10 @@ help: ## Show this help message
 # ========================================================
 # Use podman-compose for container orchestration (via uv)
 # Support multiple project instances via PODMAN_PROJECT environment variable
-PODMAN_PROJECT ?= nexus
+PODMAN_PROJECT ?= syntara
 POSTGRES_IMAGE ?= quay.io/sclorg/postgresql-15-c9s
 REDIS_IMAGE ?= mirror.gcr.io/library/redis:6
-APP_IMAGE ?= localhost/nexus:latest
+APP_IMAGE ?= localhost/syntara:latest
 APP_UI_IMAGE ?= quay.io/ansible/syntara-ui
 APP_UI_VERSION ?= latest
 ifeq ($(shell uname -s),Darwin)
@@ -51,7 +51,7 @@ WORKER_BASE_URL = https://localhost:8000/api/v1
 .PHONY: install
 install: _deps-install-dev _deps-install-pre-commit ## Complete setup from scratch
 	@echo ""
-	@echo "🎉 Nexus setup complete!"
+	@echo "🎉 Syntara setup complete!"
 	@echo ""
 	@echo "Ready to use:"
 	@echo "  make help    # Show all available commands"
@@ -271,23 +271,23 @@ dev: check-deps _ensure-secrets _ensure-certs ## Run development server with aut
 	    aws_access_key_id='$${APP_S3_ACCESS_KEY_ID:-testing}', \
 	    aws_secret_access_key='$${APP_S3_SECRET_ACCESS_KEY:-testing}', \
 	    region_name='$${APP_S3_REGION:-us-east-1}'); \
-	c.create_bucket(Bucket='$${APP_S3_BUCKET_NAME:-nexus-files}'); \
+	c.create_bucket(Bucket='$${APP_S3_BUCKET_NAME:-orchestrator-files}'); \
 	print('  ✅ Bucket ready') \
 	" 2>.s3-bucket-setup.err || { echo "  ⚠️  S3 not available — file uploads will be disabled"; cat .s3-bucket-setup.err | head -5; }
 	@rm -f .s3-bucket-setup.err
-	@echo "🚀 Starting Nexus API server..."
+	@echo "🚀 Starting Syntara API server..."
 	@echo "📍 API URL: https://localhost:8000"
 	@echo "📍 API Docs: https://localhost:8000/docs"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
 	APP_JWT_PRIVATE_KEY_PATH=.secrets/jwt-primary.pem \
-	APP_JWT_BACKUP_KEYS='[{"key_id":"nexus-backup","key_path":".secrets/jwt-backup.pem"}]' \
+	APP_JWT_BACKUP_KEYS='[{"key_id":"orchestrator-backup","key_path":".secrets/jwt-backup.pem"}]' \
 	APP_SECRET_ENCRYPTION_KEY_PATH=.secrets/encryption-key \
 	$(S2S_TLS_VARS) \
 	APP_S2S_TLS_CERT_PATH=.secrets/certs/backend.crt \
 	APP_S2S_TLS_KEY_PATH=.secrets/certs/backend.key \
 	APP_S3_ENDPOINT_URL=$${APP_S3_ENDPOINT_URL:-http://localhost:5555} \
-	APP_S3_BUCKET_NAME=$${APP_S3_BUCKET_NAME:-nexus-files} \
+	APP_S3_BUCKET_NAME=$${APP_S3_BUCKET_NAME:-orchestrator-files} \
 	APP_S3_REGION=$${APP_S3_REGION:-us-east-1} \
 	APP_S3_ACCESS_KEY_ID=$${APP_S3_ACCESS_KEY_ID:-testing} \
 	APP_S3_SECRET_ACCESS_KEY=$${APP_S3_SECRET_ACCESS_KEY:-testing} \
@@ -356,9 +356,9 @@ cache-run: ## Start cache container (foreground, Ctrl+C to stop)
 cache-clean: ## Stop cache and remove data
 	@echo "🧹 Stopping cache server..."
 	$(COMPOSE_FINAL_CMD) stop redis || true
-	@if podman container exists nexus_redis_1 2>/dev/null; then \
+	@if podman container exists syntara_redis_1 2>/dev/null; then \
 		echo "Removing redis container..."; \
-		podman container rm -f nexus_redis_1; \
+		podman container rm -f syntara_redis_1; \
 	fi
 	@echo "✅ Cache stopped"
 
@@ -378,7 +378,7 @@ temporal-run: ## Start Temporal server, UI, and worker (foreground, Ctrl+C to st
 temporal-clean: ## Stop Temporal and remove data
 	@echo "🧹 Stopping Temporal server and UI..."
 	$(COMPOSE_FINAL_CMD) stop temporal temporal-ui || true
-	@for container in nexus_temporal_1 nexus_temporal-ui_1; do \
+	@for container in syntara_temporal_1 syntara_temporal-ui_1; do \
 		if podman container exists $$container 2>/dev/null; then \
 			echo "Removing $$container..."; \
 			podman container rm -f $$container; \
@@ -388,12 +388,12 @@ temporal-clean: ## Stop Temporal and remove data
 
 
 .PHONY: build-images
-build-images: ## Build container images for nexus and temporal-worker
+build-images: ## Build container images for syntara and temporal-worker
 	@echo "🔨 Building container images..."
-	@echo "📦 Building nexus image..."
-	$(COMPOSE_FINAL_CMD) build nexus
+	@echo "📦 Building syntara image..."
+	$(COMPOSE_FINAL_CMD) build syntara
 	@echo "✅ Container images built successfully"
-	@echo "   Image: $${APP_IMAGE:-localhost/nexus:latest}"
+	@echo "   Image: $${APP_IMAGE:-localhost/syntara:latest}"
 
 
 # Secrets management
@@ -437,7 +437,7 @@ _ensure-certs:
 
 .PHONY: generate-token
 generate-token: _ensure-secrets ## Generate a JWT token for testing (ROLE=creator|approver|administrator|viewer KEY=primary|backup)
-	@$(COMPOSE_FINAL_CMD) exec nexus -- sh -c 'uv run python tools/generate_jwt.py --json $(if $(ROLE),--role $(ROLE)) $(if $(KEY),--key $(KEY))' | jq -r .access_token
+	@$(COMPOSE_FINAL_CMD) exec syntara -- sh -c 'uv run python tools/generate_jwt.py --json $(if $(ROLE),--role $(ROLE)) $(if $(KEY),--key $(KEY))' | jq -r .access_token
 
 .PHONY: _ensure-secrets
 _ensure-secrets:
@@ -449,7 +449,7 @@ _ensure-secrets:
 .PHONY: run-all
 run-all: _ensure-secrets _ensure-certs ## Start all services (foreground, Ctrl+C to stop)
 	@echo "🚀 Starting all services..."
-	@echo "📍 Nexus API: http://localhost:$${APP_API_PORT:-8000}"
+	@echo "📍 Syntara API: http://localhost:$${APP_API_PORT:-8000}"
 	@echo "📍 Syntara UI: http://localhost:$${APP_UI_PORT:-8080}"
 	@echo "📍 Database: postgresql://admin:admin@localhost:$${APP_DB_PORT:-5432}/nexus_api"
 	@echo "📍 Cache: cache://localhost:$${APP_CACHE_PORT:-6379}"

@@ -66,7 +66,7 @@ S3 credentials are injected via K8s Secrets in production, mounted as environmen
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `APP_S3_ENDPOINT_URL` | S3-compatible endpoint URL (ODF, AWS, Ceph) | `None` (unconfigured) |
-| `APP_S3_BUCKET_NAME` | S3 bucket name | `nexus-files` |
+| `APP_S3_BUCKET_NAME` | S3 bucket name | `orchestrator-files` |
 | `APP_S3_REGION` | S3 region | `us-east-1` |
 | `APP_S3_ACCESS_KEY_ID` | S3 access key | `None` (required when S3 is configured) |
 | `APP_S3_SECRET_ACCESS_KEY` | S3 secret key | `None` (required when S3 is configured) |
@@ -82,7 +82,7 @@ Local dev uses a `moto` server (official `motoserver/moto` Docker image) in `pod
 
 ```
 APP_S3_ENDPOINT_URL=http://localhost:5555
-APP_S3_BUCKET_NAME=nexus-files
+APP_S3_BUCKET_NAME=orchestrator-files
 APP_S3_REGION=us-east-1
 APP_S3_ACCESS_KEY_ID=testing
 APP_S3_SECRET_ACCESS_KEY=testing

@@ -450,11 +450,11 @@ class TestRecorderPrometheus:
             MetricType.TEMPORAL_QUEUE_DEPTH,
             42.0,
             component=ComponentLabel.TEMPORAL_WORKER,
-            labels={"task_queue": "nexus-workflow-queue"},
+            labels={"task_queue": "orchestrator-workflow-queue"},
         )
         sample_value = recorder.prometheus.temporal_queue_depth.labels(
             component="temporal_worker",
-            task_queue="nexus-workflow-queue",
+            task_queue="orchestrator-workflow-queue",
         )._value.get()
         assert sample_value == pytest.approx(42.0)
 
@@ -464,21 +464,21 @@ class TestRecorderPrometheus:
             MetricType.TEMPORAL_QUEUE_DEPTH,
             10.0,
             component=ComponentLabel.TEMPORAL_WORKER,
-            labels={"task_queue": "nexus-workflow-queue"},
+            labels={"task_queue": "orchestrator-workflow-queue"},
         )
         recorder.record(
             MetricType.TEMPORAL_QUEUE_DEPTH,
             5.0,
             component=ComponentLabel.TEMPORAL_WORKER,
-            labels={"task_queue": "nexus-background-queue"},
+            labels={"task_queue": "orchestrator-background-queue"},
         )
         wf_value = recorder.prometheus.temporal_queue_depth.labels(
             component="temporal_worker",
-            task_queue="nexus-workflow-queue",
+            task_queue="orchestrator-workflow-queue",
         )._value.get()
         bg_value = recorder.prometheus.temporal_queue_depth.labels(
             component="temporal_worker",
-            task_queue="nexus-background-queue",
+            task_queue="orchestrator-background-queue",
         )._value.get()
         assert wf_value == pytest.approx(10.0)
         assert bg_value == pytest.approx(5.0)

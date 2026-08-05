@@ -33,25 +33,25 @@ own dedicated queue, served by their own dedicated worker deployment.
 │  Nexus API (FastAPI)                                                        │
 │                                                                             │
 │  POST /executions  →  ExecutionService.start_workflow(is_builtin=False)    │
-│       ↓ task_queue = nexus-workflow-queue                                   │
+│       ↓ task_queue = orchestrator-workflow-queue                                   │
 │                                                                             │
 │  Built-in trigger  →  ExecutionService.start_workflow(is_builtin=True)     │
-│       ↓ task_queue = nexus-background-queue                                 │
+│       ↓ task_queue = orchestrator-background-queue                                 │
 └──────────────────────────┬──────────────────────────────────────────────────┘
                            │
               ┌────────────▼─────────────┐
               │   Temporal Server        │
               │  (NUM_HISTORY_SHARDS=512)│
               │                          │
-              │  nexus-workflow-queue    ◄──── nexus-workflow-worker pod(s)
-              │  nexus-background-queue  ◄──── nexus-background-worker pod(s) ← HPA
+              │  orchestrator-workflow-queue    ◄──── orchestrator-workflow-worker pod(s)
+              │  orchestrator-background-queue  ◄──── orchestrator-background-worker pod(s) ← HPA
               └──────────────────────────┘
 ```
 
 The API server determines the queue at dispatch time by reading `is_builtin` from the `Workflow`
 database row (see [Built-in Workflow Routing](#built-in-workflow-routing)). Once dispatched, the
-Temporal server's own queue isolation guarantees that a spike on `nexus-background-queue` never
-touches `nexus-workflow-queue` and vice versa.
+Temporal server's own queue isolation guarantees that a spike on `orchestrator-background-queue` never
+touches `orchestrator-workflow-queue` and vice versa.
 
 ## Built-in Workflow Routing
 
@@ -89,7 +89,7 @@ handle = await self.temporal_client.start_workflow(
 )
 ```
 
-`self.background_task_queue` defaults to `nexus-background-queue` (constant
+`self.background_task_queue` defaults to `orchestrator-background-queue` (constant
 `TEMPORAL_DEFAULT_BACKGROUND_TASK_QUEUE` in `src/nexus/core/config/base.py`) but is
 overridable via the `APP_BACKGROUND_TASK_QUEUE` environment variable. `create_temporal_execution_service()`
 reads both queue names from settings and wires them into the service at construction time, so
@@ -99,8 +99,8 @@ nothing downstream of the service needs to know about queue names.
 
 | Setting | Env var | Default |
 |---|---|---|
-| `task_queue` | `APP_TASK_QUEUE` | `nexus-workflow-queue` |
-| `background_task_queue` | `APP_BACKGROUND_TASK_QUEUE` | `nexus-background-queue` |
+| `task_queue` | `APP_TASK_QUEUE` | `orchestrator-workflow-queue` |
+| `background_task_queue` | `APP_BACKGROUND_TASK_QUEUE` | `orchestrator-background-queue` |
 | `metrics_worker_port` | `APP_METRICS_WORKER_PORT` | `9090` |
 
 ## The Background Worker
@@ -137,12 +137,12 @@ The background worker runs a smaller activity registry than the main workflow wo
 
 | Registry | Used by | Activities |
 |---|---|---|
-| `ACTIVITY_REGISTRY` | `nexus-workflow-worker` | All ~24 activities (HTTP, script, agentic, AAP, approvals, triggers, …) |
-| `BACKGROUND_ACTIVITY_REGISTRY` | `nexus-background-worker` | `register_activity_monitoring`, `fetch_workflow_runtime_settings`, `manual_trigger`, `execute_internal_activity` |
+| `ACTIVITY_REGISTRY` | `orchestrator-workflow-worker` | All ~24 activities (HTTP, script, agentic, AAP, approvals, triggers, …) |
+| `BACKGROUND_ACTIVITY_REGISTRY` | `orchestrator-background-worker` | `register_activity_monitoring`, `fetch_workflow_runtime_settings`, `manual_trigger`, `execute_internal_activity` |
 
 This is not just an optimisation — it is a security boundary. The background worker cannot
 execute user-facing activities (HTTP requests, scripts, AAP jobs) even if someone managed to
-route a workflow to `nexus-background-queue`. Built-in workflows use `execute_internal_activity`
+route a workflow to `orchestrator-background-queue`. Built-in workflows use `execute_internal_activity`
 which dispatches only to pre-registered internal handlers, not arbitrary user code.
 
 ## Observability
@@ -267,7 +267,7 @@ Each poll emits a `TEMPORAL_QUEUE_DEPTH` gauge record labelled with the queue na
 recorder.record(
     MetricType.TEMPORAL_QUEUE_DEPTH,
     float(depth),
-    labels={"task_queue": task_queue},  # "nexus-workflow-queue" or "nexus-background-queue"
+    labels={"task_queue": task_queue},  # "orchestrator-workflow-queue" or "orchestrator-background-queue"
 )
 ```
 
@@ -275,7 +275,7 @@ This produces two Prometheus time series from the same metric name, distinguishe
 `task_queue` label. A Prometheus query for the background queue depth:
 
 ```promql
-temporal_queue_depth{task_queue="nexus-background-queue"}
+temporal_queue_depth{task_queue="orchestrator-background-queue"}
 ```
 
 This label is what makes it possible to configure HPA rules targeting specifically the background
@@ -306,8 +306,8 @@ If Prometheus is configured to scrape the backend service:
 
 ```promql
 # Both series should be present (value may be 0 when queues are idle)
-nexus_temporal_queue_depth{task_queue="nexus-workflow-queue"}
-nexus_temporal_queue_depth{task_queue="nexus-background-queue"}
+nexus_temporal_queue_depth{task_queue="orchestrator-workflow-queue"}
+nexus_temporal_queue_depth{task_queue="orchestrator-background-queue"}
 ```
 
 From the API server's internal metrics endpoint:
@@ -323,12 +323,12 @@ the main worker remains idle. Alternatively, query the Temporal UI:
 
 - Navigate to the Temporal UI (`http://<cluster>:8081`)
 - Select namespace `default`
-- Filter by Task Queue `nexus-background-queue`
-- A running document conversion should appear here, not under `nexus-workflow-queue`
+- Filter by Task Queue `orchestrator-background-queue`
+- A running document conversion should appear here, not under `orchestrator-workflow-queue`
 
 ## Adding a New Built-in Workflow
 
-A built-in workflow is a system operation that runs on `nexus-background-queue`, is seeded
+A built-in workflow is a system operation that runs on `orchestrator-background-queue`, is seeded
 automatically at startup, and is hidden from regular users. Adding one requires changes in two
 files only.
 
@@ -427,7 +427,7 @@ and not deletable via the API.
   is needed.
 - **`ACTIVITY_REGISTRY`** — `execute_internal_activity` is also registered in the main worker
   registry. Built-in workflows can run on either worker, but will be routed to
-  `nexus-background-queue` when dispatched with `is_builtin=True`.
+  `orchestrator-background-queue` when dispatched with `is_builtin=True`.
 - **`is_builtin` routing** — callers pass `is_builtin=True` to
   `TemporalExecutionService.start_workflow()`. The seeder marks the `Workflow` row with
   `is_builtin=True` automatically.
@@ -451,8 +451,8 @@ await execution_service.start_workflow(
 
 The service looks up `background_task_queue` from settings and routes the Temporal workflow
 there. From this point, execution is identical to any other workflow — visible in the Temporal
-UI under `nexus-background-queue`, status synced to the DB via `ActivitySyncService`, and
-surfaced in the Syntara UI for administrators with the builtin toggle enabled.
+UI under `orchestrator-background-queue`, status synced to the DB via `ActivitySyncService`, and
+surfaced in the Nexus UI for administrators with the builtin toggle enabled.
 
 ## Constraints and Known Gaps
 
@@ -466,7 +466,7 @@ long-running internal activities.
 
 **No CPU-independent HPA metric**: the HPA scales on CPU utilization. This works for CPU-bound
 activities but is a weak proxy for queue backlog depth. A better HPA trigger would be the
-`nexus_temporal_queue_depth{task_queue="nexus-background-queue"}` Prometheus metric via a
+`nexus_temporal_queue_depth{task_queue="orchestrator-background-queue"}` Prometheus metric via a
 custom metrics adapter (e.g. Prometheus Adapter or KEDA). The current setup is safe and
 correct; the CPU trigger just responds to load with some lag rather than immediately to queue depth.
 

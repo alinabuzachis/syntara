@@ -3,15 +3,15 @@
 # run pytest, then tear everything down.
 #
 # Usage:
-#   COMPOSE_CMD="uv run podman-compose -p nexus -f podman-compose.yml" \
+#   COMPOSE_CMD="uv run podman-compose -p syntara -f podman-compose.yml" \
 #       ./tools/scripts/e2e-run.sh [pytest-args...]
 #
 # Environment:
 #   COMPOSE_CMD           Full compose command with project/file args
-#                         (default: uv run podman-compose -p nexus -f podman-compose.yml)
+#                         (default: uv run podman-compose -p syntara -f podman-compose.yml)
 set -euo pipefail
 
-COMPOSE_CMD="${COMPOSE_CMD:-uv run podman-compose -p nexus -f podman-compose.yml}"
+COMPOSE_CMD="${COMPOSE_CMD:-uv run podman-compose -p syntara -f podman-compose.yml}"
 MAKE="${MAKE:-make}"
 PYTEST_ARGS=("$@")
 
@@ -19,7 +19,7 @@ cleanup() {
     echo "🧹 Stopping background services..."
 
     # Save container logs before tearing down (useful for debugging failures)
-    local log_dir="/tmp/nexus-e2e-logs"
+    local log_dir="/tmp/syntara-e2e-logs"
     rm -rf "$log_dir"
     mkdir -p "$log_dir"
     echo "📋 Saving container logs to ${log_dir}/ ..."
@@ -41,7 +41,7 @@ fi
 
 echo "🚀 Starting database first..."
 ${COMPOSE_CMD} --profile telemetry-e2e up -d --force-recreate database \
-    > /tmp/nexus-e2e-infra.log 2>&1
+    > /tmp/syntara-e2e-infra.log 2>&1
 
 echo "🚀 Starting remaining services..."
 APP_SEGMENT_WRITE_KEY=test-e2e-write-key \
@@ -49,8 +49,8 @@ APP_SEGMENT_ENDPOINT="http://mock-segment:9999" \
 APP_SEGMENT_MAX_RETRIES=2 \
 APP_SEGMENT_TIMEOUT=5 \
 APP_COLLECTION_INTERVAL_SECONDS=10 \
-${COMPOSE_CMD} --profile telemetry-e2e up -d --force-recreate temporal temporal-worker temporal-background-worker mock-segment mcp-server nexus \
-    >> /tmp/nexus-e2e-infra.log 2>&1
+${COMPOSE_CMD} --profile telemetry-e2e up -d --force-recreate temporal temporal-worker temporal-background-worker mock-segment mcp-server syntara \
+    >> /tmp/syntara-e2e-infra.log 2>&1
 
 echo "⏳ Waiting for mock Segment server..."
 TRIES=0
@@ -85,7 +85,7 @@ until curl -sf --cacert .secrets/certs/ca.pem https://localhost:8000/health 2>/d
     TRIES=$((TRIES + 1))
     if [[ $TRIES -ge 60 ]]; then
         echo "❌ API server failed to start after 60s"
-        ${COMPOSE_CMD} logs nexus 2>&1 | tail -20
+        ${COMPOSE_CMD} logs syntara 2>&1 | tail -20
         exit 1
     fi
 done

@@ -149,7 +149,7 @@ main() {
     info "Secrets are ready in $SECRETS_DIR"
     info "Mount to containers via podman-compose or set environment variables:"
     info "  APP_JWT_PRIVATE_KEY_PATH=/run/secrets/jwt-primary.pem"
-    info "  APP_JWT_BACKUP_KEYS='[{\"key_id\":\"nexus-backup\",\"key_path\":\"/run/secrets/jwt-backup.pem\"}]'"
+    info "  APP_JWT_BACKUP_KEYS='[{\"key_id\":\"orchestrator-backup\",\"key_path\":\"/run/secrets/jwt-backup.pem\"}]'"
     info "  APP_ADMIN_PASSWORD_PATH=/run/secrets/admin-password"
     info "  APP_SECRET_ENCRYPTION_KEY_PATH=/run/secrets/encryption-key"
     info ""

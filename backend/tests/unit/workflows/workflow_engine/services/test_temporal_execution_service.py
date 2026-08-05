@@ -330,8 +330,8 @@ class TestBuiltinWorkflowRouting:
 
         service = TemporalExecutionService(
             temporal_client=mock_client,
-            task_queue="nexus-workflow-queue",
-            background_task_queue="nexus-background-queue",
+            task_queue="orchestrator-workflow-queue",
+            background_task_queue="orchestrator-background-queue",
         )
 
         await service.start_workflow(
@@ -341,7 +341,7 @@ class TestBuiltinWorkflowRouting:
             is_builtin=True,
         )
 
-        assert self._get_task_queue_from_call(mock_client) == "nexus-background-queue"
+        assert self._get_task_queue_from_call(mock_client) == "orchestrator-background-queue"
 
     @pytest.mark.asyncio
     async def test_user_workflow_always_routes_to_main_queue(
@@ -356,8 +356,8 @@ class TestBuiltinWorkflowRouting:
 
         service = TemporalExecutionService(
             temporal_client=mock_client,
-            task_queue="nexus-workflow-queue",
-            background_task_queue="nexus-background-queue",
+            task_queue="orchestrator-workflow-queue",
+            background_task_queue="orchestrator-background-queue",
         )
 
         await service.start_workflow(
@@ -367,7 +367,7 @@ class TestBuiltinWorkflowRouting:
             is_builtin=False,
         )
 
-        assert self._get_task_queue_from_call(mock_client) == "nexus-workflow-queue"
+        assert self._get_task_queue_from_call(mock_client) == "orchestrator-workflow-queue"
 
 
 class TestWorkflowDataConversion:

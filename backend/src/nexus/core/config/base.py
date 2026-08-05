@@ -132,7 +132,7 @@ class FileStorageSettings(BaseSettings):
     )
 
     s3_bucket_name: str = Field(
-        default="nexus-files",
+        default="orchestrator-files",
         description="S3 bucket for file storage",
     )
 
@@ -1176,8 +1176,8 @@ class OpenTelemetrySettings(BaseSettings):
 # Temporal Configuration
 # =============================================================================
 
-TEMPORAL_DEFAULT_TASK_QUEUE = "nexus-workflow-queue"
-TEMPORAL_DEFAULT_BACKGROUND_TASK_QUEUE = "nexus-background-queue"
+TEMPORAL_DEFAULT_TASK_QUEUE = "orchestrator-workflow-queue"
+TEMPORAL_DEFAULT_BACKGROUND_TASK_QUEUE = "orchestrator-background-queue"
 
 
 class TemporalSettings(BaseSettings):
@@ -1551,7 +1551,7 @@ class JWTSettings(BaseSettings):
     )
 
     jwt_key_id: str = Field(
-        default="nexus-primary",
+        default="orchestrator-primary",
         description="Key ID (kid) for JWT header",
     )
 
@@ -1561,7 +1561,7 @@ class JWTSettings(BaseSettings):
         description=(
             "List of backup keys for verification during key rotation. "
             "Each entry must have 'key_id' and either 'key_path' or 'key_base64'. "
-            "Example: [{'key_id': 'nexus-2024-01', 'key_base64': '...'}]"
+            "Example: [{'key_id': 'orchestrator-2024-01', 'key_base64': '...'}]"
         ),
     )
 
@@ -1685,8 +1685,8 @@ class MetricsSettings(BaseSettings):
         default=9090,
         description=(
             "TCP port on which Temporal workers expose a Prometheus metrics HTTP endpoint. "
-            "Set via APP_METRICS_WORKER_PORT. Used by both nexus-workflow-worker and "
-            "nexus-background-worker so Prometheus can scrape worker-side metrics."
+            "Set via APP_METRICS_WORKER_PORT. Used by both orchestrator-workflow-worker and "
+            "orchestrator-background-worker so Prometheus can scrape worker-side metrics."
         ),
         ge=1,
         le=65535,

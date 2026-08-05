@@ -73,7 +73,7 @@ def _parse_items(items: Any) -> Any:  # noqa: ANN401
     return items
 
 
-@workflow.defn(name="nexus_workflow")
+@workflow.defn(name="orchestrator_workflow")
 class NexusWorkflow(WorkflowConvergeMixin, WorkflowApprovalMixin):
     """Temporal workflow for executing v2 graph-based workflows."""
 

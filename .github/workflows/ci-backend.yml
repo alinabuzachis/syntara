@@ -566,23 +566,23 @@ jobs:
           APP_WORKFLOW_HTTP_REQUEST_ALLOWED_HOSTS: '["host.containers.internal"]'
         run: |
           # Start core services + mock-segment (exclude syntara-ui which is private)
-          uvx podman-compose -p nexus-ci --profile telemetry-e2e up --build -d database temporal nexus temporal-worker temporal-background-worker mcp-server mock-segment
+          uvx podman-compose -p syntara-ci --profile telemetry-e2e up --build -d database temporal syntara temporal-worker temporal-background-worker mcp-server mock-segment
 
       - name: Verify services are healthy
         timeout-minutes: 5
         run: |
           echo "Waiting for services to become healthy..."
           # Use exact container names (with _1 suffix) to avoid substring
-          # matches — e.g. "nexus-ci_temporal" would also match
-          # "nexus-ci_temporal-worker_1", causing podman wait to block on
+          # matches — e.g. "syntara-ci_temporal" would also match
+          # "syntara-ci_temporal-worker_1", causing podman wait to block on
           # a container we don't intend to check here.
           podman wait --condition=healthy \
-            nexus-ci_database_1 \
-            nexus-ci_temporal_1 \
-            nexus-ci_nexus_1 \
-            nexus-ci_temporal-background-worker_1 \
-            nexus-ci_mcp-server_1 \
-            nexus-ci_mock-segment_1
+            syntara-ci_database_1 \
+            syntara-ci_temporal_1 \
+            syntara-ci_syntara_1 \
+            syntara-ci_temporal-background-worker_1 \
+            syntara-ci_mcp-server_1 \
+            syntara-ci_mock-segment_1
           echo "All services are healthy"
 
       - name: Run E2E tests (excluding global revocation)
@@ -614,12 +614,12 @@ jobs:
         if: failure()
         run: |
           echo "=== Compose logs ==="
-          uvx podman-compose -p nexus-ci --profile telemetry-e2e logs database temporal nexus temporal-worker temporal-background-worker mcp-server mock-segment
+          uvx podman-compose -p syntara-ci --profile telemetry-e2e logs database temporal syntara temporal-worker temporal-background-worker mcp-server mock-segment
 
       - name: Cleanup
         if: always()
         run: |
-          uvx podman-compose -p nexus-ci --profile telemetry-e2e down -v || true
+          uvx podman-compose -p syntara-ci --profile telemetry-e2e down -v || true
 
 
   combine:

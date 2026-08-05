@@ -37,7 +37,7 @@ VALIDITY_DAYS = 365
 # (filename, common_name, dns_sans) — dns_sans are compose service names
 # that resolve within the podman network.
 SERVICE_CERTS = [
-    ("backend", "backend.ao.svc", ["nexus"]),
+    ("backend", "backend.ao.svc", ["syntara"]),
     ("worker", "worker.ao.svc", ["temporal-worker"]),
     ("background-worker", "background-worker.ao.svc", ["temporal-background-worker"]),
     ("temporal", "temporal.ao.svc", ["temporal"]),
@@ -85,7 +85,7 @@ def _clear_path(path: Path) -> None:
 def generate_ca() -> tuple[rsa.RSAPrivateKey, x509.Certificate]:
     """Generate a self-signed CA certificate and key."""
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    subject = issuer = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Nexus Dev CA")])
+    subject = issuer = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Syntara Dev CA")])
     cert = (
         x509.CertificateBuilder()
         .subject_name(subject)

@@ -195,7 +195,7 @@ class TestSyncScheduledTriggers:
         )
 
         schedule = client.create_schedule.call_args[0][1]
-        assert schedule.action.task_queue == "nexus-workflow-queue"
+        assert schedule.action.task_queue == "orchestrator-workflow-queue"
 
     async def test_sync_builtin_routes_to_background_task_queue(self) -> None:
         """Builtin workflows route to background task queue, not general queue."""
@@ -211,7 +211,7 @@ class TestSyncScheduledTriggers:
         )
 
         schedule = client.create_schedule.call_args[0][1]
-        assert schedule.action.task_queue == "nexus-background-queue"
+        assert schedule.action.task_queue == "orchestrator-background-queue"
 
     async def test_sync_updates_existing_schedule(self) -> None:
         """Should update an existing Temporal Schedule when trigger config changes."""

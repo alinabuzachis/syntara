@@ -1,7 +1,7 @@
 """Integration tests for background queue routing of built-in workflows.
 
 Verifies that built-in workflows (Document Conversion, Agent Execution)
-are routed to ``nexus-background-queue`` and NOT to ``nexus-workflow-queue``,
+are routed to ``orchestrator-background-queue`` and NOT to ``orchestrator-workflow-queue``,
 preventing system operations from starving user workflow execution (AAP-78968,
 AAP-83413).
 
@@ -57,8 +57,8 @@ _MINIMAL_V2_DEF = {
 
 
 def _make_temporal_service(
-    task_queue: str = "nexus-workflow-queue",
-    background_task_queue: str = "nexus-background-queue",
+    task_queue: str = "orchestrator-workflow-queue",
+    background_task_queue: str = "orchestrator-background-queue",
 ) -> tuple[TemporalExecutionService, MagicMock]:
     """Return a ``TemporalExecutionService`` with a mocked Temporal client.
 
@@ -120,8 +120,8 @@ class TestBackgroundQueueRouting:
     async def test_builtin_workflow_routes_to_background_queue(self) -> None:
         """is_builtin=True causes start_workflow to use the background task queue."""
         service, mock_client = _make_temporal_service(
-            task_queue="nexus-workflow-queue",
-            background_task_queue="nexus-background-queue",
+            task_queue="orchestrator-workflow-queue",
+            background_task_queue="orchestrator-background-queue",
         )
 
         await service.start_workflow(
@@ -133,16 +133,16 @@ class TestBackgroundQueueRouting:
 
         mock_client.start_workflow.assert_called_once()
         _, kwargs = mock_client.start_workflow.call_args
-        assert kwargs["task_queue"] == "nexus-background-queue", (
-            "Built-in workflows must be routed to nexus-background-queue, not to the user workflow queue"
+        assert kwargs["task_queue"] == "orchestrator-background-queue", (
+            "Built-in workflows must be routed to orchestrator-background-queue, not to the user workflow queue"
         )
 
     @pytest.mark.asyncio
     async def test_user_workflow_routes_to_workflow_queue(self) -> None:
         """is_builtin=False (default) causes start_workflow to use the user task queue."""
         service, mock_client = _make_temporal_service(
-            task_queue="nexus-workflow-queue",
-            background_task_queue="nexus-background-queue",
+            task_queue="orchestrator-workflow-queue",
+            background_task_queue="orchestrator-background-queue",
         )
 
         await service.start_workflow(
@@ -154,7 +154,7 @@ class TestBackgroundQueueRouting:
 
         mock_client.start_workflow.assert_called_once()
         _, kwargs = mock_client.start_workflow.call_args
-        assert kwargs["task_queue"] == "nexus-workflow-queue", (
+        assert kwargs["task_queue"] == "orchestrator-workflow-queue", (
             "User workflows must NOT be routed to the background queue"
         )
 
@@ -171,7 +171,7 @@ class TestBackgroundQueueRouting:
         )
 
         _, kwargs = mock_client.start_workflow.call_args
-        assert kwargs["task_queue"] == "nexus-workflow-queue", (
+        assert kwargs["task_queue"] == "orchestrator-workflow-queue", (
             "Default routing must be to the user workflow queue, not the background queue"
         )
 
@@ -240,8 +240,8 @@ class TestBackgroundQueueRouting:
             )
 
         assert len(calls) == 6
-        background_calls = [c for c in calls if c[1] == "nexus-background-queue"]
-        user_calls = [c for c in calls if c[1] == "nexus-workflow-queue"]
+        background_calls = [c for c in calls if c[1] == "orchestrator-background-queue"]
+        user_calls = [c for c in calls if c[1] == "orchestrator-workflow-queue"]
         assert len(background_calls) == 3, "3 builtin workflows must go to background queue"
         assert len(user_calls) == 3, "3 user workflows must go to workflow queue"
 
@@ -272,22 +272,22 @@ class TestQueueDepthMetricLabels:
         recorder.record(
             MetricType.TEMPORAL_QUEUE_DEPTH,
             5.0,
-            labels={"task_queue": "nexus-background-queue"},
+            labels={"task_queue": "orchestrator-background-queue"},
         )
         recorder.record(
             MetricType.TEMPORAL_QUEUE_DEPTH,
             0.0,
-            labels={"task_queue": "nexus-workflow-queue"},
+            labels={"task_queue": "orchestrator-workflow-queue"},
         )
 
         records = list(recorder.query(metric_types={MetricType.TEMPORAL_QUEUE_DEPTH}))
         assert len(records) == 2
 
         task_queues = {r.labels.get("task_queue") for r in records}
-        assert "nexus-background-queue" in task_queues, (
+        assert "orchestrator-background-queue" in task_queues, (
             "Background queue must have its own labeled metric series for HPA targeting"
         )
-        assert "nexus-workflow-queue" in task_queues
+        assert "orchestrator-workflow-queue" in task_queues
 
     def ***REMOVED***(self) -> None:
         """Background queue depth metric reflects the correct value."""
@@ -302,9 +302,9 @@ class TestQueueDepthMetricLabels:
         recorder.record(
             MetricType.TEMPORAL_QUEUE_DEPTH,
             7.0,
-            labels={"task_queue": "nexus-background-queue"},
+            labels={"task_queue": "orchestrator-background-queue"},
         )
 
         records = list(recorder.query(metric_types={MetricType.TEMPORAL_QUEUE_DEPTH}))
-        bg_record = next(r for r in records if r.labels.get("task_queue") == "nexus-background-queue")
+        bg_record = next(r for r in records if r.labels.get("task_queue") == "orchestrator-background-queue")
         assert bg_record.value == pytest.approx(7.0)

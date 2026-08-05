@@ -236,7 +236,7 @@ The application uses these environment variables (with defaults):
 - `APP_TEMPORAL_NAMESPACE` (default: `default`)
 - `APP_TEMPORAL_PORT` (default: `7233`)
 - `APP_TEMPORAL_UI_PORT` (default: `8081`)
-- `APP_TASK_QUEUE` (default: `nexus-workflow-queue`)
+- `APP_TASK_QUEUE` (default: `orchestrator-workflow-queue`)
 
 **Access Temporal UI** (Development/Debugging Only):
 Once Temporal is running, access the web UI at: http://localhost:8081
@@ -321,17 +321,17 @@ You can run multiple isolated instances of Nexus simultaneously using the `PODMA
 ```bash
 # Terminal 1: Run default instance
 make services-run
-# Containers: nexus_database_1, nexus_temporal_1, etc.
+# Containers: syntara_database_1, syntara_temporal_1, etc.
 
 # Terminal 2: Run a separate dev instance
-PODMAN_PROJECT=nexus-dev make services-run
-# Containers: nexus-dev_database_1, nexus-dev_temporal_1, etc.
+PODMAN_PROJECT=syntara-dev make services-run
+# Containers: syntara-dev_database_1, syntara-dev_temporal_1, etc.
 ```
 
 **Note**: Each instance requires unique ports. Configure ports via `.env` file or environment variables to avoid conflicts:
 ```bash
 # For the second instance
-export PODMAN_PROJECT=nexus-dev
+export PODMAN_PROJECT=syntara-dev
 export APP_DB_PORT=5433
 export APP_API_PORT=8001
 export APP_UI_PORT=8081
@@ -348,9 +348,9 @@ Set `APP_ENV_FILE_PATH` to point at an alternate `.env` file if you want Nexus t
 
 ```bash
 # Project Configuration
-PODMAN_PROJECT=nexus  # Project name for container orchestration (default: nexus)
+PODMAN_PROJECT=syntara  # Project name for container orchestration (default: syntara)
                       # Use this to run multiple isolated instances of Nexus
-                      # Example: PODMAN_PROJECT=nexus-dev make services-run
+                      # Example: PODMAN_PROJECT=syntara-dev make services-run
 
 # API Configuration
 APP_API_PORT=8000
@@ -379,7 +379,7 @@ APP_TEMPORAL_ADDRESS=localhost:7233
 APP_TEMPORAL_PORT=7233
 APP_TEMPORAL_UI_PORT=8081
 APP_TEMPORAL_NAMESPACE=default
-APP_TASK_QUEUE=nexus-workflow-queue
+APP_TASK_QUEUE=orchestrator-workflow-queue
 
 # Logging
 APP_FALLBACK_LOG_LEVEL=INFO
