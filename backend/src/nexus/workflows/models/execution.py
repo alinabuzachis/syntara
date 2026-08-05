@@ -435,6 +435,7 @@ class ExecutionRead(SQLModel):
     workflow_version: int | None = Field(
         default=None, description="Version number of the workflow version that was executed"
     )
+    workflow_name: str | None = Field(default=None, description="Name of the workflow")
     workflow_version_name: str | None = Field(default=None, description="Name of the executed version, if one was set")
     workflow_version_created_at: datetime | None = Field(
         default=None, description="Timestamp when the executed version was created"

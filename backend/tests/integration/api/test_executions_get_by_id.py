@@ -8,7 +8,8 @@ import pytest
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.workflows.models import ActivityExecution
+from nexus.core.models import User
+from nexus.workflows.models import ActivityExecution, Workflow
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 
 
@@ -16,6 +17,7 @@ from nexus.workflows.models.execution import Execution, ExecutionStatus
 async def test_get_execution_by_id_success(
     auth_client: AsyncClient,
     test_execution: Execution,
+    test_workflow: Workflow,
 ) -> None:
     """Test successfully retrieving an execution by ID."""
     response = await auth_client.get(f"/api/v1/executions/{test_execution.id}")
@@ -24,6 +26,7 @@ async def test_get_execution_by_id_success(
     data = response.json()
     assert data["id"] == str(test_execution.id)
     assert data["workflow_id"] == str(test_execution.workflow_id)
+    assert data["workflow_name"] == test_workflow.name
     assert data["status"] == ExecutionStatus.PENDING.value
     assert "created_at" in data
     assert "updated_at" in data
@@ -193,3 +196,27 @@ async def test_get_execution_by_id_with_duplicate_include_values(
     assert response.status_code == 422
     data = response.json()
     assert "detail" in data
+
+
+# ============================================================================
+# workflow_name field tests
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_execution_by_id_workflow_name_after_soft_delete(
+    auth_client: AsyncClient,
+    test_execution: Execution,
+    test_workflow: Workflow,
+    test_user: User,
+    test_db_session: AsyncSession,
+) -> None:
+    """Test that workflow_name is still returned after the workflow is soft-deleted."""
+    test_workflow.soft_delete(user_id=test_user.id, deletion_time=datetime.now(UTC))
+    await test_db_session.commit()
+
+    response = await auth_client.get(f"/api/v1/executions/{test_execution.id}")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["workflow_name"] == test_workflow.name

@@ -74,6 +74,7 @@ describe('Executions Component', () => {
     {
       id: '123e4567-e89b-12d3-a456-426614174000',
       workflow_id: 'workflow-1',
+      workflow_name: 'Hello World Workflow',
       workflow_version_id: 'wfv-1',
       project_id: 'project-1',
       temporal_workflow_id: 'temporal-1',
@@ -89,6 +90,7 @@ describe('Executions Component', () => {
     {
       id: '223e4567-e89b-12d3-a456-426614174001',
       workflow_id: 'workflow-2',
+      workflow_name: 'Data Processing Workflow',
       workflow_version_id: 'wfv-2',
       project_id: 'project-1',
       temporal_workflow_id: 'temporal-2',
@@ -104,6 +106,7 @@ describe('Executions Component', () => {
     {
       id: '323e4567-e89b-12d3-a456-426614174002',
       workflow_id: 'workflow-3',
+      workflow_name: 'API Integration Workflow',
       workflow_version_id: 'wfv-3',
       project_id: 'project-1',
       temporal_workflow_id: 'temporal-3',
@@ -288,6 +291,15 @@ describe('Executions Component', () => {
     expect(screen.getByText('Hello World Workflow')).toBeInTheDocument()
     expect(screen.getByText('Data Processing Workflow')).toBeInTheDocument()
     expect(screen.getByText('API Integration Workflow')).toBeInTheDocument()
+  })
+
+  it('falls back to workflow_id when workflow_name is null', () => {
+    mockExecutionsQuery([{ ...mockExecutions[0], workflow_name: null }])
+
+    render(<Executions />, { wrapper: TestWrapper })
+
+    const link = screen.getByRole('link', { name: mockExecutions[0].workflow_id })
+    expect(link).toHaveAttribute('href', `/workflow-builder/${mockExecutions[0].workflow_id}`)
   })
 
   it('shows placeholder for null timestamps', () => {

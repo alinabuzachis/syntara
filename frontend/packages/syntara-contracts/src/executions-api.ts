@@ -157,6 +157,11 @@ export interface components {
        */
       workflow_version_id: string
       /**
+       * Workflow Name
+       * @description Name of the workflow
+       */
+      workflow_name?: string | null
+      /**
        * Workflow Version
        * @description Version number of the workflow version that was executed
        */

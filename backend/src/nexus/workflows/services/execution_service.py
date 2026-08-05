@@ -66,15 +66,18 @@ MAX_CALLBACK_ERROR_MSG_LENGTH = 500
 
 
 class ExecutionsEnrichQueryMixin(EnrichQueryMixin):
-    """Eager-load workflow_version relationship so list queries include the version number."""
+    """Eager-load workflow and workflow_version relationships so list queries include the name and version number."""
 
     def enrich(self, query: Select) -> Select:  # type: ignore[type-arg]
-        """Add selectinload for workflow_version to the query.
+        """Add selectinload for workflow and workflow_version to the query.
 
         Only applies when the root entity is Execution (skips ActivityExecution queries).
         """
         if any(col.get("entity") is Execution for col in query.column_descriptions):
-            return query.options(selectinload(Execution.workflow_version))  # type: ignore[arg-type]
+            return query.options(
+                selectinload(Execution.workflow_version),  # type: ignore[arg-type]
+                selectinload(Execution.workflow),  # type: ignore[arg-type]
+            )
         return query
 
 
@@ -92,10 +95,13 @@ class ExecutionsConvertResourceMixin(ConvertResourceMixin):
         version_number = getattr(wv, "version", None) if wv else None
         version_name = getattr(wv, "name", None) if wv else None
         version_created_at = getattr(wv, "created_at", None) if wv else None
+        wf = resource.workflow
+        wf_name = getattr(wf, "name", None) if wf else None
         result = ExecutionRead(
             id=resource.id,
             workflow_id=resource.workflow_id,
             workflow_version_id=resource.workflow_version_id,
+            workflow_name=wf_name,
             workflow_version=version_number,
             workflow_version_name=version_name,
             workflow_version_created_at=version_created_at,

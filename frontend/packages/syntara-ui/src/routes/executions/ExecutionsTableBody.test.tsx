@@ -18,9 +18,6 @@ vi.mock('../../hooks/routing/useLocation', () => ({
 vi.mock('../../hooks/routing/useNavigate', () => ({
   useNavigate: vi.fn(() => vi.fn()),
 }))
-vi.mock('../../components/WorkflowName', () => ({
-  WorkflowName: ({ workflowId }: { workflowId: string }) => <span>{workflowId}</span>,
-}))
 vi.mock('../../components/table/LinkCell', () => ({
   LinkCell: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
 }))

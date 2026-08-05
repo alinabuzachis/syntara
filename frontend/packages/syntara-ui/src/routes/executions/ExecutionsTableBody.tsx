@@ -14,7 +14,6 @@ import { NxKebabMenu } from '../../components/NxKebabMenu'
 import { ProjectGroupHeaderRow } from '../../components/ProjectGroupHeaderRow'
 import { DateCell } from '../../components/table/DateCell'
 import { LinkCell } from '../../components/table/LinkCell'
-import { WorkflowName } from '../../components/WorkflowName'
 import { permissionTooltip } from '../../hooks/permissionUtils'
 import { useCanI } from '../../hooks/useCanI'
 import { formatDateTime } from '../../utils/dateUtils'
@@ -35,6 +34,7 @@ type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
 type Execution = {
   id: string
   workflow_id?: string
+  workflow_name?: string | null
   workflow_version_id?: string
   workflow_version?: number | null
   workflow_version_name?: string | null
@@ -153,7 +153,7 @@ function ExecutionRow({ execution }: Readonly<ExecutionRowProps>) {
       <Td dataLabel="Workflow name">
         {execution.workflow_id ? (
           <LinkCell href={`/workflow-builder/${execution.workflow_id}`}>
-            <WorkflowName workflowId={execution.workflow_id} truncate />
+            <Truncate content={execution.workflow_name ?? execution.workflow_id} />
           </LinkCell>
         ) : (
           '—'

@@ -36074,6 +36074,12 @@ components:
           type: string
           format: uuid
           title: Workflow Version Id
+        workflow_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Workflow Name
+          description: Name of the workflow
         workflow_version:
           anyOf:
             - type: integer

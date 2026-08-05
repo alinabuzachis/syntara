@@ -1,9 +1,11 @@
 """Integration tests for GET /api/v1/executions endpoint."""
 
 import uuid
+from datetime import UTC, datetime
 
 import pytest
 from httpx import AsyncClient
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
 from nexus.workflows.models import Workflow
@@ -237,3 +239,47 @@ async def test_list_executions_multiple_filters(
         assert item["workflow_id"] == str(test_workflow.id)
         assert item["status"] == "pending"
         assert item["labels"].get("environment") == "production"
+
+
+# ============================================================================
+# workflow_name field tests
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_list_executions_includes_workflow_name(
+    auth_client: AsyncClient,
+    test_workflow: Workflow,
+    executions_factory: ExecutionsFactory,
+) -> None:
+    """Test that workflow_name is populated in execution list responses."""
+    await executions_factory.create_executions(count=2)
+
+    response = await auth_client.get("/api/v1/executions")
+
+    assert response.status_code == 200
+    data = response.json()
+    for item in data["resources"]:
+        assert item["workflow_name"] == test_workflow.name
+
+
+@pytest.mark.asyncio
+async def test_list_executions_workflow_name_after_soft_delete(
+    auth_client: AsyncClient,
+    test_workflow: Workflow,
+    test_user: User,
+    test_db_session: AsyncSession,
+    executions_factory: ExecutionsFactory,
+) -> None:
+    """Test that workflow_name is still returned after the workflow is soft-deleted."""
+    await executions_factory.create_executions(count=1)
+
+    test_workflow.soft_delete(user_id=test_user.id, deletion_time=datetime.now(UTC))
+    await test_db_session.commit()
+
+    response = await auth_client.get("/api/v1/executions")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["resources"]) == 1
+    assert data["resources"][0]["workflow_name"] == test_workflow.name

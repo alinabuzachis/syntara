@@ -47,6 +47,7 @@ class ExecutionRead:
             updated_by (None | UUID):
             input_data (ExecutionReadInputData):
             error_details (None | str):
+            workflow_name (None | str | Unset): Name of the workflow
             workflow_version (int | None | Unset): Version number of the workflow version that was executed
             workflow_version_name (None | str | Unset): Name of the executed version, if one was set
             workflow_version_created_at (datetime.datetime | None | Unset): Timestamp when the executed version was created
@@ -81,6 +82,7 @@ class ExecutionRead:
     updated_by: None | UUID
     input_data: ExecutionReadInputData
     error_details: None | str
+    workflow_name: None | str | Unset = UNSET
     workflow_version: int | None | Unset = UNSET
     workflow_version_name: None | str | Unset = UNSET
     workflow_version_created_at: datetime.datetime | None | Unset = UNSET
@@ -137,6 +139,12 @@ class ExecutionRead:
 
         error_details: None | str
         error_details = self.error_details
+
+        workflow_name: None | str | Unset
+        if isinstance(self.workflow_name, Unset):
+            workflow_name = UNSET
+        else:
+            workflow_name = self.workflow_name
 
         workflow_version: int | None | Unset
         if isinstance(self.workflow_version, Unset):
@@ -264,6 +272,8 @@ class ExecutionRead:
                 "error_details": error_details,
             }
         )
+        if workflow_name is not UNSET:
+            field_dict["workflow_name"] = workflow_name
         if workflow_version is not UNSET:
             field_dict["workflow_version"] = workflow_version
         if workflow_version_name is not UNSET:
@@ -365,6 +375,15 @@ class ExecutionRead:
             return cast(None | str, data)
 
         error_details = _parse_error_details(d.pop("error_details"))
+
+        def _parse_workflow_name(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        workflow_name = _parse_workflow_name(d.pop("workflow_name", UNSET))
 
         def _parse_workflow_version(data: object) -> int | None | Unset:
             if data is None:
@@ -574,6 +593,7 @@ class ExecutionRead:
             updated_by=updated_by,
             input_data=input_data,
             error_details=error_details,
+            workflow_name=workflow_name,
             workflow_version=workflow_version,
             workflow_version_name=workflow_version_name,
             workflow_version_created_at=workflow_version_created_at,
