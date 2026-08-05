@@ -112,7 +112,7 @@ test.describe('Integration project scope — selector visibility', () => {
   })
 
   test('assigned project tool selector shows both global and project-scoped integrations', async ({ app }) => {
-    test.skip(!globalIntegration || !projectScopedIntegration || !projectAName, 'Seed data not created')
+    expect(globalIntegration && projectScopedIntegration && projectAName, 'Seed data not created').toBeTruthy()
 
     const toolOptions = await openAgentToolSelector(app, projectAName!)
 
@@ -121,7 +121,7 @@ test.describe('Integration project scope — selector visibility', () => {
   })
 
   test('unassigned project tool selector shows only global integration', async ({ app }) => {
-    test.skip(!globalIntegration || !projectScopedIntegration || !projectBName, 'Seed data not created')
+    expect(globalIntegration && projectScopedIntegration && projectBName, 'Seed data not created').toBeTruthy()
 
     const toolOptions = await openAgentToolSelector(app, projectBName!)
 

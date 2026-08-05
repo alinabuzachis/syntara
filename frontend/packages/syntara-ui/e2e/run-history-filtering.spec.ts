@@ -215,7 +215,7 @@ test.describe('Run History Panel Filtering', { tag: '@pr-check' }, () => {
   })
 
   test.beforeEach(() => {
-    test.skip(!workflowId, 'Failed to create workflow for run history tests')
+    expect(workflowId, 'Failed to create workflow for run history tests').toBeTruthy()
   })
 
   test('status filter: apply and verify filtered results', async ({ app }) => {

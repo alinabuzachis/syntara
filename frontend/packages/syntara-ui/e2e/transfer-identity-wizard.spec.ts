@@ -108,7 +108,7 @@ test.describe('Transfer Identity Wizard (AAP-75585)', () => {
   })
 
   test.skip('wizard opens from identities tab with correct title', async ({ app }) => {
-    test.skip(!targetUserId || !providerId, 'Backend seeding failed — user or identity provider not created')
+    expect(targetUserId && providerId, 'Backend seeding failed — user or identity provider not created').toBeTruthy()
 
     await app.goto(toAppUrl(`${ACCESS_URL}/${targetUserId}/identities`))
 
@@ -125,7 +125,7 @@ test.describe('Transfer Identity Wizard (AAP-75585)', () => {
   })
 
   test('cancel navigates back to identities tab', async ({ app }) => {
-    test.skip(!targetUserId, 'Backend seeding failed')
+    expect(targetUserId, 'Backend seeding failed').toBeTruthy()
 
     await app.goto(toAppUrl(`${ACCESS_URL}/${targetUserId}/transfer-identity`))
     await expect(
@@ -138,7 +138,7 @@ test.describe('Transfer Identity Wizard (AAP-75585)', () => {
   })
 
   test('step 2 shows empty state when source user has no identities', async ({ app }) => {
-    test.skip(!targetUserId || !sourceUserId, 'Backend seeding failed')
+    expect(targetUserId && sourceUserId, 'Backend seeding failed').toBeTruthy()
 
     await app.goto(toAppUrl(`${ACCESS_URL}/${targetUserId}/transfer-identity`))
     await expect(
@@ -156,7 +156,7 @@ test.describe('Transfer Identity Wizard (AAP-75585)', () => {
   })
 
   test('Next button is disabled until a user is selected', async ({ app }) => {
-    test.skip(!targetUserId, 'Backend seeding failed')
+    expect(targetUserId, 'Backend seeding failed').toBeTruthy()
 
     await app.goto(toAppUrl(`${ACCESS_URL}/${targetUserId}/transfer-identity`))
     await expect(app.getByRole('heading', { level: 2, name: 'Select a user' })).toBeVisible({ timeout: 15_000 })
@@ -172,7 +172,7 @@ test.describe('Transfer Identity Wizard (AAP-75585)', () => {
   })
 
   test('Step 1 filters users by username', async ({ app }) => {
-    test.skip(!targetUserId || !sourceUserId, 'Backend seeding failed')
+    expect(targetUserId && sourceUserId, 'Backend seeding failed').toBeTruthy()
 
     await app.goto(toAppUrl(`${ACCESS_URL}/${targetUserId}/transfer-identity`))
     await expect(app.getByRole('heading', { level: 2, name: 'Select a user' })).toBeVisible({ timeout: 15_000 })
@@ -185,7 +185,7 @@ test.describe('Transfer Identity Wizard (AAP-75585)', () => {
   })
 
   test('target user is excluded from Step 1 user list', async ({ app }) => {
-    test.skip(!targetUserId, 'Backend seeding failed')
+    expect(targetUserId, 'Backend seeding failed').toBeTruthy()
 
     await app.goto(toAppUrl(`${ACCESS_URL}/${targetUserId}/transfer-identity`))
     await expect(app.getByRole('heading', { level: 2, name: 'Select a user' })).toBeVisible({ timeout: 15_000 })
@@ -197,7 +197,7 @@ test.describe('Transfer Identity Wizard (AAP-75585)', () => {
   })
 
   test('Back from Step 2 clears selections and returns to Step 1', async ({ app }) => {
-    test.skip(!targetUserId || !sourceUserId, 'Backend seeding failed')
+    expect(targetUserId && sourceUserId, 'Backend seeding failed').toBeTruthy()
 
     await app.goto(toAppUrl(`${ACCESS_URL}/${targetUserId}/transfer-identity`))
     await expect(app.getByRole('heading', { level: 2, name: 'Select a user' })).toBeVisible({ timeout: 15_000 })
@@ -216,7 +216,7 @@ test.describe('Transfer Identity Wizard (AAP-75585)', () => {
   })
 
   test('selecting a different user in Step 1 resets Step 2', async ({ app }) => {
-    test.skip(!targetUserId || !sourceUserId || !source2UserId, 'Backend seeding failed')
+    expect(targetUserId && sourceUserId && source2UserId, 'Backend seeding failed').toBeTruthy()
 
     await app.goto(toAppUrl(`${ACCESS_URL}/${targetUserId}/transfer-identity`))
     await expect(app.getByRole('heading', { level: 2, name: 'Select a user' })).toBeVisible({ timeout: 15_000 })
@@ -240,7 +240,7 @@ test.describe('Transfer Identity Wizard (AAP-75585)', () => {
   })
 
   test('Step 2 shows step heading and description with selected user name', async ({ app }) => {
-    test.skip(!targetUserId || !sourceUserId, 'Backend seeding failed')
+    expect(targetUserId && sourceUserId, 'Backend seeding failed').toBeTruthy()
 
     await app.goto(toAppUrl(`${ACCESS_URL}/${targetUserId}/transfer-identity`))
     await expect(app.getByRole('heading', { level: 2, name: 'Select a user' })).toBeVisible({ timeout: 15_000 })

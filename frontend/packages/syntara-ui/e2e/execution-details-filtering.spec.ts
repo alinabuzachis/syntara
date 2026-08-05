@@ -259,16 +259,16 @@ test.describe('Execution Details — Activity Filtering', { tag: '@pr-check' }, 
     })
 
     test.beforeEach(async ({ app }) => {
-      test.skip(!executionId, 'Failed to create workflow/execution for activity filter tests')
+      expect(executionId, 'Failed to create workflow/execution for activity filter tests').toBeTruthy()
       const hasData = await navigateToExecution(app, executionId!)
-      test.skip(!hasData, 'Execution activities not available')
+      expect(hasData, 'Execution activities not available').toBeTruthy()
       // Real backend needs the worker to finish before filter targets exist.
       const ready = await app
         .getByRole('row', { name: /Hot Weather Action/ })
         .waitFor({ state: 'visible', timeout: 30_000 })
         .then(() => true)
         .catch(() => false)
-      test.skip(!ready, 'Workflow activities not ready — Temporal worker may not be running')
+      expect(ready, 'Workflow activities not ready — Temporal worker may not be running').toBeTruthy()
     })
 
     test('keyword search filters activities by name substring', async ({ app }) => {
@@ -417,16 +417,16 @@ test.describe('Execution Details — Activity Filtering', { tag: '@pr-check' }, 
     })
 
     test.beforeEach(async ({ app }) => {
-      test.skip(!executionId, 'Failed to create workflow/execution for status filter tests')
+      expect(executionId, 'Failed to create workflow/execution for status filter tests').toBeTruthy()
       await installStableApprovalActivityStatuses(app, executionId!)
       const hasData = await navigateToExecution(app, executionId!)
-      test.skip(!hasData, 'Execution activities not available')
+      expect(hasData, 'Execution activities not available').toBeTruthy()
       const approvalReady = await app
         .getByRole('row', { name: /Production Deployment Approval/ })
         .waitFor({ state: 'visible', timeout: 30_000 })
         .then(() => true)
         .catch(() => false)
-      test.skip(!approvalReady, 'Approval activity not available')
+      expect(approvalReady, 'Approval activity not available').toBeTruthy()
       await expect(
         app.getByRole('row', { name: /Production Deployment Approval/ }).getByText('Waiting for approval')
       ).toBeVisible({ timeout: 10_000 })
