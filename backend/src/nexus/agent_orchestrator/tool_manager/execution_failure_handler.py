@@ -8,6 +8,7 @@ mechanisms for proper integration with StateGraph execution.
 import asyncio
 import time
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
@@ -181,6 +182,150 @@ async def _persist_tool_execution_to_db(
         logger.warning("Failed to persist tool execution to DB", exc_info=True)
 
 
+# ---------------------------------------------------------------------------
+# Shared bookkeeping helpers for async/sync tool wrappers
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class _ToolInvocationContext:
+    """Shared audit and telemetry parameters for tool invocation wrappers."""
+
+    session_id: str
+    invocation_id: UUID
+    execution_id: UUID | None
+    request_id: UUID | None
+    activity_id: str | None
+    activity_name: str | None
+
+
+def _emit_start_audit(
+    ctx: _ToolInvocationContext,
+    tool_name: str,
+    tool_input: dict[str, Any],
+) -> None:
+    """Emit STARTED audit event for a tool invocation."""
+    _emit_tool_invocation_audit(
+        tool_name=tool_name,
+        status=ToolInvocationStatus.STARTED,
+        session_id=ctx.session_id,
+        invocation_id=ctx.invocation_id,
+        execution_id=ctx.execution_id,
+        request_id=ctx.request_id,
+        tool_input=tool_input,
+        activity_id=ctx.activity_id,
+        activity_name=ctx.activity_name,
+    )
+
+
+def _emit_success_audit(
+    ctx: _ToolInvocationContext,
+    tool_name: str,
+    result: ToolMessage | Command[Any],
+) -> None:
+    """Emit COMPLETED audit event for a successful tool invocation."""
+    tool_output = str(result.content) if hasattr(result, "content") else str(result)
+    _emit_tool_invocation_audit(
+        tool_name=tool_name,
+        status=ToolInvocationStatus.COMPLETED,
+        session_id=ctx.session_id,
+        invocation_id=ctx.invocation_id,
+        execution_id=ctx.execution_id,
+        request_id=ctx.request_id,
+        tool_output=tool_output,
+        activity_id=ctx.activity_id,
+        activity_name=ctx.activity_name,
+    )
+
+
+def _handle_tool_execution_error(
+    ctx: _ToolInvocationContext,
+    request: ToolCallRequest,
+    error: Exception,
+) -> tuple[UUID | None, ToolMessage]:
+    """Handle common error bookkeeping for tool execution failure.
+
+    Emits the FAILED audit event, logs the exception, extracts the tool_id
+    from metadata, and creates a standardized error ToolMessage.
+
+    Args:
+        ctx: Shared invocation context for audit correlation.
+        request: The original tool call request.
+        error: The exception raised during execution.
+
+    Returns:
+        Tuple of (tool_id, error_message). tool_id is None when metadata
+        is missing or invalid. Callers use tool_id to disable the tool.
+
+    """
+    tool_name = request.tool_call["name"]
+    tool_call_id = request.tool_call["id"]
+
+    _emit_tool_invocation_audit(
+        tool_name=tool_name,
+        status=ToolInvocationStatus.FAILED,
+        session_id=ctx.session_id,
+        invocation_id=ctx.invocation_id,
+        execution_id=ctx.execution_id,
+        request_id=ctx.request_id,
+        error_type=error.__class__.__name__,
+        activity_id=ctx.activity_id,
+        activity_name=ctx.activity_name,
+    )
+
+    logger.exception("Tool execution failed during wrapped call", tool_name=tool_name)
+
+    tool_id = _extract_tool_id_from_metadata(request.tool, tool_name)
+    error_msg = _create_error_tool_message(error, tool_call_id or "unknown", tool_name)
+
+    return tool_id, error_msg
+
+
+def _extract_namespaced_name(tool: Any) -> str:  # noqa: ANN401
+    """Extract namespaced_name from tool metadata, defaulting to empty string."""
+    if tool and hasattr(tool, "metadata") and isinstance(tool.metadata, dict):
+        name: str = tool.metadata.get("namespaced_name", "")
+        return name
+    return ""
+
+
+def _finalize_tool_execution(
+    request: ToolCallRequest,
+    start_time: float,
+    caught_error: Exception | None,
+    execution_id: UUID | None,
+) -> tuple[int, ToolExecutionStatus]:
+    """Emit metrics and telemetry for a completed tool execution.
+
+    Computes duration and status, emits MetricsRecorder metrics, and dispatches
+    the ToolExecutedEvent audit event. Database persistence is left to the caller
+    because the async/sync bridging differs.
+
+    Args:
+        request: The original tool call request (provides tool metadata).
+        start_time: ``time.perf_counter()`` value captured before execution.
+        caught_error: The exception from execution, or None on success.
+        execution_id: Parent workflow execution ID for telemetry.
+
+    Returns:
+        Tuple of (duration_ms, status) for the caller's DB persistence step.
+
+    """
+    duration_ms = int((time.perf_counter() - start_time) * 1000)
+    status = _resolve_execution_status(caught_error)
+    namespaced_name = _extract_namespaced_name(request.tool)
+    _emit_tool_metrics(request.tool, duration_ms, status, error=caught_error)
+    AuditEventDispatcher.dispatch(
+        ToolExecutedEvent(
+            namespaced_name=namespaced_name,
+            status=status,
+            duration_ms=int(duration_ms),
+            execution_id=execution_id,
+        )
+    )
+    return duration_ms, status
+
+
 def create_tool_awrapper(
     session_id: str,
     invocation_id: UUID,
@@ -209,6 +354,14 @@ def create_tool_awrapper(
         An async ToolCallWrapper function for use with ToolNode awrap_tool_call
 
     """
+    ctx = _ToolInvocationContext(
+        session_id=session_id,
+        invocation_id=invocation_id,
+        execution_id=execution_id,
+        request_id=request_id,
+        activity_id=activity_id,
+        activity_name=activity_name,
+    )
 
     @retry_with_backoff
     async def _execute(
@@ -236,97 +389,25 @@ def create_tool_awrapper(
         tool_name = request.tool_call["name"]
         tool_input = request.tool_call.get("args", {})
 
-        # Emit audit event for tool invocation start
-        _emit_tool_invocation_audit(
-            tool_name=tool_name,
-            status=ToolInvocationStatus.STARTED,
-            session_id=session_id,
-            invocation_id=invocation_id,
-            execution_id=execution_id,
-            request_id=request_id,
-            tool_input=tool_input,
-            activity_id=activity_id,
-            activity_name=activity_name,
-        )
+        _emit_start_audit(ctx, tool_name, tool_input)
 
         try:
-            # Execute the tool normally
             result = await _execute(request, execute)
-
-            # Extract tool output from result
-            tool_output = str(result.content) if hasattr(result, "content") else str(result)
-
-            # Emit audit event for successful tool invocation
-            _emit_tool_invocation_audit(
-                tool_name=tool_name,
-                status=ToolInvocationStatus.COMPLETED,
-                session_id=session_id,
-                invocation_id=invocation_id,
-                execution_id=execution_id,
-                request_id=request_id,
-                tool_output=tool_output,
-                activity_id=activity_id,
-                activity_name=activity_name,
-            )
-
+            _emit_success_audit(ctx, tool_name, result)
             return result
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001 - logged inside _handle_tool_execution_error
             caught_error = error
-
-            # Extract tool info from request
-            tool_call_id = request.tool_call["id"]
-            base_tool = request.tool
-
-            # Emit audit event for failed tool invocation
-            _emit_tool_invocation_audit(
-                tool_name=tool_name,
-                status=ToolInvocationStatus.FAILED,
-                session_id=session_id,
-                invocation_id=invocation_id,
-                execution_id=execution_id,
-                request_id=request_id,
-                error_type=error.__class__.__name__,
-                activity_id=activity_id,
-                activity_name=activity_name,
-            )
-
-            # Handle the error and extract tool_id for disabling
-            logger.exception(
-                "Tool execution failed during wrapped call",
-                tool_name=tool_name,
-            )
-
-            # Extract and validate tool_id from BaseTool metadata
-            tool_id = _extract_tool_id_from_metadata(base_tool, tool_name)
+            tool_id, error_msg = _handle_tool_execution_error(ctx, request, error)
             if tool_id is not None:
-                # In async context, we're already in the correct event loop
                 await _disable_tool_by_id(tool_id, error)
-
-            # Return standardized error message
-            return _create_error_tool_message(error, tool_call_id or "unknown", tool_name)
+            return error_msg
         finally:
-            duration_ms = int((time.perf_counter() - start_time) * 1000)
-            status = _resolve_execution_status(caught_error)
-            tool = request.tool
-            namespaced_name = (
-                tool.metadata.get("namespaced_name", "")
-                if tool and hasattr(tool, "metadata") and isinstance(tool.metadata, dict)
-                else ""
-            )
-            _emit_tool_metrics(request.tool, duration_ms, status, error=caught_error)
+            duration_ms, status = _finalize_tool_execution(request, start_time, caught_error, execution_id)
             await _persist_tool_execution_to_db(
                 request.tool,
                 duration_ms,
                 status,
                 error_message=str(caught_error) if caught_error else None,
-            )
-            AuditEventDispatcher.dispatch(
-                ToolExecutedEvent(
-                    namespaced_name=namespaced_name,
-                    status=status,
-                    duration_ms=int(duration_ms),
-                    execution_id=execution_id,
-                )
             )
 
     return tool_awrapper
@@ -359,6 +440,14 @@ def create_tool_wrapper(
         A sync ToolCallWrapper function for use with ToolNode wrap_tool_call
 
     """
+    ctx = _ToolInvocationContext(
+        session_id=session_id,
+        invocation_id=invocation_id,
+        execution_id=execution_id,
+        request_id=request_id,
+        activity_id=activity_id,
+        activity_name=activity_name,
+    )
 
     def _execute_sync(
         request: ToolCallRequest, execute: Callable[[ToolCallRequest], ToolMessage | Command[Any]]
@@ -406,82 +495,20 @@ def create_tool_wrapper(
         tool_name = request.tool_call["name"]
         tool_input = request.tool_call.get("args", {})
 
-        # Emit audit event for tool invocation start
-        _emit_tool_invocation_audit(
-            tool_name=tool_name,
-            status=ToolInvocationStatus.STARTED,
-            session_id=session_id,
-            invocation_id=invocation_id,
-            execution_id=execution_id,
-            request_id=request_id,
-            tool_input=tool_input,
-            activity_id=activity_id,
-            activity_name=activity_name,
-        )
+        _emit_start_audit(ctx, tool_name, tool_input)
 
         try:
-            # Execute the tool normally with retry
             result = _execute_sync(request, execute)
-
-            # Extract tool output from result
-            tool_output = str(result.content) if hasattr(result, "content") else str(result)
-
-            # Emit audit event for successful tool invocation
-            _emit_tool_invocation_audit(
-                tool_name=tool_name,
-                status=ToolInvocationStatus.COMPLETED,
-                session_id=session_id,
-                invocation_id=invocation_id,
-                execution_id=execution_id,
-                request_id=request_id,
-                tool_output=tool_output,
-                activity_id=activity_id,
-                activity_name=activity_name,
-            )
-
+            _emit_success_audit(ctx, tool_name, result)
             return result
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001 - logged inside _handle_tool_execution_error
             caught_error = error
-
-            # Extract tool info from request
-            tool_call_id = request.tool_call["id"]
-            base_tool = request.tool
-
-            # Emit audit event for failed tool invocation
-            _emit_tool_invocation_audit(
-                tool_name=tool_name,
-                status=ToolInvocationStatus.FAILED,
-                session_id=session_id,
-                invocation_id=invocation_id,
-                execution_id=execution_id,
-                request_id=request_id,
-                error_type=error.__class__.__name__,
-                activity_id=activity_id,
-                activity_name=activity_name,
-            )
-
-            logger.exception(
-                "Tool execution failed during wrapped call",
-                tool_name=tool_name,
-            )
-
-            # Extract and validate tool_id from BaseTool metadata
-            tool_id = _extract_tool_id_from_metadata(base_tool, tool_name)
+            tool_id, error_msg = _handle_tool_execution_error(ctx, request, error)
             if tool_id is not None:
                 _run_coroutine_from_sync(_disable_tool_by_id(tool_id, error), loop, "tool auto-disable")
-
-            # Return standardized error message
-            return _create_error_tool_message(error, tool_call_id or "unknown", tool_name)
+            return error_msg
         finally:
-            duration_ms = int((time.perf_counter() - start_time) * 1000)
-            status = _resolve_execution_status(caught_error)
-            tool = request.tool
-            namespaced_name = (
-                tool.metadata.get("namespaced_name", "")
-                if tool and hasattr(tool, "metadata") and isinstance(tool.metadata, dict)
-                else ""
-            )
-            _emit_tool_metrics(request.tool, duration_ms, status, error=caught_error)
+            duration_ms, status = _finalize_tool_execution(request, start_time, caught_error, execution_id)
             _run_coroutine_from_sync(
                 _persist_tool_execution_to_db(
                     request.tool,
@@ -491,14 +518,6 @@ def create_tool_wrapper(
                 ),
                 loop,
                 "tool execution DB persistence",
-            )
-            AuditEventDispatcher.dispatch(
-                ToolExecutedEvent(
-                    namespaced_name=namespaced_name,
-                    status=status,
-                    duration_ms=int(duration_ms),
-                    execution_id=execution_id,
-                )
             )
 
     return tool_wrapper
