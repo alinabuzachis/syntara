@@ -715,20 +715,26 @@ SETTINGS_CATALOG: list[SettingDefinition] = [
         validation_schema={"min": 1},
     ),
     SettingDefinition(
-        key="workflow_engine.script_max_output_mb",
-        name="Script max output (MB)",
+        key="workflow_engine.script_max_output_kb",
+        name="Script max output (KB)",
         category=SettingCategory.WORKFLOW_EXECUTION,
         value_type=SettingValueType.INTEGER,
-        default_value=10,
+        default_value=1024,
         description=(
-            "Maximum megabytes of stdout or stderr captured from a script activity. "
+            "Maximum kilobytes of stdout or stderr captured from a script activity. "
             "This limit applies independently to each stream. Output beyond this "
             "limit is discarded to prevent worker memory exhaustion. The script "
-            "continues running until it exits or the timeout fires."
+            "continues running until it exits or the timeout fires. "
+            "Temporal imposes a 2 MB payload limit per activity result; combined "
+            "stdout, stderr, and metadata must stay under this limit."
         ),
-        helper_text="Minimum 1 MB. Default: 10 MB.",
+        helper_text=(
+            "Minimum 256 KB, maximum 2048 KB (2 MB). Default: 1024 KB (1 MB). "
+            "This is a per-stream limit; if both stdout and stderr are large, "
+            "the combined result may be further truncated to fit Temporal's payload limit."
+        ),
         group=WorkflowEngineGroup.EXECUTION,
-        validation_schema={"min": 1},
+        validation_schema={"min": 256, "max": 2048},
     ),
     SettingDefinition(
         key="workflow_engine.agentic_timeout_seconds",

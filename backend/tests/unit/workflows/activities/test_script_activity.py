@@ -13,6 +13,7 @@ from nexus.workflows.workflow_engine.activities.script_activity import (
     SAFE_ENV_ALLOWLIST,
     ScriptExecutionError,
     _communicate_limited,
+    _enforce_payload_limit,
     _get_cgroup_memory_limit,
     _prepare_script_env,
     _prepend_memory_limit,
@@ -1044,11 +1045,11 @@ class TestOutputLimitIntegration:
 
     @pytest.mark.asyncio
     async def test_truncated_output_includes_notice(self) -> None:
-        """When output exceeds limit, stderr should contain truncation notice."""
+        """When stdout exceeds DEFAULT_MAX_OUTPUT_BYTES, stderr should contain truncation notice."""
         input_config = {
             "language": "bash",
-            "code": "for i in $(seq 1 1000); do echo line$i; done",
-            "_engine_max_output_bytes": 100,
+            # DEFAULT_MAX_OUTPUT_BYTES is 1MB; generate well over that
+            "code": "dd if=/dev/zero bs=1024 count=1100 2>/dev/null | base64",
         }
         result = await execute_script_activity(input_config, None)
         assert "[Output truncated:" in result["output"]["stderr"]
@@ -1059,11 +1060,41 @@ class TestOutputLimitIntegration:
         input_config = {
             "language": "bash",
             "code": "echo hello",
-            "_engine_max_output_bytes": 10_485_760,
         }
         result = await execute_script_activity(input_config, None)
         assert result["output"]["stdout"].strip() == "hello"
         assert "[Output truncated:" not in result["output"]["stderr"]
+
+
+class TestPayloadSizeEnforcement:
+    """Test _enforce_payload_limit pre-flight check."""
+
+    def test_small_output_unchanged(self) -> None:
+        """Payload under the limit is returned as-is."""
+        result = {"output": {"stdout": "hello", "stderr": "", "return_code": 0}}
+        assert _enforce_payload_limit(result, max_bytes=1_000_000) == result
+
+    def test_large_stdout_truncated(self) -> None:
+        """Stdout is truncated when serialized payload exceeds limit."""
+        large_stdout = "x" * 500_000
+        result = {"output": {"stdout": large_stdout, "stderr": "", "return_code": 0}}
+        enforced = _enforce_payload_limit(result, max_bytes=1000)
+        assert len(enforced["output"]["stdout"]) < len(large_stdout)
+        assert "[Payload truncated:" in enforced["output"]["stderr"]
+
+    def test_both_fields_truncated_when_stdout_insufficient(self) -> None:
+        """When stdout alone can't shed enough bytes, stderr is also truncated."""
+        result = {"output": {"stdout": "x" * 100, "stderr": "y" * 500_000, "return_code": 0}}
+        enforced = _enforce_payload_limit(result, max_bytes=1000)
+        assert "[Payload truncated:" in enforced["output"]["stderr"]
+        assert len(enforced["output"]["stderr"]) < 500_000
+
+    def test_error_path_detail_shape(self) -> None:
+        """Error-path dicts (same shape as success) are truncated correctly."""
+        result = {"output": {"stdout": "x" * 500_000, "stderr": "err", "return_code": 1}}
+        enforced = _enforce_payload_limit(result, max_bytes=1000)
+        assert "[Payload truncated:" in enforced["output"]["stderr"]
+        assert len(enforced["output"]["stdout"]) < 500_000
 
 
 class TestCgroupMemoryLimit:

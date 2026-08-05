@@ -32,8 +32,10 @@ _TIMEOUT_CATALOG_KEYS: dict[str, str] = {
 }
 
 _MAX_OUTPUT_CATALOG_KEYS: dict[str, str] = {
-    NodeType.SCRIPT: "workflow_engine.script_max_output_mb",
+    NodeType.SCRIPT: "workflow_engine.script_max_output_kb",
 }
+
+_BYTES_PER_KB = 1024
 
 
 def _require_int(node_id: str, field: str, value: Any) -> int:  # noqa: ANN401
@@ -101,20 +103,17 @@ def resolve_timeout(node: ActivityNode, runtime_settings: dict[str, Any]) -> int
     return get_default_timeout(node.type, runtime_settings)
 
 
-_BYTES_PER_MB = 1024 * 1024
-
-
 def resolve_max_output_bytes(node: ActivityNode, runtime_settings: dict[str, Any]) -> int:
     """Return the max output bytes for a node.
 
-    The catalog setting is in MB; this returns bytes.
-    Resolution: catalog global (MB → bytes) → DEFAULT_MAX_OUTPUT_BYTES.
+    The catalog setting is in KB; this returns bytes.
+    Resolution: catalog global (KB → bytes) → DEFAULT_MAX_OUTPUT_BYTES.
     """
     key = _MAX_OUTPUT_CATALOG_KEYS.get(node.type)
     if key:
         value = runtime_settings.get(key)
         if value is not None:
-            return int(value) * _BYTES_PER_MB
+            return int(value) * _BYTES_PER_KB
     return DEFAULT_MAX_OUTPUT_BYTES
 
 

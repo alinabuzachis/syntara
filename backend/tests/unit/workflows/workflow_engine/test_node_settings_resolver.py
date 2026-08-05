@@ -32,10 +32,10 @@ def test_resolve_retry_policy_inline_fallbacks_match_catalog_defaults() -> None:
 
 
 def test_resolve_max_output_bytes_from_catalog() -> None:
-    """Catalog value (MB) is converted to bytes."""
+    """Catalog value (KB) is converted to bytes."""
     node = ActivityNode(node_id="n", node_type="script", parameters={})
-    result = resolve_max_output_bytes(node, {"workflow_engine.script_max_output_mb": 5})
-    assert result == 5 * 1024 * 1024
+    result = resolve_max_output_bytes(node, {"workflow_engine.script_max_output_kb": 512})
+    assert result == 512 * 1024
 
 
 def test_resolve_max_output_bytes_fallback() -> None:
@@ -48,5 +48,5 @@ def test_resolve_max_output_bytes_fallback() -> None:
 def test_resolve_max_output_bytes_non_script_node() -> None:
     """Non-script nodes fall back to default (no catalog key mapped)."""
     node = ActivityNode(node_id="n", node_type="http_request", parameters={})
-    result = resolve_max_output_bytes(node, {"workflow_engine.script_max_output_mb": 5})
+    result = resolve_max_output_bytes(node, {"workflow_engine.script_max_output_kb": 512})
     assert result == DEFAULT_MAX_OUTPUT_BYTES

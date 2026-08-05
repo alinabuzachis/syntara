@@ -214,6 +214,57 @@ async def _communicate_limited(
     return stdout_bytes, stderr_bytes, stdout_truncated, stderr_truncated
 
 
+def _enforce_payload_limit(
+    result_dict: dict[str, Any],
+    max_bytes: int = constants.TEMPORAL_PAYLOAD_MAX_BYTES,
+) -> dict[str, Any]:
+    """Truncate stdout/stderr so the serialized activity result fits within Temporal's payload limit.
+
+    Temporal's server-side limit.blobSize.error (default 2MB) rejects oversized
+    activity results. The SDK treats the rejection as retryable, causing futile
+    retries until the activity times out. This check prevents that by truncating
+    before the payload leaves the worker.
+
+    Returns a new dict (does not mutate the input).
+
+    Truncation operates on raw UTF-8 bytes, not the JSON-escaped form. JSON
+    escaping can expand certain characters (e.g. newlines, quotes), so the
+    truncated payload may be slightly larger than ``max_bytes`` after
+    re-serialization. The 10% headroom in TEMPORAL_PAYLOAD_MAX_BYTES absorbs
+    this expansion.
+    """
+    serialized = json.dumps(result_dict)
+    payload_size = len(serialized.encode("utf-8"))
+    if payload_size <= max_bytes:
+        return result_dict
+
+    excess = payload_size - max_bytes
+    output = dict(result_dict.get("output", {}))
+
+    stdout = output.get("stdout") or ""
+    stderr = output.get("stderr") or ""
+
+    notice = (
+        f"\n[Payload truncated: serialized activity result ({payload_size} bytes)"
+        f" exceeded Temporal payload limit ({max_bytes} bytes)]"
+    )
+    notice_bytes = len(notice.encode("utf-8"))
+    trim_needed = excess + notice_bytes
+
+    stdout_bytes = stdout.encode("utf-8")
+    stderr_bytes = stderr.encode("utf-8")
+
+    if len(stdout_bytes) >= trim_needed:
+        output["stdout"] = stdout_bytes[: len(stdout_bytes) - trim_needed].decode("utf-8", errors="ignore")
+    else:
+        trim_needed -= len(stdout_bytes)
+        output["stdout"] = ""
+        output["stderr"] = stderr_bytes[: max(0, len(stderr_bytes) - trim_needed)].decode("utf-8", errors="ignore")
+
+    output["stderr"] = (output.get("stderr") or "") + notice
+    return {**result_dict, "output": output}
+
+
 def _sanitize_env_value(value: object) -> str:
     """Sanitize value for use in environment variable.
 
@@ -471,15 +522,14 @@ async def execute_script_activity(
             stderr=result["stderr"],
             stdout_json=result.get("output"),
         )
-        return {"output": output.dump(output_config)}
+        return _enforce_payload_limit({"output": output.dump(output_config)})
 
     except ApplicationError:
         raise
     except ScriptExecutionError as e:
         output = ScriptOutput(return_code=e.exit_code, stdout=e.stdout, stderr=e.stderr)
-        raise ApplicationError(
-            str(e), {"output": output.dump(output_config)}, type="ScriptExecutionError", non_retryable=True
-        ) from None
+        detail = _enforce_payload_limit({"output": output.dump(output_config)})
+        raise ApplicationError(str(e), detail, type="ScriptExecutionError", non_retryable=True) from None
     except TimeoutError:
         output = ScriptOutput()
         msg = f"Script execution timed out after {timeout} seconds"

@@ -31,3 +31,13 @@ system.advancedVisibilityWritingMode:
 worker.buildIdScavengerEnabled:
   - value: true
     constraints: {}
+
+# Payload size limits — explicit values matching Temporal defaults.
+# Prevents silent payload rejection that causes misleading timeout errors.
+limit.blobSize.error:
+  - value: 2097152 # 2 MB
+    constraints: {}
+
+limit.blobSize.warn:
+  - value: 1572864 # 1.5 MB
+    constraints: {}

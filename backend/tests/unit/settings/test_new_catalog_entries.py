@@ -13,7 +13,7 @@ _NEW_KEYS = [
     "workflow_engine.agentic_timeout_seconds",
     "workflow_engine.max_prompt_length",
     "agentic.max_completion_tokens",
-    "workflow_engine.script_max_output_mb",
+    "workflow_engine.script_max_output_kb",
 ]
 
 _catalog_by_key = {d.key: d for d in SETTINGS_CATALOG}
@@ -54,12 +54,12 @@ class TestNewCatalogEntries:
         assert d.value_type == SettingValueType.INTEGER
         assert d.default_value == 0
 
-    def test_script_max_output_mb(self) -> None:
-        d = _catalog_by_key["workflow_engine.script_max_output_mb"]
+    def test_script_max_output_kb(self) -> None:
+        d = _catalog_by_key["workflow_engine.script_max_output_kb"]
         assert d.category == SettingCategory.WORKFLOW_EXECUTION
         assert d.value_type == SettingValueType.INTEGER
-        assert d.default_value == 10
-        assert d.validation_schema == {"min": 1}
+        assert d.default_value == 1024
+        assert d.validation_schema == {"min": 256, "max": 2048}
 
     def test_workflow_settings_have_min_constraint(self) -> None:
         keys = [
@@ -67,7 +67,7 @@ class TestNewCatalogEntries:
             "workflow_engine.script_timeout_seconds",
             "workflow_engine.agentic_timeout_seconds",
             "workflow_engine.max_prompt_length",
-            "workflow_engine.script_max_output_mb",
+            "workflow_engine.script_max_output_kb",
         ]
         for key in keys:
             d = _catalog_by_key[key]
