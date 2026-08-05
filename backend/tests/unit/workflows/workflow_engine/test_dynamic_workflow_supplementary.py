@@ -71,6 +71,9 @@ def _make_workflow(
     wf._detached_nodes = set()
     wf._converge_branch_nodes = {}
     init_workflow_runtime(wf)
+    wf.execution_id = "test-execution-id"
+    wf._created_by_user_id = ""
+    wf.request_id = None
     wf.pre_resolved_outputs = {}
     wf.stop_after_nodes = set()
     return wf

@@ -963,3 +963,138 @@ class TestBuildLaunchBody:
             "skip_tags": "skip",
             "scm_branch": "main",
         }
+
+
+class TestWorkflowValidateConfig:
+    """Tests for _validate_config helper."""
+
+    def test_validate_config_success(self) -> None:
+        from nexus.workflows.workflow_engine.activities.aap_workflow_job_template_activity import _validate_config
+
+        config = _validate_config({"workflow_job_template_id": 42})
+        assert config.workflow_job_template_id == 42
+
+    def test_validate_config_failure(self) -> None:
+        from nexus.workflows.workflow_engine.activities.aap_workflow_job_template_activity import _validate_config
+
+        with pytest.raises(ApplicationError) as exc_info:
+            _validate_config({"invalid_field_only": True})
+        assert exc_info.value.type == "ConfigError"
+
+
+_AUDIT_PATCH = "nexus.workflows.audit.aap_job_execution.AuditEventDispatcher"
+
+
+class TestWorkflowAuditEventIntegration:
+    """Tests for audit event dispatch in the main workflow activity function."""
+
+    @pytest.mark.asyncio
+    async def test_successful_execution_emits_launched_and_completed(self, mock_activity_context: object) -> None:
+        launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/workflow_jobs/123/"})
+        status_response = create_workflow_workflow_job_status_response(workflow_job_id=123)
+
+        with (
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=status_response),
+            patch(_AUDIT_PATCH) as mock_dispatcher,
+        ):
+            activity_config = build_activity_config(workflow_job_template_id=42)
+            await execute_aap_workflow_job_template_activity(
+                activity_config, None, execution_id="12345678-1234-5678-1234-567812345678"
+            )
+
+            assert mock_dispatcher.dispatch.call_count == 2
+            from nexus.workflows.audit.aap_job_execution import AAPJobCompletedEvent, AAPJobLaunchedEvent
+
+            call_args = [call.args[0] for call in mock_dispatcher.dispatch.call_args_list]
+            assert isinstance(call_args[0], AAPJobLaunchedEvent)
+            assert isinstance(call_args[1], AAPJobCompletedEvent)
+
+    @pytest.mark.asyncio
+    async def test_failed_execution_emits_launched_and_failed(self, mock_activity_context: object) -> None:
+        launch_response = create_http_response(200, {"id": 456, "url": "/api/v2/workflow_jobs/456/"})
+        failed_status = create_workflow_workflow_job_status_response(workflow_job_id=456, status="failed")
+        activity_config = build_activity_config(workflow_job_template_id=42)
+
+        with (
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=failed_status),
+            patch(_AUDIT_PATCH) as mock_dispatcher,
+            pytest.raises(ApplicationError),
+        ):
+            await execute_aap_workflow_job_template_activity(
+                activity_config, None, execution_id="12345678-1234-5678-1234-567812345678"
+            )
+
+        assert mock_dispatcher.dispatch.call_count == 2
+        from nexus.workflows.audit.aap_job_execution import AAPJobFailedEvent, AAPJobLaunchedEvent
+
+        call_args = [call.args[0] for call in mock_dispatcher.dispatch.call_args_list]
+        assert isinstance(call_args[0], AAPJobLaunchedEvent)
+        assert isinstance(call_args[1], AAPJobFailedEvent)
+
+    @pytest.mark.asyncio
+    async def test_no_audit_events_without_execution_id(self, mock_activity_context: object) -> None:
+        launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/workflow_jobs/123/"})
+        status_response = create_workflow_workflow_job_status_response(workflow_job_id=123)
+
+        with (
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=status_response),
+            patch(_AUDIT_PATCH) as mock_dispatcher,
+        ):
+            activity_config = build_activity_config(workflow_job_template_id=42)
+            await execute_aap_workflow_job_template_activity(activity_config, None)
+            mock_dispatcher.dispatch.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def ***REMOVED***(self, mock_activity_context: object) -> None:
+        launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/workflow_jobs/123/"})
+        activity_config = build_activity_config(workflow_job_template_id=42)
+
+        with (
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=launch_response),
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock, side_effect=RuntimeError("boom")),
+            patch(_AUDIT_PATCH) as mock_dispatcher,
+            pytest.raises(ApplicationError),
+        ):
+            await execute_aap_workflow_job_template_activity(
+                activity_config, None, execution_id="12345678-1234-5678-1234-567812345678"
+            )
+
+        assert mock_dispatcher.dispatch.call_count == 2
+        from nexus.workflows.audit.aap_job_execution import AAPJobFailedEvent, AAPJobLaunchedEvent
+
+        call_args = [call.args[0] for call in mock_dispatcher.dispatch.call_args_list]
+        assert isinstance(call_args[0], AAPJobLaunchedEvent)
+        assert isinstance(call_args[1], AAPJobFailedEvent)
+        assert call_args[1].error_type == "RuntimeError"
+
+    @pytest.mark.asyncio
+    async def test_cancelled_error_emits_failed_event(self, mock_activity_context: object) -> None:
+        from temporalio.exceptions import CancelledError
+
+        launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/workflow_jobs/123/"})
+        running_response = create_http_response(200, {"id": 123, "status": "running"})
+        cancel_response = create_http_response(200, {})
+        mock_is_cancelled = MagicMock(side_effect=[False, True])
+        activity_config = build_activity_config(workflow_job_template_id=42)
+
+        with (
+            patch("temporalio.activity.is_cancelled", mock_is_cancelled),
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock, side_effect=[launch_response, cancel_response]),
+            patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=running_response),
+            patch(_AUDIT_PATCH) as mock_dispatcher,
+            pytest.raises(CancelledError),
+        ):
+            await execute_aap_workflow_job_template_activity(
+                activity_config, None, execution_id="12345678-1234-5678-1234-567812345678"
+            )
+
+        assert mock_dispatcher.dispatch.call_count == 2
+        from nexus.workflows.audit.aap_job_execution import AAPJobFailedEvent, AAPJobLaunchedEvent
+
+        call_args = [call.args[0] for call in mock_dispatcher.dispatch.call_args_list]
+        assert isinstance(call_args[0], AAPJobLaunchedEvent)
+        assert isinstance(call_args[1], AAPJobFailedEvent)
+        assert call_args[1].job_status == "canceled"

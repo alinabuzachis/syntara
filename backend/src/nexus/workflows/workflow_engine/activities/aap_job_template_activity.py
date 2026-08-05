@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import time
 from typing import Any, NoReturn
+from uuid import UUID
 
 import httpx
 import structlog
@@ -17,6 +18,12 @@ from temporalio.exceptions import ApplicationError, CancelledError
 
 from nexus.core.config.base import get_settings
 from nexus.core.lib.tls_utils import build_integration_httpx_verify
+from nexus.workflows.audit.aap_job_execution import (
+    emit_completed,
+    emit_failed,
+    emit_launched,
+    is_failure_status,
+)
 from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorParameters
 from nexus.workflows.workflow_engine.models.aap_types import AAPResourceType
@@ -25,7 +32,6 @@ from nexus.workflows.workflow_engine.models.workflow_definition import AAPJobTem
 from .aap_common import (
     AAP_JOB_TERMINAL_STATUSES,
     AAPActivityExecutionError,
-    AAPJobTerminalStatus,
     build_aap_job_url,
     lookup_resource_by_name,
     poll_until_complete,
@@ -35,6 +41,17 @@ from .aap_common import (
 from .common import HEARTBEAT_PARTIAL_OUTPUT_KEY, HEARTBEAT_STOP_MONITOR, is_retryable_http_status
 
 logger = structlog.stdlib.get_logger(__name__)
+
+_NODE_TYPE = "aap_job_template"
+
+
+def _validate_config(input_config: dict[str, Any]) -> AAPJobTemplateExecutorParameters:
+    try:
+        return AAPJobTemplateExecutorParameters.model_validate(input_config)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("AAP config validation failed", error=str(e))
+        msg = "Invalid configuration — check AAP job template activity settings"
+        raise ApplicationError(msg, type="ConfigError", non_retryable=True) from None
 
 
 class AAPJobExecutionError(AAPActivityExecutionError):
@@ -262,7 +279,7 @@ async def _launch_aap_job(
     auth_headers: dict[str, str],
     basic_auth: httpx.BasicAuth | None,
     base_url: str,
-) -> int:
+) -> tuple[int, int]:
     """Launch AAP job template.
 
     Args:
@@ -273,7 +290,7 @@ async def _launch_aap_job(
         base_url: Base URL for AAP controller
 
     Returns:
-        Job ID
+        Tuple of (job_id, resolved_job_template_id).
 
     Raises:
         AAPJobExecutionError: If launch fails
@@ -314,7 +331,7 @@ async def _launch_aap_job(
         launch_data: dict[str, Any] = response.json()
         job_id = int(launch_data["id"])
         _log_launch_success(config, job_template_id, job_id)
-        return job_id
+        return job_id, job_template_id
     except httpx.HTTPStatusError as e:
         _handle_http_status_error(e, config, job_template_id, body)
     except httpx.ConnectError as e:
@@ -325,86 +342,32 @@ async def _launch_aap_job(
         raise AAPJobExecutionError(msg) from e
 
 
-def _is_terminal_status(status: Any) -> bool:  # noqa: ANN401
-    """Check if job status is terminal.
-
-    Args:
-        status: Job status value
-
-    Returns:
-        True if status is terminal, False otherwise
-
-    """
-    return isinstance(status, str) and status.lower() in AAP_JOB_TERMINAL_STATUSES
-
-
-def _log_terminal_status(job_id: int, status: str, job_data: dict[str, Any]) -> None:
-    """Log terminal job status with failure details if applicable.
-
-    Args:
-        job_id: AAP job ID
-        status: Job status string
-        job_data: Full job data dictionary
-
-    """
-    logger.info("Job reached terminal status", job_id=job_id, status=status)
-    if status.lower() in {AAPJobTerminalStatus.FAILED.lower(), AAPJobTerminalStatus.ERROR.lower()}:
-        logger.error(
-            "Job failed with status",
-            job_id=job_id,
-            status=status,
-            result_traceback=job_data.get("result_traceback", "N/A"),
-        )
-
-
 @activity.defn
-async def execute_aap_job_template_activity(
+async def execute_aap_job_template_activity(  # noqa: PLR0915
     input_config: dict[str, Any],
     output_config: dict[str, str] | None,
+    execution_id: str | None = None,
+    created_by_user_id: str | None = None,
 ) -> dict[str, Any]:
     """Execute AAP job template activity for v2 workflows.
 
-    Follows v2 activity pattern (same as script and HTTP activities):
-    1. Validate config using Pydantic (templates already resolved by dispatcher)
-    2. Launch job via AAP REST API
-    3. Poll job status until completion
-    4. Send heartbeats during polling (Temporal best practice)
-    5. Handle cancellation (cancel AAP job if activity cancelled)
-    6. Apply output mapping and return normalized result
-
     Args:
         input_config: Resolved node configuration (templates already resolved by dispatcher).
-                      Expected keys: job_template_id or job_template_name, plus optional
-                      inventory, extra_vars, credentials, limit, tags, skip_tags, verbosity,
-                      timeout, credential_id, _resolved_credentials.
-        output_config: Output mapping configuration (field_name -> template expression)
-                       None = return full result, {} = suppress all, {...} = extract specific fields
-
-    Returns:
-        {
-            "output": {
-                "status": "completed",
-                "job_id": 123,
-                "job_status": "successful",
-                ...
-            }
-        }
+        output_config: Output mapping configuration (field_name -> template expression).
+        execution_id: Workflow execution ID for audit event correlation (passed by dynamic_workflow).
+        created_by_user_id: User ID who triggered the workflow (for audit actor attribution).
 
     """
     logger.info("Starting AAP job template activity")
-
-    try:
-        config = AAPJobTemplateExecutorParameters.model_validate(input_config)
-    except Exception as e:  # noqa: BLE001
-        # Log full details internally; omit values from user-facing message (may contain credentials)
-        logger.warning("AAP config validation failed", error=str(e))
-        msg = "Invalid configuration — check AAP job template activity settings"
-        raise ApplicationError(msg, type="ConfigError", non_retryable=True) from None
+    config = _validate_config(input_config)
 
     settings = get_settings()
-
     resolved_auth = resolve_aap_auth(input_config, settings)
     base_url = resolved_auth.base_url
+    if not base_url:
+        msg = "AAP host not configured. Attach an AAP credential."
+        raise ApplicationError(msg, type="ConfigError", non_retryable=True) from None
+
     auth_headers = resolved_auth.auth_headers
     basic_auth = resolved_auth.basic_auth
     verify = build_integration_httpx_verify(
@@ -412,30 +375,38 @@ async def execute_aap_job_template_activity(
         ca_certificate=resolved_auth.ca_certificate,
     )
 
-    if not base_url:
-        msg = "AAP host not configured. Attach an AAP credential."
-        raise ApplicationError(msg, type="ConfigError", non_retryable=True) from None
-
     start_time = time.time()
     job_id = None
     job_url = None
+    jt_id = config.job_template_id
+    try:
+        exec_uuid = UUID(execution_id) if execution_id else None
+    except ValueError:
+        logger.warning("Invalid execution_id, audit events disabled", execution_id=execution_id)
+        exec_uuid = None
+    try:
+        actor_id = UUID(created_by_user_id) if created_by_user_id else None
+    except ValueError:
+        logger.warning("Invalid created_by_user_id, audit events disabled", created_by_user_id=created_by_user_id)
+        actor_id = None
 
     try:
-        # Increase timeout for AAP connections (default 5s can be too short for remote AAP servers)
         timeout = httpx.Timeout(30.0, connect=10.0)
-        async with httpx.AsyncClient(
-            verify=verify,
-            timeout=timeout,
-        ) as client:
-            job_id = await _launch_aap_job(client, config, auth_headers, basic_auth, base_url)
+        async with httpx.AsyncClient(verify=verify, timeout=timeout) as client:
+            job_id, jt_id = await _launch_aap_job(client, config, auth_headers, basic_auth, base_url)
             job_url = build_aap_job_url(base_url, job_id, "playbook")
             partial_output: dict[str, Any] = {"job_id": job_id, "job_url": job_url}
 
-            activity.heartbeat(
-                {
-                    HEARTBEAT_STOP_MONITOR: True,
-                    HEARTBEAT_PARTIAL_OUTPUT_KEY: partial_output,
-                }
+            activity.heartbeat({HEARTBEAT_STOP_MONITOR: True, HEARTBEAT_PARTIAL_OUTPUT_KEY: partial_output})
+            emit_launched(
+                exec_uuid,
+                jt_id,
+                job_id=job_id,
+                job_url=job_url,
+                base_url=base_url,
+                node_type=_NODE_TYPE,
+                job_template_name=config.job_template_name,
+                actor_id=actor_id,
             )
 
             aap_timeout = int(input_config.get(constants.ENGINE_TIMEOUT_SECONDS_KEY, 3600))
@@ -448,13 +419,14 @@ async def execute_aap_job_template_activity(
                 base_url,
                 aap_timeout,
                 start_time,
-                job_type="jobs",  # Plural: AAP API expects /api/controller/v2/jobs/{id}/cancel/
+                job_type="jobs",
                 terminal_statuses=AAP_JOB_TERMINAL_STATUSES,
                 error_class=AAPJobExecutionError,
                 partial_output=partial_output,
             )
 
             final_status = job_data["status"]
+            duration_ms = int((time.time() - start_time) * 1000)
             output = AAPJobTemplateOutput(
                 job_id=job_id,
                 job_url=job_url,
@@ -464,27 +436,79 @@ async def execute_aap_job_template_activity(
                 started=job_data.get("started", ""),
                 finished=job_data.get("finished", ""),
             )
-            if isinstance(final_status, str) and final_status.lower() in {
-                AAPJobTerminalStatus.FAILED.lower(),
-                AAPJobTerminalStatus.ERROR.lower(),
-                AAPJobTerminalStatus.CANCELED.lower(),
-            }:
+
+            if is_failure_status(final_status):
+                emit_failed(
+                    exec_uuid,
+                    jt_id,
+                    job_status=final_status,
+                    duration_ms=duration_ms,
+                    node_type=_NODE_TYPE,
+                    job_id=job_id,
+                    job_url=job_url,
+                    actor_id=actor_id,
+                )
                 msg = f"AAP job {job_id} failed with status: {final_status}"
                 raise ApplicationError(  # noqa: TRY301
                     msg, {"output": output.dump(output_config)}, type="AAPJobExecutionError", non_retryable=True
                 )
 
+            emit_completed(
+                exec_uuid,
+                jt_id,
+                job_id=job_id,
+                job_url=job_url,
+                final_status=final_status,
+                duration_ms=duration_ms,
+                artifacts=job_data.get("artifacts"),
+                node_type=_NODE_TYPE,
+                actor_id=actor_id,
+            )
             return {"output": output.dump(output_config)}
 
-    except (ApplicationError, CancelledError):
+    except ApplicationError:
+        raise
+    except CancelledError:
+        emit_failed(
+            exec_uuid,
+            jt_id,
+            job_status="canceled",
+            duration_ms=int((time.time() - start_time) * 1000),
+            node_type=_NODE_TYPE,
+            job_id=job_id,
+            actor_id=actor_id,
+        )
         raise
     except AAPActivityExecutionError as e:
+        elapsed = int((time.time() - start_time) * 1000)
+        emit_failed(
+            exec_uuid,
+            jt_id,
+            job_status=e.status or "error",
+            duration_ms=elapsed,
+            node_type=_NODE_TYPE,
+            job_id=e.job_id,
+            error_type=type(e).__qualname__,
+            error_message=str(e),
+            actor_id=actor_id,
+        )
         output = AAPJobTemplateOutput(job_id=e.job_id, job_url=job_url, job_status=e.status)
         raise ApplicationError(
             str(e), {"output": output.dump(output_config)}, type="AAPJobExecutionError", non_retryable=not e.retryable
         ) from e
     except Exception as e:
         logger.exception("Unexpected error in AAP activity", job_id=job_id)
+        emit_failed(
+            exec_uuid,
+            jt_id,
+            job_status="error",
+            duration_ms=int((time.time() - start_time) * 1000),
+            node_type=_NODE_TYPE,
+            job_id=job_id,
+            error_type=type(e).__qualname__,
+            error_message=str(e),
+            actor_id=actor_id,
+        )
         output = AAPJobTemplateOutput(job_id=job_id, job_url=job_url)
         msg = f"Unexpected error executing AAP job template (job_id={job_id})"
         raise ApplicationError(
