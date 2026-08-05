@@ -86,25 +86,42 @@ def _require_session_cookies(cookies: dict[str, str]) -> None:
         raise RuntimeError(msg)
 
 
+_TRANSIENT_STATUS_CODES = {HTTPStatus.BAD_GATEWAY, HTTPStatus.SERVICE_UNAVAILABLE, HTTPStatus.GATEWAY_TIMEOUT}
+_LOGIN_RETRIES = 6
+_LOGIN_RETRY_DELAY = 5.0
+
+
 def local_login_session(
     base_url: str,
     username: str,
     password: str,
 ) -> tuple[str, dict[str, str]]:
-    """Log in via POST /auth/login and return (access_token, refresh cookies)."""
-    response = httpx.post(
-        f"{base_url}/api/v1/auth/login",
-        json={"username": username, "password": password},
-        verify=e2e_ssl_context(),
-        timeout=30,
-    )
-    if response.status_code != HTTPStatus.OK:
-        msg = f"Login failed for {username}: {response.status_code} {response.text!r}"
-        raise RuntimeError(msg)
-    access_token: str = response.json()["access_token"]
-    cookies = dict(response.cookies)
-    _require_session_cookies(cookies)
-    return access_token, cookies
+    """Log in via POST /auth/login and return (access_token, refresh cookies).
+
+    Retries on transient 502/503/504 responses that occur when the backend is
+    temporarily unavailable (e.g. recovering from resource pressure after a
+    large E2E suite).
+    """
+    last_response: httpx.Response | None = None
+    for _attempt in range(_LOGIN_RETRIES):
+        response = httpx.post(
+            f"{base_url}/api/v1/auth/login",
+            json={"username": username, "password": password},
+            verify=e2e_ssl_context(),
+            timeout=30,
+        )
+        if response.status_code == HTTPStatus.OK:
+            access_token: str = response.json()["access_token"]
+            cookies = dict(response.cookies)
+            _require_session_cookies(cookies)
+            return access_token, cookies
+        last_response = response
+        if response.status_code not in _TRANSIENT_STATUS_CODES:
+            break
+        time.sleep(_LOGIN_RETRY_DELAY)
+
+    msg = f"Login failed for {username}: {last_response.status_code} {last_response.text!r}"  # type: ignore[union-attr]
+    raise RuntimeError(msg)
 
 
 def _csrf_headers_from_client(client: Client) -> dict[str, str]:
@@ -262,14 +279,25 @@ class _AutoRefreshAuth(httpx.Auth):
 
 
 def _login(base_url: str, username: str, password: str) -> str:
-    """Obtain a JWT access token via the generated login endpoint."""
+    """Obtain a JWT access token via the generated login endpoint.
+
+    Retries on transient 502/503/504 responses that occur when the backend is
+    temporarily unavailable (e.g. recovering from resource pressure after a
+    large E2E suite).
+    """
     unauthenticated = Client(base_url=f"{base_url}/api/v1", verify_ssl=e2e_ssl_context())
-    resp = login_sync(client=unauthenticated, body=LoginRequest(username=username, password=password))
-    if resp.status_code != HTTPStatus.OK or not isinstance(resp.parsed, AccessTokenResponse):
-        msg = f"Login failed for {username}: {resp.status_code} {resp.content!r}"
-        raise RuntimeError(msg)
-    access_token_response = cast("AccessTokenResponse", resp.assert_and_get())
-    return access_token_response.access_token
+    last_resp: Response[Any] | None = None
+    for _attempt in range(_LOGIN_RETRIES):
+        resp = login_sync(client=unauthenticated, body=LoginRequest(username=username, password=password))
+        if resp.status_code == HTTPStatus.OK and isinstance(resp.parsed, AccessTokenResponse):
+            return cast("AccessTokenResponse", resp.assert_and_get()).access_token
+        last_resp = resp
+        if resp.status_code not in _TRANSIENT_STATUS_CODES:
+            break
+        time.sleep(_LOGIN_RETRY_DELAY)
+
+    msg = f"Login failed for {username}: {last_resp.status_code} {last_resp.content!r}"  # type: ignore[union-attr]
+    raise RuntimeError(msg)
 
 
 def _make_client(base_url: str, token: str) -> AuthenticatedClient:
