@@ -658,7 +658,7 @@ describe('FilterBar', () => {
       expect(screen.getByRole('button', { name: 'Close Workflow Gamma' })).toBeInTheDocument()
     })
 
-    it('renders MULTISELECT filter type via FilterTypeRenderer', async () => {
+    it('renders MULTISELECT filter type in attribute search', async () => {
       const user = userEvent.setup()
       const multiSelectField: FilterFieldDefinition = {
         key: 'tags',
@@ -675,16 +675,18 @@ describe('FilterBar', () => {
         <ControlledFilterBar fieldDefinitions={[multiSelectField]} onFilterChange={vi.fn()} showClearAll={false} />
       )
 
-      // MULTISELECT is rendered as a standalone MultiSelectFilter via FilterTypeRenderer
-      const toggle = screen.getByRole('button', { name: /filter by tags/i })
-      expect(toggle).toBeInTheDocument()
+      // MULTISELECT is now rendered inside attribute search (TextFilter), not via FilterTypeRenderer.
+      // With a single field, "Tags" is auto-selected in the field selector.
+      expect(screen.getByText('Tags')).toBeInTheDocument()
 
-      // Open the dropdown and verify checkbox options
-      await user.click(toggle)
+      // Open the multiselect value dropdown ("Select values" toggle)
+      const valueToggle = screen.getByRole('button', { name: /select values/i })
+      await user.click(valueToggle)
 
-      expect(screen.getByRole('checkbox', { name: 'Important' })).toBeInTheDocument()
-      expect(screen.getByRole('checkbox', { name: 'Urgent' })).toBeInTheDocument()
-      expect(screen.getByRole('checkbox', { name: 'Review' })).toBeInTheDocument()
+      // Verify checkbox options inside the attribute search multiselect (render as menuitem)
+      expect(screen.getByRole('menuitem', { name: 'Important' })).toBeInTheDocument()
+      expect(screen.getByRole('menuitem', { name: 'Urgent' })).toBeInTheDocument()
+      expect(screen.getByRole('menuitem', { name: 'Review' })).toBeInTheDocument()
     })
 
     it('allows removing all filters for a category via category close button', async () => {
@@ -1746,7 +1748,7 @@ describe('FilterBar', () => {
       expect(screen.getByText('Created Date')).toBeInTheDocument()
     })
 
-    it('filters MULTISELECT type into otherFilterFields (rendered by FilterTypeRenderer)', () => {
+    it('filters MULTISELECT type into attributeSearchFields (rendered in TextFilter)', () => {
       const multiField: FilterFieldDefinition = {
         key: 'tags',
         label: 'Tags',
@@ -1756,8 +1758,9 @@ describe('FilterBar', () => {
 
       render(<FilterBar {...defaultProps} fieldDefinitions={[multiField]} filters={[]} />)
 
-      // MULTISELECT is rendered by FilterTypeRenderer as a standalone MultiSelectFilter
-      expect(screen.getByRole('button', { name: /filter by tags/i })).toBeInTheDocument()
+      // MULTISELECT is now routed to attribute search (TextFilter), not standalone FilterTypeRenderer
+      expect(screen.getByText('Tags')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /select values/i })).toBeInTheDocument()
     })
 
     it('filters BOOLEAN type into otherFilterFields (not attributeSearchFields)', () => {
@@ -1920,8 +1923,11 @@ describe('FilterBar', () => {
         <ControlledFilterBar fieldDefinitions={[statusField]} onFilterChange={onFilterChange} showClearAll={false} />
       )
 
-      // Open the multiselect dropdown and select two values
-      await user.click(screen.getByRole('button', { name: /filter by status/i }))
+      // MULTISELECT is now in attribute search — open the value toggle
+      const valueToggle = screen.getByRole('button', { name: /select values/i })
+      await user.click(valueToggle)
+
+      // Select two values via checkboxes inside the multiselect dropdown
       await user.click(screen.getByRole('checkbox', { name: 'Running' }))
       await user.click(screen.getByRole('checkbox', { name: 'Failed' }))
 

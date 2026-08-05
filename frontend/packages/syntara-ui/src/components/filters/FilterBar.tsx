@@ -20,12 +20,13 @@ import { TextFilter } from './TextFilter'
 /**
  * Determines if a filter field should be rendered in the attribute search (TextFilter)
  * @param field - The filter field definition to check
- * @returns true if the field should appear in TextFilter (TEXT/SELECT/DATERANGE)
+ * @returns true if the field should appear in TextFilter (TEXT/SELECT/MULTISELECT/DATERANGE)
  */
 function isAttributeSearchField(field: FilterFieldDefinition): boolean {
   return (
     field.type === FilterTypeEnum.TEXT ||
     field.type === FilterTypeEnum.SELECT ||
+    field.type === FilterTypeEnum.MULTISELECT ||
     field.type === FilterTypeEnum.DATERANGE
   )
 }
@@ -86,7 +87,7 @@ export function FilterBar({
   toolbarEnd,
   className,
 }: FilterBarProps) {
-  // Attribute search: TEXT/SELECT/DATERANGE. Standalone: BOOLEAN/MULTISELECT/LABELS (via FilterTypeRenderer).
+  // Attribute search: TEXT/SELECT/MULTISELECT/DATERANGE. Standalone: BOOLEAN/LABELS (via FilterTypeRenderer).
   const attributeSearchFields = fieldDefinitions.filter(isAttributeSearchField)
   const otherFilterFields = fieldDefinitions.filter((f) => !isAttributeSearchField(f))
   const hasActiveFilters = filters.length > 0

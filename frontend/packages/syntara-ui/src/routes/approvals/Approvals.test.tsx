@@ -598,13 +598,15 @@ describe('Approvals Component', () => {
 
       render(<Approvals />)
 
-      // Status is a standalone MULTISELECT control (not attribute search)
-      const statusValueButton = await screen.findByRole('button', { name: /filter by status/i }, { timeout: 10000 })
-      await user.click(statusValueButton)
+      // Status is now inside attribute search — switch field selector from "Name" to "Status"
+      const fieldSelector = screen.getByRole('button', { name: 'Name' })
+      await user.click(fieldSelector)
+      await user.click(screen.getByRole('option', { name: 'Status' }))
 
-      // Select "Pending" inside the open menu (avoid matching table status badges)
-      const statusMenu = await screen.findByRole('menu', { name: /filter by status/i })
-      await user.click(within(statusMenu).getByText('Pending'))
+      // Open the multiselect value toggle and select "Pending"
+      const valueToggle = screen.getByRole('button', { name: /select values|filter by status/i })
+      await user.click(valueToggle)
+      await user.click(screen.getByRole('checkbox', { name: 'Pending' }))
 
       // Verify URL params were updated with combined IN status filter
       await waitFor(() => {
