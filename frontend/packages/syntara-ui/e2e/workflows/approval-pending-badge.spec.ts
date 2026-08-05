@@ -62,6 +62,24 @@ async function createPendingApproval(
   return { workflowId, executionId, workflowName }
 }
 
+async function applyPendingApprovalStatusFilter(app: Page): Promise<void> {
+  const filterButton = app.getByRole('button', { name: /Filter|Add filter/i })
+  await expect(filterButton).toBeVisible()
+  await filterButton.click()
+
+  const statusFieldOption = app.getByRole('option', { name: /^Status$/i })
+  await expect(statusFieldOption).toBeVisible()
+  await statusFieldOption.click()
+
+  const statusValueSelector = app.getByRole('button', { name: /Filter by status/i })
+  await expect(statusValueSelector).toBeVisible()
+  await statusValueSelector.click()
+
+  const pendingApprovalOption = app.getByRole('option', { name: /^Pending approval$/i })
+  await expect(pendingApprovalOption).toBeVisible()
+  await pendingApprovalOption.click()
+}
+
 test.describe('Approval Pending Badge', () => {
   test('shows "Pending approval" badge in all three locations when execution has pending approval', async ({ app }) => {
     let workflowName: string | undefined
@@ -119,28 +137,10 @@ test.describe('Approval Pending Badge', () => {
       await expect(pausedStatus).toBeVisible()
 
       // ===================================================================
-      // VERIFICATION: Filter by "Approval pending"
+      // VERIFICATION: Filter by "Pending approval" via Status filter
       // ===================================================================
-      // Open the filter dropdown for approval_pending
-      const filterButton = app.getByRole('button', { name: /Filter|Add filter/ })
-      if (await filterButton.isVisible()) {
-        await filterButton.click()
-
-        // Select "Pending approval" filter
-        const approvalPendingOption = app.getByRole('option', { name: /Pending approval/i })
-        if (await approvalPendingOption.isVisible()) {
-          await approvalPendingOption.click()
-
-          // Select "Yes" value
-          const yesOption = app.getByRole('option', { name: 'Yes' })
-          if (await yesOption.isVisible()) {
-            await yesOption.click()
-
-            // Verify our execution still appears (it has approval_pending=true)
-            await expect(badgeInList).toBeVisible()
-          }
-        }
-      }
+      await applyPendingApprovalStatusFilter(app)
+      await expect(badgeInList).toBeVisible()
     } finally {
       // Cleanup: Delete the workflow
       if (workflowName) {

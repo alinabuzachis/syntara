@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { transformExecutionStatusFilter } from '../routes/executions/executionFilters'
 import type { FilterConfig } from '../types/filters'
 import type { SortableColumn, SortConfig } from '../types/sorting'
 
@@ -165,6 +166,38 @@ describe('useCursorPagination', () => {
         mockClearAllFilters,
         mockSetAllFilters,
         transformFilters
+      )
+    })
+
+    it('passes transformExecutionStatusFilter to createFilterChangeHandler', () => {
+      renderHook(() => useCursorPagination({ transformFilters: transformExecutionStatusFilter }))
+
+      expect(mockCreateFilterChangeHandler).toHaveBeenCalledWith(
+        null,
+        expect.any(Function),
+        mockClearAllFilters,
+        mockSetAllFilters,
+        transformExecutionStatusFilter
+      )
+    })
+
+    it('includes approval_pending in queryParams when that filter is active', () => {
+      mockUseFilterState.mockReturnValue({
+        filters: [{ key: 'approval_pending', value: true }],
+        setFilter: vi.fn(),
+        removeFilter: vi.fn(),
+        clearAllFilters: mockClearAllFilters,
+        setAllFilters: mockSetAllFilters,
+      })
+
+      const { result } = renderHook(() => useCursorPagination({ transformFilters: transformExecutionStatusFilter }))
+
+      expect(result.current.queryParams).toEqual(
+        expect.objectContaining({
+          approval_pending: true,
+          limit: 20,
+          include_total: true,
+        })
       )
     })
   })

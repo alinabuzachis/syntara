@@ -2,7 +2,7 @@ import type { WorkflowAPI } from '@syntara/contracts'
 import { ExecutionStatusEnum } from '@syntara/contracts'
 
 import { workflowFetchClient } from '../../client'
-import type { FilterFieldDefinition } from '../../types/filters'
+import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { FilterTypeEnum } from '../../types/filters'
 import { formatDateTime } from '../../utils/dateUtils'
 import { executionStatusDisplayLabels } from '../builder/executionStatusConstants'
@@ -68,7 +68,8 @@ export const getExecutionWorkflowFilterDefinition = (): FilterFieldDefinition =>
 })
 
 /**
- * Returns filter definition for filtering executions by status
+ * Returns filter definition for filtering executions by status.
+ * Includes a synthetic "Pending approval" option that maps to approval_pending=true.
  *
  * @returns FilterFieldDefinition configured for status filtering with SELECT type
  *
@@ -82,14 +83,21 @@ export const getExecutionWorkflowFilterDefinition = (): FilterFieldDefinition =>
  * ```typescript
  * const filterDef = getExecutionStatusFilterDefinition()
  * // Generates query param: status=completed
+ * // "Pending approval" → transformExecutionStatusFilter → approval_pending=true
  * ```
  */
-const EXECUTION_STATUS_OPTIONS = Object.values(ExecutionStatusEnum)
-  .filter((status): status is keyof typeof executionStatusDisplayLabels => status in executionStatusDisplayLabels)
-  .map((status) => ({
-    value: status,
-    label: executionStatusDisplayLabels[status],
-  }))
+/** Sentinel status value for runs awaiting approval (maps to approval_pending=true, not status=). */
+export const EXECUTION_STATUS_APPROVAL_PENDING = 'approval_pending'
+
+const EXECUTION_STATUS_OPTIONS = [
+  ...Object.values(ExecutionStatusEnum)
+    .filter((status): status is keyof typeof executionStatusDisplayLabels => status in executionStatusDisplayLabels)
+    .map((status) => ({
+      value: status,
+      label: executionStatusDisplayLabels[status],
+    })),
+  { value: EXECUTION_STATUS_APPROVAL_PENDING, label: 'Pending approval' },
+]
 
 export const getExecutionStatusFilterDefinition = (): FilterFieldDefinition => ({
   key: 'status',
@@ -98,6 +106,17 @@ export const getExecutionStatusFilterDefinition = (): FilterFieldDefinition => (
   options: EXECUTION_STATUS_OPTIONS,
   placeholder: 'Filter by status',
 })
+
+/**
+ * Maps the synthetic "Pending approval" status selection to approval_pending=true.
+ * Other status filters pass through unchanged.
+ */
+export const transformExecutionStatusFilter = (filters: FilterConfig[]): FilterConfig[] =>
+  filters.flatMap((filter) =>
+    filter.key === 'status' && filter.value === EXECUTION_STATUS_APPROVAL_PENDING
+      ? [{ key: 'approval_pending', value: true }]
+      : [filter]
+  )
 
 type ExecutionWithVersion = {
   workflow_version_id?: string
@@ -123,28 +142,6 @@ export function getExecutionVersionFilterFromExecutions(executions: ExecutionWit
     placeholder: 'Filter by version',
   }
 }
-
-/**
- * Returns filter definition for filtering executions by pending approval status
- *
- * @returns FilterFieldDefinition configured for approval_pending filtering with SELECT type
- *
- * @example
- * ```typescript
- * const filterDef = getExecutionApprovalPendingFilterDefinition()
- * // Generates query param: approval_pending=true
- * ```
- */
-export const getExecutionApprovalPendingFilterDefinition = (): FilterFieldDefinition => ({
-  key: 'approval_pending',
-  label: 'Pending approval',
-  type: FilterTypeEnum.SELECT,
-  options: [
-    { value: 'true', label: 'Yes' },
-    { value: 'false', label: 'No' },
-  ],
-  placeholder: 'Filter by pending approval',
-})
 
 /**
  * Returns filter definition for filtering executions by creation date range

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -7,7 +7,7 @@ import { axe } from 'vitest-axe'
 import { useCanI } from '../../hooks/useCanI'
 import { useExecutionWebSocket } from '../workflows/hooks/useExecutionWebSocket'
 
-import { FlatExecutionsTableBody } from './ExecutionsTableBody'
+import { FlatExecutionsTableBody, GroupedExecutionsTableBody } from './ExecutionsTableBody'
 import { useCancelExecution } from './useCancelExecution'
 
 const mockHandleCancel = vi.fn()
@@ -18,8 +18,11 @@ vi.mock('../../hooks/routing/useLocation', () => ({
 vi.mock('../../hooks/routing/useNavigate', () => ({
   useNavigate: vi.fn(() => vi.fn()),
 }))
-vi.mock('../../components/table/LinkCell', () => ({
-  LinkCell: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
+vi.mock('../../components/WorkflowName', () => ({
+  WorkflowName: ({ workflowId }: { workflowId: string }) => <span>{workflowId}</span>,
+}))
+vi.mock('../../components/NxLink', () => ({
+  NxLink: ({ to, children }: { to: string; children: React.ReactNode }) => <a href={to}>{children}</a>,
 }))
 
 vi.mock('../../hooks/useCanI', () => ({
@@ -68,6 +71,97 @@ function renderTable(executions: Parameters<typeof FlatExecutionsTableBody>[0]['
     </QueryClientProvider>
   )
 }
+
+describe('ExecutionsTableBody - Run ID column', () => {
+  it('renders Run ID as the first data cell with the execution id', () => {
+    const executionId = '123e4567-e89b-12d3-a456-426614174000'
+    renderTable([
+      {
+        id: executionId,
+        workflow_id: 'wf-1',
+        status: 'completed',
+        completed_at: '2025-01-01T10:00:00Z',
+      },
+    ])
+
+    expect(screen.getByText(executionId)).toBeInTheDocument()
+
+    const cells = screen.getAllByRole('cell')
+    expect(cells[0]).toHaveTextContent(executionId)
+    expect(cells[1]).toHaveTextContent('wf-1')
+  })
+
+  it('links Run ID to the execution detail route', () => {
+    const executionId = '223e4567-e89b-12d3-a456-426614174001'
+    renderTable([
+      {
+        id: executionId,
+        workflow_id: 'wf-2',
+        status: 'running',
+        completed_at: null,
+      },
+    ])
+
+    expect(screen.getByRole('link', { name: executionId })).toHaveAttribute('href', `/executions/${executionId}`)
+  })
+
+  it('keeps Run ID first when workflow name is unavailable', () => {
+    const executionId = '323e4567-e89b-12d3-a456-426614174002'
+    renderTable([
+      {
+        id: executionId,
+        status: 'pending',
+        completed_at: null,
+      },
+    ])
+
+    const cells = screen.getAllByRole('cell')
+    expect(cells[0]).toHaveTextContent(executionId)
+    expect(cells[1]).toHaveTextContent('—')
+    expect(screen.getByRole('link', { name: executionId })).toHaveAttribute('href', `/executions/${executionId}`)
+  })
+
+  it('renders Run ID first in grouped project rows', () => {
+    const executionId = '423e4567-e89b-12d3-a456-426614174003'
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <table>
+          <GroupedExecutionsTableBody
+            groupedExecutions={
+              new Map([
+                [
+                  'project-1',
+                  {
+                    project: { id: 'project-1', name: 'Project One' },
+                    executions: [
+                      {
+                        id: executionId,
+                        workflow_id: 'wf-3',
+                        status: 'completed',
+                        completed_at: '2025-01-01T10:00:00Z',
+                      },
+                    ],
+                  },
+                ],
+              ])
+            }
+            collapsedProjects={new Set()}
+            onToggleProject={vi.fn()}
+          />
+        </table>
+      </QueryClientProvider>
+    )
+
+    const runIdLink = screen.getByRole('link', { name: executionId })
+    expect(runIdLink).toHaveAttribute('href', `/executions/${executionId}`)
+
+    const rows = screen.getAllByRole('row')
+    const executionRow = rows.find((row) => within(row).queryByRole('link', { name: executionId }) !== null)
+    expect(executionRow).toBeDefined()
+    expect(within(executionRow!).getAllByRole('cell')[0]).toHaveTextContent(executionId)
+  })
+})
 
 describe('ExecutionsTableBody - Pending Approval Badge', () => {
   it('shows "Pending approval" badge when approval_pending is true', () => {

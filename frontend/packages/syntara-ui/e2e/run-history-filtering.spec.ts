@@ -130,6 +130,9 @@ async function installExecutionsListRoute(app: Page, workflowId: string) {
     if (status) {
       filtered = filtered.filter((execution) => execution.status === status)
     }
+    if (url.searchParams.get('approval_pending') === 'true') {
+      filtered = filtered.filter((execution) => (execution as { approval_pending?: boolean }).approval_pending === true)
+    }
     const versionId = url.searchParams.get('workflow_version_id')
     if (versionId) {
       filtered = filtered.filter((execution) => execution.workflow_version_id === versionId)
@@ -304,7 +307,7 @@ test.describe('Run History Panel Filtering', { tag: '@pr-check' }, () => {
     await openRunHistoryPanel(app, workflowId!, truncatedRunId(COMPLETED_ID))
 
     await filterToolbar(app).getByRole('button', { name: 'Filter by status' }).click()
-    await app.getByRole('option', { name: 'Pending' }).click()
+    await app.getByRole('option', { name: 'Pending', exact: true }).click()
 
     await expect(app.getByRole('heading', { name: 'No results found' })).toBeVisible()
     await expect(app.getByText('No results match the filter criteria')).toBeVisible()

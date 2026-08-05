@@ -7,10 +7,12 @@ import type { ComponentProps, ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
 import { approvalsClient, executionsClient, workflowClient, workflowFetchClient } from '../../client'
+import * as useCursorPaginationModule from '../../hooks/useCursorPagination'
 import { AlertProvider } from '../../providers/alerts'
 import { ColorSchemeProvider } from '../../providers/theme/ColorSchemeProvider'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
 import { routerTestState } from '../../test/setup'
+import { transformExecutionStatusFilter } from '../executions/executionFilters'
 
 type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowReadWithVersion']
 
@@ -311,6 +313,21 @@ describe('BuilderContent', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+  })
+
+  describe('Run history filter wiring', () => {
+    it('passes transformExecutionStatusFilter to useCursorPagination', async () => {
+      const useCursorPaginationSpy = vi.spyOn(useCursorPaginationModule, 'useCursorPagination')
+
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+
+      expect(useCursorPaginationSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transformFilters: transformExecutionStatusFilter,
+          extraParams: { workflow_id: 'workflow-1' },
+        })
+      )
+    })
   })
 
   // ============================================================================

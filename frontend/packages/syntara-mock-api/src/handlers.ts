@@ -1574,11 +1574,16 @@ export const handlers = [
 
     const status = url.searchParams.get('status')
     const workflow_version_id = url.searchParams.get('workflow_version_id')
+    const approval_pending = url.searchParams.get('approval_pending')
 
     let filtered = workflow_id ? executions.filter((e) => e.workflow_id === workflow_id) : [...executions]
 
     if (status) {
       filtered = filtered.filter((e) => e.status === status)
+    }
+
+    if (approval_pending === 'true') {
+      filtered = filtered.filter((e) => e.approval_pending === true)
     }
 
     if (workflow_version_id) {

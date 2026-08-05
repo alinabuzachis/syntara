@@ -18,6 +18,7 @@ import { useWorkflowStore } from '../../stores/useWorkflowStore'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
 import { ApprovalSidePanel } from '../executions/ApprovalSidePanel'
+import { transformExecutionStatusFilter } from '../executions/executionFilters'
 import { NodeExpandedAllContext } from '../workflows/canvas/nodes/common/NodeExpandedAllContext'
 
 import styles from './BuilderContent.module.css'
@@ -109,6 +110,7 @@ export function BuilderContent(props: BuilderContentProps) {
     getFooterProps: getExecutionPaginationFooterProps,
   } = useCursorPagination({
     limit: 20,
+    transformFilters: transformExecutionStatusFilter,
     extraParams: executionExtraParams,
     defaultSort: { field: 'created_at', direction: 'desc' as const },
   })

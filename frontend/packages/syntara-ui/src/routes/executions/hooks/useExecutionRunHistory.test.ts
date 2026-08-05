@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { executionsClient } from '../../../client'
 import { useCursorPagination } from '../../../hooks/useCursorPagination'
+import { transformExecutionStatusFilter } from '../executionFilters'
 
 import { useExecutionRunHistory } from './useExecutionRunHistory'
 
@@ -61,6 +62,7 @@ describe('useExecutionRunHistory', () => {
 
     expect(useCursorPaginationMock).toHaveBeenCalledWith({
       limit: 20,
+      transformFilters: transformExecutionStatusFilter,
       extraParams: { workflow_id: 'wf-1' },
       defaultSort: runHistoryDefaultSort,
     })

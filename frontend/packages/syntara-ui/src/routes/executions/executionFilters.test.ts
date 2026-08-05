@@ -1,12 +1,14 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
+import { createFilterChangeHandler } from '../../hooks/useFilterChangeHandler'
 import { FilterTypeEnum } from '../../types/filters'
 
 import {
+  EXECUTION_STATUS_APPROVAL_PENDING,
   getExecutionWorkflowFilterDefinition,
   getExecutionStatusFilterDefinition,
-  getExecutionApprovalPendingFilterDefinition,
   getExecutionCreatedAtFilterDefinition,
+  transformExecutionStatusFilter,
   transformWorkflowsToOptions,
 } from './executionFilters'
 
@@ -101,6 +103,7 @@ describe('executionFilters', () => {
         'completed_with_errors',
         'failed',
         'cancelled',
+        EXECUTION_STATUS_APPROVAL_PENDING,
       ])
     })
 
@@ -117,6 +120,7 @@ describe('executionFilters', () => {
         'Completed with errors',
         'Failed',
         'Cancelled',
+        'Pending approval',
       ])
     })
 
@@ -195,23 +199,48 @@ describe('executionFilters', () => {
     })
   })
 
-  describe('getExecutionApprovalPendingFilterDefinition', () => {
-    it('returns approval pending filter definition with correct configuration', () => {
-      const definition = getExecutionApprovalPendingFilterDefinition()
-
-      expect(definition.key).toBe('approval_pending')
-      expect(definition.label).toBe('Pending approval')
-      expect(definition.type).toBe(FilterTypeEnum.SELECT)
-      expect(definition.placeholder).toBe('Filter by pending approval')
+  describe('transformExecutionStatusFilter', () => {
+    it('maps Pending approval status selection to approval_pending=true', () => {
+      expect(transformExecutionStatusFilter([{ key: 'status', value: EXECUTION_STATUS_APPROVAL_PENDING }])).toEqual([
+        { key: 'approval_pending', value: true },
+      ])
     })
 
-    it('provides Yes/No options', () => {
-      const definition = getExecutionApprovalPendingFilterDefinition()
+    it('leaves other status filters unchanged', () => {
+      const filters = [{ key: 'status', value: 'completed' }]
+      expect(transformExecutionStatusFilter(filters)).toEqual(filters)
+    })
 
-      expect(definition.options).toEqual([
-        { value: 'true', label: 'Yes' },
-        { value: 'false', label: 'No' },
+    it('leaves non-status filters unchanged', () => {
+      const filters = [{ key: 'workflow_id', value: 'workflow-123' }]
+      expect(transformExecutionStatusFilter(filters)).toEqual(filters)
+    })
+
+    it('maps only pending approval when mixed with other filters', () => {
+      expect(
+        transformExecutionStatusFilter([
+          { key: 'workflow_id', value: 'workflow-123' },
+          { key: 'status', value: EXECUTION_STATUS_APPROVAL_PENDING },
+        ])
+      ).toEqual([
+        { key: 'workflow_id', value: 'workflow-123' },
+        { key: 'approval_pending', value: true },
       ])
+    })
+
+    it('returns empty array for empty input', () => {
+      expect(transformExecutionStatusFilter([])).toEqual([])
+    })
+  })
+
+  describe('createFilterChangeHandler integration', () => {
+    it('applies transformExecutionStatusFilter when filters change', () => {
+      const setAllFilters = vi.fn()
+      const handler = createFilterChangeHandler(null, vi.fn(), vi.fn(), setAllFilters, transformExecutionStatusFilter)
+
+      handler([{ key: 'status', value: EXECUTION_STATUS_APPROVAL_PENDING }])
+
+      expect(setAllFilters).toHaveBeenCalledWith([{ key: 'approval_pending', value: true }])
     })
   })
 

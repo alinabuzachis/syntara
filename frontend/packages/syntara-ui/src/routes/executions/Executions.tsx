@@ -25,9 +25,9 @@ import { useDocLink } from '../../utils/docs/useDocLink'
 import {
   getExecutionWorkflowFilterDefinition,
   getExecutionStatusFilterDefinition,
-  getExecutionApprovalPendingFilterDefinition,
   getExecutionCreatedAtFilterDefinition,
   getExecutionVersionFilterFromExecutions,
+  transformExecutionStatusFilter,
 } from './executionFilters'
 import { FlatExecutionsTableBody, GroupedExecutionsTableBody } from './ExecutionsTableBody'
 import { executionDefaultSort, executionTableColumns } from './executionTableColumns'
@@ -36,7 +36,6 @@ function buildFilterFieldDefinitions(executions: Execution[]): FilterFieldDefini
   return [
     getExecutionWorkflowFilterDefinition(),
     getExecutionStatusFilterDefinition(),
-    getExecutionApprovalPendingFilterDefinition(),
     getExecutionVersionFilterFromExecutions(executions),
     getExecutionCreatedAtFilterDefinition(),
   ].filter((def): def is FilterFieldDefinition => def !== null)
@@ -76,6 +75,7 @@ export default function Executions() {
     extraParams: projectExtraParams,
     defaultSort: executionDefaultSort,
     columns: executionTableColumns,
+    transformFilters: transformExecutionStatusFilter,
   })
 
   const executionsQuery = executionsClient.useQuery('get', '/executions', {
@@ -180,10 +180,10 @@ export default function Executions() {
                 <NxScrollableTableContainer caption="Executions table" footer={getFooterProps(executionsQuery.data)}>
                   <Thead>
                     <Tr>
+                      <Th modifier="nowrap">Run ID</Th>
                       <Th modifier="nowrap" sort={getSortParams('workflow_id')}>
                         Workflow name
                       </Th>
-                      <Th modifier="nowrap">Run ID</Th>
                       <Th sort={getSortParams('status')}>Status</Th>
                       <Th modifier="nowrap">Version</Th>
                       <Th sort={getSortParams('created_at')}>Created at</Th>

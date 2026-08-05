@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 
 import { executionsClient } from '../../../client'
 import { useCursorPagination } from '../../../hooks/useCursorPagination'
+import { transformExecutionStatusFilter } from '../executionFilters'
 
 /** Cursor pagination, sort, and list query for the Run History panel on execution detail. */
 export function useExecutionRunHistory(workflowId: string | undefined) {
@@ -14,6 +15,7 @@ export function useExecutionRunHistory(workflowId: string | undefined) {
     getFooterProps: getExecutionPaginationFooterProps,
   } = useCursorPagination({
     limit: 20,
+    transformFilters: transformExecutionStatusFilter,
     extraParams: executionExtraParams,
     defaultSort: { field: 'created_at', direction: 'desc' as const },
   })

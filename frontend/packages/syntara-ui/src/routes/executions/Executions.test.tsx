@@ -236,6 +236,20 @@ describe('Executions Component', () => {
     expect(screen.getByRole('columnheader', { name: /Completed at/i })).toBeInTheDocument()
   })
 
+  it('lists Run ID before Workflow name in the table', () => {
+    mockExecutionsQuery(mockExecutions)
+
+    render(<Executions />, { wrapper: TestWrapper })
+
+    const headers = screen.getAllByRole('columnheader')
+    const headerLabels = headers.map((header) => header.textContent?.trim() ?? '')
+    const runIdIndex = headerLabels.findIndex((label) => /Run ID/i.test(label))
+    const workflowNameIndex = headerLabels.findIndex((label) => /^Workflow name$/i.test(label))
+
+    expect(runIdIndex).toBeGreaterThanOrEqual(0)
+    expect(workflowNameIndex).toBeGreaterThan(runIdIndex)
+  })
+
   it('displays version publish name when available', () => {
     mockExecutionsQuery([
       {
@@ -538,6 +552,31 @@ describe('Executions Component', () => {
 
   describe('API Filter Contract', () => {
     it.todo('passes workflow_id filter to API query params when workflow is selected')
+
+    it('maps Pending approval status filter to approval_pending query param', async () => {
+      const user = userEvent.setup()
+      mockExecutionsQuery(mockExecutions)
+
+      render(<Executions />, { wrapper: TestWrapper })
+
+      const fieldSelector = screen.getAllByRole('button', { name: 'Workflow name' })[0]
+      await user.click(fieldSelector)
+
+      await waitFor(() => {
+        expect(screen.getByRole('option', { name: 'Status' })).toBeInTheDocument()
+      })
+      await user.click(screen.getByRole('option', { name: 'Status' }))
+
+      const valueSelector = await screen.findByRole('button', { name: /Filter by status/i }, { timeout: 10000 })
+      await user.click(valueSelector)
+
+      const pendingApprovalOption = await screen.findByRole('option', { name: 'Pending approval' })
+      await user.click(pendingApprovalOption)
+
+      await waitFor(() => {
+        assertUrlParam(mockSetSearchParams, 'approval_pending', 'true')
+      })
+    }, 10000)
 
     it('passes status filter with correct API shape', async () => {
       const user = userEvent.setup()

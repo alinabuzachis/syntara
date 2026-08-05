@@ -24,6 +24,7 @@ import { useExecutionWebSocket } from '../workflows/hooks/useExecutionWebSocket'
 
 import { isExecutionCancellable } from './executionCancellable'
 import { isExecutionRetryable } from './executionRetryable'
+import { ExecutionRunIdCell } from './ExecutionRunIdCell'
 import { useIsCurrentVersion } from './hooks/useIsCurrentVersion'
 import { RetryExecutionDialog } from './RetryExecutionDialog'
 import { useCancelExecution } from './useCancelExecution'
@@ -150,6 +151,11 @@ function ExecutionRow({ execution }: Readonly<ExecutionRowProps>) {
 
   return (
     <Tr>
+      {/* v8 ignore start -- phantom branches from React Compiler on Run ID cell JSX */}
+      <Td dataLabel="Run ID">
+        <ExecutionRunIdCell executionId={execution.id} />
+      </Td>
+      {/* v8 ignore stop */}
       <Td dataLabel="Workflow name">
         {execution.workflow_id ? (
           <LinkCell href={`/workflow-builder/${execution.workflow_id}`}>
@@ -158,13 +164,6 @@ function ExecutionRow({ execution }: Readonly<ExecutionRowProps>) {
         ) : (
           '—'
         )}
-      </Td>
-      <Td dataLabel="Run ID">
-        <LinkCell href={`/executions/${execution.id}`}>
-          <code>
-            <Truncate content={execution.id} />
-          </code>
-        </LinkCell>
       </Td>
       <Td dataLabel="Status">
         <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
