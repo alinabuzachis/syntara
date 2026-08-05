@@ -7,6 +7,7 @@ Covers:
 - bulk_update_models: success, partial match, empty
 """
 
+from datetime import datetime
 from uuid import uuid4
 
 import pytest
@@ -367,6 +368,7 @@ class TestBulkUpdateModels:
         result = await model_service.bulk_update_models(llm_integration.id, [model_a.id, model_b.id], enabled=False)
         assert result.updated_count == 2
         assert result.skipped_count == 0
+        assert isinstance(result.updated_at, datetime)
 
         await test_db_session.refresh(model_a)
         await test_db_session.refresh(model_b)

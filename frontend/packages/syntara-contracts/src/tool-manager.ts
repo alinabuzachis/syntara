@@ -208,6 +208,28 @@ export interface components {
       enabled: boolean
     }
     /**
+     * ToolBulkUpdateResponse
+     * @description Response model for bulk tool update.
+     */
+    ToolBulkUpdateResponse: {
+      /**
+       * Updated Count
+       * @description Number of tools updated
+       */
+      updated_count: number
+      /**
+       * Skipped Count
+       * @description Number of tool IDs not found or not in scope
+       */
+      skipped_count: number
+      /**
+       * Updated At
+       * Format: date-time
+       * @description Timestamp of the update
+       */
+      updated_at: string
+    }
+    /**
      * Paginated Response Base
      * @description Pagination metadata structure for list responses
      * @example {

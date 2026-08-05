@@ -12272,9 +12272,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
-                title: Response Bulk Update Integration Tools
+                $ref: '#/components/schemas/ToolBulkUpdateResponse'
         '400':
           description: Bad Request
           content:
@@ -33135,6 +33133,7 @@ components:
       required:
         - updated_count
         - skipped_count
+        - updated_at
       properties:
         updated_count:
           type: integer
@@ -33144,6 +33143,11 @@ components:
           type: integer
           title: Skipped Count
           description: Number of model IDs not found in integration
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+          description: Timestamp of the update
     ToolListResponse:
       title: ToolListResponse
       description: Paginated list response for tools.
@@ -33352,6 +33356,28 @@ components:
       required:
         - tool_ids
         - enabled
+    ToolBulkUpdateResponse:
+      type: object
+      title: ToolBulkUpdateResponse
+      description: Response model for bulk tool update.
+      properties:
+        updated_count:
+          type: integer
+          title: Updated Count
+          description: Number of tools updated
+        skipped_count:
+          type: integer
+          title: Skipped Count
+          description: Number of tool IDs not found or not in scope
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+          description: Timestamp of the update
+      required:
+        - updated_count
+        - skipped_count
+        - updated_at
     ComponentKPISummary:
       properties:
         component:

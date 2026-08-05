@@ -1,6 +1,6 @@
 """Integration Management API endpoints."""
 
-from typing import Annotated, Any
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, Query, Request, status
@@ -56,7 +56,7 @@ from nexus.tool_manager.models.tool import (
     ToolUpdate,
     ToolWithParameters,
 )
-from nexus.tool_manager.models.tool_bulk_update import ToolBulkUpdate
+from nexus.tool_manager.models.tool_bulk_update import ToolBulkUpdate, ToolBulkUpdateResponse
 from nexus.tool_manager.services.tool_service import ToolService
 
 router = NexusRouter(tags=["Integrations"])
@@ -411,6 +411,35 @@ async def _require_llm_provider(
         )
 
 
+async def _require_visible_integration_of_type(
+    integration_id: UUID,
+    request: Request,
+    db: AsyncSession,
+    current_user: User,
+    *,
+    gate: VisibilityFilter,
+    resource_name: str,
+    expected_type: IntegrationType,
+) -> None:
+    """Verify the integration exists, matches the expected type, user passes the gate, and integration is visible."""
+    gate_result = await gate(request, current_user, db)
+    if not gate_result.unrestricted and not gate_result.allowed_project_ids:
+        msg = f"Not authorized to perform read on {resource_name}"
+        raise AuthorizationDeniedError(msg)
+
+    allowed_projects = await integration_read_visibility(request, current_user, db)
+    integration = await db.get(Integration, integration_id)
+    if not integration:
+        raise IntegrationNotFoundError(integration_id)
+    if integration.integration_type != expected_type:
+        raise IntegrationTypeMismatchError(
+            integration_id,
+            expected_type=expected_type.value,
+            actual_type=integration.integration_type.value,
+        )
+    await _check_integration_visibility(db, integration, allowed_projects)
+
+
 async def _require_visible_llm_provider(
     integration_id: UUID,
     request: Request,
@@ -418,22 +447,15 @@ async def _require_visible_llm_provider(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> None:
     """Verify the integration exists, is an LLM provider, user has llm_model:read, and integration is visible."""
-    model_gate = await _model_read_gate(request, current_user, db)
-    if not model_gate.unrestricted and not model_gate.allowed_project_ids:
-        msg = "Not authorized to perform read on llm_model"
-        raise AuthorizationDeniedError(msg)
-
-    allowed_projects = await integration_read_visibility(request, current_user, db)
-    integration = await db.get(Integration, integration_id)
-    if not integration:
-        raise IntegrationNotFoundError(integration_id)
-    if integration.integration_type != IntegrationType.LLM_PROVIDER:
-        raise IntegrationTypeMismatchError(
-            integration_id,
-            expected_type=IntegrationType.LLM_PROVIDER.value,
-            actual_type=integration.integration_type.value,
-        )
-    await _check_integration_visibility(db, integration, allowed_projects)
+    await _require_visible_integration_of_type(
+        integration_id,
+        request,
+        db,
+        current_user,
+        gate=_model_read_gate,
+        resource_name="llm_model",
+        expected_type=IntegrationType.LLM_PROVIDER,
+    )
 
 
 @router.get(
@@ -527,22 +549,15 @@ async def _require_visible_mcp_server(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> None:
     """Verify the integration exists, is an MCP server, user has tool:read, and integration is visible."""
-    gate_result = await _tool_read_gate(request, current_user, db)
-    if not gate_result.unrestricted and not gate_result.allowed_project_ids:
-        msg = "Not authorized to perform read on tool"
-        raise AuthorizationDeniedError(msg)
-
-    allowed_projects = await integration_read_visibility(request, current_user, db)
-    integration = await db.get(Integration, integration_id)
-    if not integration:
-        raise IntegrationNotFoundError(integration_id)
-    if integration.integration_type != IntegrationType.MCP_SERVER:
-        raise IntegrationTypeMismatchError(
-            integration_id,
-            expected_type=IntegrationType.MCP_SERVER.value,
-            actual_type=integration.integration_type.value,
-        )
-    await _check_integration_visibility(db, integration, allowed_projects)
+    await _require_visible_integration_of_type(
+        integration_id,
+        request,
+        db,
+        current_user,
+        gate=_tool_read_gate,
+        resource_name="tool",
+        expected_type=IntegrationType.MCP_SERVER,
+    )
 
 
 @router.get(
@@ -577,7 +592,7 @@ async def bulk_update_integration_tools(
     integration_id: UUID,
     data: ToolBulkUpdate,
     service: Annotated[ToolService, Depends(get_tool_service)],
-) -> dict[str, Any]:
+) -> ToolBulkUpdateResponse:
     """Bulk enable/disable tools for an integration."""
     return await service.bulk_update_tools_for_integration(integration_id, data.tool_ids, enabled=data.enabled)
 

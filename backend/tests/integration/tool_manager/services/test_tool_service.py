@@ -182,9 +182,9 @@ async def test_bulk_update_tools_success(
     tool_ids = [tool.id for tool in tools]
     result = await service.bulk_update_tools(tool_ids, enabled=False)
 
-    assert result["updated_count"] == 3
-    assert result["skipped_count"] == 0
-    assert "updated_at" in result
+    assert result.updated_count == 3
+    assert result.skipped_count == 0
+    assert result.updated_at is not None
 
     # Verify tools were updated
     for tool in tools:
@@ -221,8 +221,8 @@ async def test_bulk_update_tools_enable_disabled(
     tool_ids = [tool.id for tool in tools]
     result = await service.bulk_update_tools(tool_ids, enabled=True)
 
-    assert result["updated_count"] == 2
-    assert result["skipped_count"] == 0
+    assert result.updated_count == 2
+    assert result.skipped_count == 0
 
     # Verify tools were enabled
     for tool in tools:
@@ -241,9 +241,9 @@ async def test_bulk_update_tools_with_nonexistent(
     tool_ids = [test_tool.id, uuid4(), uuid4()]
     result = await service.bulk_update_tools(tool_ids, enabled=False)
 
-    assert result["updated_count"] == 1  # Only the existing tool
-    assert result["skipped_count"] == 2  # Two non-existent tools
-    assert "updated_at" in result
+    assert result.updated_count == 1  # Only the existing tool
+    assert result.skipped_count == 2  # Two non-existent tools
+    assert result.updated_at is not None
 
     # Verify existing tool was updated
     await test_db_session.refresh(test_tool)
@@ -281,12 +281,12 @@ async def test_bulk_update_tools_valid_statuses(test_db_session: AsyncSession, t
     # Test that both valid statuses work without error
     # (even though no tools exist, the status validation should pass)
     result1 = await service.bulk_update_tools(tool_ids, enabled=True)
-    assert result1["updated_count"] == 0
-    assert result1["skipped_count"] == 1
+    assert result1.updated_count == 0
+    assert result1.skipped_count == 1
 
     result2 = await service.bulk_update_tools(tool_ids, enabled=False)
-    assert result2["updated_count"] == 0
-    assert result2["skipped_count"] == 1
+    assert result2.updated_count == 0
+    assert result2.skipped_count == 1
 
 
 @pytest.mark.asyncio
@@ -629,8 +629,8 @@ async def test_bulk_update_tools_audit_tracking(
     original_updated_at = test_tool.updated_at
     result = await service.bulk_update_tools([test_tool.id], enabled=False)
 
-    assert result["updated_count"] == 1
-    assert "updated_at" in result
+    assert result.updated_count == 1
+    assert result.updated_at is not None
 
     # Verify audit fields
     await test_db_session.refresh(test_tool)

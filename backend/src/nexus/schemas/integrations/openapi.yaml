@@ -989,9 +989,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
-                title: Response Bulk Update Integration Tools
+                $ref: '#/components/schemas/ToolBulkUpdateResponse'
         '400':
           $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
@@ -2036,6 +2034,7 @@ components:
       required:
         - updated_count
         - skipped_count
+        - updated_at
       properties:
         updated_count:
           type: integer
@@ -2045,6 +2044,11 @@ components:
           type: integer
           title: Skipped Count
           description: Number of model IDs not found in integration
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+          description: Timestamp of the update
 
     ToolListResponse:
       $ref: '../tool_manager/openapi.yaml#/components/schemas/ToolListResponse'
@@ -2054,6 +2058,8 @@ components:
       $ref: '../tool_manager/openapi.yaml#/components/schemas/ToolUpdate'
     ToolBulkUpdate:
       $ref: '../tool_manager/openapi.yaml#/components/schemas/ToolBulkUpdate'
+    ToolBulkUpdateResponse:
+      $ref: '../tool_manager/openapi.yaml#/components/schemas/ToolBulkUpdateResponse'
 
   securitySchemes:
     bearerAuth:

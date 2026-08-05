@@ -1015,6 +1015,12 @@ export interface components {
        * @description Number of model IDs not found in integration
        */
       skipped_count: number
+      /**
+       * Updated At
+       * Format: date-time
+       * @description Timestamp of the update
+       */
+      updated_at: string
     }
     /**
      * ToolListResponse
@@ -1117,6 +1123,28 @@ export interface components {
        * @description Enable/disable the Tool
        */
       enabled: boolean
+    }
+    /**
+     * ToolBulkUpdateResponse
+     * @description Response model for bulk tool update.
+     */
+    ToolBulkUpdateResponse: {
+      /**
+       * Updated Count
+       * @description Number of tools updated
+       */
+      updated_count: number
+      /**
+       * Skipped Count
+       * @description Number of tool IDs not found or not in scope
+       */
+      skipped_count: number
+      /**
+       * Updated At
+       * Format: date-time
+       * @description Timestamp of the update
+       */
+      updated_at: string
     }
     /**
      * Paginated Response Base
@@ -2131,9 +2159,7 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': {
-            [key: string]: unknown
-          }
+          'application/json': components['schemas']['ToolBulkUpdateResponse']
         }
       }
       400: components['responses']['BadRequestError']

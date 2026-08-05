@@ -8,16 +8,16 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 from dateutil.parser import isoparse
 
-T = TypeVar("T", bound="LLMModelBulkUpdateResponse")
+T = TypeVar("T", bound="ToolBulkUpdateResponse")
 
 
 @_attrs_define
-class LLMModelBulkUpdateResponse:
-    """Response for bulk LLM model update.
+class ToolBulkUpdateResponse:
+    """Response model for bulk tool update.
 
     Attributes:
-        updated_count (int): Number of models updated
-        skipped_count (int): Number of model IDs not found in integration
+        updated_count (int): Number of tools updated
+        skipped_count (int): Number of tool IDs not found or not in scope
         updated_at (datetime.datetime): Timestamp of the update
     """
 
@@ -54,14 +54,14 @@ class LLMModelBulkUpdateResponse:
 
         updated_at = isoparse(d.pop("updated_at"))
 
-        llm_model_bulk_update_response = cls(
+        tool_bulk_update_response = cls(
             updated_count=updated_count,
             skipped_count=skipped_count,
             updated_at=updated_at,
         )
 
-        llm_model_bulk_update_response.additional_properties = d
-        return llm_model_bulk_update_response
+        tool_bulk_update_response.additional_properties = d
+        return tool_bulk_update_response
 
     @property
     def additional_keys(self) -> list[str]:

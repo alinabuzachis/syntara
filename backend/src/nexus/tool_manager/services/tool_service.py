@@ -6,7 +6,6 @@ core domain logic with database persistence and transaction management.
 
 from collections.abc import Iterable
 from datetime import UTC, datetime
-from typing import Any
 from uuid import UUID
 
 import structlog
@@ -32,7 +31,7 @@ from nexus.tool_manager.models.tool import (
     ToolUpdate,
     ToolWithParameters,
 )
-from nexus.tool_manager.models.tool_bulk_update import MAX_BULK_UPDATES
+from nexus.tool_manager.models.tool_bulk_update import MAX_BULK_UPDATES, ToolBulkUpdateResponse
 
 SelectTool = Select[tuple[Tool]] | SelectOfScalar[tuple[Tool]]
 
@@ -242,7 +241,7 @@ class ToolService(BaseService):
 
         return await self.get_tool_detail(tool.id)
 
-    async def bulk_update_tools(self, tool_ids: list[UUID], *, enabled: bool) -> dict[str, Any]:
+    async def bulk_update_tools(self, tool_ids: list[UUID], *, enabled: bool) -> ToolBulkUpdateResponse:
         """Batch enable/disable operations with transaction management.
 
         Args:
@@ -344,11 +343,11 @@ class ToolService(BaseService):
             not_found=len(not_found_tool_ids),
         )
 
-        return {
-            "updated_count": updated_count,
-            "skipped_count": skipped_count,
-            "updated_at": current_time,
-        }
+        return ToolBulkUpdateResponse(
+            updated_count=updated_count,
+            skipped_count=skipped_count,
+            updated_at=current_time,
+        )
 
     async def bulk_update_tools_for_integration(
         self,
@@ -356,11 +355,26 @@ class ToolService(BaseService):
         tool_ids: list[UUID],
         *,
         enabled: bool,
-    ) -> dict[str, Any]:
+    ) -> ToolBulkUpdateResponse:
         """Bulk enable/disable tools, scoped to an integration (IDOR protection).
 
-        Only tools belonging to the specified integration are updated.
-        Tool IDs that don't belong to this integration are silently skipped.
+        Only tools belonging to the specified integration are updated. Tool IDs
+        that don't exist or don't belong to this integration are silently skipped
+        and counted in ``skipped_count`` (they do not raise). This differs from
+        ``bulk_update_tools``, which operates across all tools.
+
+        Args:
+            integration_id: UUID of the integration that owns the tools to update
+            tool_ids: List of tool UUIDs to update (max 50)
+            enabled: Enable/disable the tools
+
+        Returns:
+            ToolBulkUpdateResponse with updated_count, skipped_count, and updated_at
+
+        Raises:
+            ToolBulkUpdateValidationError: If tool_ids is empty or exceeds the
+                maximum bulk update size.
+
         """
         if not tool_ids:
             msg = "tool_ids cannot be empty"
@@ -409,8 +423,8 @@ class ToolService(BaseService):
             )
         )
 
-        return {
-            "updated_count": updated_count,
-            "skipped_count": skipped_count,
-            "updated_at": current_time,
-        }
+        return ToolBulkUpdateResponse(
+            updated_count=updated_count,
+            skipped_count=skipped_count,
+            updated_at=current_time,
+        )

@@ -1,5 +1,6 @@
-"""Tool bulk update request models."""
+"""Tool bulk update request and response models."""
 
+from datetime import datetime
 from typing import ClassVar
 from uuid import UUID
 
@@ -41,3 +42,11 @@ class ToolBulkUpdate(SQLModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(
         extra="forbid",  # Reject unknown fields
     )  # type: ignore[assignment]
+
+
+class ToolBulkUpdateResponse(SQLModel):
+    """Response model for bulk tool update."""
+
+    updated_count: int = Field(description="Number of tools updated")
+    skipped_count: int = Field(description="Number of tool IDs not found or not in scope")
+    updated_at: datetime = Field(description="Timestamp of the update")

@@ -10,7 +10,7 @@ from nexus.tool_manager.models.tool import (
     ToolStatus,
     ToolUpdate,
 )
-from nexus.tool_manager.models.tool_bulk_update import MAX_BULK_UPDATES, ToolBulkUpdate
+from nexus.tool_manager.models.tool_bulk_update import MAX_BULK_UPDATES, ToolBulkUpdate, ToolBulkUpdateResponse
 from nexus.tool_manager.models.tool_execution import ToolExecution, ToolExecutionStatus, ToolMetricsSummary
 from nexus.tool_manager.models.tool_metrics_response import (
     ToolExecutionListParams,
@@ -30,6 +30,7 @@ __all__ = [
     "TargetType",
     "Tool",
     "ToolBulkUpdate",
+    "ToolBulkUpdateResponse",
     "ToolExecution",
     "ToolExecutionListParams",
     "ToolExecutionStatus",

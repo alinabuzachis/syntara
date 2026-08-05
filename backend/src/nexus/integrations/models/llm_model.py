@@ -189,6 +189,7 @@ class LLMModelBulkUpdateResponse(SQLModel):
 
     updated_count: int = Field(description="Number of models updated")
     skipped_count: int = Field(description="Number of model IDs not found in integration")
+    updated_at: datetime = Field(description="Timestamp of the update")
 
 
 class LLMModelListParams(BaseListParams):

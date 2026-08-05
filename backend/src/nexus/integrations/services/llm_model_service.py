@@ -186,4 +186,5 @@ class LLMModelService(BaseService):
         return LLMModelBulkUpdateResponse(
             updated_count=total_matching,
             skipped_count=skipped_count,
+            updated_at=now,
         )
