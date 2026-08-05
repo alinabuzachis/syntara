@@ -2,7 +2,12 @@ import { TriggerTypeEnum } from '@syntara/contracts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { RegistryNodeId } from '../../../../constants'
-import { useWorkflowStore } from '../../../../stores/useWorkflowStore'
+import {
+  createEdaTrigger,
+  createScheduledTrigger,
+  createWebhookTrigger,
+  useWorkflowStore,
+} from '../../../../stores/useWorkflowStore'
 import { NodeRegistry } from '../NodeRegistry'
 
 import registerTriggerNode from './registerTriggerNode'
@@ -148,6 +153,66 @@ describe('registerTriggerNode', () => {
     expect(onError).not.toHaveBeenCalled()
   })
 
+  it('defaults scheduleType to interval when omitted', () => {
+    const mockAddTrigger = vi.fn()
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      addTrigger: mockAddTrigger,
+    } as never)
+
+    registerTriggerNode()
+    const registration = NodeRegistry.get(RegistryNodeId.TRIGGER)
+    const onSuccess = vi.fn()
+    const onError = vi.fn()
+
+    registration?.onSubmit(
+      {
+        name: 'No Schedule Type',
+        triggerType: TriggerTypeEnum.SCHEDULED,
+        interval: '30m',
+      },
+      onSuccess,
+      onError
+    )
+
+    expect(vi.mocked(createScheduledTrigger)).toHaveBeenCalledWith(
+      expect.any(String),
+      'interval',
+      expect.objectContaining({ interval: '30m' }),
+      expect.any(String)
+    )
+    expect(onSuccess).toHaveBeenCalled()
+  })
+
+  it('defaults webhookPath to empty string when omitted', () => {
+    const mockAddTrigger = vi.fn()
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      addTrigger: mockAddTrigger,
+    } as never)
+
+    registerTriggerNode()
+    const registration = NodeRegistry.get(RegistryNodeId.TRIGGER)
+    const onSuccess = vi.fn()
+    const onError = vi.fn()
+
+    registration?.onSubmit(
+      {
+        name: 'Webhook no path',
+        triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER,
+      },
+      onSuccess,
+      onError
+    )
+
+    expect(vi.mocked(createWebhookTrigger)).toHaveBeenCalledWith(
+      expect.any(String),
+      '',
+      undefined,
+      expect.any(String),
+      undefined
+    )
+    expect(onSuccess).toHaveBeenCalled()
+  })
+
   it('onSubmit creates a webhook trigger and calls onSuccess', () => {
     const mockAddTrigger = vi.fn()
     vi.mocked(useWorkflowStore.getState).mockReturnValue({
@@ -173,6 +238,74 @@ describe('registerTriggerNode', () => {
     expect(mockAddTrigger).toHaveBeenCalled()
     expect(onSuccess).toHaveBeenCalled()
     expect(onError).not.toHaveBeenCalled()
+  })
+
+  it('passes authorizedServiceAccountIds to createWebhookTrigger (regression: AAP-84946)', () => {
+    const mockAddTrigger = vi.fn()
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      addTrigger: mockAddTrigger,
+    } as never)
+
+    registerTriggerNode()
+    const registration = NodeRegistry.get(RegistryNodeId.TRIGGER)
+    const onSuccess = vi.fn()
+    const onError = vi.fn()
+
+    const serviceAccountIds = ['sa-id-1', 'sa-id-2']
+    registration?.onSubmit(
+      {
+        name: 'Webhook with SA',
+        triggerType: TriggerTypeEnum.WEBHOOK_TRIGGER,
+        webhookPath: '/hooks/deploy',
+        inputSchema: undefined,
+        authorizedServiceAccountIds: serviceAccountIds,
+      },
+      onSuccess,
+      onError
+    )
+
+    expect(vi.mocked(createWebhookTrigger)).toHaveBeenCalledWith(
+      expect.any(String),
+      '/hooks/deploy',
+      undefined,
+      expect.any(String),
+      serviceAccountIds
+    )
+    expect(onSuccess).toHaveBeenCalled()
+  })
+
+  it('passes authorizedServiceAccountIds to createEdaTrigger (regression: AAP-84946)', () => {
+    const mockAddTrigger = vi.fn()
+    vi.mocked(useWorkflowStore.getState).mockReturnValue({
+      addTrigger: mockAddTrigger,
+    } as never)
+
+    registerTriggerNode()
+    const registration = NodeRegistry.get(RegistryNodeId.TRIGGER)
+    const onSuccess = vi.fn()
+    const onError = vi.fn()
+
+    const serviceAccountIds = ['sa-id-3']
+    registration?.onSubmit(
+      {
+        name: 'EDA with SA',
+        triggerType: TriggerTypeEnum.EDA_TRIGGER,
+        webhookPath: '/eda/events',
+        inputSchema: undefined,
+        authorizedServiceAccountIds: serviceAccountIds,
+      },
+      onSuccess,
+      onError
+    )
+
+    expect(vi.mocked(createEdaTrigger)).toHaveBeenCalledWith(
+      expect.any(String),
+      '/eda/events',
+      undefined,
+      expect.any(String),
+      serviceAccountIds
+    )
+    expect(onSuccess).toHaveBeenCalled()
   })
 
   it('creates a manual trigger when trigger type is unknown', () => {

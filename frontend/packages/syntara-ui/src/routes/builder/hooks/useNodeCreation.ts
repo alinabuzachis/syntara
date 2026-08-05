@@ -12,6 +12,7 @@ export type TriggerFormData = {
   eventType?: string
   webhookPath?: string
   inputSchema?: string
+  authorizedServiceAccountIds?: string[]
 }
 
 export type ActionFormData = {
