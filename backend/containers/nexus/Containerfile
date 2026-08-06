@@ -140,6 +140,12 @@ RUN mkdir -p /data/file-uploads /data/audit-exports && \
 RUN chown -R 1001:0 /opt/app-root && \
     chmod -R g=u /opt/app-root
 
+# Copy wrapper scripts for service entry points
+COPY containers/nexus/scripts/start-api /usr/local/bin/start-api
+COPY containers/nexus/scripts/start-worker /usr/local/bin/start-worker
+COPY containers/nexus/scripts/start-background-worker /usr/local/bin/start-background-worker
+COPY containers/nexus/scripts/run-seed /usr/local/bin/run-seed
+
 # Switch back to non-root user (UBI default user)
 USER 1001
 
@@ -148,4 +154,4 @@ EXPOSE 8000
 
 # Default command runs the API server
 # Override with different commands for other services.
-CMD ["uvicorn", "nexus.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["start-api"]
