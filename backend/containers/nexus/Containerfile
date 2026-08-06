@@ -1,4 +1,13 @@
+# Downstream override layer — digest injected by Konflux build-nudge.
+# Defaults to scratch (empty, built-in) so builds without --build-arg succeed.
+ARG DOWNSTREAM_OVERRIDE=scratch
+ARG BRANDING=false
+
+FROM ${DOWNSTREAM_OVERRIDE} AS override
+
 FROM registry.redhat.io/ansible-automation-platform/uv-builder-rhel9:latest@sha256:bdd64fcb4597cfb665c15c4b4841ded098baa26dce1f544b4dbd17a575b8984a AS builder
+
+ARG BRANDING
 
 USER 0
 
@@ -24,6 +33,13 @@ COPY tools/ci/sanitize_pyproject_for_hermetic.py /usr/local/bin/sanitize_pyproje
 
 # Copy application code (excluding ./tools)
 COPY src/ ./src/
+
+# Apply downstream overrides when BRANDING=true (backend/api/templates/ → src/nexus/api/templates/).
+# Uses --mount instead of COPY so that scratch (empty) override stages don't fail.
+RUN --mount=from=override,source=/,target=/tmp/override \
+    if [ "$BRANDING" = "true" ] && [ -d /tmp/override/backend ]; then \
+        cp -r /tmp/override/backend/. src/nexus/; \
+    fi
 
 # Hermetic Konflux builds: use uv against Hermeto-prefetched sdists.
 # cachi2.env injects PIP_FIND_LINKS/PIP_NO_INDEX; we map that flat directory to
