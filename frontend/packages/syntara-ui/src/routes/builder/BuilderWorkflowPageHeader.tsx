@@ -1,10 +1,9 @@
-import { Button, Content, ContentVariants, Flex, FlexItem, Icon, TextInput, Tooltip } from '@patternfly/react-core'
+import { Button, Flex, FlexItem, Icon, TextInput, TitleSizes, Tooltip } from '@patternfly/react-core'
 import { RhUiClockIcon, RhUiUndoIcon } from '@patternfly/react-icons'
 import type { ExecutionStatus } from '@syntara/contracts'
 import { type Dispatch, type ReactNode } from 'react'
 
 import { DisabledWithTooltip } from '../../components/DisabledWithTooltip'
-import { NxLabel } from '../../components/labels/NxLabel'
 import { NxPageHeader } from '../../components/layout/NxPageHeader'
 import { NxPageTitle } from '../../components/NxPageTitle'
 import { WorkflowPublishStatusBadge } from '../../components/WorkflowPublishStatusBadge'
@@ -15,14 +14,12 @@ import { isExecutionCancellable } from '../executions/executionCancellable'
 
 import { BuilderEditorToolbar } from './BuilderEditorToolbar'
 import type { BuilderAction } from './builderReducer'
-import headerStyles from './BuilderWorkflowPageHeader.module.css'
+import { BuilderVersionViewTitleRowAddons } from './BuilderWorkflowPageHeaderParts'
+import { builderVersionViewHasTitleRowExtras } from './builderWorkflowPageHeaderTitle'
 import { EditWorkflowDetailsPopover } from './EditWorkflowDetailsPopover'
-import { formatHistoryDateTime } from './historyDateUtils'
-import { isVersionStatus } from './hooks/useVersionHistory'
 import { PublishWorkflowDialog } from './PublishWorkflowDialog'
 import type { BuilderPermissions } from './useBuilderPermissions'
 import type { PendingImportData } from './useWorkflowImportExport'
-import { VersionStatusBadge } from './VersionStatusBadge'
 
 type BuilderToolbarContentProps = Readonly<{
   isLiveRunActive?: boolean
@@ -203,6 +200,80 @@ function BuilderToolbarContent({
   )
 }
 
+function BuilderEditorTitleSlot({
+  workflowName,
+  workflowDescription,
+  isNew,
+  publishedVersionId,
+  currentVersionId,
+  isBuiltin,
+  builderPermissions,
+  ProjectSelector,
+  dispatch,
+  markDirty,
+}: Readonly<{
+  workflowName: string
+  workflowDescription: string
+  isNew: boolean
+  publishedVersionId: string | null
+  currentVersionId?: string | null
+  isBuiltin: boolean
+  builderPermissions: BuilderPermissions
+  ProjectSelector: ReactNode
+  dispatch: Dispatch<BuilderAction>
+  markDirty: () => void
+}>) {
+  return (
+    <Flex
+      gap={{ default: 'gapMd' }}
+      alignItems={{ default: 'alignItemsCenter' }}
+      flexWrap={{ default: 'nowrap' }}
+      style={{ height: '100%' }}
+    >
+      <FlexItem style={{ flexShrink: 1, minWidth: 0 }}>
+        <Tooltip
+          content={builderPermissions.tooltips.edit}
+          trigger={builderPermissions.canEdit ? 'manual' : 'mouseenter focus'}
+        >
+          <TextInput
+            id="workflow-name-input"
+            type="text"
+            aria-label="Workflow name"
+            value={workflowName}
+            isDisabled={!builderPermissions.canEdit}
+            onChange={(_event, value) => {
+              dispatch({ type: 'SET_WORKFLOW_NAME', payload: value })
+              markDirty()
+            }}
+            placeholder="Workflow name"
+          />
+        </Tooltip>
+      </FlexItem>
+      {builderPermissions.canEdit && (
+        <FlexItem style={{ flexShrink: 0 }}>
+          <EditWorkflowDetailsPopover
+            name={workflowName}
+            description={workflowDescription}
+            onApply={(name, description) => {
+              const nameChanged = name !== workflowName
+              const descriptionChanged = description !== workflowDescription
+              if (nameChanged) dispatch({ type: 'SET_WORKFLOW_NAME', payload: name })
+              if (descriptionChanged) dispatch({ type: 'SET_WORKFLOW_DESCRIPTION', payload: description })
+              if (nameChanged || descriptionChanged) markDirty()
+            }}
+          />
+        </FlexItem>
+      )}
+      {!isNew && (
+        <FlexItem style={{ flexShrink: 0 }}>
+          <WorkflowPublishStatusBadge publishedVersionId={publishedVersionId} currentVersionId={currentVersionId} />
+        </FlexItem>
+      )}
+      {(builderPermissions.canEdit || isBuiltin) && <FlexItem style={{ flexShrink: 0 }}>{ProjectSelector}</FlexItem>}
+    </Flex>
+  )
+}
+
 /**
  * Header props are intentionally flat for this extraction; many fields mirror `BuilderContent` state.
  * Follow-up: consider grouping (e.g. `toolbarHandlers`) or builder-scoped context to trim prop drilling
@@ -301,125 +372,88 @@ export function BuilderWorkflowPageHeader({
   const builderDocLink = useDocLink('builder')
   const publishDialog = useDialogState<true>()
 
+  const toolbar = (
+    <BuilderToolbarContent
+      isBuiltin={isBuiltin}
+      isLiveRunActive={isLiveRunActive}
+      executionId={executionId}
+      executionStatus={executionStatus}
+      hasApprovalPending={hasApprovalPending}
+      isApprovalLoading={isApprovalLoading}
+      isApprovalPanelOpen={isApprovalPanelOpen}
+      onBackToEditor={onBackToEditor}
+      onReviewApproval={onReviewApproval}
+      dispatch={dispatch}
+      markDirty={markDirty}
+      handleToggleHistory={handleToggleHistory}
+      handleToggleVersionHistory={handleToggleVersionHistory}
+      isNew={isNew}
+      workflow={workflow}
+      isPending={isPending}
+      isDirty={isDirty}
+      lastSavedAt={lastSavedAt}
+      isKebabOpen={isKebabOpen}
+      publishedVersionId={publishedVersionId}
+      currentVersionId={currentVersionId}
+      handleToggleDetails={handleToggleDetails}
+      handleSaveWorkflow={handleSaveWorkflow}
+      onPublishClick={() => publishDialog.open(true)}
+      onUnpublish={onUnpublish}
+      onPendingImport={onPendingImport}
+      triggers={triggers}
+      isAddNodePanelOpen={isAddNodePanelOpen}
+      hasNoWorkflowNodes={hasNoWorkflowNodes}
+      workflowName={workflowName}
+      workflowDescription={workflowDescription}
+      builderPermissions={builderPermissions}
+      isViewingVersion={isViewingVersion}
+      versionHistoryOpen={versionHistoryOpen}
+      onExitVersionView={onExitVersionView}
+      onRestoreVersion={onRestoreVersion}
+      onToggleVersionHistory={handleToggleVersionHistory}
+      isNodeEditorOpen={isNodeEditorOpen}
+    />
+  )
+
   return (
     <>
       <NxPageTitle segments={[isNew ? 'New Workflow' : workflowName, 'Workflows']} />
-      <NxPageHeader
-        title={workflowName}
-        docLink={builderDocLink}
-        titleSlot={
-          <Flex
-            gap={{ default: 'gapMd' }}
-            alignItems={{ default: 'alignItemsCenter' }}
-            flexWrap={{ default: 'nowrap' }}
-            style={{ height: '100%' }}
-          >
-            <FlexItem style={{ flexShrink: 1, minWidth: 0 }}>
-              {isViewingVersion ? (
-                <Content component={ContentVariants.p} className={headerStyles.versionViewTitle}>
-                  {workflowName}
-                </Content>
-              ) : (
-                <Tooltip
-                  content={builderPermissions.tooltips.edit}
-                  trigger={builderPermissions.canEdit ? 'manual' : 'mouseenter focus'}
-                >
-                  <TextInput
-                    id="workflow-name-input"
-                    type="text"
-                    aria-label="Workflow name"
-                    value={workflowName}
-                    isDisabled={!builderPermissions.canEdit}
-                    onChange={(_event, value) => {
-                      dispatch({ type: 'SET_WORKFLOW_NAME', payload: value })
-                      markDirty()
-                    }}
-                    placeholder="Workflow name"
-                  />
-                </Tooltip>
-              )}
-            </FlexItem>
-            {builderPermissions.canEdit && !isViewingVersion && (
-              <FlexItem style={{ flexShrink: 0 }}>
-                <EditWorkflowDetailsPopover
-                  name={workflowName}
-                  description={workflowDescription}
-                  onApply={(name, description) => {
-                    const nameChanged = name !== workflowName
-                    const descriptionChanged = description !== workflowDescription
-                    if (nameChanged) dispatch({ type: 'SET_WORKFLOW_NAME', payload: name })
-                    if (descriptionChanged) dispatch({ type: 'SET_WORKFLOW_DESCRIPTION', payload: description })
-                    if (nameChanged || descriptionChanged) markDirty()
-                  }}
-                />
-              </FlexItem>
-            )}
-            {!isNew && !isViewingVersion && (
-              <FlexItem style={{ flexShrink: 0 }}>
-                <WorkflowPublishStatusBadge
-                  publishedVersionId={publishedVersionId}
-                  currentVersionId={currentVersionId}
-                />
-              </FlexItem>
-            )}
-            {(builderPermissions.canEdit || isBuiltin) && !isViewingVersion && (
-              <FlexItem style={{ flexShrink: 0 }}>{ProjectSelector}</FlexItem>
-            )}
-            {isViewingVersion && viewedVersionDate && (
-              <FlexItem className={headerStyles.fixedWidthItem}>
-                <NxLabel color="grey">Viewing {formatHistoryDateTime(viewedVersionDate)}</NxLabel>
-              </FlexItem>
-            )}
-            {isViewingVersion && viewedVersionStatus && isVersionStatus(viewedVersionStatus) && (
-              <FlexItem className={headerStyles.fixedWidthItem}>
-                <VersionStatusBadge status={viewedVersionStatus} />
-              </FlexItem>
-            )}
-          </Flex>
-        }
-        toolbar={
-          <BuilderToolbarContent
-            isBuiltin={isBuiltin}
-            isLiveRunActive={isLiveRunActive}
-            executionId={executionId}
-            executionStatus={executionStatus}
-            hasApprovalPending={hasApprovalPending}
-            isApprovalLoading={isApprovalLoading}
-            isApprovalPanelOpen={isApprovalPanelOpen}
-            onBackToEditor={onBackToEditor}
-            onReviewApproval={onReviewApproval}
-            dispatch={dispatch}
-            markDirty={markDirty}
-            handleToggleHistory={handleToggleHistory}
-            handleToggleVersionHistory={handleToggleVersionHistory}
-            isNew={isNew}
-            workflow={workflow}
-            isPending={isPending}
-            isDirty={isDirty}
-            lastSavedAt={lastSavedAt}
-            isKebabOpen={isKebabOpen}
-            publishedVersionId={publishedVersionId}
-            currentVersionId={currentVersionId}
-            handleToggleDetails={handleToggleDetails}
-            handleSaveWorkflow={handleSaveWorkflow}
-            onPublishClick={() => publishDialog.open(true)}
-            onUnpublish={onUnpublish}
-            onPendingImport={onPendingImport}
-            triggers={triggers}
-            isAddNodePanelOpen={isAddNodePanelOpen}
-            hasNoWorkflowNodes={hasNoWorkflowNodes}
-            workflowName={workflowName}
-            workflowDescription={workflowDescription}
-            builderPermissions={builderPermissions}
-            isViewingVersion={isViewingVersion}
-            versionHistoryOpen={versionHistoryOpen}
-            onExitVersionView={onExitVersionView}
-            onRestoreVersion={onRestoreVersion}
-            onToggleVersionHistory={handleToggleVersionHistory}
-            isNodeEditorOpen={isNodeEditorOpen}
-          />
-        }
-      />
+      {isViewingVersion ? (
+        <NxPageHeader
+          title={workflowName}
+          docLink={builderDocLink}
+          titleProps={{ size: TitleSizes['2xl'] }}
+          titleAddons={
+            builderVersionViewHasTitleRowExtras(viewedVersionDate, viewedVersionStatus) ? (
+              <BuilderVersionViewTitleRowAddons
+                viewedVersionDate={viewedVersionDate}
+                viewedVersionStatus={viewedVersionStatus}
+              />
+            ) : undefined
+          }
+          toolbar={toolbar}
+        />
+      ) : (
+        <NxPageHeader
+          title={workflowName}
+          docLink={builderDocLink}
+          titleSlot={
+            <BuilderEditorTitleSlot
+              workflowName={workflowName}
+              workflowDescription={workflowDescription}
+              isNew={isNew}
+              publishedVersionId={publishedVersionId}
+              currentVersionId={currentVersionId}
+              isBuiltin={isBuiltin}
+              builderPermissions={builderPermissions}
+              ProjectSelector={ProjectSelector}
+              dispatch={dispatch}
+              markDirty={markDirty}
+            />
+          }
+          toolbar={toolbar}
+        />
+      )}
 
       <PublishWorkflowDialog
         isOpen={publishDialog.isOpen}

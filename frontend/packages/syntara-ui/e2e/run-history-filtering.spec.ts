@@ -1,5 +1,5 @@
 /**
- * E2E Tests: Run History Panel Filtering
+ * E2E tests: Run history panel filtering
  *
  * Critical paths covered:
  * - Status filter apply / remove / switch
@@ -189,7 +189,7 @@ async function applyVersionFilter(app: Page): Promise<string> {
 
 let workflowId: string | null = null
 
-test.describe('Run History Panel Filtering', { tag: '@pr-check' }, () => {
+test.describe('Run history panel filtering', { tag: '@pr-check' }, () => {
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage()
     try {

@@ -690,7 +690,7 @@ describe('BuilderWorkflowPageHeader', () => {
     expect(screen.queryByRole('button', { name: /Apply details/i })).not.toBeInTheDocument()
   })
 
-  it('shows workflow name as plain text in version view', () => {
+  it('shows workflow name as page title heading in version view', () => {
     render(
       <BuilderWorkflowPageHeader
         {...baseProps}
@@ -702,7 +702,22 @@ describe('BuilderWorkflowPageHeader', () => {
     )
 
     expect(screen.queryByRole('textbox', { name: /Workflow name/i })).not.toBeInTheDocument()
-    expect(screen.getByText(baseProps.workflowName)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: baseProps.workflowName })).toBeInTheDocument()
+  })
+
+  it('has no accessibility violations in version view mode', async () => {
+    const { container } = render(
+      <BuilderWorkflowPageHeader
+        {...baseProps}
+        isNew={false}
+        workflow={{ id: 'wf-1' }}
+        isViewingVersion
+        viewedVersionDate="2026-05-19T14:30:00.000Z"
+        viewedVersionStatus="published"
+        onExitVersionView={vi.fn()}
+      />
+    )
+    expect(await axe(container)).toHaveNoViolations()
   })
 
   it('does not show cancel button when executionId is null', () => {
