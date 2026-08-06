@@ -228,10 +228,6 @@ def test_wait_node_in_conditional_branch(nexus_api: SyntaraApiRegistry) -> None:
 
 
 @pytest.mark.e2e
-@pytest.mark.xfail(
-    reason="orchestration bug: _process_node_result swallows failed-status dicts",
-    strict=False,
-)
 def test_wait_node_zero_duration_fails(nexus_api: SyntaraApiRegistry) -> None:
     """A wait node with duration 0 fails validation."""
     result = create_and_run_workflow(
@@ -252,14 +248,11 @@ def test_wait_node_zero_duration_fails(nexus_api: SyntaraApiRegistry) -> None:
     )
 
     assert result.status == ExecutionStatus.FAILED, f"Expected failure but got: {result.status}"
-    assert result.error_details is not None
+    error_text = str(result.error_details or "")
+    assert "duration" in error_text.lower(), f"Expected duration-related error, got: {result.error_details}"
 
 
 @pytest.mark.e2e
-@pytest.mark.xfail(
-    reason="orchestration bug: _process_node_result swallows failed-status dicts",
-    strict=False,
-)
 def test_wait_node_negative_duration_fails(nexus_api: SyntaraApiRegistry) -> None:
     """A wait node with negative duration fails validation."""
     result = create_and_run_workflow(
@@ -280,4 +273,5 @@ def test_wait_node_negative_duration_fails(nexus_api: SyntaraApiRegistry) -> Non
     )
 
     assert result.status == ExecutionStatus.FAILED, f"Expected failure but got: {result.status}"
-    assert result.error_details is not None
+    error_text = str(result.error_details or "")
+    assert "duration" in error_text.lower(), f"Expected duration-related error, got: {result.error_details}"
