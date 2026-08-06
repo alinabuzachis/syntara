@@ -29,8 +29,32 @@ import { APP_TITLE } from '../../../../utils/appTitle'
 
 import type { GroupMappingEditFormValues } from './groupMappingEditFormSchema'
 import type { GroupMappingEntry, NexusGroup } from './groupMappingUtils'
+import { idpHelp } from './idpFieldHelp'
 
 const CREATE_GROUP_VALUE = '__create__' as const
+
+/** Column header label + field help for IdP group value (popover title matches field name). */
+export function IdpGroupValueColumnLabel() {
+  return (
+    <>
+      IdP group value
+      {idpHelp.idpGroupValue}
+    </>
+  )
+}
+
+/**
+ * Column header label + field help for the local group column.
+ * Visible header may include APP_TITLE; popover title is always "Group".
+ */
+export function GroupColumnLabel() {
+  return (
+    <>
+      {`${APP_TITLE} group`}
+      {idpHelp.group}
+    </>
+  )
+}
 
 export type IdpGroupValueInputProps = {
   index: number

@@ -33,6 +33,7 @@ import { ConnectionFields } from './ConnectionFields'
 import { FieldErrorMessage, FieldHelpPopover } from './formFieldHelpers'
 import styles from './IdentityProviderFormFields.module.css'
 import { type IdentityProviderFormData } from './identityProviderFormSchema'
+import { idpHelp } from './idpFieldHelp'
 import { IdpTypeKey, IDP_TYPE_OPTIONS, IDP_TYPE_PRESETS } from './idpTypePresets'
 import { JmespathExpressionField } from './JmespathExpressionField'
 import { WizardNavFooter } from './WizardNavFooter'
@@ -124,7 +125,7 @@ function IdpTypeField({
         }
 
         return (
-          <FormGroup label="Provider template" fieldId="idp-type" isRequired>
+          <FormGroup label="Provider template" fieldId="idp-type" isRequired labelHelp={idpHelp.providerTemplate}>
             <NxSelect
               id="idp-type"
               isOpen={isOpen}

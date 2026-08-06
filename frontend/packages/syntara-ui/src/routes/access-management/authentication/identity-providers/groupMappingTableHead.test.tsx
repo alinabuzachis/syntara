@@ -6,6 +6,7 @@ import { axe } from 'vitest-axe'
 import { APP_TITLE } from '../../../../utils/appTitle'
 
 import { GroupMappingTableHead } from './groupMappingTableHead'
+import { GROUP_HELP, IDP_GROUP_VALUE_HELP } from './idpFieldHelpText'
 
 describe('GroupMappingTableHead', () => {
   const defaultProps = {
@@ -13,7 +14,7 @@ describe('GroupMappingTableHead', () => {
     showWildcardHelp: false,
   }
 
-  it('renders column headers', () => {
+  it('renders column headers with field help', () => {
     render(
       <table>
         <GroupMappingTableHead {...defaultProps} />
@@ -22,6 +23,8 @@ describe('GroupMappingTableHead', () => {
 
     expect(screen.getByText('IdP group value')).toBeInTheDocument()
     expect(screen.getByText(`${APP_TITLE} group`)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'More info for IdP group value' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'More info for Group' })).toBeInTheDocument()
   })
 
   it('does not render Actions column header when showActionsColumn is false', () => {
@@ -64,6 +67,22 @@ describe('GroupMappingTableHead', () => {
     )
 
     expect(screen.getByRole('button', { name: 'Wildcard patterns help' })).toBeInTheDocument()
+  })
+
+  it('field help popovers show IdP group value and Group copy', async () => {
+    const user = userEvent.setup()
+    render(
+      <table>
+        <GroupMappingTableHead {...defaultProps} />
+      </table>
+    )
+
+    await user.click(screen.getByRole('button', { name: 'More info for IdP group value' }))
+    expect(screen.getByText(IDP_GROUP_VALUE_HELP)).toBeInTheDocument()
+
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByRole('button', { name: 'More info for Group' }))
+    expect(screen.getByText(GROUP_HELP)).toBeInTheDocument()
   })
 
   it('wildcard help popover shows title, intro, and all pattern examples (single open)', async () => {

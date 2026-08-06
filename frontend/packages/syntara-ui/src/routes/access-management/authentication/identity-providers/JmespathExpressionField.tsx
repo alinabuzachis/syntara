@@ -3,6 +3,7 @@ import { Controller, type Control } from 'react-hook-form'
 
 import { HintOrError } from './formFieldHelpers'
 import { type IdentityProviderFormData } from './identityProviderFormSchema'
+import { idpHelp } from './idpFieldHelp'
 import { IDP_TYPE_PRESETS } from './idpTypePresets'
 import styles from './JmespathExpressionField.module.css'
 
@@ -21,7 +22,11 @@ export function JmespathExpressionField({
         const showReset = defaultExpression && currentValue !== defaultExpression
 
         return (
-          <FormGroup label="Group extraction expression" fieldId="jmespath-expression">
+          <FormGroup
+            label="Group extraction expression"
+            fieldId="jmespath-expression"
+            labelHelp={idpHelp.groupExtractionExpression}
+          >
             <TextInput
               id="jmespath-expression"
               placeholder="groups[*]"

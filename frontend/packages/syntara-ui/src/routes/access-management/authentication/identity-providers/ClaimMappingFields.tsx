@@ -11,12 +11,13 @@ import {
   TextInputGroupMain,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
-import type { Ref } from 'react'
+import type { ReactElement, Ref } from 'react'
 import { Controller, type Control, type ControllerFieldState, type ControllerRenderProps } from 'react-hook-form'
 
 import { NxSelect } from '../../../../components/NxSelect'
 
 import { type IdentityProviderFormData } from './identityProviderFormSchema'
+import { idpHelp } from './idpFieldHelp'
 import { type ClaimMappingFieldTypeahead, useClaimMappingFieldTypeahead } from './useClaimMappingFieldTypeahead'
 
 const CUSTOM_OPTION = '__custom__'
@@ -192,6 +193,7 @@ type ClaimFieldProps = {
   options: string[] | null
   isRequired?: boolean
   isReadOnly?: boolean
+  labelHelp?: ReactElement
 }
 
 type ClaimFieldMeta = Readonly<{
@@ -201,6 +203,7 @@ type ClaimFieldMeta = Readonly<{
   options: string[] | null
   isRequired?: boolean
   isReadOnly?: boolean
+  labelHelp?: ReactElement
 }>
 
 type ClaimFieldBodyProps = Readonly<{
@@ -213,7 +216,7 @@ type ClaimFieldBodyProps = Readonly<{
 }>
 
 function ClaimFieldBody({ meta, controller, typeahead }: ClaimFieldBodyProps) {
-  const { name, label, hint, options, isRequired = true, isReadOnly } = meta
+  const { name, label, hint, options, isRequired = true, isReadOnly, labelHelp } = meta
   const { field, fieldState } = controller
   const { useCustom, setUseCustom, isOpen, setIsOpen, filterValue, setFilterValue, filteredOptions } = typeahead
 
@@ -231,7 +234,7 @@ function ClaimFieldBody({ meta, controller, typeahead }: ClaimFieldBodyProps) {
   }
 
   return (
-    <FormGroup label={label} fieldId={name} isRequired={isRequired}>
+    <FormGroup label={label} fieldId={name} isRequired={isRequired} labelHelp={labelHelp}>
       {showDropdown ? (
         <NxSelect
           id={name}
@@ -285,7 +288,16 @@ function ClaimFieldBody({ meta, controller, typeahead }: ClaimFieldBodyProps) {
 }
 
 /** One claim row (typeahead or text). Local UI state is owned by `useClaimMappingFieldTypeahead`. */
-function ClaimField({ control, name, label, hint, options, isRequired = true, isReadOnly }: Readonly<ClaimFieldProps>) {
+function ClaimField({
+  control,
+  name,
+  label,
+  hint,
+  options,
+  isRequired = true,
+  isReadOnly,
+  labelHelp,
+}: Readonly<ClaimFieldProps>) {
   const typeahead = useClaimMappingFieldTypeahead(options)
 
   return (
@@ -294,7 +306,7 @@ function ClaimField({ control, name, label, hint, options, isRequired = true, is
       control={control}
       render={({ field, fieldState }) => (
         <ClaimFieldBody
-          meta={{ name, label, hint, options, isRequired, isReadOnly }}
+          meta={{ name, label, hint, options, isRequired, isReadOnly, labelHelp }}
           controller={{ field, fieldState }}
           typeahead={typeahead}
         />
@@ -318,6 +330,7 @@ export function UserClaimMappingFields({
         hint="IdP claim for the unique user identifier (e.g. sub)"
         options={buildOptions('sub', claimsSupported, claimAliases)}
         isReadOnly={isReadOnly}
+        labelHelp={idpHelp.subjectClaim}
       />
       <ClaimField
         control={control}
@@ -326,6 +339,7 @@ export function UserClaimMappingFields({
         hint="IdP claim for the user email (e.g. email, mail, upn)"
         options={buildOptions('email', claimsSupported, claimAliases)}
         isReadOnly={isReadOnly}
+        labelHelp={idpHelp.emailClaim}
       />
       <ClaimField
         control={control}

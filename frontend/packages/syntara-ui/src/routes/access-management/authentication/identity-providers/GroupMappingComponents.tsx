@@ -37,6 +37,7 @@ import type { GroupMappingEditFormValues } from './groupMappingEditFormSchema'
 import { EditMappingRow, MappingRow } from './groupMappingFields'
 import { GroupMappingTableHead } from './groupMappingTableHead'
 import type { GroupMappingEntry, NexusGroup } from './groupMappingUtils'
+import { idpHelp } from './idpFieldHelp'
 import { IDP_TYPE_PRESETS } from './idpTypePresets'
 
 function entryFieldErrorMessage(
@@ -126,7 +127,11 @@ export function AdvancedSection({ control, defaultExpression, idpType, rawClaims
               render={({ field, fieldState }) => (
                 <Stack hasGutter>
                   <StackItem>
-                    <FormGroup label="Group extraction expression" fieldId="jmespath-expression-tab">
+                    <FormGroup
+                      label="Group extraction expression"
+                      fieldId="jmespath-expression-tab"
+                      labelHelp={idpHelp.groupExtractionExpression}
+                    >
                       <TextInput
                         id="jmespath-expression-tab"
                         placeholder="groups[*]"

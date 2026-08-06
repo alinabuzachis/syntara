@@ -111,7 +111,7 @@ export async function gotoGroupMappingEdit(app: Page, providerId: string, query?
 /** Expand the Advanced section on the group mapping tab. */
 export async function expandGroupMappingAdvanced(app: Page): Promise<void> {
   await app.getByRole('button', { name: /^Advanced$/i }).click()
-  await expect(app.getByLabel('Group extraction expression')).toBeVisible()
+  await expect(app.getByRole('textbox', { name: 'Group extraction expression', exact: true })).toBeVisible()
 }
 
 export { ADD_IDP_URL, AUTH_ROOT }

@@ -4,6 +4,8 @@ import { Th, Thead, Tr } from '@patternfly/react-table'
 
 import { APP_TITLE } from '../../../../utils/appTitle'
 
+import { GroupColumnLabel, IdpGroupValueColumnLabel } from './groupMappingFields'
+
 const helpIconStyle = { marginLeft: 'var(--pf-t--global--spacer--xs)', cursor: 'pointer' } as const
 
 export function GroupMappingTableHead({
@@ -14,7 +16,7 @@ export function GroupMappingTableHead({
     <Thead>
       <Tr>
         <Th width={45}>
-          IdP group value
+          <IdpGroupValueColumnLabel />
           {showWildcardHelp && (
             <Popover
               headerContent="Wildcard patterns"
@@ -44,7 +46,9 @@ export function GroupMappingTableHead({
             </Popover>
           )}
         </Th>
-        <Th width={45}>{`${APP_TITLE} group`}</Th>
+        <Th width={45}>
+          <GroupColumnLabel />
+        </Th>
         {showActionsColumn && <Th width={10} screenReaderText="Actions" />}
       </Tr>
     </Thead>

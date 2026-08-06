@@ -23,6 +23,7 @@ import { NxSelect } from '../../../../components/NxSelect'
 import { APP_TITLE } from '../../../../utils/appTitle'
 import { useAllGroups } from '../../../access/useAllGroups'
 
+import { GroupColumnLabel, IdpGroupValueColumnLabel } from './groupMappingFields'
 import {
   actionColumnStyle,
   columnHeaderStyle,
@@ -32,6 +33,7 @@ import {
 } from './groupMappingStyles'
 import { nextKey, processDiscoveredGroups } from './groupMappingUtils'
 import { type IdentityProviderFormData } from './identityProviderFormSchema'
+import { idpHelp } from './idpFieldHelp'
 import { useTestSignIn } from './useTestSignIn'
 
 function NexusGroupSelect({
@@ -237,10 +239,10 @@ export function GroupMappingStep({ control, setValue, providerId }: Readonly<Gro
         {fields.length > 0 && (
           <div style={headerRowStyle}>
             <Content component={ContentVariants.small} style={{ ...columnHeaderStyle, margin: 0 }}>
-              IdP group value
+              <IdpGroupValueColumnLabel />
             </Content>
             <Content component={ContentVariants.small} style={{ ...columnHeaderStyle, margin: 0 }}>
-              {`${APP_TITLE} group`}
+              <GroupColumnLabel />
             </Content>
             <div style={actionColumnStyle} />
           </div>
@@ -264,7 +266,11 @@ export function GroupMappingStep({ control, setValue, providerId }: Readonly<Gro
           name="groupMapping.jmespathExpression"
           control={control}
           render={({ field, fieldState }) => (
-            <FormGroup label="Group extraction expression" fieldId="jmespath-expression">
+            <FormGroup
+              label="Group extraction expression"
+              fieldId="jmespath-expression"
+              labelHelp={idpHelp.groupExtractionExpression}
+            >
               <TextInput
                 id="jmespath-expression"
                 placeholder="groups[*]"

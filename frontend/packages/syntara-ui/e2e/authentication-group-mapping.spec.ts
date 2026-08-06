@@ -36,7 +36,7 @@ async function createMappingTestProvider(app: Page, namePrefix: string): Promise
 
 async function setGroupMappingExpression(app: Page, expression: string): Promise<void> {
   await expandGroupMappingAdvanced(app)
-  const expressionInput = app.getByLabel('Group extraction expression')
+  const expressionInput = app.getByRole('textbox', { name: 'Group extraction expression', exact: true })
   await expressionInput.fill(expression)
 }
 
@@ -138,7 +138,7 @@ test.describe('UI-13: JMESPath filter — entry and validation error', () => {
       await fillMinimalOidcProviderFields(app, { name: providerName })
       await gotoClaimMappingWizardStep(app)
 
-      await app.getByLabel('Group extraction expression').fill(INVALID_JMESPATH)
+      await app.getByRole('textbox', { name: 'Group extraction expression', exact: true }).fill(INVALID_JMESPATH)
       await app.getByRole('button', { name: /Add provider/i }).click()
 
       await expect(app.getByText(/Invalid group extraction expression/i)).toBeVisible()
@@ -154,7 +154,7 @@ test.describe('UI-13: JMESPath filter — entry and validation error', () => {
         await fillMinimalOidcProviderFields(app, { name: providerName })
         await gotoClaimMappingWizardStep(app)
 
-        await app.getByLabel('Group extraction expression').fill(VALID_JMESPATH)
+        await app.getByRole('textbox', { name: 'Group extraction expression', exact: true }).fill(VALID_JMESPATH)
         await app.getByRole('button', { name: /Add provider/i }).click()
 
         await expect(app.getByText('Identity provider created')).toBeVisible()
@@ -181,7 +181,7 @@ test.describe('UI-14: Claim data configuration screen', () => {
       await fillMinimalOidcProviderFields(app, { name: providerName })
       await gotoClaimMappingWizardStep(app)
 
-      await app.getByLabel('Email claim').fill('mail')
+      await app.getByRole('textbox', { name: 'Email claim', exact: true }).fill('mail')
 
       await app.getByRole('button', { name: /Add provider/i }).click()
 
