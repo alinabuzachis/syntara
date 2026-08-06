@@ -107,6 +107,34 @@ describe('useIntegrationActions', () => {
 
       expect(mockMutate).toHaveBeenCalledWith({ params: { path: { integration_id: 'int-1' } } }, expect.any(Object))
     })
+
+    it('refetches after validation success', () => {
+      mockMutate.mockImplementation((_args: unknown, callbacks: MockMutationCallbacks) => {
+        callbacks.onSuccess?.({ success: true })
+        callbacks.onSettled?.()
+      })
+
+      const { result } = renderHook(() => useIntegrationActions(mockRefetch), { wrapper })
+
+      act(() => result.current.validateDialog.open(mockIntegration))
+      act(() => result.current.handleValidate())
+
+      expect(mockRefetch).toHaveBeenCalled()
+    })
+
+    it('refetches after validation error to update status badge', () => {
+      mockMutate.mockImplementation((_args: unknown, callbacks: MockMutationCallbacks) => {
+        callbacks.onError?.(new Error('credential required'))
+        callbacks.onSettled?.()
+      })
+
+      const { result } = renderHook(() => useIntegrationActions(mockRefetch), { wrapper })
+
+      act(() => result.current.validateDialog.open(mockIntegration))
+      act(() => result.current.handleValidate())
+
+      expect(mockRefetch).toHaveBeenCalled()
+    })
   })
 
   describe('deleteDialog', () => {

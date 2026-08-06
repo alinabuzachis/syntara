@@ -36,9 +36,9 @@ class CredentialDecryptionError(CredentialError):
 
 @fastapi_exception(handler="nexus.credentials.error_handlers.credential_disabled_error_handler")
 class CredentialDisabledError(CredentialError):
-    """Exception raised when a disabled credential is used in workflow resolution."""
+    """Exception raised when a disabled credential is used in an operation."""
 
     def __init__(self, name: str) -> None:
         """Initialize with credential name."""
         self.name = name
-        super().__init__(f"Credential '{name}' is disabled. Re-enable it before running workflows.")
+        super().__init__(f"Credential '{name}' is disabled. Re-enable it to continue.")

@@ -182,6 +182,7 @@ describe('IntegrationDetail', () => {
     isPending?: boolean
     isError?: boolean
     credentialName?: string
+    credentialEnabled?: boolean
   }) {
     const integration = overrides?.integration ? { ...mockIntegration, ...overrides.integration } : mockIntegration
 
@@ -195,7 +196,11 @@ describe('IntegrationDetail', () => {
 
     vi.mocked(credentialsClient.useQuery).mockReturnValue({
       data: integration.management_credential_id
-        ? { name: overrides?.credentialName ?? 'Test Credential', id: integration.management_credential_id }
+        ? {
+            name: overrides?.credentialName ?? 'Test Credential',
+            id: integration.management_credential_id,
+            enabled: overrides?.credentialEnabled ?? true,
+          }
         : undefined,
       isPending: false,
       isError: false,
@@ -291,6 +296,27 @@ describe('IntegrationDetail', () => {
 
       const credLink = screen.getByRole('link', { name: 'Test Credential' })
       expect(credLink).toHaveAttribute('href', '/configuration/credentials/cred-1')
+    })
+
+    it('shows credential disabled warning when credential is disabled', () => {
+      setupDefaultMocks({ credentialEnabled: false })
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.getByText('Credential disabled')).toBeInTheDocument()
+    })
+
+    it('does not show credential disabled warning when credential is enabled', () => {
+      setupDefaultMocks({ credentialEnabled: true })
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.queryByText('Credential disabled')).not.toBeInTheDocument()
+    })
+
+    it('does not show credential disabled warning when no credential is assigned', () => {
+      setupDefaultMocks({ integration: { management_credential_id: null } })
+      render(<IntegrationDetail />, { wrapper })
+
+      expect(screen.queryByText('Credential disabled')).not.toBeInTheDocument()
     })
 
     it('shows dash for URL when none is set', () => {

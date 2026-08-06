@@ -14,6 +14,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
+from nexus.credentials.exceptions import CredentialDisabledError
 from nexus.credentials.models.credential import Credential
 from nexus.credentials.models.credential_type import CredentialType
 from nexus.integrations.adapters.protocol import (
@@ -24,6 +25,7 @@ from nexus.integrations.adapters.protocol import (
 )
 from nexus.integrations.exceptions import (
     IntegrationCredentialNotFoundError,
+    IntegrationCredentialRequiredError,
     IntegrationNotFoundError,
     IntegrationRefreshNotSupportedError,
 )
@@ -35,6 +37,7 @@ from nexus.integrations.models.integration import (
     IntegrationStatus,
     IntegrationType,
 )
+from nexus.integrations.models.integration_configuration import AAPConfiguration, LLMProviderConfiguration
 from nexus.integrations.services.integration_service import IntegrationService
 from nexus.tool_manager.models.tool import Tool, ToolStatus
 
@@ -68,6 +71,33 @@ def _mcp_create(name: str = "Test MCP", **kwargs: object) -> IntegrationCreate:
     }
     defaults.update(kwargs)
     return IntegrationCreate(**defaults)
+
+
+async def _insert_integration_direct(
+    session: AsyncSession, user: User, *, integration_type: IntegrationType, name: str = "Test Integration"
+) -> Integration:
+    """Insert an Integration directly, bypassing create_integration() validation."""
+    configuration: LLMProviderConfiguration | AAPConfiguration
+    if integration_type == IntegrationType.LLM_PROVIDER:
+        configuration = LLMProviderConfiguration(
+            integration_type="llm_provider", base_url="https://api.example.com", provider_hint="openai"
+        )
+    else:
+        configuration = AAPConfiguration(
+            integration_type="ansible_automation_platform", base_url="https://aap.example.com"
+        )
+
+    integration = Integration(
+        name=name,
+        integration_type=integration_type,
+        configuration=configuration,
+        enabled=True,
+        created_by=user.id,
+        updated_by=user.id,
+    )
+    session.add(integration)
+    await session.flush()
+    return integration
 
 
 async def _create_credential(
@@ -184,6 +214,30 @@ class TestResolveCredential:
 
         with pytest.raises(RuntimeError, match="SecretService is required"):
             await service._resolve_credential(uuid4())
+
+    @pytest.mark.asyncio
+    async def test_raises_when_credential_disabled(
+        self, test_db_session: AsyncSession, test_user: User, secret_service: MagicMock
+    ) -> None:
+        mock_cred = MagicMock()
+        mock_cred.secret_id = uuid4()
+        mock_cred.credential_type_id = uuid4()
+        mock_cred.enabled = False
+        mock_cred.name = "Disabled Cred"
+
+        mock_cred_type = MagicMock()
+        mock_cred_type.injectors = {"extra_vars": {"token": "{{ token }}"}}
+
+        mock_session = AsyncMock()
+        mock_session.get = AsyncMock(
+            side_effect=lambda model, _id: mock_cred if model == Credential else mock_cred_type
+        )
+
+        service = IntegrationService(mock_session, test_user, secret_service)
+        with pytest.raises(CredentialDisabledError):
+            await service._resolve_credential(uuid4())
+
+        secret_service.retrieve_secret.assert_not_called()
 
 
 class TestValidateIntegration:
@@ -310,6 +364,151 @@ class TestValidateIntegration:
         assert integration.validation_status == IntegrationStatus.ERROR
         assert integration.validation_error == "Unexpected error during validation: RuntimeError"
         assert integration.last_validated_at is not None
+
+    @pytest.mark.asyncio
+    @patch(f"{SERVICE_MODULE}.AuditEventDispatcher")
+    @patch(f"{SERVICE_MODULE}.create_health_check_adapter")
+    async def test_credential_required_llm_sets_error_status_and_last_validated_at(
+        self,
+        mock_adapter_factory: MagicMock,
+        mock_audit: MagicMock,
+        test_db_session: AsyncSession,
+        test_user: User,
+        integration_service: IntegrationService,
+    ) -> None:
+        """LLM integration with missing credential sets ERROR status and last_validated_at."""
+        integration = await _insert_integration_direct(
+            test_db_session, test_user, integration_type=IntegrationType.LLM_PROVIDER
+        )
+        await test_db_session.commit()
+
+        with pytest.raises(IntegrationCredentialRequiredError):
+            await integration_service.validate_integration(integration.id)
+
+        refreshed = await test_db_session.get(Integration, integration.id)
+        assert refreshed is not None
+        assert refreshed.validation_status == IntegrationStatus.ERROR
+        assert "require a management credential" in (refreshed.validation_error or "")
+        assert refreshed.last_validated_at is not None
+        mock_adapter_factory.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch(f"{SERVICE_MODULE}.AuditEventDispatcher")
+    @patch(f"{SERVICE_MODULE}.create_health_check_adapter")
+    async def test_credential_required_aap_sets_error_status(
+        self,
+        mock_adapter_factory: MagicMock,
+        mock_audit: MagicMock,
+        test_db_session: AsyncSession,
+        test_user: User,
+        integration_service: IntegrationService,
+    ) -> None:
+        """AAP integration with missing credential sets ERROR status and last_validated_at."""
+        integration = await _insert_integration_direct(
+            test_db_session, test_user, integration_type=IntegrationType.ANSIBLE_AUTOMATION_PLATFORM
+        )
+        await test_db_session.commit()
+
+        with pytest.raises(IntegrationCredentialRequiredError):
+            await integration_service.validate_integration(integration.id)
+
+        refreshed = await test_db_session.get(Integration, integration.id)
+        assert refreshed is not None
+        assert refreshed.validation_status == IntegrationStatus.ERROR
+        assert refreshed.last_validated_at is not None
+        mock_adapter_factory.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch(f"{SERVICE_MODULE}.AuditEventDispatcher")
+    @patch(f"{SERVICE_MODULE}.create_health_check_adapter")
+    async def test_credential_required_llm_dispatches_audit_event(
+        self,
+        mock_adapter_factory: MagicMock,
+        mock_audit: MagicMock,
+        test_db_session: AsyncSession,
+        test_user: User,
+        integration_service: IntegrationService,
+    ) -> None:
+        """Missing credential dispatches an audit event with the correct error type."""
+        integration = await _insert_integration_direct(
+            test_db_session, test_user, integration_type=IntegrationType.LLM_PROVIDER
+        )
+        await test_db_session.commit()
+
+        with pytest.raises(IntegrationCredentialRequiredError):
+            await integration_service.validate_integration(integration.id)
+
+        mock_audit.dispatch.assert_called_once()
+        event = mock_audit.dispatch.call_args[0][0]
+        assert event.error_type == "IntegrationCredentialRequiredError"
+        assert event.result_status == IntegrationStatus.ERROR
+        assert event.integration_id == integration.id
+
+    @pytest.mark.asyncio
+    @patch(f"{SERVICE_MODULE}.AuditEventDispatcher")
+    @patch(f"{SERVICE_MODULE}.get_runtime_settings")
+    @patch(f"{SERVICE_MODULE}.create_health_check_adapter")
+    async def test_mcp_without_credential_proceeds_to_validation(
+        self,
+        mock_adapter_factory: MagicMock,
+        mock_settings: MagicMock,
+        mock_audit: MagicMock,
+        test_db_session: AsyncSession,
+        integration_service: IntegrationService,
+    ) -> None:
+        """MCP integration without credential does not raise IntegrationCredentialRequiredError."""
+        created = await integration_service.create_integration(_mcp_create())
+
+        mock_adapter = AsyncMock()
+        mock_adapter.validate = AsyncMock(return_value=ValidateResult(success=True, checked_at=datetime.now(UTC)))
+        mock_adapter_factory.return_value = mock_adapter
+        mock_settings.return_value = _mock_runtime_settings()
+
+        result = await integration_service.validate_integration(created.id)
+
+        assert result.success is True
+        mock_adapter_factory.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch(f"{SERVICE_MODULE}.AuditEventDispatcher")
+    @patch(f"{SERVICE_MODULE}.create_health_check_adapter")
+    async def test_disabled_credential_sets_error_status_and_last_validated_at(
+        self,
+        mock_adapter_factory: MagicMock,
+        mock_audit: MagicMock,
+        test_db_session: AsyncSession,
+        integration_service: IntegrationService,
+    ) -> None:
+        """Integration with disabled credential sets ERROR status and last_validated_at."""
+        created = await integration_service.create_integration(_mcp_create())
+        integration = await test_db_session.get(Integration, created.id)
+        assert integration is not None
+
+        cred, _ = await _create_credential(test_db_session, integration_service.user, with_secret=False)
+        integration.management_credential_id = cred.id
+        await test_db_session.flush()
+        mock_audit.reset_mock()
+
+        with (
+            patch.object(
+                integration_service,
+                "_resolve_credential",
+                new_callable=AsyncMock,
+                side_effect=CredentialDisabledError("Test Cred"),
+            ),
+            pytest.raises(CredentialDisabledError),
+        ):
+            await integration_service.validate_integration(created.id)
+
+        refreshed = await test_db_session.get(Integration, created.id)
+        assert refreshed is not None
+        assert refreshed.validation_status == IntegrationStatus.ERROR
+        assert "disabled" in (refreshed.validation_error or "").lower()
+        assert refreshed.last_validated_at is not None
+        mock_adapter_factory.assert_not_called()
+        mock_audit.dispatch.assert_called_once()
+        event = mock_audit.dispatch.call_args[0][0]
+        assert event.error_type == "CredentialDisabledError"
 
 
 class TestDiscover:
@@ -885,3 +1084,97 @@ class TestRefreshIntegrationResources:
         result = await integration_service.refresh_resources(created.id)
 
         assert result.synced_count == 1
+
+    @pytest.mark.asyncio
+    @patch(f"{SERVICE_MODULE}.AuditEventDispatcher")
+    @patch(f"{SERVICE_MODULE}.create_health_check_adapter")
+    async def test_credential_required_llm_sets_refresh_error_status(
+        self,
+        mock_adapter_factory: MagicMock,
+        mock_audit: MagicMock,
+        test_db_session: AsyncSession,
+        test_user: User,
+        integration_service: IntegrationService,
+    ) -> None:
+        """LLM integration with missing credential sets refresh ERROR and last_refreshed_at."""
+        integration = await _insert_integration_direct(
+            test_db_session, test_user, integration_type=IntegrationType.LLM_PROVIDER
+        )
+        await test_db_session.commit()
+
+        with pytest.raises(IntegrationCredentialRequiredError):
+            await integration_service.refresh_resources(integration.id)
+
+        refreshed = await test_db_session.get(Integration, integration.id)
+        assert refreshed is not None
+        assert refreshed.refresh_status == IntegrationRefreshStatus.ERROR
+        assert "require a management credential" in (refreshed.refresh_error or "")
+        assert refreshed.last_refreshed_at is not None
+        mock_adapter_factory.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch(f"{SERVICE_MODULE}.AuditEventDispatcher")
+    @patch(f"{SERVICE_MODULE}.create_health_check_adapter")
+    async def test_credential_required_llm_refresh_dispatches_audit_event(
+        self,
+        mock_adapter_factory: MagicMock,
+        mock_audit: MagicMock,
+        test_db_session: AsyncSession,
+        test_user: User,
+        integration_service: IntegrationService,
+    ) -> None:
+        """Missing credential on refresh dispatches an audit event with the correct error type."""
+        integration = await _insert_integration_direct(
+            test_db_session, test_user, integration_type=IntegrationType.LLM_PROVIDER
+        )
+        await test_db_session.commit()
+
+        with pytest.raises(IntegrationCredentialRequiredError):
+            await integration_service.refresh_resources(integration.id)
+
+        mock_audit.dispatch.assert_called_once()
+        event = mock_audit.dispatch.call_args[0][0]
+        assert event.error_type == "IntegrationCredentialRequiredError"
+        assert event.result_status == IntegrationRefreshStatus.ERROR
+        assert event.integration_id == integration.id
+
+    @pytest.mark.asyncio
+    @patch(f"{SERVICE_MODULE}.AuditEventDispatcher")
+    @patch(f"{SERVICE_MODULE}.create_health_check_adapter")
+    async def test_disabled_credential_sets_refresh_error_status(
+        self,
+        mock_adapter_factory: MagicMock,
+        mock_audit: MagicMock,
+        test_db_session: AsyncSession,
+        integration_service: IntegrationService,
+    ) -> None:
+        """Refresh with disabled credential sets ERROR refresh status and last_refreshed_at."""
+        created = await integration_service.create_integration(_mcp_create())
+        integration = await test_db_session.get(Integration, created.id)
+        assert integration is not None
+
+        cred, _ = await _create_credential(test_db_session, integration_service.user, with_secret=False)
+        integration.management_credential_id = cred.id
+        await test_db_session.flush()
+        mock_audit.reset_mock()
+
+        with (
+            patch.object(
+                integration_service,
+                "_resolve_credential",
+                new_callable=AsyncMock,
+                side_effect=CredentialDisabledError("Test Cred"),
+            ),
+            pytest.raises(CredentialDisabledError),
+        ):
+            await integration_service.refresh_resources(created.id)
+
+        refreshed = await test_db_session.get(Integration, created.id)
+        assert refreshed is not None
+        assert refreshed.refresh_status == IntegrationRefreshStatus.ERROR
+        assert "disabled" in (refreshed.refresh_error or "").lower()
+        assert refreshed.last_refreshed_at is not None
+        mock_adapter_factory.assert_not_called()
+        mock_audit.dispatch.assert_called_once()
+        event = mock_audit.dispatch.call_args[0][0]
+        assert event.error_type == "CredentialDisabledError"

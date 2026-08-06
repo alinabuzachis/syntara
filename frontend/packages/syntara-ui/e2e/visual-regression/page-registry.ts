@@ -757,6 +757,15 @@ export const pages: PageEntry[] = [
   },
   {
     section: 'configuration/integrations',
+    name: 'integration-detail-credential-disabled',
+    path: AppRoute.Configuration.Integrations.Detail.replace(':integrationId', '3'),
+    waitFor: async (page) => {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByText('Credential disabled')).toBeVisible()
+    },
+  },
+  {
+    section: 'configuration/integrations',
     name: 'integration-tools',
     path: AppRoute.Configuration.Integrations.DetailTab.replace(':integrationId', '1').replace(':tab', 'resources'),
     waitFor: async (page) => {

@@ -19,6 +19,7 @@ from nexus.core.models import User
 from nexus.core.queries.project_queries import assert_project_alive
 from nexus.core.services import BaseService
 from nexus.core.services.secret_service import SecretService
+from nexus.credentials.exceptions import CredentialDisabledError
 from nexus.credentials.lib.injector_resolver import InjectorResolver
 from nexus.integrations.adapters.factory import create_health_check_adapter
 from nexus.integrations.adapters.protocol import (
@@ -662,11 +663,12 @@ class IntegrationService(BaseService):
     async def _resolve_credential(self, credential_id: UUID) -> dict[str, object]:
         """Resolve a credential to its extra_vars dict for adapter use.
 
-        Fetches the credential, decrypts its secret, and applies injector
-        mappings to produce the resolved variable dict.
+        Fetches the credential, verifies it is enabled, decrypts its secret,
+        and applies injector mappings to produce the resolved variable dict.
 
         Raises:
             IntegrationCredentialNotFoundError: If the credential or its type is not found.
+            CredentialDisabledError: If the credential is disabled.
             RuntimeError: If SecretService is not available.
 
         """
@@ -675,11 +677,94 @@ class IntegrationService(BaseService):
             raise RuntimeError(msg)
 
         credential, cred_type = await fetch_credential_with_type(self.session, credential_id)
+        if not credential.enabled:
+            raise CredentialDisabledError(credential.name)
         logger.debug("Resolving credential", credential_id=str(credential_id), credential_type=cred_type.name)
         # fetch_credential_with_type raises if secret_id is None
         decrypted_inputs = await self._secret_service.retrieve_secret(credential.secret_id)  # type: ignore[arg-type]
         resolved = InjectorResolver.resolve(cred_type.injectors or {}, decrypted_inputs)
         return resolved.extra_vars
+
+    async def _fail_validation(self, integration: Integration, error: Exception) -> NoReturn:
+        """Persist ERROR validation state, dispatch audit event, and re-raise."""
+        integration.validation_status = IntegrationStatus.ERROR
+        integration.validation_error = str(error)
+        integration.last_validated_at = datetime.now(UTC)
+        await self.session.commit()
+        AuditEventDispatcher.dispatch(
+            IntegrationValidateEvent(
+                integration_id=integration.id,
+                integration_name=integration.name,
+                integration_type=integration.integration_type.value,
+                result_status=IntegrationStatus.ERROR,
+                error_type=type(error).__name__,
+                error_message=str(error),
+            )
+        )
+        raise error
+
+    async def _fail_refresh(self, integration: Integration, error: Exception) -> NoReturn:
+        """Persist ERROR refresh state, dispatch audit event, and re-raise."""
+        integration.refresh_status = IntegrationRefreshStatus.ERROR
+        integration.refresh_error = str(error)
+        integration.last_refreshed_at = datetime.now(UTC)
+        await self.session.commit()
+        AuditEventDispatcher.dispatch(
+            IntegrationRefreshEvent(
+                integration_id=integration.id,
+                integration_name=integration.name,
+                integration_type=integration.integration_type.value,
+                result_status=IntegrationRefreshStatus.ERROR,
+                error_type=type(error).__name__,
+            )
+        )
+        raise error
+
+    async def _handle_failed_discover(self, integration_id: UUID, discover_result: DiscoverResult) -> RefreshResult:
+        """Persist ERROR state when adapter discovery reports failure."""
+        integration = await self._get_or_raise(integration_id, for_update=True)
+        integration.refresh_status = IntegrationRefreshStatus.ERROR
+        integration.refresh_error = discover_result.error
+        integration.last_refreshed_at = datetime.now(UTC)
+        await self.session.commit()
+        AuditEventDispatcher.dispatch(
+            IntegrationRefreshEvent(
+                integration_id=integration.id,
+                integration_name=integration.name,
+                integration_type=integration.integration_type.value,
+                result_status=IntegrationRefreshStatus.ERROR,
+                error_type=discover_result.error_type.value if discover_result.error_type else "DiscoverFailed",
+            )
+        )
+        return RefreshResult(
+            synced_count=0,
+            updated_count=0,
+            missing_count=0,
+            refreshed_at=integration.last_refreshed_at or datetime.now(UTC),
+        )
+
+    async def _sync_discovered_resources(
+        self, integration: Integration, integration_id: UUID, discover_result: DiscoverResult
+    ) -> tuple[int, int, int]:
+        """Dispatch to type-specific sync (MCP tools or LLM models)."""
+        if integration.integration_type == IntegrationType.MCP_SERVER:
+            return await self._sync_mcp_tools(integration, discover_result.discovered_tools or [])
+        if integration.integration_type == IntegrationType.LLM_PROVIDER:
+            return await self._sync_llm_models(integration, discover_result.discovered_models or [])
+        raise IntegrationRefreshNotSupportedError(integration_id, integration.integration_type.value)
+
+    async def _persist_refresh_error(self, integration_id: UUID, exc: Exception) -> None:
+        """Log and persist ERROR state for unexpected refresh failures."""
+        logger.exception(
+            "Unexpected error during integration refresh",
+            integration_id=str(integration_id),
+            error_type=type(exc).__name__,
+        )
+        integration = await self._get_or_raise(integration_id, for_update=True)
+        integration.refresh_status = IntegrationRefreshStatus.ERROR
+        integration.refresh_error = f"Unexpected error during refresh: {type(exc).__name__}"
+        integration.last_refreshed_at = datetime.now(UTC)
+        await self.session.commit()
 
     async def validate_integration(self, integration_id: UUID) -> ValidateResult:
         """Run a lightweight connectivity ping on a saved integration.
@@ -688,7 +773,11 @@ class IntegrationService(BaseService):
         adapter's validate() method, persists the result, and returns it.
 
         Status transitions: current → VALIDATING → AVAILABLE or ERROR.
-        ``last_validated_at`` is set only after the check completes.
+        If the required management credential is missing, transitions
+        directly to ERROR without reaching the adapter.
+        ``last_validated_at`` is set after the check completes or on
+        early failure to prevent the health-check worker from
+        re-selecting the same integration every cycle.
         No tool sync is performed — use refresh_resources() for that.
         """
         logger.info("Starting integration validation", integration_id=str(integration_id))
@@ -706,11 +795,16 @@ class IntegrationService(BaseService):
             raise
 
         if integration.management_credential_id is None and integration.integration_type in CREDENTIAL_REQUIRED_TYPES:
-            raise IntegrationCredentialRequiredError(integration.integration_type.value)
+            await self._fail_validation(
+                integration, IntegrationCredentialRequiredError(integration.integration_type.value)
+            )
 
         resolved_credential: dict[str, object] = {}
         if integration.management_credential_id:
-            resolved_credential = await self._resolve_credential(integration.management_credential_id)
+            try:
+                resolved_credential = await self._resolve_credential(integration.management_credential_id)
+            except CredentialDisabledError as exc:
+                await self._fail_validation(integration, exc)
 
         integration.validation_status = IntegrationStatus.VALIDATING
         integration.validation_error = None
@@ -835,11 +929,16 @@ class IntegrationService(BaseService):
             raise IntegrationRefreshNotSupportedError(integration_id, integration.integration_type.value)
 
         if integration.management_credential_id is None and integration.integration_type in CREDENTIAL_REQUIRED_TYPES:
-            raise IntegrationCredentialRequiredError(integration.integration_type.value)
+            await self._fail_refresh(
+                integration, IntegrationCredentialRequiredError(integration.integration_type.value)
+            )
 
         resolved_credential: dict[str, object] = {}
         if integration.management_credential_id:
-            resolved_credential = await self._resolve_credential(integration.management_credential_id)
+            try:
+                resolved_credential = await self._resolve_credential(integration.management_credential_id)
+            except CredentialDisabledError as exc:
+                await self._fail_refresh(integration, exc)
 
         integration.refresh_status = IntegrationRefreshStatus.REFRESHING
         integration.refresh_error = None
@@ -853,41 +952,11 @@ class IntegrationService(BaseService):
             discover_result = await adapter.discover(resolved_credential, timeout_seconds)
 
             if not discover_result.success:
-                integration = await self._get_or_raise(integration_id, for_update=True)
-                integration.refresh_status = IntegrationRefreshStatus.ERROR
-                integration.refresh_error = discover_result.error
-                integration.last_refreshed_at = datetime.now(UTC)
-                await self.session.commit()
-                AuditEventDispatcher.dispatch(
-                    IntegrationRefreshEvent(
-                        integration_id=integration.id,
-                        integration_name=integration.name,
-                        integration_type=integration.integration_type.value,
-                        result_status=IntegrationRefreshStatus.ERROR,
-                        error_type=discover_result.error_type.value if discover_result.error_type else "DiscoverFailed",
-                    )
-                )
-                return RefreshResult(
-                    synced_count=0,
-                    updated_count=0,
-                    missing_count=0,
-                    refreshed_at=integration.last_refreshed_at or datetime.now(UTC),
-                )
+                return await self._handle_failed_discover(integration_id, discover_result)
 
-            if integration.integration_type == IntegrationType.MCP_SERVER:
-                synced, updated, missing = await self._sync_mcp_tools(
-                    integration,
-                    discover_result.discovered_tools or [],
-                )
-            elif integration.integration_type == IntegrationType.LLM_PROVIDER:
-                synced, updated, missing = await self._sync_llm_models(
-                    integration,
-                    discover_result.discovered_models or [],
-                )
-            else:
-                raise IntegrationRefreshNotSupportedError(  # noqa: TRY301
-                    integration_id, integration.integration_type.value
-                )
+            synced, updated, missing = await self._sync_discovered_resources(
+                integration, integration_id, discover_result
+            )
 
             integration = await self._get_or_raise(integration_id, for_update=True)
             now = datetime.now(UTC)
@@ -907,16 +976,7 @@ class IntegrationService(BaseService):
                 missing=missing,
             )
         except Exception as exc:
-            logger.exception(
-                "Unexpected error during integration refresh",
-                integration_id=str(integration_id),
-                error_type=type(exc).__name__,
-            )
-            integration = await self._get_or_raise(integration_id, for_update=True)
-            integration.refresh_status = IntegrationRefreshStatus.ERROR
-            integration.refresh_error = f"Unexpected error during refresh: {type(exc).__name__}"
-            integration.last_refreshed_at = datetime.now(UTC)
-            await self.session.commit()
+            await self._persist_refresh_error(integration_id, exc)
             raise
 
         AuditEventDispatcher.dispatch(

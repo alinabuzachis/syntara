@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 
+from nexus.credentials.exceptions import CredentialDisabledError
 from nexus.integrations.exceptions import IntegrationCredentialNotFoundError, IntegrationCredentialRequiredError
 from nexus.integrations.lib.credential_resolver import fetch_credential_with_type, resolve_mcp_bearer_token
 from nexus.integrations.models.integration import IntegrationType
@@ -81,6 +82,26 @@ class TestFetchCredentialWithType:
         result_cred, result_type = await fetch_credential_with_type(session, credential_id)
 
         assert result_cred is credential
+        assert result_type is cred_type
+
+    @pytest.mark.asyncio
+    async def test_returns_disabled_credential_without_raising(self) -> None:
+        """Disabled credentials are intentionally allowed through fetch_credential_with_type."""
+        credential_id = uuid4()
+        credential = MagicMock()
+        credential.secret_id = uuid4()
+        credential.credential_type_id = uuid4()
+        credential.enabled = False
+
+        cred_type = MagicMock()
+
+        session = AsyncMock()
+        session.get = AsyncMock(side_effect=[credential, cred_type])
+
+        result_cred, result_type = await fetch_credential_with_type(session, credential_id)
+
+        assert result_cred is credential
+        assert result_cred.enabled is False
         assert result_type is cred_type
 
 
@@ -188,3 +209,32 @@ class TestResolveMcpBearerToken:
 
         assert result == "my-secret-token"
         secret_service.retrieve_secret.assert_awaited_once_with(secret_id)
+
+    @pytest.mark.asyncio
+    async def test_raises_when_credential_disabled(self) -> None:
+        """Raises CredentialDisabledError when the credential is disabled."""
+        integration_id = uuid4()
+        credential_id = uuid4()
+        cred_type_id = uuid4()
+
+        integration = MagicMock()
+        integration.id = integration_id
+        integration.management_credential_id = credential_id
+
+        credential = MagicMock()
+        credential.secret_id = uuid4()
+        credential.credential_type_id = cred_type_id
+        credential.enabled = False
+        credential.name = "Disabled MCP Cred"
+
+        cred_type = MagicMock()
+
+        session = AsyncMock()
+        session.get = AsyncMock(side_effect=[integration, credential, cred_type])
+
+        secret_service = MagicMock()
+
+        with pytest.raises(CredentialDisabledError):
+            await resolve_mcp_bearer_token(session, secret_service, integration_id)
+
+        secret_service.retrieve_secret.assert_not_called()

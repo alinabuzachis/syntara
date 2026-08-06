@@ -82,7 +82,7 @@ export const integrations: IntegrationRead[] = [
       insecure_skip_tls_verify: false,
       ca_certificate: null,
     },
-    management_credential_id: 'cred-001',
+    management_credential_id: 'cred-003',
     last_validated_at: '2024-01-17T12:00:00Z',
     validation_error: 'Connection refused',
     refresh_status: IntegrationStatusEnum.ERROR,

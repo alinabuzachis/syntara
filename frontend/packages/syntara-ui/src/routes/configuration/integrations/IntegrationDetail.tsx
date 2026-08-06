@@ -3,6 +3,8 @@ import {
   Badge,
   Button,
   DescriptionList,
+  Flex,
+  FlexItem,
   LabelGroup,
   Skeleton,
   Stack,
@@ -11,12 +13,10 @@ import {
   Tab,
   Tooltip,
 } from '@patternfly/react-core'
-import { RhUiCheckCircleIcon, RhUiEditIcon, RhUiTrashIcon } from '@patternfly/react-icons'
-import type { IntegrationsAPI, Tool } from '@syntara/contracts'
+import { RhUiCheckCircleIcon, RhUiEditIcon, RhUiTrashIcon, RhUiWarningIcon } from '@patternfly/react-icons'
+import type { IntegrationsAPI } from '@syntara/contracts'
 import { IntegrationTypeEnum } from '@syntara/contracts'
-import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from '@tanstack/react-router'
-import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { AppRoute } from '../../../app/AppRoute'
 import {
@@ -24,7 +24,6 @@ import {
   breadcrumbsIntegrationDetailEarlyShell,
   type IntegrationDetailBreadcrumbTab,
 } from '../../../app/breadcrumbBuilders'
-import { useUnsavedChanges } from '../../../app/useUnsavedChanges'
 import { credentialsClient, integrationsClient } from '../../../client'
 import { NxDetail } from '../../../components/details/NxDetail'
 import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
@@ -41,8 +40,6 @@ import { NxErrorState } from '../../../components/states/NxErrorState'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { NxUrlTabs } from '../../../components/tabs/NxUrlTabs'
 import { useUrlTab } from '../../../hooks/useUrlTab'
-import { useAlerts } from '../../../providers/alerts'
-import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import { useDocLink } from '../../../utils/docs/useDocLink'
 
@@ -65,6 +62,7 @@ import { useIntegrationActions } from './useIntegrationActions'
 import { useIntegrationModelsState } from './useIntegrationModelsState'
 import { type IntegrationPermissions, useIntegrationPermissions } from './useIntegrationPermissions'
 import { useItemSelection } from './useItemSelection'
+import { useResourcesSave } from './useResourcesSave'
 
 type IntegrationRead = IntegrationsAPI.components['schemas']['IntegrationRead']
 
@@ -91,10 +89,12 @@ function IntegrationDetailsTab({
   integration,
   enabledResourceCount,
   credentialName,
+  credentialEnabled,
 }: Readonly<{
   integration: IntegrationRead
   enabledResourceCount: number
   credentialName: string | undefined
+  credentialEnabled: boolean
 }>) {
   const credentialId = integration.management_credential_id
   const resourceNoun = getResourceNoun(integration)
@@ -127,12 +127,23 @@ function IntegrationDetailsTab({
           )}
           <NxDetail label="URL">{getBaseUrl(integration) || '—'}</NxDetail>
           <NxDetail label="Connection credential">
-            {credentialId && credentialName ? (
-              <NxLink to={AppRoute.Configuration.Credentials.Detail.replace(':credentialId', credentialId)}>
-                {credentialName}
-              </NxLink>
+            {!credentialId || !credentialName ? (
+              <>None</>
             ) : (
-              'None'
+              <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
+                <FlexItem>
+                  <NxLink to={AppRoute.Configuration.Credentials.Detail.replace(':credentialId', credentialId)}>
+                    {credentialName}
+                  </NxLink>
+                </FlexItem>
+                {!credentialEnabled && (
+                  <FlexItem>
+                    <NxLabel variant="outline" status="warning" icon={<RhUiWarningIcon />}>
+                      Credential disabled
+                    </NxLabel>
+                  </FlexItem>
+                )}
+              </Flex>
             )}
           </NxDetail>
           {(isLLMProvider(integration) || integration.integration_type === IntegrationTypeEnum.MCP_SERVER) && (
@@ -228,90 +239,6 @@ function buildKebabActions(
   ]
 }
 
-function useResourcesSave(opts: {
-  integrationId: string
-  tools: Tool[]
-  enabledToolIds: Set<string>
-  isDirty: boolean
-  resetToServer: () => void
-  isActive: boolean
-}) {
-  const { integrationId, tools, enabledToolIds, isDirty, resetToServer, isActive } = opts
-  const { showAlert } = useAlerts()
-  const queryClient = useQueryClient()
-  const { registerDirtyCheck } = useUnsavedChanges()
-  const { mutateAsync: updateTools } = integrationsClient.useMutation(
-    'patch',
-    '/integrations/{integration_id}/tools/bulk_update'
-  )
-  const [isSaving, setIsSaving] = useState(false)
-
-  const handleSaveRef = useRef<() => Promise<boolean>>(null)
-
-  handleSaveRef.current = async () => {
-    const toEnable = tools.filter((t) => enabledToolIds.has(t.id)).map((t) => t.id)
-    const toDisable = tools.filter((t) => !enabledToolIds.has(t.id)).map((t) => t.id)
-    setIsSaving(true)
-    try {
-      if (toEnable.length > 0)
-        await updateTools({
-          params: { path: { integration_id: integrationId } },
-          body: { tool_ids: toEnable, enabled: true },
-        })
-      if (toDisable.length > 0)
-        await updateTools({
-          params: { path: { integration_id: integrationId } },
-          body: { tool_ids: toDisable, enabled: false },
-        })
-      await queryClient.invalidateQueries({ queryKey: ['all-integration-tools', integrationId] })
-      await queryClient.invalidateQueries({ queryKey: ['get', '/integrations/{integration_id}'] })
-      showAlert({
-        title: 'Changes saved',
-        description: 'Resource selections have been updated.',
-        variant: 'success',
-        autoDismiss: true,
-      })
-      return true
-    } catch (error: unknown) {
-      showAlert({
-        title: 'Save failed',
-        description: `Failed to save changes: ${getErrorMessage(error)}`,
-        variant: 'danger',
-        autoDismiss: true,
-      })
-      return false
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  const handleSave = useCallback(() => {
-    detachPromise(handleSaveRef.current?.() ?? Promise.resolve(false))
-  }, [])
-
-  const isDirtyRef = useRef(false)
-  isDirtyRef.current = isDirty
-
-  const resetToServerRef = useRef(resetToServer)
-  resetToServerRef.current = resetToServer
-
-  useEffect(() => {
-    return registerDirtyCheck({
-      check: () => isActive && isDirtyRef.current,
-      saveAndExit: () => handleSaveRef.current?.() ?? Promise.resolve(false),
-      exitWithoutSaving: () => {
-        isDirtyRef.current = false
-        resetToServerRef.current()
-      },
-      title: 'Save resource changes?',
-      body: 'You have unsaved changes to enabled resources. Would you like to save before leaving?',
-      saveLabel: 'Save changes',
-    })
-  }, [registerDirtyCheck, isActive])
-
-  return { isSaving, handleSave }
-}
-
 function ResourcesFooter({
   isDirty,
   isSaving,
@@ -373,6 +300,7 @@ export function IntegrationDetail() {
     { enabled: !!integration?.management_credential_id }
   )
   const credentialName = credentialQuery.data?.name ?? undefined
+  const credentialEnabled = credentialQuery.data?.enabled ?? true
 
   const {
     validateDialog,
@@ -482,6 +410,7 @@ export function IntegrationDetail() {
                 integration={integration}
                 enabledResourceCount={enabledResourceCount}
                 credentialName={credentialName}
+                credentialEnabled={credentialEnabled}
               />
             </Tab>
 

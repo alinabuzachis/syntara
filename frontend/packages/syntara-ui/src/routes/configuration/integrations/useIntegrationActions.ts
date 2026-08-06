@@ -50,6 +50,7 @@ export function useIntegrationActions(refetch: () => Promise<unknown>) {
             variant: 'danger',
             autoDismiss: true,
           })
+          detachPromise(refetch())
         },
         onSettled: () => validateDialog.close(),
       }

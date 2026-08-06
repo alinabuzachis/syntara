@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.services.secret_service import SecretService
+from nexus.credentials.exceptions import CredentialDisabledError
 from nexus.credentials.lib.injector_resolver import InjectorResolver
 from nexus.credentials.models.credential import Credential
 from nexus.credentials.models.credential_type import CredentialType
@@ -69,6 +70,8 @@ async def resolve_mcp_bearer_token(
         raise IntegrationCredentialRequiredError(itype)
 
     credential, cred_type = await fetch_credential_with_type(session, integration.management_credential_id)
+    if not credential.enabled:
+        raise CredentialDisabledError(credential.name)
     # fetch_credential_with_type raises if secret_id is None
     decrypted = await secret_service.retrieve_secret(credential.secret_id)  # type: ignore[arg-type]
     resolved = InjectorResolver.resolve(cred_type.injectors or {}, decrypted)
