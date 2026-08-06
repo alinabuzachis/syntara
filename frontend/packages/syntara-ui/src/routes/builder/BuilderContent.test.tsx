@@ -3544,5 +3544,59 @@ describe('BuilderContent', () => {
         })
       )
     })
+
+    it('shows success alert when duplicate succeeds', async () => {
+      duplicateMutate.mockImplementation((_body: unknown, callbacks: MutationCallbacks) => {
+        callbacks.onSuccess?.({ id: 'dup-1' }, _body, undefined)
+      })
+      setupDuplicateQueries()
+      const workflowWithProject = {
+        ...mockWorkflow,
+        project_id: 'project-1',
+      } as unknown as WorkflowWithVersion
+
+      await renderBuilder({ workflow: workflowWithProject, isNew: false, workflowId: 'workflow-1' })
+
+      await clickKebabItem('Version history')
+      await waitFor(() => {
+        expect(screen.getByText('sarah.chen')).toBeInTheDocument()
+      })
+
+      const user = userEvent.setup()
+      const kebabButtons = screen.getAllByRole('button', { name: /Actions for version/ })
+      await user.click(kebabButtons[0])
+      await user.click(screen.getByText('Duplicate as new workflow'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Workflow duplicated')).toBeInTheDocument()
+      })
+    })
+
+    it('shows error alert when duplicate fails', async () => {
+      duplicateMutate.mockImplementation((_body: unknown, callbacks: MutationCallbacks) => {
+        callbacks.onError?.(new Error('Server error'), _body, undefined)
+      })
+      setupDuplicateQueries()
+      const workflowWithProject = {
+        ...mockWorkflow,
+        project_id: 'project-1',
+      } as unknown as WorkflowWithVersion
+
+      await renderBuilder({ workflow: workflowWithProject, isNew: false, workflowId: 'workflow-1' })
+
+      await clickKebabItem('Version history')
+      await waitFor(() => {
+        expect(screen.getByText('sarah.chen')).toBeInTheDocument()
+      })
+
+      const user = userEvent.setup()
+      const kebabButtons = screen.getAllByRole('button', { name: /Actions for version/ })
+      await user.click(kebabButtons[0])
+      await user.click(screen.getByText('Duplicate as new workflow'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Failed to duplicate workflow')).toBeInTheDocument()
+      })
+    })
   })
 })

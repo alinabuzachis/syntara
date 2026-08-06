@@ -30,6 +30,7 @@ import { BuilderDialogs } from './components/BuilderDialogs'
 import { BuilderSidePanels } from './components/BuilderSidePanels'
 import { ExecutionDetailsPanelWrapper } from './components/ExecutionDetailsPanelWrapper'
 import { NodeEditorOverlay } from './components/NodeEditorOverlay'
+import { UnsavedStepEditorDialog } from './components/UnsavedStepEditorDialog'
 import { VersionHistorySidePanel } from './components/VersionHistorySidePanel'
 import { useBuilderApproval } from './hooks/useBuilderApproval'
 import { useBuilderConflict } from './hooks/useBuilderConflict'
@@ -45,6 +46,8 @@ import { useBuilderVersionPanel } from './hooks/useBuilderVersionPanel'
 import { useBuilderWindowEffects } from './hooks/useBuilderWindowEffects'
 import { useBuilderWorkflowLifecycle } from './hooks/useBuilderWorkflowLifecycle'
 import { useExecutionCopyToEditor } from './hooks/useExecutionCopyToEditor'
+import { useGuardedSaveWorkflow } from './hooks/useGuardedSaveWorkflow'
+import { NodeEditorAutoSubmitContext, useNodeEditorAutoSubmitRef } from './hooks/useNodeEditorAutoSubmit'
 import { useNodePanelNavigation } from './hooks/useNodePanelNavigation'
 import { usePublishWorkflow, useUnpublishWorkflow } from './hooks/usePublishWorkflow'
 import { useRunStepDialog } from './hooks/useRunStepDialog'
@@ -115,9 +118,11 @@ export function BuilderContent(props: BuilderContentProps) {
     defaultSort: { field: 'created_at', direction: 'desc' as const },
   })
   const [state, dispatch] = useReducer(builderReducer, getInitialBuilderState())
+  const autoSubmitRef = useNodeEditorAutoSubmitRef()
   const {
     confirmDialogOpen,
     deleteDialogOpen,
+    unsavedStepEditorDialogOpen,
     detailsOpen,
     historyCardOpen,
     isKebabOpen,
@@ -243,6 +248,14 @@ export function BuilderContent(props: BuilderContentProps) {
     createWorkflow: createWorkflow as UseBuilderSaveWorkflowParams['createWorkflow'],
     updateWorkflow,
   })
+  const guardedSaveWorkflow = useGuardedSaveWorkflow(
+    handleSaveWorkflow,
+    isNodeEditorOpen,
+    nodeEditorMode,
+    autoSubmitRef,
+    dispatch
+  )
+
   const { publish: onPublish, isPublishing } = usePublishWorkflow(
     workflowId,
     currentVersion,
@@ -297,7 +310,7 @@ export function BuilderContent(props: BuilderContentProps) {
     showSuccess,
     showError,
     setLocation,
-    handleSaveWorkflow,
+    handleSaveWorkflow: guardedSaveWorkflow,
     currentWorkflow,
     loadedVersion,
     loadedVersionName: workflow?.version?.name ?? null,
@@ -503,7 +516,7 @@ export function BuilderContent(props: BuilderContentProps) {
                     handleToggleHistory={handleToggleHistory}
                     handleToggleVersionHistory={versionPanel.handleToggleVersionHistory}
                     handleToggleDetails={handleToggleDetails}
-                    handleSaveWorkflow={handleSaveWorkflow}
+                    handleSaveWorkflow={guardedSaveWorkflow}
                     onPublish={onPublish}
                     onUnpublish={onUnpublish}
                     onPendingImport={setPendingImport}
@@ -644,30 +657,36 @@ export function BuilderContent(props: BuilderContentProps) {
                       }}
                     />
 
-                    <NodeEditorOverlay
-                      isOpen={isNodeEditorOpen}
-                      mode={nodeEditorMode}
-                      selectedNode={selectedNode}
-                      nodeTypeId={nodeEditorNodeTypeId}
-                      nodeSubtypeId={nodeEditorNodeSubtypeId}
-                      sourceNodeId={sourceNodeId}
-                      replacementNodeId={replacementNodeId}
-                      executionId={mostRecentExecutionId}
-                      workflowId={workflowId}
-                      onConnect={handleConnectFromPanel}
-                      onClose={handleCloseNodeEditor}
-                      onNavigateToNode={handleNavigateToNode}
-                      onAddStep={handleAddStepFromPanel}
-                      projectId={builderProjectId}
-                      workflowMetadata={workflowMetadata}
-                      onRunStep={selectedNode ? () => detachPromise(handleRunStep(selectedNode.id)) : undefined}
-                    />
+                    <NodeEditorAutoSubmitContext.Provider value={autoSubmitRef}>
+                      <NodeEditorOverlay
+                        isOpen={isNodeEditorOpen}
+                        mode={nodeEditorMode}
+                        selectedNode={selectedNode}
+                        nodeTypeId={nodeEditorNodeTypeId}
+                        nodeSubtypeId={nodeEditorNodeSubtypeId}
+                        sourceNodeId={sourceNodeId}
+                        replacementNodeId={replacementNodeId}
+                        executionId={mostRecentExecutionId}
+                        workflowId={workflowId}
+                        onConnect={handleConnectFromPanel}
+                        onClose={handleCloseNodeEditor}
+                        onNavigateToNode={handleNavigateToNode}
+                        onAddStep={handleAddStepFromPanel}
+                        projectId={builderProjectId}
+                        workflowMetadata={workflowMetadata}
+                        onRunStep={selectedNode ? () => detachPromise(handleRunStep(selectedNode.id)) : undefined}
+                      />
+                    </NodeEditorAutoSubmitContext.Provider>
                   </Flex>
                 </StackItem>
               </Stack>
             </NxReactFlowViewportGuard>
 
             <BuilderDialogs {...dialogProps} conflictDialogProps={conflictDialogProps} />
+            <UnsavedStepEditorDialog
+              isOpen={unsavedStepEditorDialogOpen}
+              onClose={() => dispatch({ type: 'SET_UNSAVED_STEP_EDITOR_DIALOG', payload: false })}
+            />
           </NxPage>
         </VersionViewProvider>
       </NodeExpandedAllContext.Provider>

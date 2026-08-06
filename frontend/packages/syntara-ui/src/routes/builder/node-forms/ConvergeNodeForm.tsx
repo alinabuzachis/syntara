@@ -15,10 +15,11 @@ import {
   TextInput,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
-import React, { type ReactNode, useEffect, useMemo, useState } from 'react'
+import React, { type ReactNode, use, useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
 import { NxSelect } from '../../../components/NxSelect'
+import { NodeEditorAutoSubmitContext, useRegisterAutoSubmit } from '../hooks/useNodeEditorAutoSubmit'
 import { useWorkflowEngineDefaults } from '../hooks/useWorkflowEngineDefaults'
 import { formatDuration } from '../utils/timeUtils'
 import { useIsVersionView } from '../VersionViewContext'
@@ -286,6 +287,9 @@ export function ConvergeNodeForm(props: ConvergeNodeFormProps) {
     resolver: zodResolver(convergeFormSchema, undefined, { mode: 'sync' }),
     defaultValues,
   })
+
+  const autoSubmitRef = use(NodeEditorAutoSubmitContext)
+  useRegisterAutoSubmit(autoSubmitRef, methods, handleSubmit)
 
   const {
     formState: { errors },

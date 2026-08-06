@@ -18,6 +18,7 @@ export type ValidationError = {
 export type BuilderState = {
   confirmDialogOpen: boolean
   deleteDialogOpen: boolean
+  unsavedStepEditorDialogOpen: boolean
   detailsOpen: boolean
   historyCardOpen: boolean
   versionHistoryOpen: boolean
@@ -50,6 +51,7 @@ export type BuilderState = {
 export type BuilderAction =
   | { type: 'SET_CONFIRM_DIALOG'; payload: boolean }
   | { type: 'SET_DELETE_DIALOG'; payload: boolean }
+  | { type: 'SET_UNSAVED_STEP_EDITOR_DIALOG'; payload: boolean }
   | { type: 'SET_DETAILS_OPEN'; payload: boolean }
   | { type: 'TOGGLE_DETAILS' }
   | { type: 'SET_HISTORY_CARD_OPEN'; payload: boolean }
@@ -116,6 +118,7 @@ const SIMPLE_STATE_KEY_MAP: Record<
     BuilderState,
     | 'confirmDialogOpen'
     | 'deleteDialogOpen'
+    | 'unsavedStepEditorDialogOpen'
     | 'detailsOpen'
     | 'historyCardOpen'
     | 'versionHistoryOpen'
@@ -137,6 +140,7 @@ const SIMPLE_STATE_KEY_MAP: Record<
 > = {
   SET_CONFIRM_DIALOG: 'confirmDialogOpen',
   SET_DELETE_DIALOG: 'deleteDialogOpen',
+  SET_UNSAVED_STEP_EDITOR_DIALOG: 'unsavedStepEditorDialogOpen',
   SET_DETAILS_OPEN: 'detailsOpen',
   SET_HISTORY_CARD_OPEN: 'historyCardOpen',
   SET_VERSION_HISTORY_OPEN: 'versionHistoryOpen',
@@ -324,6 +328,7 @@ function handleNodeClick(state: BuilderState, action: Extract<BuilderAction, { t
 const SIMPLE_ACTIONS = [
   'SET_CONFIRM_DIALOG',
   'SET_DELETE_DIALOG',
+  'SET_UNSAVED_STEP_EDITOR_DIALOG',
   'SET_DETAILS_OPEN',
   'SET_HISTORY_CARD_OPEN',
   'SET_VERSION_HISTORY_OPEN',
@@ -498,6 +503,7 @@ export function getInitialBuilderState(): BuilderState {
   return {
     confirmDialogOpen: false,
     deleteDialogOpen: false,
+    unsavedStepEditorDialogOpen: false,
     detailsOpen: false,
     historyCardOpen: false,
     versionHistoryOpen: false,

@@ -1,8 +1,9 @@
 import { FormGroup, FormHelperText, HelperText, HelperTextItem, Stack, StackItem } from '@patternfly/react-core'
 import type { ReactNode } from 'react'
-import { useEffect, useMemo } from 'react'
+import { use, useEffect, useMemo } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useFormState } from 'react-hook-form'
 
+import { NodeEditorAutoSubmitContext, useRegisterAutoSubmit } from '../hooks/useNodeEditorAutoSubmit'
 import { useIsVersionView } from '../VersionViewContext'
 
 import { ActivityNameField } from './shared/ActivityNameField'
@@ -99,6 +100,9 @@ export function WaitNodeForm(props: Readonly<WaitNodeFormProps>) {
     defaultValues,
     mode: 'onChange',
   })
+
+  const autoSubmitRef = use(NodeEditorAutoSubmitContext)
+  useRegisterAutoSubmit(autoSubmitRef, methods, props.onSubmit)
 
   if (isLoading) return null
 

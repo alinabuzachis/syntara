@@ -35,7 +35,7 @@ import {
   RhUiTrashIcon,
 } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, use, useEffect, useMemo, useRef, useState } from 'react'
 import type { Control } from 'react-hook-form'
 import { Controller, FormProvider, useFieldArray, useForm, useFormContext } from 'react-hook-form'
 
@@ -43,6 +43,7 @@ import { DisabledWithTooltip } from '../../../components/DisabledWithTooltip'
 import { ExpressionBuilderCore as ExpressionBuilder } from '../../../components/expressions/ExpressionBuilderCore'
 import type { Expression } from '../../../utils/expressions/types'
 import { generateUUID } from '../../../utils/generateUUID'
+import { NodeEditorAutoSubmitContext, useRegisterAutoSubmit } from '../hooks/useNodeEditorAutoSubmit'
 import { useIsVersionView } from '../VersionViewContext'
 
 import { ActivityNameField } from './shared/ActivityNameField'
@@ -460,6 +461,9 @@ export function SwitchNodeForm(props: SwitchNodeFormProps) {
     resolver: zodResolver(switchFormSchema, undefined, { mode: 'sync' }),
     defaultValues,
   })
+
+  const autoSubmitRef = use(NodeEditorAutoSubmitContext)
+  useRegisterAutoSubmit(autoSubmitRef, methods, props.onSubmit)
 
   useEffect(() => {
     methods.reset(defaultValues)

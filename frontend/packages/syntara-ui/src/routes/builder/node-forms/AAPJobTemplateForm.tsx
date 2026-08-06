@@ -1,12 +1,13 @@
 import { FormGroup, Stack, StackItem, Switch } from '@patternfly/react-core'
 import type { ReactNode } from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { use, useEffect, useMemo, useRef, useState } from 'react'
 import { FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
 import { useAAPBrowser } from '../../../hooks/useAAPBrowser'
 import { detachPromise } from '../../../utils/detachPromise'
 import { AAPIntegrationSection } from '../components/AAPIntegrationSection'
 import type { ExpandableCodeEditorHandle } from '../components/ExpandableCodeEditor'
+import { NodeEditorAutoSubmitContext, useRegisterAutoSubmit } from '../hooks/useNodeEditorAutoSubmit'
 import { useIsVersionView } from '../VersionViewContext'
 
 import { applyDefaultValues, isExpression, sanitizeArrayField } from './aapFormHelpers'
@@ -288,8 +289,12 @@ export function AAPJobTemplateForm(props: Readonly<AAPNodeFormProps>) {
   })
 
   const handleSubmit = (data: AAPJobTemplateFormData) => {
-    props.onSubmit(data)
+    const extra_vars = extraVarsEditorRef.current?.getValue() ?? data.extra_vars ?? ''
+    props.onSubmit({ ...data, extra_vars })
   }
+
+  const autoSubmitRef = use(NodeEditorAutoSubmitContext)
+  useRegisterAutoSubmit(autoSubmitRef, methods, handleSubmit)
 
   const onSubmitWithFlush = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()

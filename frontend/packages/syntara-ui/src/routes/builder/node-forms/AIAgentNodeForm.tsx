@@ -21,6 +21,7 @@ import { detachPromise } from '../../../utils/detachPromise'
 import { useIntegrationPermissions } from '../../configuration/integrations/useIntegrationPermissions'
 import { ExpandableCodeEditor } from '../components/ExpandableCodeEditor'
 import { FileUpload, type UploadedFile } from '../components/file-upload'
+import { NodeEditorAutoSubmitContext, useRegisterAutoSubmit } from '../hooks/useNodeEditorAutoSubmit'
 import { DroppableField } from '../panels/fields/DroppableField'
 import { useIsVersionView } from '../VersionViewContext'
 
@@ -430,6 +431,9 @@ export function AIAgentNodeForm(props: Readonly<AIAgentNodeFormProps>) {
     mode: 'onChange',
     reValidateMode: 'onChange',
   })
+
+  const autoSubmitRef = use(NodeEditorAutoSubmitContext)
+  useRegisterAutoSubmit(autoSubmitRef, methods, handleSubmit)
 
   const fileContextValue = useMemo(
     () => ({

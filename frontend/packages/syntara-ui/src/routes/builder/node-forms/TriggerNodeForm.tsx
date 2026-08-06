@@ -16,7 +16,7 @@ import {
 } from '@patternfly/react-core'
 import { MissedSchedulePolicyEnum, ScheduleTypeEnum, TriggerTypeEnum, WEBHOOK_TRIGGER_TYPES } from '@syntara/contracts'
 import type { ReactNode } from 'react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, use, useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
 import { FieldHelpPopover } from '../../../components/FieldHelpPopover'
@@ -28,6 +28,7 @@ import {
 } from '../../../components/forms/scheduleHelpText'
 import { NxSelect } from '../../../components/NxSelect'
 import { generateWebhookPath } from '../../../utils/webhookPath'
+import { NodeEditorAutoSubmitContext, useRegisterAutoSubmit } from '../hooks/useNodeEditorAutoSubmit'
 import { useIsVersionView } from '../VersionViewContext'
 
 import { EdaFields } from './EdaTriggerFields'
@@ -464,6 +465,9 @@ export function TriggerNodeForm(props: TriggerNodeFormProps) {
     }
     props.onSubmit(cleanedData)
   }
+
+  const autoSubmitRef = use(NodeEditorAutoSubmitContext)
+  useRegisterAutoSubmit(autoSubmitRef, methods, handleSubmit)
 
   return (
     <FormProvider {...methods}>

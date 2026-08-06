@@ -9,10 +9,11 @@ import {
   StackItem,
 } from '@patternfly/react-core'
 import type { ReactNode } from 'react'
-import { useEffect, useMemo } from 'react'
+import { use, useEffect, useMemo } from 'react'
 import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form'
 
 import { ExpressionBuilderCore as ExpressionBuilder } from '../../../components/expressions/ExpressionBuilderCore'
+import { NodeEditorAutoSubmitContext, useRegisterAutoSubmit } from '../hooks/useNodeEditorAutoSubmit'
 import { useIsVersionView } from '../VersionViewContext'
 
 import { conditionFormSchema, type ConditionFormData } from './conditionFormSchema'
@@ -120,6 +121,9 @@ export function ConditionNodeForm(props: ConditionNodeFormProps) {
     resolver: zodResolver(conditionFormSchema, undefined, { mode: 'sync' }),
     defaultValues,
   })
+
+  const autoSubmitRef = use(NodeEditorAutoSubmitContext)
+  useRegisterAutoSubmit(autoSubmitRef, methods, props.onSubmit)
 
   return (
     <FormProvider {...methods}>

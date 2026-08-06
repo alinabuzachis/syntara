@@ -13,11 +13,12 @@ import {
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { use, useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
 import { ExpressionBuilderCore as ExpressionBuilder } from '../../../components/expressions/ExpressionBuilderCore'
 import { NxSelect } from '../../../components/NxSelect'
+import { NodeEditorAutoSubmitContext, useRegisterAutoSubmit } from '../hooks/useNodeEditorAutoSubmit'
 import { useWorkflowEngineDefaults } from '../hooks/useWorkflowEngineDefaults'
 import { useIsVersionView } from '../VersionViewContext'
 
@@ -308,6 +309,9 @@ export function LoopNodeForm(props: LoopNodeFormProps) {
     resolver: zodResolver(loopFormSchema, undefined, { mode: 'sync' }),
     defaultValues,
   })
+
+  const autoSubmitRef = use(NodeEditorAutoSubmitContext)
+  useRegisterAutoSubmit(autoSubmitRef, methods, handleSubmit)
 
   const {
     formState: { errors },

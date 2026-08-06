@@ -16,7 +16,7 @@ import {
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import { ExecutorTypeEnum } from '@syntara/contracts'
-import React, { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import React, { type ReactNode, use, useEffect, useMemo, useRef, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
 import { NxSelect } from '../../../components/NxSelect'
@@ -26,6 +26,7 @@ import {
   type ExpandableCodeEditorHandle,
 } from '../components/ExpandableCodeEditor'
 import type { ActionFormData as RegistryActionFormData } from '../hooks/useNodeCreation'
+import { NodeEditorAutoSubmitContext, useRegisterAutoSubmit } from '../hooks/useNodeEditorAutoSubmit'
 import { DroppableField } from '../panels/fields/DroppableField'
 import { useIsVersionView } from '../VersionViewContext'
 
@@ -474,6 +475,9 @@ export function ActionNodeForm(props: Readonly<ActionNodeFormProps>) {
     resolver: zodResolver(actionFormSchema, undefined, { mode: 'sync' }),
     defaultValues,
   })
+
+  const autoSubmitRef = use(NodeEditorAutoSubmitContext)
+  useRegisterAutoSubmit(autoSubmitRef, methods, handleSubmit)
 
   const {
     formState: { errors },

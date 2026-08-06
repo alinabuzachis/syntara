@@ -12,11 +12,12 @@ import {
 } from '@patternfly/react-core'
 import type { Activity } from '@syntara/contracts'
 import type { ReactNode } from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { use, useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
 import { NxSelect } from '../../../components/NxSelect'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
+import { NodeEditorAutoSubmitContext, useRegisterAutoSubmit } from '../hooks/useNodeEditorAutoSubmit'
 import { useWorkflowEngineDefaults } from '../hooks/useWorkflowEngineDefaults'
 import { formatDuration } from '../utils/timeUtils'
 import { useIsVersionView } from '../VersionViewContext'
@@ -358,6 +359,9 @@ export function ApprovalNodeForm(props: ApprovalNodeFormProps) {
     resolver: zodResolver(approvalFormSchema, undefined, { mode: 'sync' }),
     defaultValues,
   })
+
+  const autoSubmitRef = use(NodeEditorAutoSubmitContext)
+  useRegisterAutoSubmit(autoSubmitRef, methods, handleSubmit)
 
   const {
     formState: { errors },
