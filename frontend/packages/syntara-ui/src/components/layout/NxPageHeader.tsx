@@ -9,7 +9,7 @@ import {
   Tooltip,
   type TitleProps,
 } from '@patternfly/react-core'
-import { RhUiExternalLinkIcon } from '@patternfly/react-icons'
+import { RhUiInformationIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
 
 import { NxPageBreadcrumbs, type AppBreadcrumbItem } from './NxPageBreadcrumbs'
@@ -63,7 +63,7 @@ function DocLinkButton({ href }: Readonly<{ href: string }>) {
         target="_blank"
         rel="noopener noreferrer"
         aria-label="View documentation (opens in a new tab)"
-        icon={<RhUiExternalLinkIcon />}
+        icon={<RhUiInformationIcon />}
       />
     </Tooltip>
   )
