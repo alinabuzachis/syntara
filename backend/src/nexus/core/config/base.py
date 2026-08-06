@@ -1213,9 +1213,14 @@ class TemporalSettings(BaseSettings):
     )
 
     max_cached_workflows: int = Field(
-        default=50,
+        default=20,
         ge=1,
-        description="Maximum number of workflow states cached in memory for replay efficiency",
+        description=(
+            "Maximum number of workflow states cached in memory per worker for replay efficiency. "
+            "Each worker pod caches up to this many workflow states; multiply by pod count for the "
+            "aggregate ceiling. Lower values reduce Temporal server GetHistory memory pressure under "
+            "concurrent load. Set via APP_MAX_CACHED_WORKFLOWS."
+        ),
     )
 
     max_concurrent_workflow_tasks: int = Field(

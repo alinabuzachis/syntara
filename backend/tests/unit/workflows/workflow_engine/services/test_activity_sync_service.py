@@ -3009,6 +3009,24 @@ class TestHistoryEventProducer:
         self.service = ActivitySyncService(Mock(), Mock())
 
     @pytest.mark.asyncio
+    async def test_uses_page_size_100(self) -> None:
+        """fetch_history_events must be called with page_size=100 to cap per-request memory."""
+        mock_handle = AsyncMock()
+        captured: list[dict[str, int]] = []
+
+        async def mock_fetch(**kwargs: int) -> AsyncIterator[None]:
+            captured.append(dict(kwargs))
+            return
+            yield  # type: ignore[unreachable]
+
+        mock_handle.fetch_history_events = mock_fetch
+
+        queue: asyncio.Queue[Any] = asyncio.Queue()
+        await self.service._history_event_producer(mock_handle, queue, uuid4())
+
+        assert captured == [{"page_size": 100, "wait_new_event": True}]
+
+    @pytest.mark.asyncio
     async def test_streams_events_into_queue(self) -> None:
         """Test that history events are pushed into the queue."""
         event1 = Mock()

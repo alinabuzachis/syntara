@@ -43,7 +43,7 @@ class TemporalWorkerService:
         namespace: str,
         task_queue: str,
         activity_registry: dict[ActivityName, Callable[..., Any]] = ACTIVITY_REGISTRY,
-        max_cached_workflows: int = 50,
+        max_cached_workflows: int = 20,
         max_concurrent_workflow_tasks: int = 50,
         max_concurrent_activities: int = 50,
     ) -> None:

@@ -445,7 +445,7 @@ class TestTemporalSettings:
             assert settings.temporal_address == "localhost:7233"
             assert settings.temporal_namespace == "default"
             assert settings.task_queue == "orchestrator-workflow-queue"
-            assert settings.max_cached_workflows == 50
+            assert settings.max_cached_workflows == 20
             assert settings.max_concurrent_workflow_tasks == 50
             assert settings.max_concurrent_activities == 50
         finally:

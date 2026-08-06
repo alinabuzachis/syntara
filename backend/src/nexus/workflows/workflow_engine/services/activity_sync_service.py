@@ -667,7 +667,7 @@ class ActivitySyncService:
         Pushes ``None`` as a sentinel when the history stream ends.
         """
         try:
-            async for event in handle.fetch_history_events(page_size=1000, wait_new_event=True):
+            async for event in handle.fetch_history_events(page_size=100, wait_new_event=True):
                 if self._shutdown:
                     break
                 await queue.put(event)
