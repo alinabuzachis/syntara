@@ -45,6 +45,7 @@ _user_create = PermissionChecker("user", "create")
 _user_read = PermissionChecker("user", "read", resource_id_param="user_id")
 _user_update = PermissionChecker("user", "update", resource_id_param="user_id")
 _user_delete = PermissionChecker("user", "delete")
+_group_member_manage = PermissionChecker("group", "manage-members")
 _identity_read = PermissionChecker("user_identity", "read", resource_id_param="user_id")
 _identity_attach = PermissionChecker("user_identity", "attach")
 _identity_detach = PermissionChecker("user_identity", "detach", resource_id_param="user_id")
@@ -303,7 +304,7 @@ async def list_user_groups(
 @router.put(
     "/{user_id}/groups",
     summary="Set user groups",
-    dependencies=[Depends(_user_update)],
+    dependencies=[Depends(_group_member_manage)],
     operation_id="set_user_groups",
     response_description="Updated group memberships",
 )

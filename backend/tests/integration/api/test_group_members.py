@@ -3,8 +3,12 @@
 Tests adding, removing, and listing group members, as well as listing user groups.
 """
 
+from collections.abc import Awaitable, Callable
+
 import pytest
 from httpx import AsyncClient
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
 from nexus.core.models.group import Group
@@ -531,3 +535,44 @@ class TestSetUserGroups:
         )
 
         assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def ***REMOVED***(
+        self,
+        base_client: AsyncClient,
+        user_factory: Callable[..., Awaitable[User]],
+        auth_as: Callable[[User], None],
+        multiple_test_groups: list[Group],
+    ) -> None:
+        """Non-admin user cannot set their own groups (privilege escalation guard)."""
+        low_priv_user = await user_factory(username="lowpriv", email="lowpriv@test.com")
+        auth_as(low_priv_user)
+
+        group_ids = [str(g.id) for g in multiple_test_groups[:1]]
+        response = await base_client.put(
+            f"{USERS_URL}/{low_priv_user.id}/groups",
+            json={"group_ids": group_ids},
+        )
+
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_set_user_groups_non_admin_cannot_escalate_to_admins(
+        self,
+        base_client: AsyncClient,
+        user_factory: Callable[..., Awaitable[User]],
+        auth_as: Callable[[User], None],
+        test_db_session: AsyncSession,
+    ) -> None:
+        """Non-admin user cannot add themselves to the admins group."""
+        low_priv_user = await user_factory(username="escalator", email="escalator@test.com")
+        auth_as(low_priv_user)
+
+        admins_group = (await test_db_session.exec(select(Group).where(Group.name == "admins"))).one()
+
+        response = await base_client.put(
+            f"{USERS_URL}/{low_priv_user.id}/groups",
+            json={"group_ids": [str(admins_group.id)]},
+        )
+
+        assert response.status_code == 403
