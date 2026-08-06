@@ -18,10 +18,11 @@ import {
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import { IntegrationTypeEnum } from '@syntara/contracts'
-import { type ReactNode, type Ref, useCallback, useState } from 'react'
+import { type ReactElement, type ReactNode, type Ref, useCallback, useState } from 'react'
 import { Controller, useWatch, type Control, type UseFormSetValue } from 'react-hook-form'
 
 import { NxSelect } from '../../../../components/NxSelect'
+import { integrationHelp } from '../integrationFieldHelp'
 import { PROVIDERS_HIDING_BASE_URL, PROVIDERS_REQUIRING_BASE_URL } from '../integrationFilters'
 
 import { INTEGRATION_TYPE_OPTIONS, PROVIDER_HINT_OPTIONS, type IntegrationFormData } from './integrationFormSchema'
@@ -35,15 +36,24 @@ type ControlledTextFieldProps = Readonly<{
   fieldId: string
   placeholder: string
   isRequired?: boolean
+  labelHelp?: ReactElement
 }>
 
-function ControlledTextField({ control, name, label, fieldId, placeholder, isRequired }: ControlledTextFieldProps) {
+function ControlledTextField({
+  control,
+  name,
+  label,
+  fieldId,
+  placeholder,
+  isRequired,
+  labelHelp,
+}: ControlledTextFieldProps) {
   return (
     <Controller
       name={name}
       control={control}
       render={({ field, fieldState }) => (
-        <FormGroup label={label} fieldId={fieldId} isRequired={isRequired}>
+        <FormGroup label={label} fieldId={fieldId} isRequired={isRequired} labelHelp={labelHelp}>
           <TextInput
             id={fieldId}
             placeholder={placeholder}
@@ -325,7 +335,12 @@ export function IntegrationDetailsStep({ control, setValue, onTypeChange }: Inte
         Select an integration type and provide connection details.
       </Content>
       <Form className={styles.stepForm}>
-        <FormGroup label="Integration type" fieldId="integration-type" isRequired>
+        <FormGroup
+          label="Integration type"
+          fieldId="integration-type"
+          isRequired
+          labelHelp={integrationHelp.integrationType}
+        >
           <Controller
             name="integration_type"
             control={control}
@@ -352,6 +367,7 @@ export function IntegrationDetailsStep({ control, setValue, onTypeChange }: Inte
           fieldId="name"
           placeholder={typeConfig.namePlaceholder}
           isRequired
+          labelHelp={isLLM ? integrationHelp.name : integrationHelp.serverName}
         />
         <ControlledTextField
           control={control}
@@ -361,7 +377,7 @@ export function IntegrationDetailsStep({ control, setValue, onTypeChange }: Inte
           placeholder="Enter description"
         />
         {typeConfig.showProviderHint && (
-          <FormGroup label="Provider type" fieldId="provider-hint" isRequired>
+          <FormGroup label="Provider type" fieldId="provider-hint" isRequired labelHelp={integrationHelp.providerType}>
             <Controller
               name="configuration.provider_hint"
               control={control}
@@ -394,6 +410,7 @@ export function IntegrationDetailsStep({ control, setValue, onTypeChange }: Inte
             fieldId="base-url"
             placeholder={typeConfig.baseUrlPlaceholder}
             isRequired={typeConfig.requireBaseUrl}
+            labelHelp={isAAP ? integrationHelp.aapUrl : integrationHelp.apiUrl}
           />
         )}
 

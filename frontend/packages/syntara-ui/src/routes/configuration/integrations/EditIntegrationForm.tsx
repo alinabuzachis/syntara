@@ -44,6 +44,7 @@ import type { EditIntegrationFormValues, IntegrationRead } from './editIntegrati
 import { buildConfiguration, buildEditSchema, editIntegrationSchema } from './editIntegrationFormSchema'
 import { EditSecurityFields } from './EditSecurityFields'
 import { ScopeFields } from './form/ScopeFields'
+import { integrationHelp } from './integrationFieldHelp'
 import {
   CREDENTIAL_REQUIRED_TYPES,
   CREDENTIAL_TYPES_BY_INTEGRATION,
@@ -112,7 +113,12 @@ function EditIntegrationFormFields({
         )}
       </DescriptionList>
 
-      <FormGroup label={isLLM ? 'Name' : 'Server name / ID'} isRequired fieldId="edit-name">
+      <FormGroup
+        label={isLLM ? 'Name' : 'Server name / ID'}
+        isRequired
+        fieldId="edit-name"
+        labelHelp={isLLM ? integrationHelp.name : integrationHelp.serverName}
+      >
         <Controller
           name="name"
           control={control}
@@ -150,7 +156,12 @@ function EditIntegrationFormFields({
       </FormGroup>
 
       {!hideBaseUrl && (
-        <FormGroup label="API URL" isRequired={!isLLM} fieldId="edit-base-url">
+        <FormGroup
+          label="API URL"
+          isRequired={!isLLM}
+          fieldId="edit-base-url"
+          labelHelp={isAnsibleAutomationPlatform ? integrationHelp.aapUrl : integrationHelp.apiUrl}
+        >
           <Controller
             name="base_url"
             control={control}
@@ -214,11 +225,7 @@ function EditIntegrationFormFields({
             isRequired={isCredentialRequired}
             allowCreate
             placeholder="Select a credential"
-            helpText={
-              isAnsibleAutomationPlatform
-                ? 'Used to authenticate with the Ansible Automation Platform for connection testing.'
-                : 'Used to test and monitor the connection to this integration.'
-            }
+            labelHelp={integrationHelp.healthCheckCredential}
           />
         )}
       />

@@ -3,17 +3,11 @@ import { IntegrationTypeEnum } from '@syntara/contracts'
 import { Controller, type Control, type UseFormSetValue } from 'react-hook-form'
 
 import { CredentialSelector } from '../../../builder/components/CredentialSelector'
+import { integrationHelp } from '../integrationFieldHelp'
 import { CREDENTIAL_REQUIRED_TYPES, CREDENTIAL_TYPES_BY_INTEGRATION } from '../integrationFilters'
 
 import type { IntegrationFormData } from './integrationFormSchema'
 import styles from './WizardSteps.module.css'
-
-const CREDENTIAL_HELP_TEXT: Record<string, string> = {
-  [IntegrationTypeEnum.MCP_SERVER]: 'Used to test and monitor the connection to this integration.',
-  [IntegrationTypeEnum.LLM_PROVIDER]: 'Used to authenticate with the LLM provider for connection testing.',
-  [IntegrationTypeEnum.ANSIBLE_AUTOMATION_PLATFORM]:
-    'Used to authenticate with the Ansible Automation Platform for connection testing.',
-}
 
 const STEP_DESCRIPTION: Record<string, string> = {
   [IntegrationTypeEnum.MCP_SERVER]:
@@ -71,9 +65,7 @@ export function CredentialStep({
               isRequired={isRequired}
               allowCreate
               placeholder="Select a credential"
-              helpText={
-                CREDENTIAL_HELP_TEXT[integrationTypeValue] ?? CREDENTIAL_HELP_TEXT[IntegrationTypeEnum.MCP_SERVER]
-              }
+              labelHelp={integrationHelp.healthCheckCredential}
             />
           )}
         />

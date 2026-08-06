@@ -1,6 +1,7 @@
 import { IntegrationTypeEnum } from '@syntara/contracts'
 import { render, screen, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -12,17 +13,17 @@ vi.mock('../../../builder/components/CredentialSelector', () => ({
   CredentialSelector: ({
     label,
     compatibleTypeNames,
-    helpText,
+    labelHelp,
     onChange,
   }: {
     label?: string
     compatibleTypeNames?: string[]
-    helpText?: string
+    labelHelp?: ReactNode
     onChange?: (id: string | undefined) => void
   }) => (
     <div data-testid="credential-selector" data-compatible-types={compatibleTypeNames?.join(',')}>
       {label}
-      {helpText && <span data-testid="help-text">{helpText}</span>}
+      {labelHelp && <span data-testid="label-help">{labelHelp}</span>}
       <button data-testid="select-credential" onClick={() => onChange?.('cred-123')}>
         Select
       </button>
@@ -71,7 +72,7 @@ describe('CredentialStep', () => {
     expect(screen.getByText(/verify that the Ansible Automation Platform is reachable/i)).toBeInTheDocument()
   })
 
-  it('shows Ansible Automation Platform help text for credential selector', () => {
+  it('passes health check credential label help to the selector', () => {
     render(
       <TestWrapper
         credentialId={null}
@@ -82,7 +83,8 @@ describe('CredentialStep', () => {
       />
     )
 
-    expect(screen.getByText(/authenticate with the Ansible Automation Platform/i)).toBeInTheDocument()
+    expect(screen.getByTestId('label-help')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'More info for Health check credential' })).toBeInTheDocument()
   })
 
   it('renders LLM Provider description when type is llm_provider', () => {
@@ -99,7 +101,7 @@ describe('CredentialStep', () => {
     expect(screen.getByText(/verify that the LLM provider is reachable/i)).toBeInTheDocument()
   })
 
-  it('shows LLM Provider help text for credential selector', () => {
+  it('passes the same health check credential label help for LLM provider', () => {
     render(
       <TestWrapper
         credentialId={null}
@@ -110,7 +112,7 @@ describe('CredentialStep', () => {
       />
     )
 
-    expect(screen.getByText(/authenticate with the LLM provider/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'More info for Health check credential' })).toBeInTheDocument()
   })
 
   it('renders credential selector', () => {
@@ -226,7 +228,7 @@ describe('CredentialStep', () => {
     expect(results!).toHaveNoViolations()
   })
 
-  it('falls back to MCP description and help text for unknown integration type', () => {
+  it('falls back to MCP description and still passes credential label help for unknown type', () => {
     render(
       <TestWrapper
         credentialId={null}
@@ -238,9 +240,7 @@ describe('CredentialStep', () => {
     )
 
     expect(screen.getByText(/credential is used to discover/i)).toBeInTheDocument()
-    expect(screen.getByTestId('help-text')).toHaveTextContent(
-      'Used to test and monitor the connection to this integration.'
-    )
+    expect(screen.getByRole('button', { name: 'More info for Health check credential' })).toBeInTheDocument()
   })
 
   describe('Dynamic credential types', () => {

@@ -2,6 +2,8 @@ import { FormGroup, FormHelperText, HelperText, HelperTextItem, Switch } from '@
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import { Controller, type Control, type FieldValues, type Path, type PathValue } from 'react-hook-form'
 
+import { integrationHelp } from '../integrationFieldHelp'
+
 import { ProjectMultiSelect } from './ProjectMultiSelect'
 
 type ScopeFieldsProps<T extends FieldValues> = Readonly<{
@@ -23,7 +25,7 @@ export function ScopeFields<T extends FieldValues>({
 }: ScopeFieldsProps<T>) {
   return (
     <>
-      <FormGroup label="Scope" fieldId={`${idPrefix}-scope`}>
+      <FormGroup label="Scope" fieldId={`${idPrefix}-scope`} labelHelp={integrationHelp.scope}>
         <Controller
           name={scopeName}
           control={control}
@@ -54,7 +56,7 @@ export function ScopeFields<T extends FieldValues>({
       </FormGroup>
 
       {scope === 'project' && (
-        <FormGroup label="Projects" fieldId={`${idPrefix}-projects`} isRequired>
+        <FormGroup label="Projects" fieldId={`${idPrefix}-projects`} isRequired labelHelp={integrationHelp.projects}>
           <Controller
             name={projectIdsName}
             control={control}
