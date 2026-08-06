@@ -306,8 +306,8 @@ If Prometheus is configured to scrape the backend service:
 
 ```promql
 # Both series should be present (value may be 0 when queues are idle)
-nexus_temporal_queue_depth{task_queue="orchestrator-workflow-queue"}
-nexus_temporal_queue_depth{task_queue="orchestrator-background-queue"}
+orchestrator_temporal_queue_depth{task_queue="orchestrator-workflow-queue"}
+orchestrator_temporal_queue_depth{task_queue="orchestrator-background-queue"}
 ```
 
 From the API server's internal metrics endpoint:
@@ -466,7 +466,7 @@ long-running internal activities.
 
 **No CPU-independent HPA metric**: the HPA scales on CPU utilization. This works for CPU-bound
 activities but is a weak proxy for queue backlog depth. A better HPA trigger would be the
-`nexus_temporal_queue_depth{task_queue="orchestrator-background-queue"}` Prometheus metric via a
+`orchestrator_temporal_queue_depth{task_queue="orchestrator-background-queue"}` Prometheus metric via a
 custom metrics adapter (e.g. Prometheus Adapter or KEDA). The current setup is safe and
 correct; the CPU trigger just responds to load with some lag rather than immediately to queue depth.
 

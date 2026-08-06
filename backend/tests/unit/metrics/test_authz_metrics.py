@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from prometheus_client import CollectorRegistry, generate_latest
 
-from nexus.metrics.prometheus import NexusPrometheusMetrics
+from nexus.metrics.prometheus import OrchestratorPrometheusMetrics
 from nexus.metrics.recorder import MetricsRecorder
 from nexus.metrics.types import MetricType
 
@@ -31,9 +31,9 @@ def recorder() -> MetricsRecorder:
 
 
 @pytest.fixture
-def prom() -> NexusPrometheusMetrics:
-    """Fresh NexusPrometheusMetrics with an isolated registry."""
-    return NexusPrometheusMetrics(registry=CollectorRegistry())
+def prom() -> OrchestratorPrometheusMetrics:
+    """Fresh OrchestratorPrometheusMetrics with an isolated registry."""
+    return OrchestratorPrometheusMetrics(registry=CollectorRegistry())
 
 
 # =============================================================================
@@ -44,34 +44,34 @@ def prom() -> NexusPrometheusMetrics:
 class TestAuthzHistogramDefinitions:
     """Verify authz histograms are defined with correct labels."""
 
-    def test_authz_duration_seconds_defined(self, prom: NexusPrometheusMetrics) -> None:
-        """nexus_authz_duration_seconds histogram exists."""
+    def test_authz_duration_seconds_defined(self, prom: OrchestratorPrometheusMetrics) -> None:
+        """orchestrator_authz_duration_seconds histogram exists."""
         assert prom.authz_duration_seconds is not None
 
-    def test_opa_request_duration_seconds_defined(self, prom: NexusPrometheusMetrics) -> None:
-        """nexus_opa_request_duration_seconds histogram exists."""
+    def test_opa_request_duration_seconds_defined(self, prom: OrchestratorPrometheusMetrics) -> None:
+        """orchestrator_opa_request_duration_seconds histogram exists."""
         assert prom.opa_request_duration_seconds is not None
 
-    def test_authz_duration_labels(self, prom: NexusPrometheusMetrics) -> None:
+    def test_authz_duration_labels(self, prom: OrchestratorPrometheusMetrics) -> None:
         """authz_duration_seconds accepts resource_type and action labels."""
         prom.authz_duration_seconds.labels(resource_type="workflow", action="create").observe(0.05)
         total = prom.authz_duration_seconds.labels(resource_type="workflow", action="create")._sum.get()
         assert total == pytest.approx(0.05)
 
-    def test_opa_request_duration_labels(self, prom: NexusPrometheusMetrics) -> None:
+    def test_opa_request_duration_labels(self, prom: OrchestratorPrometheusMetrics) -> None:
         """opa_request_duration_seconds accepts resource_type and action labels."""
         prom.opa_request_duration_seconds.labels(resource_type="credential", action="read").observe(0.01)
         total = prom.opa_request_duration_seconds.labels(resource_type="credential", action="read")._sum.get()
         assert total == pytest.approx(0.01)
 
-    def test_authz_histograms_in_prometheus_output(self, prom: NexusPrometheusMetrics) -> None:
+    def test_authz_histograms_in_prometheus_output(self, prom: OrchestratorPrometheusMetrics) -> None:
         """Authz histograms appear in Prometheus text format output."""
         prom.authz_duration_seconds.labels(resource_type="project", action="read").observe(0.1)
         prom.opa_request_duration_seconds.labels(resource_type="project", action="read").observe(0.02)
 
         output = generate_latest(prom.registry).decode("utf-8")
-        assert "nexus_authz_duration_seconds" in output
-        assert "nexus_opa_request_duration_seconds" in output
+        assert "orchestrator_authz_duration_seconds" in output
+        assert "orchestrator_opa_request_duration_seconds" in output
         assert 'resource_type="project"' in output
         assert 'action="read"' in output
 

@@ -1,4 +1,4 @@
-"""LLM metrics instrumentation for the Nexus metrics subsystem.
+"""LLM metrics instrumentation for the Syntara metrics subsystem.
 
 Provides a wrapper function to instrument LLM calls with metrics
 recording.  All instrumentation is transparent: it does **not** alter

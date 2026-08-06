@@ -32,4 +32,4 @@ async def test_agent_metrics_on_openmetrics_endpoint(
     assert prom_resp.status_code == 200
     body = prom_resp.text
 
-    assert "nexus_requests_total" in body, "Prometheus output should contain request metrics"
+    assert "orchestrator_requests_total" in body, "Prometheus output should contain request metrics"

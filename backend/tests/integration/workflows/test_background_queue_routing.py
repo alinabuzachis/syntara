@@ -252,7 +252,7 @@ class TestBackgroundQueueRouting:
 
 
 class TestQueueDepthMetricLabels:
-    """Verify nexus_temporal_queue_depth metric carries task_queue label.
+    """Verify orchestrator_temporal_queue_depth metric carries task_queue label.
 
     The queue depth metric must include ``task_queue`` label so Prometheus
     can distinguish background-queue depth from workflow-queue depth when

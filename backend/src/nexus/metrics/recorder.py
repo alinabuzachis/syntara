@@ -3,7 +3,7 @@
 :class:`MetricsRecorder` is the primary entry-point that application code
 uses to record metrics.  It delegates storage to :class:`MetricsStore` and
 keeps Prometheus counters / histograms in sync via
-:class:`NexusPrometheusMetrics`.
+:class:`OrchestratorPrometheusMetrics`.
 
 Usage::
 
@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING
 import structlog
 
 from nexus.core.exceptions import SafeValueError
-from nexus.metrics.prometheus import NexusPrometheusMetrics
+from nexus.metrics.prometheus import OrchestratorPrometheusMetrics
 from nexus.metrics.store import MetricsStore
 from nexus.metrics.types import ComponentLabel, MetricRecord, MetricsSummary, MetricType
 
@@ -106,7 +106,7 @@ class MetricsRecorder:
             retention_seconds=retention_seconds,
             max_records=max_records,
         )
-        self._prometheus = NexusPrometheusMetrics(registry=prometheus_registry)
+        self._prometheus = OrchestratorPrometheusMetrics(registry=prometheus_registry)
         self._counters: dict[str, int] = {}
         self._counters_lock = threading.Lock()
 
@@ -120,7 +120,7 @@ class MetricsRecorder:
         return self._store
 
     @property
-    def prometheus(self) -> NexusPrometheusMetrics:
+    def prometheus(self) -> OrchestratorPrometheusMetrics:
         """Prometheus metric objects."""
         return self._prometheus
 
@@ -407,7 +407,7 @@ class MetricsRecorder:
         metric_type: MetricType,
         value: float,
         labels: dict[str, str],
-        p: NexusPrometheusMetrics,
+        p: OrchestratorPrometheusMetrics,
     ) -> None:
         """Handle request, LLM, and TTFT latency metrics."""
         if metric_type == MetricType.REQUEST_DURATION:
@@ -435,7 +435,7 @@ class MetricsRecorder:
         metric_type: MetricType,
         value: float,
         labels: dict[str, str],
-        p: NexusPrometheusMetrics,
+        p: OrchestratorPrometheusMetrics,
     ) -> None:
         """Handle LLM status and token metrics."""
         model = labels.get("model", "unknown")
@@ -451,7 +451,7 @@ class MetricsRecorder:
     def _dispatch_cache(
         metric_type: MetricType,
         value: float,
-        p: NexusPrometheusMetrics,
+        p: OrchestratorPrometheusMetrics,
     ) -> None:
         """Handle cache metrics (hits, misses, lookup duration, utilization)."""
         if metric_type == MetricType.CACHE_HIT:
@@ -468,7 +468,7 @@ class MetricsRecorder:
         metric_type: MetricType,
         value: float,
         labels: dict[str, str],
-        p: NexusPrometheusMetrics,
+        p: OrchestratorPrometheusMetrics,
     ) -> None:
         """Handle tool execution metrics (duration and status)."""
         namespaced_name = labels.get("namespaced_name")
@@ -499,7 +499,7 @@ class MetricsRecorder:
         metric_type: MetricType,
         value: float,
         labels: dict[str, str],
-        p: NexusPrometheusMetrics,
+        p: OrchestratorPrometheusMetrics,
     ) -> None:
         """Handle database metrics (query time, pool utilization, transactions)."""
         component = labels.get("component", "database")
@@ -522,7 +522,7 @@ class MetricsRecorder:
         metric_type: MetricType,
         value: float,
         labels: dict[str, str],
-        p: NexusPrometheusMetrics,
+        p: OrchestratorPrometheusMetrics,
     ) -> None:
         """Handle scheduled trigger metrics (fire count, latency)."""
         if metric_type == MetricType.SCHEDULED_TRIGGER_FIRES:
@@ -537,7 +537,7 @@ class MetricsRecorder:
         metric_type: MetricType,
         value: float,
         labels: dict[str, str],
-        p: NexusPrometheusMetrics,
+        p: OrchestratorPrometheusMetrics,
     ) -> None:
         """Handle authorization metrics (authz duration, OPA request duration)."""
         resource_type = labels.get("resource_type", "unknown")
@@ -560,7 +560,7 @@ class MetricsRecorder:
         metric_type: MetricType,
         value: float,
         labels: dict[str, str],
-        p: NexusPrometheusMetrics,
+        p: OrchestratorPrometheusMetrics,
     ) -> None:
         """Handle component-level metrics (API, workflow engine, tools, etc.)."""
         entry = _COMPONENT_METRIC_MAP.get(metric_type)

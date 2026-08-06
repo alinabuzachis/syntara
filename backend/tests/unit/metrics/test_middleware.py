@@ -419,7 +419,7 @@ class TestMetricsMiddlewarePrometheus:
 
     @pytest.mark.asyncio
     async def test_requests_total_incremented(self, recorder: MetricsRecorder) -> None:
-        """nexus_requests_total Prometheus counter is incremented."""
+        """orchestrator_requests_total Prometheus counter is incremented."""
         app = await _make_app(status_code=200)
         middleware = MetricsMiddleware(app, recorder=recorder)
 
@@ -438,7 +438,7 @@ class TestMetricsMiddlewarePrometheus:
 
     @pytest.mark.asyncio
     async def test_errors_total_incremented(self, recorder: MetricsRecorder) -> None:
-        """nexus_errors_total Prometheus counter is incremented for errors."""
+        """orchestrator_errors_total Prometheus counter is incremented for errors."""
         app = await _make_app(status_code=500)
         middleware = MetricsMiddleware(app, recorder=recorder)
 
@@ -452,7 +452,7 @@ class TestMetricsMiddlewarePrometheus:
 
     @pytest.mark.asyncio
     async def test_request_duration_histogram_updated(self, recorder: MetricsRecorder) -> None:
-        """nexus_request_duration_seconds histogram is observed."""
+        """orchestrator_request_duration_seconds histogram is observed."""
         app = await _make_app(status_code=200)
         middleware = MetricsMiddleware(app, recorder=recorder)
 

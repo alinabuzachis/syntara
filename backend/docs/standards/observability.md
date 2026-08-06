@@ -22,7 +22,7 @@ Both systems follow the fire-and-forget principle: observability code MUST NEVER
 **Components:**
 - `MetricsRecorder` - Central recording API
 - `MetricsStore` - In-memory retention (configurable, default 24h)
-- `NexusPrometheusMetrics` - Prometheus instrument registry
+- `OrchestratorPrometheusMetrics` - Prometheus instrument registry
 - `MetricsMiddleware` - ASGI middleware for HTTP request metrics
 
 **Metrics tracked:**

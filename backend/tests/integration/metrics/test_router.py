@@ -58,8 +58,8 @@ class TestOpenMetricsEndpoint:
 
         resp = client.get("/metrics")
         content = resp.text
-        assert "nexus_llm_duration_seconds" in content
-        assert "nexus_cache_hits_total" in content
+        assert "orchestrator_llm_duration_seconds" in content
+        assert "orchestrator_cache_hits_total" in content
 
     def test_returns_valid_prometheus_openmetrics_format(self, client: TestClient, recorder: MetricsRecorder) -> None:
         """OpenMetrics endpoint returns valid Prometheus/OpenMetrics exposition format."""
@@ -72,8 +72,8 @@ class TestOpenMetricsEndpoint:
 
         assert "# HELP" in content
         assert "# TYPE" in content
-        assert "nexus_llm_duration_seconds" in content
-        assert "nexus_cache_hits_total" in content
+        assert "orchestrator_llm_duration_seconds" in content
+        assert "orchestrator_cache_hits_total" in content
         lines = [line.strip() for line in content.splitlines() if line.strip()]
         for line in lines:
             if not line.startswith("#"):
@@ -92,8 +92,8 @@ class TestOpenMetricsEndpoint:
         )
         resp = client.get("/metrics")
         content = resp.text
-        assert "nexus_tool_executions_total" in content
-        assert "nexus_tool_execution_duration_seconds" in content
+        assert "orchestrator_tool_executions_total" in content
+        assert "orchestrator_tool_execution_duration_seconds" in content
         assert 'namespaced_name="github::search_code"' in content
         assert 'status="success"' in content
 
@@ -130,4 +130,4 @@ class TestOpenMetricsEndpoint:
 
         resp = client.get("/metrics")
         content = resp.text
-        assert "nexus_cache_hits_total 3.0" in content
+        assert "orchestrator_cache_hits_total 3.0" in content

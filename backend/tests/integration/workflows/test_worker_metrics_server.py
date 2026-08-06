@@ -72,7 +72,7 @@ class TestWorkerMetricsServer:
         registry = prometheus_client.CollectorRegistry(auto_describe=True)
 
         gauge = prometheus_client.Gauge(
-            "nexus_test_worker_ready",
+            "orchestrator_test_worker_ready",
             "Test gauge confirming metrics server is up",
             registry=registry,
         )
@@ -83,9 +83,9 @@ class TestWorkerMetricsServer:
             response = httpx.get(f"http://localhost:{port}/metrics", timeout=5.0)
             assert response.status_code == 200
             body = response.text
-            assert "# HELP nexus_test_worker_ready" in body
-            assert "# TYPE nexus_test_worker_ready gauge" in body
-            assert "nexus_test_worker_ready 1.0" in body
+            assert "# HELP orchestrator_test_worker_ready" in body
+            assert "# TYPE orchestrator_test_worker_ready gauge" in body
+            assert "orchestrator_test_worker_ready 1.0" in body
         finally:
             server.shutdown()
             thread.join(timeout=2)
