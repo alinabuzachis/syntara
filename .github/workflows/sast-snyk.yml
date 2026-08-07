@@ -7,6 +7,7 @@ on:
   push:
     branches:
       - 'devel'
+      - 'early-access'
     paths:
       - '.github/workflows/sast-snyk.yml'
   workflow_dispatch:

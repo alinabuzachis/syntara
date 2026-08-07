@@ -7,6 +7,7 @@ on:
   push:
     branches:
       - 'devel'
+      - 'early-access'
     paths:
       - 'backend/pyproject.toml'
       - 'backend/requirements*.txt'

@@ -4,9 +4,9 @@ name: CI Pre-commit
 on:
   pull_request:
   merge_group:
-    branches: [devel]
+    branches: [devel, early-access]
   push:
-    branches: [devel]
+    branches: [devel, early-access]
 
 permissions:
   contents: read

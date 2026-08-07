@@ -3,11 +3,11 @@ name: CI Frontend
 
 on:
   pull_request:
-    branches: [devel]
+    branches: [devel, early-access]
   merge_group:
-    branches: [devel]
+    branches: [devel, early-access]
   push:
-    branches: [devel]
+    branches: [devel, early-access]
 
 permissions:
   contents: read # checkout code

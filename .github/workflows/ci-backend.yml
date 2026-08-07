@@ -3,11 +3,11 @@ name: CI Backend
 
 on:
   pull_request:
-    branches: [devel]
+    branches: [devel, early-access]
   merge_group:
-    branches: [devel]
+    branches: [devel, early-access]
   push:
-    branches: [devel]
+    branches: [devel, early-access]
 
 concurrency:
   group: ci-backend-${{ github.head_ref || github.run_id }}
