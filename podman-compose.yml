@@ -38,16 +38,11 @@ services:
   syntara-ui:
     build:
       context: ./frontend
-      dockerfile: packages/syntara-ui/Containerfile.konflux
-      args:
-        DOWNSTREAM_OVERRIDE: ${DOWNSTREAM_OVERRIDE:-scratch}
-        BRANDING: ${BRANDING:-false}
-
+      dockerfile: packages/syntara-ui/Containerfile
     image: ${APP_UI_IMAGE:-localhost/syntara-ui:latest}
     restart: unless-stopped
     ports:
-      # UBI nginx (Containerfile.konflux) listens on 8080; community alpine image used :80.
-      - ${APP_UI_PORT:-8080}:8080
+      - ${APP_UI_PORT:-8080}:80
     environment:
       - APP_API_URL=${APP_API_URL:-https://syntara:8000}
     depends_on:
