@@ -20,10 +20,10 @@ _POLICY_TEXT: str = ""
 _DECISION_QUERY = "data.nexus.authz"
 
 _EVAL_COUNT: int = 0
-_RECYCLE_EVERY: int = 128
+_RECYCLE_EVERY: int = 32
 
 
-def init(policy_name: str, policy_text: str, *, recycle_every: int = 128) -> None:
+def init(policy_name: str, policy_text: str, *, recycle_every: int = 32) -> None:
     """Create and store the interpreter with the given policy."""
     global _INTERPRETER, _POLICY_NAME, _POLICY_TEXT, _EVAL_COUNT, _RECYCLE_EVERY  # noqa: PLW0603
     _POLICY_NAME = policy_name
