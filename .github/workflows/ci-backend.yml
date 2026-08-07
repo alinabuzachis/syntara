@@ -767,6 +767,8 @@ jobs:
         with:
           projectBaseDir: backend
           args: >
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY_BACKEND }}
+            -Dsonar.organization=${{ vars.SONAR_ORG }}
             -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
             -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
             -Dsonar.pullrequest.branch=${{ github.event.pull_request.head.ref }}
@@ -797,6 +799,9 @@ jobs:
           SONAR_TOKEN: ${{ secrets[vars.SONAR_TOKEN_SECRET_NAME] }}
         with:
           projectBaseDir: backend
+          args: >
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY_BACKEND }}
+            -Dsonar.organization=${{ vars.SONAR_ORG }}
 
   shared-checks-gate:
     name: (Backend) Shared Checks Gate

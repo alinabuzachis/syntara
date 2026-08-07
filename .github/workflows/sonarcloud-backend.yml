@@ -82,7 +82,9 @@ jobs:
         run: |
           COMMIT_SHA="${{ github.event.workflow_run.head_sha }}"
 
-          SONAR_ARGS="-Dsonar.scm.revision=$COMMIT_SHA"
+          SONAR_ARGS="-Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY_BACKEND }}"
+          SONAR_ARGS="${SONAR_ARGS} -Dsonar.organization=${{ vars.SONAR_ORG }}"
+          SONAR_ARGS="${SONAR_ARGS} -Dsonar.scm.revision=$COMMIT_SHA"
           SONAR_ARGS="${SONAR_ARGS} -Dsonar.pullrequest.key=$PR_NUMBER"
           SONAR_ARGS="${SONAR_ARGS} -Dsonar.pullrequest.branch=$PR_HEAD"
           SONAR_ARGS="${SONAR_ARGS} -Dsonar.pullrequest.base=$PR_BASE"

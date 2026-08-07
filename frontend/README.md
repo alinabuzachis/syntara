@@ -227,7 +227,7 @@ Multi-arch images automatically select the correct architecture when pulled.
 
 ## Code Quality
 
-Code quality and coverage are tracked via [SonarCloud](https://sonarcloud.io/project/overview?id=syntara-orchestration_syntara-frontend). SonarCloud analysis runs automatically on all PRs with coverage reports from unit and integration tests. View metrics for vulnerabilities, code smells, technical debt, and coverage trends.
+Code quality and coverage are tracked via SonarCloud. SonarCloud analysis runs automatically on all PRs with coverage reports from unit and integration tests.
 
 ## Contributing
 

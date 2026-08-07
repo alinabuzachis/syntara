@@ -765,7 +765,7 @@ When the setting is toggled back to `false`, the in-memory store is automaticall
 
 ## Code Quality
 
-Code quality and coverage are tracked via [SonarCloud](https://sonarcloud.io/project/overview?id=syntara-orchestration_syntara-backend). SonarCloud analysis runs automatically on all PRs with coverage reports from unit, CLI, and integration test suites. View metrics for vulnerabilities, code smells, technical debt, and coverage trends.
+Code quality and coverage are tracked via SonarCloud. SonarCloud analysis runs automatically on all PRs with coverage reports from unit, CLI, and integration test suites.
 
 ## Further reading
 
