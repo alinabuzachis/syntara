@@ -14,13 +14,13 @@ vi.mock('./stores/useAuthStore', () => ({
 const mockGetState = useAuthStore.getState as ReturnType<typeof vi.fn>
 
 describe('interfaceTagMiddleware', () => {
-  it('sets X-Nexus-Client header to ui on every request', async () => {
+  it('sets X-Orchestrator-Client header to ui on every request', async () => {
     const request = new Request('https://example.com/api/v1/workflows')
     const result = await interfaceTagMiddleware.onRequest!({ request } as Parameters<
       NonNullable<typeof interfaceTagMiddleware.onRequest>
     >[0])
 
-    expect((result as Request).headers.get('X-Nexus-Client')).toBe('ui')
+    expect((result as Request).headers.get('X-Orchestrator-Client')).toBe('ui')
   })
 
   it('preserves existing request headers', async () => {
@@ -32,7 +32,7 @@ describe('interfaceTagMiddleware', () => {
     >[0])
 
     expect((result as Request).headers.get('Content-Type')).toBe('application/json')
-    expect((result as Request).headers.get('X-Nexus-Client')).toBe('ui')
+    expect((result as Request).headers.get('X-Orchestrator-Client')).toBe('ui')
   })
 })
 

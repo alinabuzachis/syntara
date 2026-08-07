@@ -8,7 +8,7 @@ value explicitly.
 
 Detection strategy
 ------------------
-The UI's ``openapi-fetch`` clients send a ``X-Nexus-Client: ui`` header on
+The UI's ``openapi-fetch`` clients send a ``X-Orchestrator-Client: ui`` header on
 every request.  Any request without this header — or with a value other than
 ``"ui"`` — is classified as ``"api"``.
 
@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from starlette.types import Scope
 
-INTERFACE_HEADER: str = "x-nexus-client"
+INTERFACE_HEADER: str = "x-orchestrator-client"
 
 INTERFACE_UI: str = "ui"
 INTERFACE_API: str = "api"
@@ -35,7 +35,7 @@ interface_context_var: ContextVar[str] = ContextVar("interface", default=INTERFA
 def detect_interface(scope: Scope) -> str:
     """Determine the originating interface from ASGI request headers.
 
-    Scans the ``scope["headers"]`` list for the ``X-Nexus-Client`` header.
+    Scans the ``scope["headers"]`` list for the ``X-Orchestrator-Client`` header.
     Returns :data:`INTERFACE_UI` when the header value is ``"ui"``
     (case-insensitive), :data:`INTERFACE_API` otherwise.
 

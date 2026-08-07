@@ -368,15 +368,15 @@ Every HTTP request is classified as originating from the **UI** or an **external
 
 | Condition | Classification |
 |---|---|
-| `X-Nexus-Client: ui` header present (case-insensitive) | `ui` |
+| `X-Orchestrator-Client: ui` header present (case-insensitive) | `ui` |
 | Header absent, empty, or any other value | `api` |
 
 **UI clients** send the header automatically:
 
-- Typed `openapi-fetch` clients in `syntara-ui` use `interfaceTagMiddleware` (sets `X-Nexus-Client: ui` on every request).
-- Pre-auth raw `fetch` call sites (login, CSRF, providers) use `nexusUiClientHeaders()` from `utils/nexusClientHeader.ts`.
+- Typed `openapi-fetch` clients in `syntara-ui` use `interfaceTagMiddleware` (sets `X-Orchestrator-Client: ui` on every request).
+- Pre-auth raw `fetch` call sites (login, CSRF, providers) use `orchestratorUiClientHeaders()` from `utils/orchestratorClientHeader.ts`.
 
-**External API consumers** should **omit** the header (default is `api`). Do not send `X-Nexus-Client: ui` unless the client is the Syntara UI.
+**External API consumers** should **omit** the header (default is `api`). Do not send `X-Orchestrator-Client: ui` unless the client is the Syntara UI.
 
 **Reading the interface downstream:**
 

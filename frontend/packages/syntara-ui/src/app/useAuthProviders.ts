@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import { nexusUiClientHeaders } from '../utils/nexusClientHeader'
+import { orchestratorUiClientHeaders } from '../utils/orchestratorClientHeader'
 
 export type AuthProvider = {
   id: string
@@ -39,7 +39,7 @@ export function useAuthProviders(): UseAuthProvidersResult {
       try {
         // eslint-disable-next-line syntara/no-raw-http-calls -- pre-auth: fetching providers before token middleware is available
         const response = await fetch('/api/v1/auth/providers', {
-          headers: nexusUiClientHeaders(),
+          headers: orchestratorUiClientHeaders(),
           signal: controller.signal,
         })
         if (response.ok) {

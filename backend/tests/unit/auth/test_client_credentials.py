@@ -118,7 +118,7 @@ class TestTokenEndpoint:
     def mock_settings(self) -> MagicMock:
         settings = MagicMock()
         settings.jwt_sa_access_token_lifetime_minutes = 15
-        settings.jwt_issuer = "https://nexus.test"
+        settings.jwt_issuer = "https://orchestrator.test"
         return settings
 
     def _setup_db_result(
@@ -612,7 +612,7 @@ class TestTokenServiceExtension:
         settings = MagicMock()
         settings.jwt_access_token_lifetime_minutes = 15
         settings.jwt_sa_access_token_lifetime_minutes = 30
-        settings.jwt_issuer = "https://nexus.test"
+        settings.jwt_issuer = "https://orchestrator.test"
 
         with patch("nexus.auth.services.token_service.get_settings", return_value=settings):
             return TokenService(key_manager=key_manager)
@@ -657,8 +657,8 @@ class TestTokenServiceExtension:
 
         payload = pyjwt.decode(access_token, options={"verify_signature": False})
         assert payload["sub"] == str(sa_id)
-        assert payload["iss"] == "https://nexus.test"
-        assert payload["aud"] == "nexus-api"
+        assert payload["iss"] == "https://orchestrator.test"
+        assert payload["aud"] == "orchestrator-api"
         assert "exp" in payload
         assert payload["token_type"] == "service_account"  # noqa: S105
 
@@ -758,7 +758,7 @@ class TestUserFromPayloadPrincipalType:
 
         payload = TokenPayload(
             sub=str(uuid4()),
-            iss="nexus",
+            iss="orchestrator",
             iat=datetime.now(UTC),
             exp=datetime.now(UTC),
             token_type="service_account",  # noqa: S106
@@ -776,7 +776,7 @@ class TestUserFromPayloadPrincipalType:
 
         payload = TokenPayload(
             sub=str(uuid4()),
-            iss="nexus",
+            iss="orchestrator",
             iat=datetime.now(UTC),
             exp=datetime.now(UTC),
             token_type="access",  # noqa: S106

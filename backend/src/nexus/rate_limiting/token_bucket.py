@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 logger = structlog.stdlib.get_logger(__name__)
 
-_KEY_PREFIX = "nexus:rate_limit:user"
+_KEY_PREFIX = "syntara:rate_limit:user"
 
 
 @dataclass(frozen=True, slots=True)

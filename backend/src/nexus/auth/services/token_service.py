@@ -426,7 +426,7 @@ class TokenService:
         self._key_manager = key_manager or get_key_manager()
 
     # JWT audience claim value
-    _AUDIENCE: str = "nexus-api"
+    _AUDIENCE: str = "orchestrator-api"
 
     def create_access_token(
         self,

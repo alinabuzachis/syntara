@@ -37,7 +37,7 @@ describe('useAuthProviders', () => {
     expect(global.fetch).toHaveBeenCalledWith(
       '/api/v1/auth/providers',
       expect.objectContaining({
-        headers: { 'X-Nexus-Client': 'ui' },
+        headers: { 'X-Orchestrator-Client': 'ui' },
         signal: expect.any(AbortSignal) as AbortSignal,
       })
     )

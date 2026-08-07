@@ -150,7 +150,7 @@ class TestTokenCreation:
         assert payload["amr"] == ["pwd"]
         assert payload["idp"] == "local"
         assert payload["groups"] == []
-        assert payload["aud"] == "nexus-api"
+        assert payload["aud"] == "orchestrator-api"
         assert payload["iss"] == "https://localhost:8000"
         assert header["typ"] == "at+jwt"
         assert "iat" in payload
@@ -277,7 +277,7 @@ class TestTokenCreation:
         assert payload["jti"] == jti
         assert payload["typ"] == "refresh"
         assert payload["iss"] == "https://localhost:8000"
-        assert payload["aud"] == "nexus-api"
+        assert payload["aud"] == "orchestrator-api"
         assert "iat" in payload
         assert "exp" in payload
         # Refresh tokens should NOT have user profile claims
@@ -340,7 +340,7 @@ class TestTokenValidation:
         assert payload.idp == "local"
         assert payload.token_type == "access"  # noqa: S105
         assert payload.iss == "https://localhost:8000"
-        assert payload.aud == "nexus-api"
+        assert payload.aud == "orchestrator-api"
         assert payload.jti is None  # Access tokens don't have JTI
 
     def test_decode_valid_refresh_token(self, token_service: TokenService) -> None:
@@ -394,7 +394,7 @@ class TestTokenValidation:
             "iss": "wrong-issuer",
             "iat": datetime.now(UTC),
             "exp": datetime.now(UTC) + timedelta(hours=1),
-            "aud": "nexus-api",
+            "aud": "orchestrator-api",
         }
         token = jwt.encode(
             payload,
@@ -414,7 +414,7 @@ class TestTokenValidation:
             "iss": "https://localhost:8000",
             "iat": datetime.now(UTC),
             "exp": datetime.now(UTC) + timedelta(hours=1),
-            "aud": "nexus-api",
+            "aud": "orchestrator-api",
         }
         token = jwt.encode(
             payload,
@@ -439,7 +439,7 @@ class TestTokenValidation:
             "iss": "https://localhost:8000",
             "iat": datetime.now(UTC),
             "exp": datetime.now(UTC) + timedelta(hours=1),
-            "aud": "nexus-api",
+            "aud": "orchestrator-api",
         }
         token = jwt.encode(
             payload,
@@ -464,7 +464,7 @@ class TestTokenExpiry:
             "iss": "https://localhost:8000",
             "iat": datetime.now(UTC) - timedelta(hours=2),
             "exp": datetime.now(UTC) - timedelta(hours=1),
-            "aud": "nexus-api",
+            "aud": "orchestrator-api",
         }
         token = jwt.encode(
             payload,
@@ -487,7 +487,7 @@ class TestTokenExpiry:
             "iss": "https://localhost:8000",
             "iat": datetime.now(UTC),
             "exp": datetime.now(UTC) + timedelta(seconds=10),
-            "aud": "nexus-api",
+            "aud": "orchestrator-api",
         }
         token = jwt.encode(
             payload,
@@ -509,7 +509,7 @@ class TestTokenExpiry:
             "iss": "https://localhost:8000",
             "iat": datetime.now(UTC) - timedelta(seconds=10),
             "exp": datetime.now(UTC) - timedelta(seconds=1),
-            "aud": "nexus-api",
+            "aud": "orchestrator-api",
         }
         token = jwt.encode(
             payload,
@@ -544,7 +544,7 @@ class TestAlgorithmEnforcement:
             "iss": "https://localhost:8000",
             "iat": datetime.now(UTC),
             "exp": datetime.now(UTC) + timedelta(hours=1),
-            "aud": "nexus-api",
+            "aud": "orchestrator-api",
         }
         # Manually construct a token with 'none' algorithm
         import base64
@@ -572,7 +572,7 @@ class TestAlgorithmEnforcement:
             "iss": "https://localhost:8000",
             "iat": datetime.now(UTC),
             "exp": datetime.now(UTC) + timedelta(hours=1),
-            "aud": "nexus-api",
+            "aud": "orchestrator-api",
         }
 
         # Create a token with HS256 using an arbitrary secret
@@ -744,7 +744,7 @@ class TestKeyRotation:
             "sub": str(uuid4()),
             "email": "test@example.com",
             "preferred_username": "test-user",
-            "aud": "nexus-api",
+            "aud": "orchestrator-api",
             "iss": "https://localhost:8000",
             "iat": datetime.now(UTC),
             "exp": datetime.now(UTC) + timedelta(hours=1),

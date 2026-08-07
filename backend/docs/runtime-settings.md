@@ -201,7 +201,7 @@ All errors follow [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) Problem Det
 
 When a setting is updated via the REST API, the change is propagated to all processes through two complementary mechanisms:
 
-1. **Redis Pub/Sub** (near-real-time) -- the `SettingsService` publishes a message on the `nexus:settings:changes` channel after each successful update. A subscriber task in `SettingsCache` receives the message and updates the L1 cache and fires any registered `@watch_setting` callbacks.
+1. **Redis Pub/Sub** (near-real-time) -- the `SettingsService` publishes a message on the `syntara:settings:changes` channel after each successful update. A subscriber task in `SettingsCache` receives the message and updates the L1 cache and fires any registered `@watch_setting` callbacks.
 2. **Polling** (fallback) -- a `PeriodicWorker` polls the database for watched keys at the cache TTL interval. This always runs alongside Pub/Sub and serves as the sole notification mechanism when Redis is unavailable.
 
 ### Graceful degradation
@@ -324,7 +324,7 @@ SETTINGS_CATALOG (Python)
                     ┌───────────┼───────────┐
                     |           |           |
                L1 (dict)   L2 (Redis)   Redis Pub/Sub
-              per-process    shared     nexus:settings:changes
+              per-process    shared     syntara:settings:changes
                     |                      |
                     |              ┌───────┴───────┐
                     |              |               |

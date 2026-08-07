@@ -695,7 +695,7 @@ class TestMetricsMiddlewareInterfaceTagging:
 
     @pytest.mark.asyncio
     async def test_default_interface_is_api(self, recorder: MetricsRecorder) -> None:
-        """Requests without X-Nexus-Client header get interface=api."""
+        """Requests without X-Orchestrator-Client header get interface=api."""
         app = await _make_app(status_code=200)
         middleware = MetricsMiddleware(app, recorder=recorder)
 
@@ -706,11 +706,11 @@ class TestMetricsMiddlewareInterfaceTagging:
 
     @pytest.mark.asyncio
     async def test_ui_header_sets_interface_ui(self, recorder: MetricsRecorder) -> None:
-        """Requests with X-Nexus-Client: ui get interface=ui."""
+        """Requests with X-Orchestrator-Client: ui get interface=ui."""
         app = await _make_app(status_code=200)
         middleware = MetricsMiddleware(app, recorder=recorder)
 
-        scope = _make_scope(headers=[(b"x-nexus-client", b"ui")])
+        scope = _make_scope(headers=[(b"x-orchestrator-client", b"ui")])
         await middleware(scope, AsyncMock(), AsyncMock())
 
         results = list(recorder.query(metric_types={MetricType.REQUEST_DURATION}))
@@ -722,7 +722,7 @@ class TestMetricsMiddlewareInterfaceTagging:
         app = await _make_app(status_code=500)
         middleware = MetricsMiddleware(app, recorder=recorder)
 
-        scope = _make_scope(headers=[(b"x-nexus-client", b"ui")])
+        scope = _make_scope(headers=[(b"x-orchestrator-client", b"ui")])
         await middleware(scope, AsyncMock(), AsyncMock())
 
         errors = list(recorder.query(metric_types={MetricType.ERROR}))
@@ -741,7 +741,7 @@ class TestMetricsMiddlewareInterfaceTagging:
             await send({"type": "http.response.body", "body": b""})
 
         middleware = MetricsMiddleware(capturing_app, recorder=recorder)  # type: ignore[arg-type]
-        scope = _make_scope(headers=[(b"x-nexus-client", b"ui")])
+        scope = _make_scope(headers=[(b"x-orchestrator-client", b"ui")])
         await middleware(scope, AsyncMock(), AsyncMock())
 
         assert captured_interface == INTERFACE_UI
@@ -771,7 +771,7 @@ class TestMetricsMiddlewareInterfaceTagging:
             raise RuntimeError(msg)
 
         middleware = MetricsMiddleware(raising_app, recorder=recorder)  # type: ignore[arg-type]
-        scope = _make_scope(headers=[(b"x-nexus-client", b"ui")])
+        scope = _make_scope(headers=[(b"x-orchestrator-client", b"ui")])
 
         receive, send = AsyncMock(), AsyncMock()
         with pytest.raises(RuntimeError, match=msg):
@@ -786,7 +786,7 @@ class TestMetricsMiddlewareInterfaceTagging:
         app = await _make_app(status_code=201)
         middleware = MetricsMiddleware(app, recorder=recorder)
 
-        scope = _make_scope(path="/api/v1/workflows", method="POST", headers=[(b"x-nexus-client", b"ui")])
+        scope = _make_scope(path="/api/v1/workflows", method="POST", headers=[(b"x-orchestrator-client", b"ui")])
         await middleware(scope, AsyncMock(), AsyncMock())
 
         results = list(recorder.query(metric_types={MetricType.REQUEST_DURATION}))
@@ -842,7 +842,7 @@ class TestMetricsMiddlewareAuthFailure:
             await send({"type": "http.response.body", "body": b""})
 
         middleware = MetricsMiddleware(auth_failure_app, recorder=recorder)  # type: ignore[arg-type]
-        scope = _make_scope(headers=[(b"x-nexus-client", b"ui")])
+        scope = _make_scope(headers=[(b"x-orchestrator-client", b"ui")])
         await middleware(scope, AsyncMock(), AsyncMock())
 
         results = list(recorder.query(metric_types={MetricType.AUTH_FAILURE}))

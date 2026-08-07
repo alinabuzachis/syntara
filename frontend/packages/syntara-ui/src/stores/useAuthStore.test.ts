@@ -117,7 +117,7 @@ describe('useAuthStore', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(AUTH_LOGIN_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Nexus-Client': 'ui' },
+        headers: { 'Content-Type': 'application/json', 'X-Orchestrator-Client': 'ui' },
         credentials: 'include',
         body: JSON.stringify({ username: 'admin', password: 'admin' }),
       })
@@ -134,7 +134,7 @@ describe('useAuthStore', () => {
         expect.objectContaining({
           method: 'POST',
           credentials: 'include',
-          headers: { 'X-Nexus-Client': 'ui' },
+          headers: { 'X-Orchestrator-Client': 'ui' },
         })
       )
     })
@@ -389,7 +389,7 @@ describe('useAuthStore', () => {
       const logoutInit = logoutCall[1] as RequestInit
       const headers = logoutInit.headers as Record<string, string>
       expect(headers['X-CSRF-Token']).toBe('test-csrf-token')
-      expect(headers['X-Nexus-Client']).toBe('ui')
+      expect(headers['X-Orchestrator-Client']).toBe('ui')
     })
 
     it('posts to the logout endpoint with bearer token', async () => {

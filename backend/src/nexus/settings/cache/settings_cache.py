@@ -12,7 +12,7 @@ the process.  Other settings expire after their ``cache_ttl_seconds``
 
 Change notification uses Redis Pub/Sub when available.  A publisher
 (in :class:`~nexus.settings.services.settings_service.SettingsService`)
-sends the changed key on the ``nexus:settings:changes`` channel after
+sends the changed key on the ``syntara:settings:changes`` channel after
 every successful update.  The subscriber task in this module invalidates
 the local cache and re-fetches the authoritative value from the database
 before delivering the change to registered :meth:`on_change` callbacks.
@@ -57,8 +57,8 @@ _SENTINEL = object()
 _DEFAULT_TTL_SECONDS = 60.0
 
 
-REDIS_KEY_PREFIX = "nexus:settings:"
-REDIS_CHANNEL = "nexus:settings:changes"
+REDIS_KEY_PREFIX = "syntara:settings:"
+REDIS_CHANNEL = "syntara:settings:changes"
 
 _signing_key: bytes | None = None
 

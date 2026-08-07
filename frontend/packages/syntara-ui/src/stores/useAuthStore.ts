@@ -10,7 +10,7 @@ import { create } from 'zustand'
 
 import { EXPLICIT_LOGOUT_KEY } from '../components/session/sessionTimeoutConstants'
 import { queryClient } from '../queryClient'
-import { nexusUiClientHeaders } from '../utils/nexusClientHeader'
+import { orchestratorUiClientHeaders } from '../utils/orchestratorClientHeader'
 
 // ============================================================================
 // Types
@@ -114,7 +114,7 @@ type LogoutResponse = {
 function buildAuthHeaders(accessToken: string | null, csrfToken: string | null): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...nexusUiClientHeaders(),
+    ...orchestratorUiClientHeaders(),
   }
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`
   if (csrfToken) headers['X-CSRF-Token'] = csrfToken
@@ -198,7 +198,7 @@ async function fetchCsrfToken(returnNullOn404 = false): Promise<string | null> {
   // eslint-disable-next-line syntara/no-raw-http-calls -- auth: CSRF token fetch before client is initialized
   const response = await fetch(AUTH_CSRF_TOKEN_URL, {
     method: 'POST',
-    headers: nexusUiClientHeaders(),
+    headers: orchestratorUiClientHeaders(),
     credentials: 'include',
   })
 
@@ -213,7 +213,7 @@ async function postAuth(url: string, body?: object, extraHeaders?: Record<string
   // eslint-disable-next-line syntara/no-raw-http-calls -- auth: login/token exchange before client is initialized
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...nexusUiClientHeaders(), ...extraHeaders },
+    headers: { 'Content-Type': 'application/json', ...orchestratorUiClientHeaders(), ...extraHeaders },
     credentials: 'include', // ensure HttpOnly cookies are sent
     ...(body ? { body: JSON.stringify(body) } : {}),
   })

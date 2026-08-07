@@ -77,7 +77,7 @@ class TestTokenBucket:
         await bucket.consume(user_id="abc-123", max_tokens=10, window_seconds=60)
 
         call_kwargs = mock_redis_client.execute_rate_limit.call_args
-        assert call_kwargs.kwargs["key"] == "nexus:rate_limit:user:abc-123"
+        assert call_kwargs.kwargs["key"] == "syntara:rate_limit:user:abc-123"
 
     @pytest.mark.asyncio
     async def test_consume_passes_parameters(self, bucket: TokenBucket, mock_redis_client: AsyncMock) -> None:

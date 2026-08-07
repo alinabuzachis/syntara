@@ -18,20 +18,20 @@ import createClient from 'openapi-react-query'
 
 import { useAuthStore } from './stores/useAuthStore'
 import { backendOrigin } from './utils/backendUrl'
-import { applyNexusUiClientHeader } from './utils/nexusClientHeader'
+import { applyOrchestratorUiClientHeader } from './utils/orchestratorClientHeader'
 
 // ============================================================================
 // Interface Tagging Middleware
 // ============================================================================
 
 /**
- * openapi-fetch middleware that tags every request with `X-Nexus-Client: ui`
+ * openapi-fetch middleware that tags every request with `X-Orchestrator-Client: ui`
  * so the backend can distinguish UI traffic from external API consumers
  * (CLI, CI/CD, scripts) in metrics and telemetry.
  */
 const interfaceTagMiddleware: Middleware = {
   onRequest({ request }) {
-    applyNexusUiClientHeader(request.headers)
+    applyOrchestratorUiClientHeader(request.headers)
     return request
   },
 }

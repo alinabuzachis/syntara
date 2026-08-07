@@ -116,7 +116,7 @@ def _make_sa_payload(sa_id: str | None = None) -> TokenPayload:
     return TokenPayload(
         sub=sa_id or str(uuid4()),
         iss="https://test",
-        aud="nexus-api",
+        aud="orchestrator-api",
         iat=now,
         exp=now,
         token_type="service_account",  # noqa: S106
@@ -132,7 +132,7 @@ def _make_user_payload() -> TokenPayload:
     return TokenPayload(
         sub=str(uuid4()),
         iss="https://test",
-        aud="nexus-api",
+        aud="orchestrator-api",
         iat=now,
         exp=now,
         token_type="access",  # noqa: S106
