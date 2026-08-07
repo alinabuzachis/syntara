@@ -3,9 +3,8 @@ import type { IntegrationsAPI } from '@syntara/contracts'
 
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 
+import { CredentialAffectedResourcesWarnings } from './CredentialAffectedResourcesWarnings'
 import type { Credential, CredentialWorkflowRef } from './credentialConstants'
-import { CredentialIntegrationWarning } from './CredentialIntegrationWarning'
-import { CredentialWorkflowWarning } from './CredentialWorkflowWarning'
 
 type Integration = IntegrationsAPI.components['schemas']['IntegrationRead']
 
@@ -38,6 +37,8 @@ export function DisableCredentialDialog({
 
   const isLoadingChecks = isLoadingWorkflows || isLoadingIntegrations
   const hasFetchError = workflowsFetchError || integrationsFetchError
+  const showAffectedResources =
+    affectedWorkflows.length > 0 || affectedIntegrations.length > 0 || workflowsFetchError || integrationsFetchError
 
   return (
     <NxConfirmationDialog
@@ -61,21 +62,13 @@ export function DisableCredentialDialog({
               You are about to disable the following credential: <strong>{credential.name}</strong>
             </Content>
           </StackItem>
-          {(affectedWorkflows.length > 0 || workflowsFetchError) && (
+          {showAffectedResources && (
             <StackItem>
-              <CredentialWorkflowWarning
+              <CredentialAffectedResourcesWarnings
                 affectedWorkflows={affectedWorkflows}
                 workflowsFetchError={workflowsFetchError}
-                consequenceText="Disabling it will cause these workflows to fail:"
-              />
-            </StackItem>
-          )}
-          {(affectedIntegrations.length > 0 || integrationsFetchError) && (
-            <StackItem>
-              <CredentialIntegrationWarning
                 affectedIntegrations={affectedIntegrations}
                 integrationsFetchError={integrationsFetchError}
-                consequenceText="Disabling it will affect these integrations:"
               />
             </StackItem>
           )}

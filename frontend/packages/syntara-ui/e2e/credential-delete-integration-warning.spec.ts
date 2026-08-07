@@ -63,11 +63,15 @@ test.describe('Credential Delete — Integration Impact Warning', () => {
       await expect(modal).toBeVisible()
       await expect(modal.getByText('Delete credential?')).toBeVisible()
 
-      // The integration name should appear in the warning list
-      await expect(modal.getByText(new RegExp(integrationName))).toBeVisible({ timeout: 15_000 })
-
-      // The consequence text about affected integrations should be visible
-      await expect(modal.getByText(/affect these integrations/i)).toBeVisible()
+      // Ripple-effect summary: header, named integration, and ack copy
+      await expect(modal.getByText('Resources that will be affected')).toBeVisible({ timeout: 15_000 })
+      await expect(modal.getByText('Integrations')).toBeVisible()
+      await expect(modal.getByText(new RegExp(integrationName))).toBeVisible()
+      await expect(
+        modal.getByRole('checkbox', {
+          name: 'I understand this credential and the resources shown above will be affected by this deletion.',
+        })
+      ).toBeVisible()
 
       // Cancel to leave both credential and integration intact
       await modal.getByRole('button', { name: 'Cancel' }).click()

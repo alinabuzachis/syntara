@@ -19,6 +19,18 @@ function detailPageToggle(app: import('@playwright/test').Page) {
   return app.getByRole('switch', { name: /enabled/i })
 }
 
+/** Wait until usage checks finish so the Disable action is actually clickable. */
+async function waitForDisableDialogReady(dialog: import('@playwright/test').Locator, credentialName?: string) {
+  await expect(dialog.getByText('Disable credential?')).toBeVisible()
+  await expect(dialog.getByText(/Checking for workflows and integrations/)).toHaveCount(0, {
+    timeout: 15_000,
+  })
+  if (credentialName) {
+    await expect(dialog.getByText(new RegExp(credentialName))).toBeVisible()
+  }
+  await expect(dialog.getByRole('button', { name: 'Disable' })).toBeEnabled()
+}
+
 test.describe('Credential Enable/Disable State Management', () => {
   test.describe.configure({ mode: 'serial' })
 
@@ -33,7 +45,7 @@ test.describe('Credential Enable/Disable State Management', () => {
 
       const dialog = app.getByRole('dialog')
       await expect(dialog).toBeVisible()
-      await expect(dialog.getByText('Disable credential?')).toBeVisible()
+      await waitForDisableDialogReady(dialog, name)
     } finally {
       await deleteCredentialByName(app, name)
     }
@@ -48,9 +60,8 @@ test.describe('Credential Enable/Disable State Management', () => {
       await listRowToggle(row).click({ force: true })
 
       const dialog = app.getByRole('dialog')
-      await expect(dialog.getByText(new RegExp(name))).toBeVisible()
+      await waitForDisableDialogReady(dialog, name)
       await expect(dialog.getByText(/You can re-enable the credential at any time/)).toBeVisible()
-      await expect(dialog.getByRole('button', { name: 'Disable' })).toBeVisible()
       await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeVisible()
     } finally {
       await deleteCredentialByName(app, name)
@@ -66,6 +77,7 @@ test.describe('Credential Enable/Disable State Management', () => {
       await listRowToggle(row).click({ force: true })
 
       const dialog = app.getByRole('dialog')
+      await waitForDisableDialogReady(dialog)
       await dialog.getByRole('button', { name: 'Disable' }).click()
 
       await expect(dialog).not.toBeVisible()
@@ -84,7 +96,7 @@ test.describe('Credential Enable/Disable State Management', () => {
       await listRowToggle(row).click({ force: true })
 
       const dialog = app.getByRole('dialog')
-      await expect(dialog).toBeVisible()
+      await waitForDisableDialogReady(dialog)
       await dialog.getByRole('button', { name: 'Cancel' }).click()
 
       await expect(dialog).not.toBeVisible()
@@ -119,7 +131,7 @@ test.describe('Credential Enable/Disable State Management', () => {
       await detailPageToggle(app).click({ force: true })
 
       const dialog = app.getByRole('dialog')
-      await expect(dialog.getByText('Disable credential?')).toBeVisible()
+      await waitForDisableDialogReady(dialog)
       await dialog.getByRole('button', { name: 'Disable' }).click()
 
       await expect(detailPageToggle(app)).not.toBeChecked()
@@ -138,6 +150,7 @@ test.describe('Credential Enable/Disable State Management', () => {
 
       await detailPageToggle(app).click({ force: true })
       const dialog = app.getByRole('dialog')
+      await waitForDisableDialogReady(dialog)
       await dialog.getByRole('button', { name: 'Disable' }).click()
 
       await expect(detailPageToggle(app)).not.toBeChecked()
@@ -156,6 +169,7 @@ test.describe('Credential Enable/Disable State Management', () => {
       const row = app.getByRole('row', { name: new RegExp(name) })
       await listRowToggle(row).click({ force: true })
       const dialog = app.getByRole('dialog')
+      await waitForDisableDialogReady(dialog)
       await dialog.getByRole('button', { name: 'Disable' }).click()
       await expect(listRowToggle(row)).not.toBeChecked()
 

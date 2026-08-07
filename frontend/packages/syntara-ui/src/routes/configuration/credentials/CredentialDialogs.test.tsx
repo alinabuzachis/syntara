@@ -86,10 +86,12 @@ describe('DisableCredentialDialog', () => {
       />
     )
 
+    expect(screen.getByText('Resources that will be affected')).toBeInTheDocument()
     expect(screen.getByText('Workflows')).toBeInTheDocument()
     expect(screen.getByText('2')).toBeInTheDocument()
     expect(screen.getByText('Workflow One')).toBeInTheDocument()
     expect(screen.getByText('Workflow Two')).toBeInTheDocument()
+    expect(screen.queryByText(/will cause these workflows to fail/)).not.toBeInTheDocument()
     expect(screen.getByText(/You can re-enable/)).toBeInTheDocument()
   })
 
@@ -403,6 +405,44 @@ describe('DisableCredentialDialog', () => {
     expect(screen.getByText('GitHub Copilot')).toBeInTheDocument()
     expect(screen.getByText('Jira Integration')).toBeInTheDocument()
   })
+
+  it('shows loading spinner when checking integrations', () => {
+    render(
+      <DisableCredentialDialog
+        credential={mockCredential}
+        affectedWorkflows={[]}
+        workflowsFetchError={false}
+        isLoadingWorkflows={false}
+        affectedIntegrations={[]}
+        integrationsFetchError={false}
+        isLoadingIntegrations={true}
+        onConfirm={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText(/Checking for workflows and integrations/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Disable/i })).toBeDisabled()
+  })
+
+  it('hides re-enable message when integrationsFetchError is true', () => {
+    render(
+      <DisableCredentialDialog
+        credential={mockCredential}
+        affectedWorkflows={[]}
+        workflowsFetchError={false}
+        isLoadingWorkflows={false}
+        affectedIntegrations={[]}
+        integrationsFetchError={true}
+        isLoadingIntegrations={false}
+        onConfirm={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText(/Unable to check which integrations/)).toBeInTheDocument()
+    expect(screen.queryByText(/You can re-enable/)).not.toBeInTheDocument()
+  })
 })
 
 describe('DeleteCredentialDialog', () => {
@@ -438,13 +478,44 @@ describe('DeleteCredentialDialog', () => {
     ]
     render(<DeleteCredentialDialog credential={mockCredential} {...defaultDeleteProps} affectedWorkflows={workflows} />)
 
-    expect(screen.getByText(/will cause these workflows to fail/)).toBeInTheDocument()
+    expect(screen.getByText('Resources that will be affected')).toBeInTheDocument()
+    expect(screen.queryByText(/will cause these workflows to fail/)).not.toBeInTheDocument()
     expect(screen.getByText('Deploy Pipeline')).toBeInTheDocument()
     expect(screen.getByText('Health Check')).toBeInTheDocument()
+    expect(
+      screen.getByRole('checkbox', {
+        name: 'I understand this credential and the resources shown above will be affected by this deletion.',
+      })
+    ).toBeInTheDocument()
     // Delete button is disabled until checkbox is checked
     expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled()
     await user.click(screen.getByRole('checkbox'))
     expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled()
+  })
+
+  it('uses compact dependency summary without names when 4 or more of each type', () => {
+    const workflows = Array.from({ length: 12 }, (_, i) => ({ id: `wf-${i}`, name: `Workflow ${i}` }))
+    const integrations = Array.from({ length: 12 }, (_, i) => ({
+      id: `int-${i}`,
+      name: `Integration ${i}`,
+    })) as Partial<Integration>[] as Integration[]
+
+    render(
+      <DeleteCredentialDialog
+        credential={mockCredential}
+        {...defaultDeleteProps}
+        affectedWorkflows={workflows}
+        affectedIntegrations={integrations}
+      />
+    )
+
+    expect(screen.getByText('Resources that will be affected')).toBeInTheDocument()
+    expect(screen.getByText('Workflows')).toBeInTheDocument()
+    expect(screen.getByText('Integrations')).toBeInTheDocument()
+    expect(screen.getAllByText('12')).toHaveLength(2)
+    expect(screen.queryByText('Workflow 0')).not.toBeInTheDocument()
+    expect(screen.queryByText('Integration 0')).not.toBeInTheDocument()
+    expect(screen.queryByRole('list')).not.toBeInTheDocument()
   })
 
   it('calls onConfirm when Delete button clicked', async () => {
@@ -604,11 +675,27 @@ describe('DeleteCredentialDialog', () => {
     expect(screen.getByRole('button', { name: /Delete/ })).toBeDisabled()
   })
 
-  it('shows acknowledgement checkbox text', () => {
+  it('shows acknowledgement checkbox text without dependencies', () => {
     render(<DeleteCredentialDialog credential={mockCredential} {...defaultDeleteProps} />)
 
     expect(
       screen.getByRole('checkbox', { name: 'I understand this credential will be permanently deleted.' })
+    ).toBeInTheDocument()
+  })
+
+  it('shows ripple-effect acknowledgement checkbox text with dependencies', () => {
+    render(
+      <DeleteCredentialDialog
+        credential={mockCredential}
+        {...defaultDeleteProps}
+        affectedIntegrations={mockAffectedIntegrations}
+      />
+    )
+
+    expect(
+      screen.getByRole('checkbox', {
+        name: 'I understand this credential and the resources shown above will be affected by this deletion.',
+      })
     ).toBeInTheDocument()
   })
 
@@ -642,5 +729,27 @@ describe('DeleteCredentialDialog', () => {
     expect(screen.getByText('Integrations')).toBeInTheDocument()
     expect(screen.getByText('GitHub Copilot')).toBeInTheDocument()
     expect(screen.getByText('Jira Integration')).toBeInTheDocument()
+  })
+
+  it('shows warning when integrationsFetchError is true', () => {
+    render(<DeleteCredentialDialog credential={mockCredential} {...defaultDeleteProps} integrationsFetchError={true} />)
+
+    expect(screen.getByText(/Unable to check which integrations/)).toBeInTheDocument()
+    expect(
+      screen.getByRole('checkbox', { name: 'I understand this credential will be permanently deleted.' })
+    ).toBeInTheDocument()
+  })
+
+  it('shows loading spinner when checking integrations only', () => {
+    render(
+      <DeleteCredentialDialog
+        credential={mockCredential}
+        {...defaultDeleteProps}
+        isLoadingWorkflows={false}
+        isLoadingIntegrations={true}
+      />
+    )
+
+    expect(screen.getByText(/Checking for workflows and integrations/)).toBeInTheDocument()
   })
 })

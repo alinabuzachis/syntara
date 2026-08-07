@@ -3,9 +3,8 @@ import type { IntegrationsAPI } from '@syntara/contracts'
 
 import { NxConfirmationDialog } from '../../../components/dialogs/NxConfirmationDialog'
 
+import { CredentialAffectedResourcesWarnings } from './CredentialAffectedResourcesWarnings'
 import type { Credential, CredentialWorkflowRef } from './credentialConstants'
-import { CredentialIntegrationWarning } from './CredentialIntegrationWarning'
-import { CredentialWorkflowWarning } from './CredentialWorkflowWarning'
 
 type Integration = IntegrationsAPI.components['schemas']['IntegrationRead']
 
@@ -37,6 +36,8 @@ export function DeleteCredentialDialog({
   if (!credential) return null
 
   const isLoadingChecks = isLoadingWorkflows || isLoadingIntegrations
+  const hasDependencies = affectedWorkflows.length > 0 || affectedIntegrations.length > 0
+  const showAffectedResources = hasDependencies || workflowsFetchError || integrationsFetchError
 
   return (
     <NxConfirmationDialog
@@ -50,7 +51,9 @@ export function DeleteCredentialDialog({
       confirmLoading={isLoading || isLoadingChecks}
       destructiveAcknowledgement={{
         checkboxId: 'delete-credential-ack',
-        label: 'I understand this credential will be permanently deleted.',
+        label: hasDependencies
+          ? 'I understand this credential and the resources shown above will be affected by this deletion.'
+          : 'I understand this credential will be permanently deleted.',
       }}
     >
       {isLoadingChecks ? (
@@ -65,21 +68,13 @@ export function DeleteCredentialDialog({
               The credential <strong>{credential.name}</strong> will be deleted. This cannot be undone.
             </Content>
           </StackItem>
-          {(affectedWorkflows.length > 0 || workflowsFetchError) && (
+          {showAffectedResources && (
             <StackItem>
-              <CredentialWorkflowWarning
+              <CredentialAffectedResourcesWarnings
                 affectedWorkflows={affectedWorkflows}
                 workflowsFetchError={workflowsFetchError}
-                consequenceText="Deleting it will cause these workflows to fail:"
-              />
-            </StackItem>
-          )}
-          {(affectedIntegrations.length > 0 || integrationsFetchError) && (
-            <StackItem>
-              <CredentialIntegrationWarning
                 affectedIntegrations={affectedIntegrations}
                 integrationsFetchError={integrationsFetchError}
-                consequenceText="Deleting it will affect these integrations:"
               />
             </StackItem>
           )}
