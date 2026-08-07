@@ -11,6 +11,16 @@ type BrandProviderProps = {
 export function BrandProvider({ children, config }: Readonly<BrandProviderProps>) {
   const value = useMemo(() => config ?? defaultBrandConfig, [config])
 
+  useEffect(() => {
+    const root = document.documentElement
+    if (value.shellTheme === 'felt') {
+      root.classList.add('pf-v6-theme-felt')
+    }
+    return () => {
+      root.classList.remove('pf-v6-theme-felt')
+    }
+  }, [value.shellTheme])
+
   // index.html already has the community favicon; keep this so runtime/downstream
   // faviconPath overrides still update the tab icon when BrandProvider remounts config.
   useEffect(() => {

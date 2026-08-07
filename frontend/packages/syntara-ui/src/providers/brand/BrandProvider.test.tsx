@@ -53,6 +53,7 @@ describe('BrandProvider', () => {
       logoCollapsed: '/custom-icon.svg',
       logoLoginLight: '/custom-login-light.svg',
       logoLoginDark: '/custom-login-dark.svg',
+      shellTheme: 'default',
     }
     render(
       <BrandProvider config={customConfig}>
@@ -104,6 +105,7 @@ describe('BrandProvider', () => {
         logoCollapsed: '/icon.svg',
         logoLoginLight: '/login-light.svg',
         logoLoginDark: '/login-dark.svg',
+        shellTheme: 'default',
       }
       render(
         <BrandProvider config={customConfig}>
@@ -111,6 +113,52 @@ describe('BrandProvider', () => {
         </BrandProvider>
       )
       expect(faviconLink.href).toContain('/custom-favicon.svg')
+    })
+  })
+
+  describe('shell theme', () => {
+    const feltShellConfig: BrandConfig = {
+      appTitle: 'Custom Product',
+      faviconPath: '/custom-favicon.svg',
+      logoExpandedLight: '/custom-logo-light.svg',
+      logoExpandedDark: '/custom-logo-dark.svg',
+      logoCollapsed: '/custom-icon.svg',
+      logoLoginLight: '/custom-login-light.svg',
+      logoLoginDark: '/custom-login-dark.svg',
+      shellTheme: 'felt',
+    }
+
+    afterEach(() => {
+      document.documentElement.classList.remove('pf-v6-theme-felt')
+    })
+
+    it('does not add pf-v6-theme-felt by default (community/upstream)', () => {
+      render(
+        <BrandProvider>
+          <BrandConsumer />
+        </BrandProvider>
+      )
+      expect(document.documentElement.classList.contains('pf-v6-theme-felt')).toBe(false)
+    })
+
+    it('adds pf-v6-theme-felt for downstream/product config', () => {
+      render(
+        <BrandProvider config={feltShellConfig}>
+          <BrandConsumer />
+        </BrandProvider>
+      )
+      expect(document.documentElement.classList.contains('pf-v6-theme-felt')).toBe(true)
+    })
+
+    it('removes pf-v6-theme-felt on unmount', () => {
+      const { unmount } = render(
+        <BrandProvider config={feltShellConfig}>
+          <BrandConsumer />
+        </BrandProvider>
+      )
+      expect(document.documentElement.classList.contains('pf-v6-theme-felt')).toBe(true)
+      unmount()
+      expect(document.documentElement.classList.contains('pf-v6-theme-felt')).toBe(false)
     })
   })
 })

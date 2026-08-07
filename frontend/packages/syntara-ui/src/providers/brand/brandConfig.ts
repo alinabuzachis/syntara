@@ -5,6 +5,8 @@ import { APP_TITLE } from '../../utils/appTitle'
 
 import { logoLoginDark, logoLoginLight } from './loginBrandAssets'
 
+export type ShellTheme = 'default' | 'felt'
+
 export type BrandConfig = {
   appTitle: string
   faviconPath: string
@@ -13,15 +15,18 @@ export type BrandConfig = {
   logoCollapsed: string
   logoLoginLight: string
   logoLoginDark: string
+  shellTheme: ShellTheme
 }
 
 /**
- * Community (Syntara) defaults. Product builds override these by injecting
- * brand assets from a downstream overlay repo before `vite build`
- * (and optionally passing a `config` prop to `BrandProvider`).
+ * Default brand config for this tree.
  *
- * `index.html` already points at the community favicon (`icon.svg`); `BrandProvider`
- * still syncs `link[rel="icon"]` at runtime so a swapped `faviconPath` applies.
+ * `index.html` points at the community favicon (`icon.svg`); `BrandProvider`
+ * syncs `link[rel="icon"]` at runtime when `faviconPath` changes.
+ *
+ * Shell background uses PatternFly glass themes on `<html>`:
+ * - `'default'` → generic glass
+ * - `'felt'` → Project Felt (`pf-v6-theme-felt`)
  */
 
 export const defaultBrandConfig: BrandConfig = {
@@ -32,4 +37,5 @@ export const defaultBrandConfig: BrandConfig = {
   logoCollapsed: icon,
   logoLoginLight,
   logoLoginDark,
+  shellTheme: 'default',
 }
