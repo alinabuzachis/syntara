@@ -88,6 +88,7 @@ def _agentic_node(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.xfail(strict=False, reason="OpenRouter insufficient credits")
 def test_basic_prompt_completion(
     nexus_api: SyntaraApiRegistry,
     llm_credential_id: str,
@@ -408,6 +409,7 @@ def test_agentic_input_from_upstream_node(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.xfail(strict=False, reason="OpenRouter insufficient credits")
 def test_agentic_output_consumed_by_downstream(
     nexus_api: SyntaraApiRegistry,
     llm_credential_id: str,
@@ -464,6 +466,7 @@ def test_agentic_output_consumed_by_downstream(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.xfail(strict=False, reason="OpenRouter insufficient credits")
 def test_agentic_with_tool_selection_none(
     nexus_api: SyntaraApiRegistry,
     llm_credential_id: str,
@@ -656,6 +659,7 @@ def test_agentic_short_timeout_reaches_terminal_state(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.xfail(strict=False, reason="OpenRouter insufficient credits")
 def test_agentic_in_loop(
     nexus_api: SyntaraApiRegistry,
     llm_credential_id: str,
@@ -709,6 +713,7 @@ def test_agentic_in_loop(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.xfail(strict=False, reason="OpenRouter insufficient credits")
 def test_agentic_in_condition_true_branch(
     nexus_api: SyntaraApiRegistry,
     llm_credential_id: str,
