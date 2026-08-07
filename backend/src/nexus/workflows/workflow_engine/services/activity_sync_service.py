@@ -16,8 +16,10 @@ from uuid import UUID
 import structlog
 from jsonpatch import JsonPatch  # type: ignore[import-untyped]
 from sqlalchemy import or_
+from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 from temporalio.api.enums.v1 import EventType, PendingActivityState
 from temporalio.api.history.v1 import HistoryEvent
 from temporalio.client import Client, WorkflowHandle, WorkflowHistoryEventFilterType
@@ -72,6 +74,8 @@ _DESCRIBE_PROBE_MAX_TASKS = 25
 _ITER_SUFFIX_RE = re.compile(r"_iter_\d+$")
 _ITER_CAPTURE_RE = re.compile(r"_iter_(\d+)$")
 
+# Wire-format separator for per-iteration composite keys (e.g. "body-1#iter-2").
+# Mirrored in frontend: packages/syntara-ui/src/routes/workflows/execution/utils/activityState.ts
 _COMPOSITE_ITER_SEP = "#iter-"
 
 _PENDING_ACTIVITY_STATE_STARTED = PendingActivityState.PENDING_ACTIVITY_STATE_STARTED
@@ -149,7 +153,7 @@ class ActivitySyncService:
     def __init__(
         self,
         temporal_client: Client,
-        session_factory: Any,  # noqa: ANN401 # async_sessionmaker type not directly importable
+        session_factory: async_sessionmaker[AsyncSession],
         activity_publisher: ActivityUpdatePublisher | None = None,
     ) -> None:
         """Initialize activity sync service.
@@ -1969,7 +1973,7 @@ class ActivitySyncService:
         handle: WorkflowHandle[Any, Any],
         activity_data: dict[str, Any],
         existing_activities: dict[str, ActivityExecution],
-        session: Any,  # noqa: ANN401
+        session: AsyncSession,
     ) -> tuple[ActivityExecution, dict[str, Any], bool] | None:
         """Process a single activity update for database sync.
 
@@ -2069,7 +2073,7 @@ class ActivitySyncService:
         activity_id: str,
         existing_activities: dict[str, ActivityExecution],
         metadata: ExecutionMonitorMetadata,
-        session: Any,  # noqa: ANN401
+        session: AsyncSession,
     ) -> tuple[ActivityExecution | None, bool]:
         """Get or create a per-iteration ActivityExecution record for a loop body child.
 
@@ -2275,8 +2279,8 @@ class ActivitySyncService:
                 )
 
                 # Update execution's last processed event ID
-                result = await session.exec(select(Execution).where(Execution.id == metadata.execution_id))
-                execution = result.one_or_none()
+                exec_result = await session.exec(select(Execution).where(Execution.id == metadata.execution_id))
+                execution = exec_result.one_or_none()
                 if execution:
                     execution.last_processed_event_id = metadata.last_processed_event_id
 

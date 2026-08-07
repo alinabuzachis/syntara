@@ -14,11 +14,14 @@ test.beforeAll(async ({ browser }) => {
     const projectId = project?.id
 
     for (let i = 1; i <= 22; i++) {
-      const wf = await createWorkflowViaApi(page, {
-        name: `${prefix}-workflow-${i}`,
-        projectId,
-        token,
-      })
+      let wf: SeededWorkflow | null = null
+      for (let attempt = 0; attempt < 3 && !wf; attempt++) {
+        wf = await createWorkflowViaApi(page, {
+          name: `${prefix}-workflow-${i}`,
+          projectId,
+          token,
+        })
+      }
       if (wf) seededWorkflows.push(wf)
     }
   }
@@ -162,10 +165,13 @@ test.describe('Workflow Filtering', () => {
     const paginationWorkflows: SeededWorkflow[] = []
 
     for (let i = 1; i <= 22; i++) {
-      const wf = await createWorkflowViaApi(app, {
-        name: `${prefix}-workflow-${i}`,
-        projectId,
-      })
+      let wf: SeededWorkflow | null = null
+      for (let attempt = 0; attempt < 3 && !wf; attempt++) {
+        wf = await createWorkflowViaApi(app, {
+          name: `${prefix}-workflow-${i}`,
+          projectId,
+        })
+      }
       if (wf) paginationWorkflows.push(wf)
     }
     expect(paginationWorkflows).toHaveLength(22)

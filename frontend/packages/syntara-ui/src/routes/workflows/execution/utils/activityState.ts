@@ -345,6 +345,10 @@ export function buildActivityStateMap(
   return map
 }
 
+// Wire-format separator for per-iteration composite keys (e.g. "body-1#iter-2").
+// Mirrored in backend: src/nexus/workflows/workflow_engine/services/activity_sync_service.py
+const COMPOSITE_ITER_SEP = '#iter-'
+
 /**
  * Parse a composite activity key into base node ID and iteration number.
  *
@@ -352,9 +356,9 @@ export function buildActivityStateMap(
  * Non-composite keys return the original ID with ``iteration: undefined``.
  */
 export function parseCompositeKey(activityId: string): { baseId: string; iteration?: number } {
-  const hashIdx = activityId.indexOf('#iter-')
+  const hashIdx = activityId.indexOf(COMPOSITE_ITER_SEP)
   if (hashIdx === -1) return { baseId: activityId }
-  const parsed = Number(activityId.slice(hashIdx + 6))
+  const parsed = Number(activityId.slice(hashIdx + COMPOSITE_ITER_SEP.length))
   return {
     baseId: activityId.slice(0, hashIdx),
     iteration: Number.isFinite(parsed) ? parsed : undefined,

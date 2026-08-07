@@ -1,7 +1,13 @@
 import { type Locator, type Page, type Response } from '@playwright/test'
 
 import { expect, toAppUrl } from '../fixtures'
-import { createCredentialViaApi, deleteCredentialViaApi, ensureProject, listCredentialsByName } from '../utils/api'
+import {
+  apiRequest,
+  createCredentialViaApi,
+  deleteCredentialViaApi,
+  ensureProject,
+  listCredentialsByName,
+} from '../utils/api'
 
 import { buildUniqueName, selectFirstProject } from './workflows'
 
@@ -64,7 +70,12 @@ export async function createTestCredential(
     const credId = await createCredentialViaApi(app, { name, projectId: project.id })
     if (credId) {
       if (options.enabled === false) {
-        await disableCredential(app, name)
+        const resp = await apiRequest(app, 'patch', `/credentials/${credId}`, {
+          data: { enabled: false },
+        })
+        if (!resp.ok()) {
+          await disableCredential(app, name)
+        }
       }
       return { name, id: credId }
     }

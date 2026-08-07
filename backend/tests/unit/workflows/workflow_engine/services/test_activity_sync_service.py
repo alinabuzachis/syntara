@@ -1849,6 +1849,37 @@ class TestLoopIterationSync:
         assert activity.status == ActivityStatus.COMPLETED
 
     @pytest.mark.asyncio
+    async def test_failed_loop_control_node_preserves_failed_status(self) -> None:
+        """A FAILED loop control node must not be overridden to RUNNING by a subsequent event."""
+        activity = self._create_mock_activity_execution(activity_name="loop-node", status=ActivityStatus.FAILED)
+        activity.error_details = "connection timeout"
+        self._mock_session_with_activities([activity])
+        handle = self._create_mock_handle(output_data={"iteration_count": 1})
+
+        metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            activity_index_map={"loop-node": 0},
+            pending_activity_updates={
+                10: {
+                    "activity_id": "loop-node",
+                    "activity_name": "loop-node",
+                    "_is_loop_iteration": True,
+                    "_is_loop_control": True,
+                    "status": ActivityStatus.COMPLETED,
+                    "started_at": datetime.now(UTC),
+                    "completed_at": datetime.now(UTC),
+                    "error_details": None,
+                    "retry_count": 0,
+                },
+            },
+        )
+
+        await self.service._sync_activities_to_db(metadata, handle)
+
+        assert activity.status == ActivityStatus.FAILED
+        assert activity.error_details == "connection timeout"
+
+    @pytest.mark.asyncio
     async def test_body_node_keeps_real_terminal_status(self) -> None:
         """A loop body node (not control) keeps its real status, not overridden to RUNNING."""
         activity = self._create_mock_activity_execution(activity_name="body-node", status=ActivityStatus.PENDING)

@@ -1,4 +1,4 @@
-import type { Activity } from '@syntara/contracts'
+import { EdgeHandleEnum, type Activity } from '@syntara/contracts'
 import { describe, expect, it } from 'vitest'
 
 import type { ActivityState } from '../../../../workflows/execution/types'
@@ -812,6 +812,60 @@ describe('ExecutionStateEnricher', () => {
       const result = enricher.determineEdgeStatus(edge, activityStates, activities, undefined, [])
 
       expect(result).toBe('passed')
+    })
+
+    it('uses latest iteration state for loop body edges with composite keys', () => {
+      const edges: EdgeConnection[] = [
+        { id: 'e-loop-body1', source: 'loop-1', target: 'body-1', sourceHandle: EdgeHandleEnum.LOOP },
+        { id: 'e-body1-body2', source: 'body-1', target: 'body-2', sourceHandle: EdgeHandleEnum.SOURCE },
+      ]
+      const activityStates = new Map<string, ActivityState>([
+        [
+          'loop-1',
+          {
+            activityId: 'loop-1',
+            status: 'running',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: null,
+          },
+        ],
+        [
+          'body-1',
+          {
+            activityId: 'body-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:01Z',
+            completedAt: '2024-01-01T00:00:02Z',
+            iteration: 0,
+          },
+        ],
+        [
+          'body-1#iter-1',
+          {
+            activityId: 'body-1#iter-1',
+            status: 'running',
+            startedAt: '2024-01-01T00:01:00Z',
+            completedAt: null,
+            iteration: 1,
+          },
+        ],
+        [
+          'body-2',
+          {
+            activityId: 'body-2',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:02Z',
+            completedAt: '2024-01-01T00:00:03Z',
+            iteration: 0,
+          },
+        ],
+      ])
+
+      const edge = { source: 'body-1', target: 'body-2', sourceHandle: EdgeHandleEnum.SOURCE }
+      const result = enricher.determineEdgeStatus(edge, activityStates, undefined, undefined, edges)
+
+      // body-1's latest iteration (#iter-1) is running, not terminal — edge should be pending
+      expect(result).toBe('pending')
     })
   })
 
