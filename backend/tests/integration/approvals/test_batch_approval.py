@@ -387,7 +387,7 @@ class TestBatchApprovalContract:
             title="Request Validation Error",
             detail=(
                 "Validation failed: decisions -> 0 -> approval_id: Input should be a valid UUID, "
-                "invalid character: expected an optional prefix of `urn:uuid:` followed by [0-9a-fA-F-], found `n` at 1"
+                "invalid character: found `n` at 1"
             ),
             code="REQUEST_VALIDATION_ERROR",
             retryable=False,

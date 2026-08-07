@@ -23,7 +23,7 @@ import pytest
 import sqlalchemy
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
-from testcontainers.core.docker_client import DockerClient  # type: ignore[import-untyped]
+from testcontainers.core.docker_client import DockerClient
 
 from nexus.core.database.ssl import build_ssl_connect_args
 from tests.fixtures.tls import generate_ca, generate_server_cert

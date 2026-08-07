@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 import structlog
-from testcontainers.redis import RedisContainer  # type: ignore[import-untyped]
+from testcontainers.redis import RedisContainer
 
 from nexus.core.config.base import get_settings
 

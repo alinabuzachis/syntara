@@ -135,12 +135,15 @@ Never commit only pyproject.toml or only uv.lock. All three files must be synchr
 
 ### Automated Updates (Renovate)
 
-Renovate bot automatically creates PRs for dependency updates:
+MintMaker (Renovate) automatically creates PRs for dependency updates:
 
-- Schedule: before 6am Monday
+- Schedule: before 6am on Monday (weekly)
 - Strategy: `in-range-only` (only updates within declared version ranges)
-- Grouping: all Python dependencies grouped into a single PR
+- Grouping:
+  - **Minor/patch** updates grouped into a single PR (`python dependencies (minor)`)
+  - **Major** updates grouped into a separate PR (`python dependencies (major)`)
 - Auto-merge: **disabled** - all PRs require manual review and approval
+- `requirements.txt` is **not** managed by Renovate directly (it is a generated file). The `konflux-requirements-sync.yml` GitHub Action auto-syncs it when `uv.lock` changes in MintMaker PRs.
 
 Review Renovate PRs for:
 - Breaking changes in release notes

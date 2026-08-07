@@ -153,7 +153,15 @@ export interface components {
       /** Components */
       components?: components['schemas']['ComponentKPISummary'][]
     }
-    /** MetricRecord */
+    /**
+     * MetricRecord
+     * @description Lightweight in-memory metric data point.
+     *
+     *
+     *       Uses a slotted dataclass instead of SQLModel to reduce per-instance
+     *
+     *       memory from ~4.1KB to ~72 bytes.  This record never touches a database.
+     */
     MetricRecord: {
       metric_type: components['schemas']['MetricType']
       /** Value */

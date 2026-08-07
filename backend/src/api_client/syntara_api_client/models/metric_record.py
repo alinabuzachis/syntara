@@ -21,17 +21,23 @@ T = TypeVar("T", bound="MetricRecord")
 
 @_attrs_define
 class MetricRecord:
-    """
-    Attributes:
-        metric_type (MetricType): Categories of metrics recorded by Nexus.
+    """Lightweight in-memory metric data point.
 
-            Each value corresponds to a specific measurable quantity exposed via the
-            metrics REST API and (where applicable) Prometheus endpoint.
-        value (float):
-        unit (str | Unset):  Default: ''.
-        labels (MetricRecordLabels | Unset):
-        id (UUID | Unset):
-        created_at (datetime.datetime | Unset):
+
+    Uses a slotted dataclass instead of SQLModel to reduce per-instance
+
+    memory from ~4.1KB to ~72 bytes.  This record never touches a database.
+
+      Attributes:
+          metric_type (MetricType): Categories of metrics recorded by Nexus.
+
+              Each value corresponds to a specific measurable quantity exposed via the
+              metrics REST API and (where applicable) Prometheus endpoint.
+          value (float):
+          unit (str | Unset):  Default: ''.
+          labels (MetricRecordLabels | Unset):
+          id (UUID | Unset):
+          created_at (datetime.datetime | Unset):
     """
 
     metric_type: MetricType

@@ -16,7 +16,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 from sqlmodel.ext.asyncio.session import AsyncSession
-from testcontainers.postgres import PostgresContainer  # type: ignore[import-untyped]
+from testcontainers.postgres import PostgresContainer
 
 from nexus.core.config.base import get_settings
 

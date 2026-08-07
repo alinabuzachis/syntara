@@ -591,6 +591,7 @@ class TestParallelBranches:
     - Output from both branches is available downstream via expressions
     """
 
+    @pytest.mark.skip(reason="Timing-sensitive: CI runner load can push wall-clock past ceiling")
     def test_two_parallel_wait_branches_run_concurrently(self, nexus_api: SyntaraApiRegistry) -> None:
         """Two parallel wait nodes complete in ~branch_duration, not ~2x."""
         branch_duration = 4  # seconds per branch

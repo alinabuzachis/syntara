@@ -292,6 +292,7 @@ components:
       title: KPIDashboard
       description: Full KPI dashboard covering all Nexus components.
     MetricRecord:
+      description: "Lightweight in-memory metric data point.\n\n\n  Uses a slotted dataclass instead of SQLModel to reduce per-instance\n\n  memory from ~4.1KB to ~72 bytes.  This record never touches a database."
       properties:
         metric_type:
           $ref: '#/components/schemas/MetricType'
