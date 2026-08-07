@@ -16,6 +16,7 @@ import { useAlerts } from '../../providers/alerts'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
+import { PrincipalNameCell } from '../access-management/PrincipalNameCell'
 import { RolePrincipalType, principalTypeDisplay } from '../access-management/RoleAssignmentTypes'
 
 import { accessClient } from './accessClient'
@@ -143,7 +144,11 @@ function AssignmentsTableBody({
         {rows.map((row) => (
           <Tr key={`${row.sourceEndpoint}-${row.id}`}>
             <Td dataLabel="Principal name">
-              <Truncate content={row.principalName} />
+              <PrincipalNameCell
+                principalType={row.principalType}
+                principalId={row.principalId}
+                name={row.principalName}
+              />
             </Td>
             <Td dataLabel="Principal type">
               <NxLabel color={principalTypeDisplay[row.principalType].color}>

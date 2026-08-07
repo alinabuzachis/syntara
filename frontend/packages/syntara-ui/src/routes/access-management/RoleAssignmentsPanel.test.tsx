@@ -815,6 +815,24 @@ describe('RoleAssignmentsPanel', () => {
       expect(screen.getByText('Project Alpha')).toBeInTheDocument()
     })
 
+    it('links project-scoped assignment project names to project detail', () => {
+      render(<RoleAssignmentsPanel principalType="service_account" principalId="sa-1" />, { wrapper })
+
+      expect(screen.getByRole('link', { name: 'Project Alpha' })).toHaveAttribute(
+        'href',
+        '/system-administration/access-management/projects/proj1'
+      )
+    })
+
+    it('keeps system-scoped assignment project column as plain text', () => {
+      render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
+
+      expect(screen.queryByRole('link', { name: 'System' })).not.toBeInTheDocument()
+      const table = screen.getByRole('grid', { name: 'Role assignments table' })
+      const rows = within(table).getAllByRole('row')
+      expect(within(rows[1]).getByText('-')).toBeInTheDocument()
+    })
+
     it('shows empty state for SA with no assignments', () => {
       setupMocks({ serviceAccountAssignments: [] })
       render(<RoleAssignmentsPanel principalType="service_account" principalId="sa-1" />, { wrapper })

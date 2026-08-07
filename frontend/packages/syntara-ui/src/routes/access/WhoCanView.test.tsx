@@ -177,6 +177,29 @@ describe('WhoCanView', () => {
     expect(screen.getByText('bob')).toBeInTheDocument()
   })
 
+  it('links usernames to user detail pages', () => {
+    mockMutationState({
+      isSuccess: true,
+      data: {
+        resources: [
+          { id: 'u1', username: 'alice' },
+          { id: 'u2', username: 'bob' },
+        ],
+      },
+    })
+
+    render(<WhoCanView {...sampleResourceActions} />, { wrapper })
+
+    expect(screen.getByRole('link', { name: 'alice' })).toHaveAttribute(
+      'href',
+      '/system-administration/access-management/users/u1'
+    )
+    expect(screen.getByRole('link', { name: 'bob' })).toHaveAttribute(
+      'href',
+      '/system-administration/access-management/users/u2'
+    )
+  })
+
   it('shows warning when no users found', () => {
     mockMutationState({
       isSuccess: true,

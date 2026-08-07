@@ -11,6 +11,7 @@ import {
   Spinner,
   Stack,
   StackItem,
+  Truncate,
 } from '@patternfly/react-core'
 import { RhUiCaretLeftIcon, RhUiCaretRightIcon } from '@patternfly/react-icons'
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
@@ -20,7 +21,9 @@ import { z } from 'zod'
 
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { NxErrorState } from '../../components/states/NxErrorState'
+import { LinkCell } from '../../components/table/LinkCell'
 import { getErrorMessage } from '../../utils/apiErrors'
+import { getUserDetailPath } from '../access-management/accessManagementPaths'
 
 import { accessClient } from './accessClient'
 import { accessControlHelp } from './accessControlFieldHelp'
@@ -89,7 +92,11 @@ function WhoCanResults({
               <Tbody>
                 {users.map((u) => (
                   <Tr key={u.id}>
-                    <Td dataLabel="Username">{u.username}</Td>
+                    <Td dataLabel="Username">
+                      <LinkCell href={getUserDetailPath(u.id)}>
+                        <Truncate content={u.username} />
+                      </LinkCell>
+                    </Td>
                   </Tr>
                 ))}
               </Tbody>

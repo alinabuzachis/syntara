@@ -148,6 +148,23 @@ describe('UserGroupsPanel', () => {
       expect(within(rows[3]).getByText('developers')).toBeInTheDocument()
     })
 
+    it('links group names to group detail pages', () => {
+      render(<UserGroupsPanel userId="user-123" />, { wrapper })
+
+      expect(screen.getByRole('link', { name: 'authenticated' })).toHaveAttribute(
+        'href',
+        '/system-administration/access-management/groups/g-auth'
+      )
+      expect(screen.getByRole('link', { name: 'platform-admins' })).toHaveAttribute(
+        'href',
+        '/system-administration/access-management/groups/g1'
+      )
+      expect(screen.getByRole('link', { name: 'developers' })).toHaveAttribute(
+        'href',
+        '/system-administration/access-management/groups/g2'
+      )
+    })
+
     it('displays group descriptions and handles null description', () => {
       render(<UserGroupsPanel userId="user-123" />, { wrapper })
 

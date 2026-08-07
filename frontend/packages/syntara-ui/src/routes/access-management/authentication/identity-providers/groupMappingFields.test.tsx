@@ -351,6 +351,21 @@ describe('MappingRow', () => {
       expect(screen.getByText('admin')).toBeInTheDocument()
     })
 
+    it('links Nexus group names to group detail pages', () => {
+      render(
+        <table>
+          <tbody>
+            <MappingRow {...defaultProps} isReadOnly readOnlyPlainCells />
+          </tbody>
+        </table>
+      )
+
+      expect(screen.getByRole('link', { name: 'admin' })).toHaveAttribute(
+        'href',
+        '/system-administration/access-management/groups/g1'
+      )
+    })
+
     it('shows remove button when readOnlyAllowRemove is true', () => {
       render(
         <table>

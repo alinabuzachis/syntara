@@ -32,6 +32,7 @@ import { NxPanelContentStack } from '../../../components/layout/NxPanelContentSt
 import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
 import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../../components/states/useQueryState'
+import { LinkCell } from '../../../components/table/LinkCell'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import { useFilterState } from '../../../hooks/useFilterState'
 import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
@@ -43,6 +44,7 @@ import { detachPromise } from '../../../utils/detachPromise'
 import { accessClient } from '../../access/accessClient'
 import { TypeaheadSelect } from '../../access/TypeaheadSelect'
 import { useAllGroups } from '../../access/useAllGroups'
+import { getGroupDetailPath } from '../accessManagementPaths'
 import { BUILTIN_AUTHENTICATED_GROUP_NAME } from '../adminConstants'
 import { MembershipSourceLabels } from '../MembershipSourceLabels'
 import { getMembershipSources } from '../membershipSourceUtils'
@@ -378,7 +380,13 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
               {paginatedGroups.map((group) => (
                 <Tr key={group.id}>
                   <Td dataLabel="Name">
-                    <Truncate content={group.name} />
+                    {group.id ? (
+                      <LinkCell href={getGroupDetailPath(group.id)}>
+                        <Truncate content={group.name} />
+                      </LinkCell>
+                    ) : (
+                      <Truncate content={group.name} />
+                    )}
                     {group.name === BUILTIN_AUTHENTICATED_GROUP_NAME && (
                       <>
                         {' '}

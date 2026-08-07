@@ -126,6 +126,19 @@ describe('GroupMembersPanel', () => {
       expect(screen.getByText('bob')).toBeInTheDocument()
     })
 
+    it('links usernames to user detail pages', () => {
+      render(<GroupMembersPanel {...defaultProps} />, { wrapper })
+
+      expect(screen.getByRole('link', { name: 'alice' })).toHaveAttribute(
+        'href',
+        '/system-administration/access-management/users/u1'
+      )
+      expect(screen.getByRole('link', { name: 'bob' })).toHaveAttribute(
+        'href',
+        '/system-administration/access-management/users/u2'
+      )
+    })
+
     it('renders table column headers', () => {
       render(<GroupMembersPanel {...defaultProps} />, { wrapper })
 

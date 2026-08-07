@@ -24,6 +24,7 @@ import { derivePrincipalType } from '../../access/assignmentUtils'
 import type { RoleAssignmentRead } from '../../access/types'
 import { useAssignmentPermissions } from '../../access/useAssignmentPermissions'
 import { useRolePermissions } from '../../access/useRolePermissions'
+import { PrincipalNameCell } from '../PrincipalNameCell'
 import { principalTypeDisplay } from '../RoleAssignmentTypes'
 
 import { AddProjectRoleDialog } from './AddProjectRoleDialog'
@@ -89,11 +90,17 @@ function RoleAssignmentsTable({
       </Thead>
       <Tbody>
         {assignments.map((assignment) => {
-          const { color, text } = principalTypeDisplay[derivePrincipalType(assignment)]
+          const principalType = derivePrincipalType(assignment)
+          const { color, text } = principalTypeDisplay[principalType]
+          const principalId = assignment.principal_id ?? assignment.group_id ?? ''
           return (
             <Tr key={assignment.id}>
               <Td dataLabel="Principal name">
-                <Truncate content={assignment.principal_name} />
+                <PrincipalNameCell
+                  principalType={principalType}
+                  principalId={principalId}
+                  name={assignment.principal_name}
+                />
               </Td>
               <Td dataLabel="Principal type">
                 <NxLabel color={color}>{text}</NxLabel>

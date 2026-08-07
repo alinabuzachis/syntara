@@ -25,7 +25,9 @@ import {
 import { Controller, useWatch, type Control } from 'react-hook-form'
 
 import { NxSelect } from '../../../../components/NxSelect'
+import { LinkCell } from '../../../../components/table/LinkCell'
 import { APP_TITLE } from '../../../../utils/appTitle'
+import { getGroupDetailPath } from '../../accessManagementPaths'
 
 import type { GroupMappingEditFormValues } from './groupMappingEditFormSchema'
 import type { GroupMappingEntry, NexusGroup } from './groupMappingUtils'
@@ -293,7 +295,11 @@ export function MappingRow({
           <Content>{idpDisplay}</Content>
         </Td>
         <Td dataLabel={`${APP_TITLE} Group`}>
-          <Content>{groupDisplay}</Content>
+          {entry.nexusGroupId !== '' && groupName !== '' ? (
+            <LinkCell href={getGroupDetailPath(entry.nexusGroupId)}>{groupDisplay}</LinkCell>
+          ) : (
+            <Content>{groupDisplay}</Content>
+          )}
         </Td>
         {showActionColumn && (
           <Td isActionCell>

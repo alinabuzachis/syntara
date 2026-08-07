@@ -16,6 +16,7 @@ import { NxEmptyStateFilter } from '../../components/states/NxEmptyStateFilter'
 import { NxEmptyStateNoData } from '../../components/states/NxEmptyStateNoData'
 import { NxErrorState } from '../../components/states/NxErrorState'
 import { NxLoadingState } from '../../components/states/NxLoadingState'
+import { LinkCell } from '../../components/table/LinkCell'
 import { NxScrollableTableContainer } from '../../components/table/NxScrollableTableContainer'
 import { invalidateAuthzCaches } from '../../hooks/invalidateAuthzCaches'
 import { useColumnSortState } from '../../hooks/useColumnSortState'
@@ -26,6 +27,7 @@ import { getErrorMessage } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
 import { useAssignmentPermissions } from '../access/useAssignmentPermissions'
 
+import { getProjectDetailPath } from './accessManagementPaths'
 import { AssignRoleModal } from './AssignRoleModal'
 import type { RoleAssignmentColumnKey, ColumnDefinition } from './roleAssignmentColumns'
 import {
@@ -134,7 +136,17 @@ function RoleAssignmentsTable({
                 </NxLabel>
               </Td>
             )}
-            {isVisible('project') && <Td dataLabel="Project">{row.scopeType === 'project' ? row.scope : '-'}</Td>}
+            {isVisible('project') && (
+              <Td dataLabel="Project">
+                {row.scopeType === 'project' && row.projectId ? (
+                  <LinkCell href={getProjectDetailPath(row.projectId)}>
+                    <Truncate content={row.scope} />
+                  </LinkCell>
+                ) : (
+                  '-'
+                )}
+              </Td>
+            )}
             {isVisible('policies') && (
               <Td dataLabel="Policies">
                 {row.policies.length > 0 ? (

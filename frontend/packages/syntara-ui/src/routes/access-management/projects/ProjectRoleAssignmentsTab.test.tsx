@@ -286,6 +286,20 @@ describe('ProjectRoleAssignmentsTab', () => {
     expect(screen.getAllByText('alice')).toHaveLength(2)
   })
 
+  it('links principal names to user and group detail pages', () => {
+    render(<ProjectRoleAssignmentsTab projectId="proj-1" />, { wrapper })
+
+    const aliceLinks = screen.getAllByRole('link', { name: 'alice' })
+    expect(aliceLinks).toHaveLength(2)
+    for (const link of aliceLinks) {
+      expect(link).toHaveAttribute('href', '/system-administration/access-management/users/u1')
+    }
+    expect(screen.getByRole('link', { name: 'devs' })).toHaveAttribute(
+      'href',
+      '/system-administration/access-management/groups/g1'
+    )
+  })
+
   it('shows User and Group type labels', () => {
     render(<ProjectRoleAssignmentsTab projectId="proj-1" />, { wrapper })
 
@@ -314,7 +328,10 @@ describe('ProjectRoleAssignmentsTab', () => {
     expect(screen.getByText('Service account', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
     expect(screen.getAllByText('User', { selector: '.pf-v6-c-label__text' }).length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('Group', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument()
-    expect(screen.getByText('ci-bot')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'ci-bot' })).toHaveAttribute(
+      'href',
+      '/system-administration/access-management/service-accounts/sa-1'
+    )
   })
 
   it('renders policy labels for assignments with policies', () => {

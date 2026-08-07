@@ -13,6 +13,7 @@ import { NxPanelContentStack } from '../../../components/layout/NxPanelContentSt
 import { NxEmptyStateFilter } from '../../../components/states/NxEmptyStateFilter'
 import { NxEmptyStateNoData } from '../../../components/states/NxEmptyStateNoData'
 import { useQueryState } from '../../../components/states/useQueryState'
+import { LinkCell } from '../../../components/table/LinkCell'
 import { NxScrollableTableContainer } from '../../../components/table/NxScrollableTableContainer'
 import { useFilterState } from '../../../hooks/useFilterState'
 import { useAlerts } from '../../../providers/alerts'
@@ -21,6 +22,7 @@ import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import { accessClient } from '../../access/accessClient'
+import { getUserDetailPath } from '../accessManagementPaths'
 import { DisabledBadge } from '../DisabledBadge'
 import { MembershipSourceLabels } from '../MembershipSourceLabels'
 import { getMembershipSources } from '../membershipSourceUtils'
@@ -236,7 +238,9 @@ export function GroupMembersPanel({ groupId, onMembershipChange }: Readonly<Grou
               {paginatedMembers.map((member) => (
                 <Tr key={member.id}>
                   <Td dataLabel="Username">
-                    <Truncate content={member.username} />
+                    <LinkCell href={getUserDetailPath(member.id)}>
+                      <Truncate content={member.username} />
+                    </LinkCell>
                     {!member.is_enabled && <DisabledBadge />}
                   </Td>
                   <Td dataLabel="Name">

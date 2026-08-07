@@ -231,6 +231,27 @@ describe('AssignmentsTab', () => {
       expect(screen.getByText('bob')).toBeInTheDocument()
     })
 
+    it('links principal names to user, group, and service account detail pages', () => {
+      render(<AssignmentsTab />, { wrapper })
+
+      expect(screen.getByRole('link', { name: 'alice' })).toHaveAttribute(
+        'href',
+        '/system-administration/access-management/users/u1'
+      )
+      expect(screen.getByRole('link', { name: 'Devs' })).toHaveAttribute(
+        'href',
+        '/system-administration/access-management/groups/g1'
+      )
+      expect(screen.getByRole('link', { name: 'bob' })).toHaveAttribute(
+        'href',
+        '/system-administration/access-management/users/u2'
+      )
+      expect(screen.getByRole('link', { name: 'my-service-account' })).toHaveAttribute(
+        'href',
+        '/system-administration/access-management/service-accounts/sa-1'
+      )
+    })
+
     it('renders column headers', () => {
       render(<AssignmentsTab />, { wrapper })
 
