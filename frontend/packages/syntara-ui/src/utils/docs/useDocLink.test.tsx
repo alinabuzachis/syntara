@@ -7,6 +7,18 @@ import docsUrls from './docsUrls.json' with { type: 'json' }
 import type { DocKey } from './types'
 import { resolveDocUrl, useDocLink } from './useDocLink'
 
+vi.mock('./loadDocsConfig', async (importOriginal) => {
+  const base = await import('./docsConfig.json')
+  const actual = await importOriginal<typeof import('./loadDocsConfig')>()
+  return {
+    ...actual,
+    docsConfig: {
+      communityBaseUrl: base.default.communityBaseUrl,
+      version: base.default.version,
+    },
+  }
+})
+
 const COMMUNITY_README = 'https://github.com/syntara-orchestration/syntara/blob/devel/README.md'
 
 const PRODUCT_BASE = 'https://example.invalid/docs/{version}/'

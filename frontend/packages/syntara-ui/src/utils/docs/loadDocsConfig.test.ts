@@ -2,26 +2,20 @@ import { describe, expect, it } from 'vitest'
 
 import baseDocsConfig from './docsConfig.json' with { type: 'json' }
 import baseDocsUrls from './docsUrls.json' with { type: 'json' }
-import {
-  docsConfig,
-  docsUrls,
-  mergeDocsConfig,
-  mergeDocsUrls,
-  parseDocsConfigOverlay,
-  parseDocsUrlsOverlay,
-} from './loadDocsConfig'
+import { mergeDocsConfig, mergeDocsUrls, parseDocsConfigOverlay, parseDocsUrlsOverlay } from './loadDocsConfig'
 
-describe('loadDocsConfig (no overlay in upstream tree)', () => {
-  it('exports base docsConfig without productBaseUrl', () => {
-    expect(docsConfig).toEqual({
+describe('loadDocsConfig (no overlay)', () => {
+  it('mergeDocsConfig without overlay omits productBaseUrl', () => {
+    const config = mergeDocsConfig(baseDocsConfig, undefined)
+    expect(config).toEqual({
       communityBaseUrl: baseDocsConfig.communityBaseUrl,
       version: baseDocsConfig.version,
     })
-    expect(docsConfig.productBaseUrl).toBeUndefined()
+    expect(config.productBaseUrl).toBeUndefined()
   })
 
-  it('exports base docsUrls unchanged', () => {
-    expect(docsUrls).toEqual(baseDocsUrls)
+  it('mergeDocsUrls without overlay returns base unchanged', () => {
+    expect(mergeDocsUrls(baseDocsUrls, undefined)).toEqual(baseDocsUrls)
   })
 })
 
