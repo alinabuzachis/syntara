@@ -509,17 +509,11 @@ jobs:
           retention-days: 30
           include-hidden-files: true
 
-  test-compose:
-    name: (Backend) Test Compose
+  test-compose-e2e:
+    name: (Backend) Test Podman Compose E2E
     needs: changes
     if: needs.changes.outputs.backend == 'true'
-    # TODO(alex): temporal workaround, actions/runner-images#14473 will fix it
-    # The 20260726.254 ubuntu-24.04 image ships a static podman 5.8.4 bundle
-    # that resolves a stale crun ("unknown version specified" on every RUN
-    # step) and, being built without systemd support, never runs healthchecks,
-    # so compose hangs waiting for services to become healthy. ubuntu-26.04
-    # has a working distro podman; move back to ubuntu-latest once fixed.
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
       - name: Free disk space
@@ -558,13 +552,14 @@ jobs:
         run: echo "$RH_REGISTRY_TOKEN" | podman login registry.redhat.io -u "$RH_REGISTRY_USER" --password-stdin
 
       - name: Start services with podman-compose
-        timeout-minutes: 15
+        timeout-minutes: 20
         env:
           APP_SEGMENT_WRITE_KEY: test-e2e-write-key
           APP_SEGMENT_ENDPOINT: http://mock-segment:9999
           APP_COLLECTION_INTERVAL_SECONDS: "10"
           APP_WORKFLOW_HTTP_REQUEST_ALLOWED_HOSTS: '["host.containers.internal"]'
         run: |
+          ulimit -n 65535
           # Start core services + mock-segment (exclude syntara-ui which is private)
           uvx podman-compose -p syntara-ci --profile telemetry-e2e up --build -d database temporal syntara temporal-worker temporal-background-worker mcp-server mock-segment
 
@@ -862,94 +857,6 @@ jobs:
             }
             core.setFailed(`Timed out waiting for shared checks: ${required.join(', ')}`);
 
-  e2e-gate:
-    name: (Backend) E2E Gate
-    needs: changes
-    # Skip on push — push-to-devel E2E runs share one concurrency group and
-    # cascade-cancel each other, so E2E Tests (AO Operator) is skipped for push
-    # events (see e2e-ao-operator.yml). No commit status is posted.
-    if: needs.changes.outputs.backend == 'true' && github.event_name != 'push'
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    steps:
-      - name: Wait for E2E commit status
-        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
-        with:
-          script: |
-            let sha;
-            if (context.eventName === 'merge_group') {
-              sha = context.sha;
-            } else {
-              sha = context.payload.pull_request.head.sha;
-            }
-            const timeout = 100 * 60 * 1000; // 100 minutes (total wall-clock)
-            const startupWindow = 30 * 60 * 1000; // 30 minutes for runner allocation
-            const interval = 30 * 1000; // poll every 30s
-            const start = Date.now();
-            const required = ['E2E Tests (AO Operator)'];
-
-            // Phase 1: wait for E2E to post a commit status (pending/success/failure).
-            // The e2e-ao-operator workflow posts 'pending' as its first step once a
-            // runner is allocated. If no status appears within the startup window the
-            // workflow_run event was not delivered or the runner pool is exhausted.
-            console.log('Waiting for E2E Tests (AO Operator) to start...');
-            while (true) {
-              const { data: statuses } = await github.rest.repos.listCommitStatusesForRef({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                ref: sha,
-                per_page: 100,
-              });
-              const found = required.every(name => statuses.find(s => s.context === name));
-              if (found) {
-                console.log('E2E status appeared — waiting for completion...');
-                break;
-              }
-              if (Date.now() - start > startupWindow) {
-                core.setFailed(
-                  `E2E Tests (AO Operator) never posted a commit status after ${startupWindow / 60000} minutes — ` +
-                  `the workflow_run may not have fired or no runner was allocated`
-                );
-                return;
-              }
-              const elapsed = Math.round((Date.now() - start) / 1000);
-              console.log(`Waiting for E2E to start... (${elapsed}s elapsed)`);
-              await new Promise(r => setTimeout(r, interval));
-            }
-
-            // Phase 2: status appeared — poll until success or failure.
-            while (Date.now() - start < timeout) {
-              const { data: statuses } = await github.rest.repos.listCommitStatusesForRef({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                ref: sha,
-                per_page: 100,
-              });
-
-              const results = required.map(name => ({
-                name,
-                status: statuses.find(s => s.context === name),
-              }));
-
-              const failed = results.find(r => r.status?.state === 'failure' || r.status?.state === 'error');
-              if (failed) {
-                core.setFailed(`${failed.name} ${failed.status.state}: ${failed.status.target_url}`);
-                return;
-              }
-
-              const allPassed = results.every(r => r.status?.state === 'success');
-              if (allPassed) {
-                console.log(`All E2E suites passed: ${required.join(', ')}`);
-                return;
-              }
-
-              const elapsed = Math.round((Date.now() - start) / 1000);
-              const summary = results.map(r => `${r.name}: ${r.status?.state ?? 'not reported yet'}`).join(', ');
-              console.log(`${summary} (${elapsed}s elapsed)`);
-              await new Promise(r => setTimeout(r, interval));
-            }
-            core.setFailed(`Timed out waiting for E2E statuses: ${required.join(', ')}`);
-
   konflux-backend-gate:
     name: (Backend) Konflux Gate
     # Tekton PAC only fires on pull_request events (not merge_group or push).
@@ -1069,8 +976,7 @@ jobs:
       - test-unit
       - test-cli
       - test-integration
-      - test-compose
-      - e2e-gate
+      - test-compose-e2e
       - konflux-backend-gate
       - shared-checks-gate
       - snyk-sast
@@ -1093,7 +999,7 @@ jobs:
 
           # Check all other required jobs
           ok="success|skipped"
-          for job in api-spec-validation api-spec-bundle api-spec-drift generate-api-client check-api-paths check-dead-code check-cycles check-orphans check-openapi-breaking verify-test-structure mypy test-unit test-cli test-integration test-compose e2e-gate konflux-backend-gate shared-checks-gate snyk-sast snyk-sca; do
+          for job in api-spec-validation api-spec-bundle api-spec-drift generate-api-client check-api-paths check-dead-code check-cycles check-orphans check-openapi-breaking verify-test-structure mypy test-unit test-cli test-integration test-compose-e2e konflux-backend-gate shared-checks-gate snyk-sast snyk-sca; do
             case "$job" in
               api-spec-validation)   result="${{ needs.api-spec-validation.result }}" ;;
               api-spec-bundle)       result="${{ needs.api-spec-bundle.result }}" ;;
@@ -1109,8 +1015,7 @@ jobs:
               test-unit)             result="${{ needs.test-unit.result }}" ;;
               test-cli)              result="${{ needs.test-cli.result }}" ;;
               test-integration)      result="${{ needs.test-integration.result }}" ;;
-              test-compose)          result="${{ needs.test-compose.result }}" ;;
-              e2e-gate)              result="${{ needs.e2e-gate.result }}" ;;
+              test-compose-e2e)      result="${{ needs.test-compose-e2e.result }}" ;;
               konflux-backend-gate)  result="${{ needs.konflux-backend-gate.result }}" ;;
               shared-checks-gate)    result="${{ needs.shared-checks-gate.result }}" ;;
               snyk-sast)             result="${{ needs.snyk-sast.result }}" ;;

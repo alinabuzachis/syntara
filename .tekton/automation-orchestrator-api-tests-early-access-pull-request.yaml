@@ -1,0 +1,62 @@
+---
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  annotations:
+    build.appstudio.openshift.io/repo: '{{source_url}}?rev={{revision}}'
+    build.appstudio.redhat.com/commit_sha: '{{revision}}'
+    build.appstudio.redhat.com/pull_request_number: '{{pull_request_number}}'
+    build.appstudio.redhat.com/target_branch: '{{target_branch}}'
+    pipelinesascode.tekton.dev/cancel-in-progress: "true"
+    pipelinesascode.tekton.dev/max-keep-runs: "3"
+    pipelinesascode.tekton.dev/on-cel-expression: >-
+      event == "pull_request" && target_branch == "early-access" &&
+      (files.all.exists(x, x.startsWith("backend/")) ||
+      ".tekton/automation-orchestrator-api-tests-early-access-pull-request.yaml".pathChanged())
+  creationTimestamp: null
+  labels:
+    appstudio.openshift.io/application: ansible-automation-orchestrator-early-access
+    appstudio.openshift.io/component: ansible-automation-orchestrator-backend-early-access
+    pipelines.appstudio.openshift.io/type: test
+  name: automation-orchestrator-api-tests-early-access-pull-request
+  namespace: nexus-tenant
+spec:
+  timeouts:
+    pipeline: "8h"
+    tasks: "6h"
+    finally: "2h"
+  params:
+    - name: git-url
+      value: '{{source_url}}'
+    - name: pipeline-github-org
+      value: '{{repo_owner}}'
+    - name: pipeline-github-repo
+      value: '{{repo_name}}'
+    - name: pipeline-github-pr-revision
+      value: '{{revision}}'
+    - name: pipeline-github-pr-number
+      value: '{{pull_request_number}}'
+  pipelineRef:
+    params:
+      - name: name
+        value: ao-api-tests
+      - name: bundle
+        value: quay.io/aap-ci/tekton-catalog/pipeline/test/ao-api-tests:0.1@sha256:6b24773b147242294ede80e08e0dffceb25a3af81f09823c4dc3a67a7e2e5b64
+      - name: kind
+        value: pipeline
+      - name: secret
+        value: quay-aap-ci-viewer
+    resolver: bundles
+
+  taskRunTemplate:
+    serviceAccountName: konflux-integration-runner
+
+  workspaces:
+    - name: workspace
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
