@@ -78,7 +78,7 @@ async def test_manual_trigger_in_workflow_definition_schema() -> None:
     assert len(manual_entries) == 1
 
 
-async def ***REMOVED***() -> None:
+async def test_manual_trigger_in_node_type_catalog() -> None:
     """Manual trigger should be listed in the node type catalog."""
     catalog_path = SCHEMA_DIR.parent / "catalog" / "node_type_catalog.json"
     with catalog_path.open() as f:

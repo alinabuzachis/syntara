@@ -443,7 +443,7 @@ class TestIntegrationScopedGetToolAuthz:
 class TestIntegrationScopedUpdateToolAuthz:
     """RBAC for PATCH /integrations/{integration_id}/tools/{tool_id}."""
 
-    async def ***REMOVED***(
+    async def test_user_cannot_update_integration_tool(
         self,
         auth_client: AsyncClient,
         test_tool: Tool,

@@ -537,7 +537,7 @@ class TestSetUserGroups:
         assert response.status_code == 401
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(
+    async def test_set_user_groups_non_admin_forbidden(
         self,
         base_client: AsyncClient,
         user_factory: Callable[..., Awaitable[User]],

@@ -83,7 +83,7 @@ class TestWorkflowReadFields:
         read = self._make_workflow_read()
         assert read.published_version_number is None
 
-    def ***REMOVED***(self) -> None:
+    def test_published_version_number_can_be_set(self) -> None:
         read = self._make_workflow_read(published_version_number=3)
         assert read.published_version_number == 3
 
@@ -141,7 +141,7 @@ class TestWorkflowVersionReadFields:
         )
         assert read.status == "published"
 
-    def ***REMOVED***(self) -> None:
+    def test_status_literal_previously_published(self) -> None:
         read = WorkflowVersionRead(
             id=uuid4(),
             workflow_id=uuid4(),

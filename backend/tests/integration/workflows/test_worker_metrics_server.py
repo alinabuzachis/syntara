@@ -90,7 +90,7 @@ class TestWorkerMetricsServer:
             server.shutdown()
             thread.join(timeout=2)
 
-    def ***REMOVED***(self) -> None:
+    def test_metrics_server_uses_configured_port(self) -> None:
         """The metrics server port is read from settings.metrics_worker_port."""
         settings = get_settings()
         assert isinstance(settings.metrics_worker_port, int)

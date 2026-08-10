@@ -272,7 +272,7 @@ class TestApplySchemaDefaults:
         apply_schema_defaults(data, self.SCHEMA)
         assert data == {"version": "latest", "timeout": 30}
 
-    def ***REMOVED***(self) -> None:
+    def test_partial_input_gets_missing_defaults(self) -> None:
         data = {"version": "1.0"}
         apply_schema_defaults(data, self.SCHEMA)
         assert data == {"version": "1.0", "timeout": 30}

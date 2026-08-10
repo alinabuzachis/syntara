@@ -56,7 +56,7 @@ class TestWorkflowVersionUpdate:
         assert update.change_description is not None
         assert len(update.change_description) == 1024
 
-    def ***REMOVED***(self) -> None:
+    def test_model_fields_set_tracks_sent_fields(self) -> None:
         update = WorkflowVersionUpdate.model_validate({"name": "Name"})
         assert "name" in update.model_fields_set
         assert "change_description" not in update.model_fields_set

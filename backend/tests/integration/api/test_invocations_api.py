@@ -173,7 +173,7 @@ async def test_list_invocations_response_schema(auth_client: AsyncClient, test_u
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(
+async def test_list_invocations_with_status_filter(
     auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
 ) -> None:
     """Test filtering invocations by status."""
@@ -555,7 +555,7 @@ async def test_list_invocations_sort_by_non_sortable_field(auth_client: AsyncCli
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(
+async def test_list_invocations_default_sort_order(
     auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
 ) -> None:
     """Test that default sort order is -created_at (descending)."""
@@ -633,7 +633,7 @@ async def test_list_invocations_invalid_status(auth_client: AsyncClient, test_us
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(
+async def test_invoke_response_includes_all_fields(
     auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id: str
 ) -> None:
     """Test that POST response includes all expected fields including inherited ones."""

@@ -203,7 +203,7 @@ async def test_file_upload_creates_db_records(
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(
+async def test_callback_url_stored_in_context_data(
     auth_client_with_mocked_llm, test_user, test_db_session, test_project_id
 ) -> None:
     """Verify callback_url in context_data is preserved in invocation."""

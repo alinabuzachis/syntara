@@ -644,7 +644,7 @@ class TestNodeSettingsValidation:
         # Should not raise
         self.validator.validate_workflow_definition(defn)
 
-    def ***REMOVED***(self) -> None:
+    def test_rejects_retry_policy_on_script_node(self) -> None:
         """Script nodes (NoRetry tier) should reject retry_policy."""
         defn = {
             "schema_version": "2.0.0",

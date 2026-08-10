@@ -279,7 +279,7 @@ class TestAdapterFactory:
         assert isinstance(adapter, IntegrationAdapter)
         assert adapter.config == config
 
-    def ***REMOVED***(self) -> None:
+    def test_create_raises_for_unregistered_type(self) -> None:
         config = LLMProviderConfiguration(base_url="https://api.openai.com", provider_hint="openai")
 
         with pytest.raises(AdapterNotRegisteredError, match="No health check adapter registered"):

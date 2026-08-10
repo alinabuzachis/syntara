@@ -47,7 +47,7 @@ class TestWebSocketJsonValidation:
             assert timestamp.tzinfo is not None
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self, example_app_server: tuple[Path, FastAPI]) -> None:
+    async def test_non_json_text_input_coffee_endpoint(self, example_app_server: tuple[Path, FastAPI]) -> None:
         """Test that non-JSON text input returns validation error on coffee endpoint."""
         _ = example_app_server
         async with websocket_connect("ws://127.0.0.1:9999/ws/testcomp/v1/coffee") as websocket:

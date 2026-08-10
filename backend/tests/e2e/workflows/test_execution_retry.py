@@ -13,7 +13,7 @@ import pytest
 from orchestrator_test_sdk.e2e import unique_name
 from orchestrator_test_sdk.e2e.helpers import create_and_run_workflow, poll_execution_until_complete
 from syntara_api_client.models.test_execution_create import TestExecutionCreate
-from syntara_api_client.models.***REMOVED*** import TestExecutionCreatePreResolvedNodes
+from syntara_api_client.models.test_execution_create_pre_resolved_nodes import TestExecutionCreatePreResolvedNodes
 from syntara_api_client.models.workflow_create import WorkflowCreate
 from syntara_api_client.models.workflow_definition import WorkflowDefinition
 

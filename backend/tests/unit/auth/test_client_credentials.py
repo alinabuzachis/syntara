@@ -278,7 +278,7 @@ class TestTokenEndpoint:
         assert isinstance(exc_info.value, AuthenticationRequiredError)
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self, mock_db: AsyncMock) -> None:
+    async def test_deleted_service_account_returns_401(self, mock_db: AsyncMock) -> None:
         """AC8: Hard-deleted service account (credential gone) returns 401."""
         self._setup_db_result(mock_db, None)
 

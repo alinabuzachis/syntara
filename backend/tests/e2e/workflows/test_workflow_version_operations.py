@@ -146,7 +146,7 @@ class TestWorkflowVersionRestore:
         assert by_ver[2].status == "draft"
         assert by_ver[3].status == "draft"
 
-    def ***REMOVED***(
+    def test_version_list_status_after_republish(
         self, nexus_api: SyntaraApiRegistry, cleanup_workflows: list[UUID], first_project_id: UUID
     ) -> None:
         """After publishing a different version, the pointer switches.

@@ -74,7 +74,7 @@ class TestHasDirectSystemCredentialUse:  # noqa: D101
         assert await _has_direct_system_credential_use(db, uuid4()) is False
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self) -> None:
+    async def test_mixed_roles_with_admin_returns_true(self) -> None:
         db = _mock_db(["auditor", "admin"])
         assert await _has_direct_system_credential_use(db, uuid4()) is True
 

@@ -254,7 +254,7 @@ class TestFallbackBehavior:
         assert budget.source == "fallback"
 
     @pytest.mark.anyio
-    async def ***REMOVED***(self) -> None:
+    async def test_missing_package_degrades_gracefully(self) -> None:
         """If a LangChain provider package is not installed, still return fallback."""
         service = ModelProfileService()
 
@@ -267,7 +267,7 @@ class TestFallbackBehavior:
         assert budget.source == "fallback"
 
     @pytest.mark.anyio
-    async def ***REMOVED***(self) -> None:
+    async def test_attribute_error_degrades_gracefully(self) -> None:
         """If _PROFILES is removed in a future LangChain update, degrade gracefully."""
         service = ModelProfileService()
 

@@ -3582,7 +3582,7 @@ class TestPendingSyncEventIds:
 class TestUpdateNonTerminalActivitiesOnCancel:
     """Test _update_non_terminal_activities_on_cancel method."""
 
-    def ***REMOVED***(self) -> None:
+    def test_in_flight_cancelled_pending_skipped(self) -> None:
         """In-flight activities (RUNNING, WAITING) are CANCELLED; PENDING is SKIPPED."""
         mock_client = Mock()
         mock_session_factory = Mock()
@@ -3754,7 +3754,7 @@ class TestUpdateNonTerminalActivitiesOnCancel:
         assert completed_activity.status == ActivityStatus.COMPLETED
         assert failed_activity.status == ActivityStatus.FAILED
 
-    def ***REMOVED***(self) -> None:
+    def test_only_pending_activities_all_skipped(self) -> None:
         """When all non-terminal activities are PENDING, all are SKIPPED."""
         mock_client = Mock()
         mock_session_factory = Mock()
@@ -4152,7 +4152,7 @@ class TestUpdateApprovalPendingFlag:
         assert result is True
         assert execution.approval_pending is True
 
-    def ***REMOVED***(self) -> None:
+    def test_all_approvals_completed_clears_flag(self) -> None:
         """Flag should clear when all approval activities complete."""
         execution = self._make_execution(approval_pending=True)
         activities = [
@@ -4395,7 +4395,7 @@ class TestReconcileStaleExecutions:
         mock_session.commit.assert_awaited()
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self) -> None:
+    async def test_generic_exception_continues_to_next(self) -> None:
         """A non-Temporal exception on one execution doesn't block others."""
         service, mock_session, mock_client = self._make_service()
         exec_bad = self._make_stale_execution()

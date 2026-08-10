@@ -95,7 +95,7 @@ class TestListEndpointCompliance:
             if isinstance(p, dict) and "name" in p and p.get("in") != "path"
         }
 
-    def ***REMOVED***(self, endpoint: EndpointInfo, openapi_spec: dict[str, Any]):
+    def test_response_declares_pagination_fields(self, endpoint: EndpointInfo, openapi_spec: dict[str, Any]):
         """Validates response schema declares all pagination fields.
 
         Validates that the response schema declares all fields from ResourcesResponse[T]:
@@ -248,7 +248,7 @@ class TestListEndpointCompliance:
                 f"{missing_operators}. Should declare: {required_operators}"
             )
 
-    def ***REMOVED***(self, endpoint: EndpointInfo, openapi_spec: dict[str, Any]):
+    def test_filterable_fields_declare_operators(self, endpoint: EndpointInfo, openapi_spec: dict[str, Any]):
         """Validates filterable fields declare appropriate filter operators.
 
         Dynamically discovers filter parameters from the OpenAPI spec (any query
@@ -361,10 +361,10 @@ class TestExclusionListMaintenance:
 
         # Define all compliance checks to run
         compliance_checks = [
-            test_instance.***REMOVED***,
+            test_instance.test_response_declares_pagination_fields,
             test_instance.test_declares_pagination_parameters,
             test_instance.test_sort_parameter_constrains_values,
-            test_instance.***REMOVED***,
+            test_instance.test_filterable_fields_declare_operators,
         ]
 
         for endpoint in excluded_endpoints:

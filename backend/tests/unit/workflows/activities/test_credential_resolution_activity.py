@@ -171,7 +171,7 @@ class TestResolveWorkflowCredentials:
     @pytest.mark.asyncio
     @patch("nexus.workflows.workflow_engine.activities.credential_resolution_activity._session_factory")
     @patch("nexus.workflows.workflow_engine.activities.credential_resolution_activity.create_secret_service")
-    async def ***REMOVED***(
+    async def test_secret_values_excludes_short_values(
         self,
         mock_create_ss: MagicMock,
         mock_session_local: MagicMock,

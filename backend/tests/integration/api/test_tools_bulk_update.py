@@ -94,7 +94,7 @@ class TestToolsBulkUpdateContract:
         assert data["skipped_count"] == 2  # Two non-existent tools
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(
+    async def test_bulk_update_empty_tool_ids_contract(
         self, jwt_client: AsyncClient, multiple_tools_for_bulk: list[Tool]
     ) -> None:
         """Test bulk update with empty tool_ids list returns 422."""
@@ -113,7 +113,7 @@ class TestToolsBulkUpdateContract:
         assert isinstance(data["detail"], list) or "cannot be empty" in str(data["detail"])
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(
+    async def test_bulk_update_too_many_tools_contract(
         self, jwt_client: AsyncClient, multiple_tools_for_bulk: list[Tool]
     ) -> None:
         """Test bulk update with more than 50 tools returns 422."""

@@ -147,7 +147,7 @@ async def test_file_metadata_with_converted_content(test_db_session: AsyncSessio
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(test_db_session: AsyncSession, test_project_id: str) -> None:
+async def test_file_metadata_with_conversion_error(test_db_session: AsyncSession, test_project_id: str) -> None:
     """Test FileMetadata with conversion failure and error message."""
     error_message = "Failed to parse PDF: corrupted file"
 
@@ -215,7 +215,7 @@ async def test_file_metadata_update_status(test_db_session: AsyncSession, test_p
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(test_db_session: AsyncSession, test_project_id: str) -> None:
+async def test_file_metadata_content_hash_nullable(test_db_session: AsyncSession, test_project_id: str) -> None:
     """Test that content_hash defaults to None and accepts a SHA-256 value."""
     file_metadata = FileMetadata(
         filename="test.pdf",

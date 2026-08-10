@@ -544,7 +544,7 @@ class TestIsNullFiltering:
         assert len(result) == len(expected)
         assert {u.username for u in result} == {u.username for u in expected}
 
-    async def ***REMOVED***(
+    async def test_isnull_end_to_end_from_query_params(
         self, test_users: list[User], test_db_session: AsyncSession
     ) -> None:
         """End-to-end: parse ``?last_name[isnull]=false`` and apply to query."""

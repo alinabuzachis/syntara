@@ -63,7 +63,7 @@ class TestSessionLifecycle:
     """Tests for session lifecycle management in AssemblerService."""
 
     @pytest.mark.usefixtures("test_user_low_token_config")
-    async def ***REMOVED***(
+    async def test_session_released_before_compression(
         self,
         test_db_session,
         test_db_session_factory,

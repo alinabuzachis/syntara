@@ -117,7 +117,7 @@ class TestOIDCFlowHandler:
         assert result.resource_urn == "urn:syntara:user:testuser"
         assert result.resource_name == "testuser"
 
-    def ***REMOVED***(self) -> None:
+    def test_resource_fields_fallback_to_user_id(self) -> None:
         """Resource fields fall back to user_id when username is None."""
         uid = uuid4()
         event = OIDCFlowEvent(provider_id=None, stage=OIDCStage.CALLBACK, user_id=uid, username=None)

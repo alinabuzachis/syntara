@@ -468,7 +468,7 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
             assert val_result.warning_count > 0
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(
+    async def test_create_workflow_errors_always_saves(
         self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
     ) -> None:
         """Test workflow creation with errors saves successfully and reports issues."""
@@ -1747,7 +1747,7 @@ class TestUnpublishWorkflow(TestWorkflowServiceBase):
         assert result.is_enabled is False
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(
+    async def test_unpublish_when_not_published_raises(
         self, test_db_session: AsyncSession, test_user: User, test_project_id: UUID
     ) -> None:
         """Test unpublishing when no version is published raises error."""
@@ -1904,7 +1904,7 @@ class TestRestoreWorkflowVersion(TestWorkflowServiceBase):
             await service.restore_workflow_version(workflow_id=workflow.id, version=99)
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self, test_db_session: AsyncSession, test_user: User) -> None:
+    async def test_restore_nonexistent_workflow_raises(self, test_db_session: AsyncSession, test_user: User) -> None:
         """Test restoring from a nonexistent workflow raises error."""
         service = WorkflowService(test_db_session, test_user)
         fake_id = uuid4()

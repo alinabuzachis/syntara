@@ -328,7 +328,7 @@ async def test_list_roles_filter_by_policy_name_contains(
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(
+async def test_list_builtin_roles_with_in_operator(
     auth_client: AsyncClient,
     test_db_session: AsyncSession,
     test_user: User,

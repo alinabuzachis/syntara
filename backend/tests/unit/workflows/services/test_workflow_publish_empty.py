@@ -89,7 +89,7 @@ class TestPublishEmptyWorkflow:
         assert workflow == mock_workflow
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self, mock_service: WorkflowService) -> None:
+    async def test_publish_sets_name_and_creates_event(self, mock_service: WorkflowService) -> None:
         workflow_id = uuid4()
         mock_workflow = MagicMock()
         mock_workflow.id = workflow_id

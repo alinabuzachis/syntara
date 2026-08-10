@@ -238,7 +238,7 @@ class TestErrorMessageQuality:
         assert "bad-value" in error_text
         assert "tool_selections" in error_text
 
-    def ***REMOVED***(self) -> None:
+    def test_cross_field_error_names_both_fields(self) -> None:
         with pytest.raises(ValidationError) as exc_info:
             AgenticExecutorParameters(
                 prompt="test",

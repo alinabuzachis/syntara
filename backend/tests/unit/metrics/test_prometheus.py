@@ -224,7 +224,7 @@ class TestToolInstruments:
 class TestInterfaceLabelInPrometheusOutput:
     """Verify the interface label appears in scraped Prometheus output."""
 
-    def ***REMOVED***(self, prom: OrchestratorPrometheusMetrics) -> None:
+    def test_request_duration_includes_interface(self, prom: OrchestratorPrometheusMetrics) -> None:
         """orchestrator_request_duration_seconds samples include interface label."""
         prom.request_duration_seconds.labels(endpoint="/api/v1/test", method="GET", interface="ui").observe(0.1)
 

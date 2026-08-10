@@ -54,7 +54,7 @@ class TestGetRateLimitConfig:
         assert result == (100, 120)
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self, mock_settings_cache: AsyncMock) -> None:
+    async def test_enabled_with_catalog_default_window(self, mock_settings_cache: AsyncMock) -> None:
         async def side_effect(key: str) -> int | None:
             if key == RATE_LIMIT_REQUESTS_PER_WINDOW:
                 return 50

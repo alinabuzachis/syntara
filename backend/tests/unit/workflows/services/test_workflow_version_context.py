@@ -122,7 +122,7 @@ class TestListWorkflowVersionsCursor:
         mock_exec.assert_not_called()
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self, mock_service: WorkflowService) -> None:
+    async def test_populate_callback_queries_usernames(self, mock_service: WorkflowService) -> None:
         """populate_version_context queries User for usernames used by convert_version."""
         workflow_id = uuid4()
         user_id_1 = uuid4()

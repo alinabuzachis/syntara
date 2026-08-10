@@ -297,7 +297,7 @@ class TestApprovalServiceIsUserAuthorizedApprover(TestApprovalAuthorizationBase)
         assert is_authorized is False
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(
+    async def test_user_matches_either_users_or_groups(
         self, test_db_session: AsyncSession, users: dict[str, User], executions_factory: ExecutionsFactory
     ) -> None:
         """Test that user authorized if they match either approver_users OR approver_groups."""
@@ -577,7 +577,7 @@ class TestApprovalServiceEvaluatorAuthorization(TestApprovalAuthorizationBase):
         assert is_authorized is False
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(
+    async def test_opa_allows_with_approver_list_check(
         self,
         test_db_session: AsyncSession,
         users: dict[str, User],
@@ -624,7 +624,7 @@ class TestApprovalServiceEvaluatorAuthorization(TestApprovalAuthorizationBase):
         assert is_authorized is True
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(
+    async def test_opa_allows_but_not_in_approver_list(
         self,
         test_db_session: AsyncSession,
         users: dict[str, User],
@@ -672,7 +672,7 @@ class TestApprovalServiceEvaluatorAuthorization(TestApprovalAuthorizationBase):
         assert is_authorized is False
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(
+    async def test_opa_allows_with_empty_approver_list(
         self,
         test_db_session: AsyncSession,
         users: dict[str, User],

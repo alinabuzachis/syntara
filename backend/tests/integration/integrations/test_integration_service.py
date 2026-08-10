@@ -450,7 +450,7 @@ class TestUpdateValidationStatus:
         assert result.validation_status == IntegrationStatus.AVAILABLE
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(
+    async def test_update_status_to_error_with_message(
         self, test_db_session: AsyncSession, integration_service: IntegrationService
     ) -> None:
         created = await integration_service.create_integration(_mcp_create())

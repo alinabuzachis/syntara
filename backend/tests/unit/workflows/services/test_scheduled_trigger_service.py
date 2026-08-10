@@ -233,7 +233,7 @@ class TestSyncScheduledTriggers:
         client.create_schedule.assert_called_once()
         handle.update.assert_called_once()
 
-    async def ***REMOVED***(self) -> None:
+    async def test_sync_ignores_non_scheduled_triggers(self) -> None:
         """Non-scheduled trigger nodes should be ignored."""
         client = _make_mock_client()
         service = ScheduledTriggerService(temporal_client=client)
@@ -453,7 +453,7 @@ class TestDeleteTriggersForWorkflow:
         assert deleted == 2
         assert handle.delete.call_count == 2
 
-    async def ***REMOVED***(self) -> None:
+    async def test_delete_handles_nonexistent_schedule(self) -> None:
         """Should handle case where schedule doesn't exist."""
         client = _make_mock_client()
         client.list_schedules = AsyncMock(
@@ -747,7 +747,7 @@ class TestSearchAttributeRegistration:
         assert result is True
         assert _mod._search_attr_available is True
 
-    async def ***REMOVED***(self) -> None:
+    async def test_add_non_connection_error_falls_back(self) -> None:
         """Non-connection error from add_search_attributes should fall back to prefix scan."""
         client = _make_mock_client(search_attr_available=False)
         client.operator_service = _make_mock_operator_service(

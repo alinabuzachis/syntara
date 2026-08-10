@@ -99,7 +99,7 @@ class TestGetWebhookSyncDefinition:
         assert definition == {"nodes": [{"id": "published"}]}
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self, mock_service: WorkflowService) -> None:
+    async def test_returns_fallback_when_not_published(self, mock_service: WorkflowService) -> None:
         """Return fallback definition when published_version_id is None."""
         workflow = MagicMock()
         workflow.published_version_id = None
@@ -225,7 +225,7 @@ class TestRestoreWorkflowVersionSourceLabel:
         assert "Release v1" in call_kwargs.kwargs["change_description"]
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self, mock_service: WorkflowService) -> None:
+    async def test_source_label_uses_date_when_no_name(self, mock_service: WorkflowService) -> None:
         """Verify change_description contains ISO date when name is None."""
         workflow_id = uuid4()
         mock_workflow = MagicMock()

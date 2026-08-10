@@ -44,7 +44,7 @@ class TestGoogleProvider:
         assert models[1].id == "gemini-2.0-pro"
         assert models[1].name == "Gemini 2.0 Pro"
 
-    def ***REMOVED***(self) -> None:
+    def test_parse_models_response_fallback_name(self) -> None:
         """If displayName is missing, falls back to name."""
         provider = GoogleProvider()
         models = provider.parse_models_response({"models": [{"name": "models/gemini-flash"}]})

@@ -78,7 +78,7 @@ class TestReadDiscovery:
 class TestCreateDiscovery:
     """Tests for resource-creation POST endpoint discovery."""
 
-    def ***REMOVED***(self, create_endpoints) -> None:
+    def test_discovers_standard_create_endpoints(self, create_endpoints) -> None:
         """Discovers create_ prefixed endpoints."""
         operation_ids = {ep.operation_id for ep in create_endpoints}
 
@@ -194,7 +194,7 @@ class TestHelperFunctions:
         }
         assert _resolve_response_properties(operation, {}, "200") == {}
 
-    def ***REMOVED***(self) -> None:
+    def test_resolve_success_response_properties(self) -> None:
         """Finds the first 2xx response with properties."""
         operation: dict[str, Any] = {
             "responses": {
@@ -206,7 +206,7 @@ class TestHelperFunctions:
         props = _resolve_success_response_properties(operation, schemas)
         assert "id" in props
 
-    def ***REMOVED***_empty(self) -> None:
+    def test_resolve_success_response_properties_empty_empty(self) -> None:
         """Returns empty dict when no 2xx responses have properties."""
         operation: dict[str, Any] = {"responses": {"400": {}, "500": {}}}
         assert _resolve_success_response_properties(operation, {}) == {}

@@ -104,7 +104,7 @@ class TestFileDetailEndpoint:
         assert response.conversion_error == "The file appears to be corrupted"
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self) -> None:
+    async def test_get_file_details_pending_conversion(self) -> None:
         """Test response for a file still pending conversion."""
         file_id = uuid4()
         metadata = FileMetadata(
