@@ -1,4 +1,4 @@
-# Nexus Combined Monorepo
+# Syntara Monorepo
 
 Monorepo combining the Nexus backend (Python/FastAPI) and frontend (React/TypeScript) into a single development and deployment environment.
 
