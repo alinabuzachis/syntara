@@ -684,7 +684,7 @@ class ActivitySyncService:
 
     @staticmethod
     def _extract_heartbeat_data(
-        pa: Any,  # noqa: ANN401 — PendingActivityInfo from protobuf
+        pa: Any,
     ) -> dict[str, Any] | None:
         """Decode the latest heartbeat payload from a pending activity.
 
@@ -730,7 +730,7 @@ class ActivitySyncService:
         queue: asyncio.Queue[_QueueItem],
         activity_id: str,
         scheduled_event_id: int,
-        pa: Any,  # noqa: ANN401 — PendingActivityInfo from protobuf
+        pa: Any,
     ) -> bool:
         """Check heartbeat data for STOP_MONITOR signal and push partial output.
 
@@ -1276,7 +1276,7 @@ class ActivitySyncService:
             metadata.pending_sync_event_ids.add(scheduled_id)
             metadata.terminal_activity_ids.add(update["activity_id"])
 
-    def _extract_execution_status_from_event(self, event: HistoryEvent) -> tuple[ExecutionStatus, datetime, str | None]:  # noqa: C901
+    def _extract_execution_status_from_event(self, event: HistoryEvent) -> tuple[ExecutionStatus, datetime, str | None]:
         """Extract execution status, completion time, and error from workflow completion event.
 
         Args:
@@ -1310,7 +1310,7 @@ class ActivitySyncService:
                         elif inner_status == "completed_with_errors":
                             status = ExecutionStatus.COMPLETED_WITH_ERRORS
                             error_details = self._extract_failed_activity_errors(result_data)
-                except Exception:  # noqa: BLE001
+                except Exception:
                     logger.warning("Failed to parse workflow result for failure detection", exc_info=True)
         elif event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
             status = ExecutionStatus.FAILED
@@ -1372,7 +1372,7 @@ class ActivitySyncService:
                 fa = result_data.get("failed_activities", {})
                 if isinstance(fa, dict):
                     return fa
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.debug("Could not parse failed_activities from workflow result", exc_info=True)
         return {}
 
@@ -1789,7 +1789,7 @@ class ActivitySyncService:
         return input_data, output_data
 
     @staticmethod
-    def _scrub_data(data: Any) -> dict[str, Any] | None:  # noqa: ANN401
+    def _scrub_data(data: Any) -> dict[str, Any] | None:
         """Scrub credentials from data, wrapping non-dict values.
 
         Args:
