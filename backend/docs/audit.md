@@ -101,7 +101,7 @@ graph TB
 | **AuditMiddleware** | HTTP request tracking | `audit/middleware.py` |
 | **HTTPRequestEvent** | Domain event for HTTP requests | `audit/events/http_request.py` |
 | **HTTPRequestHandler** | Maps HTTPRequestEvent → AuditEvent | `audit/events/http_request.py` |
-| **audit_crud_operation()** | PostgreSQL trigger function for CRUD capture | Migration `bd82aa297b0e` |
+| **audit_crud_operation()** | PostgreSQL trigger function for CRUD capture | Baseline revision `b69ef9067e66` |
 | **set_audit_context()** | Before-flush hook, propagates context to Postgres | `core/database/session.py` |
 | **EventSanitizer** | PII redaction | `audit/sanitization.py` |
 | **AuditOutboxWorker** | Background outbox publisher | `audit/outbox/worker.py` |

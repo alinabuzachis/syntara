@@ -167,6 +167,12 @@ make db-run
 make db-clean
 ```
 
+> **Schema baseline:** Alembic history was flattened into a single baseline. Databases
+> created with the old revision chain cannot be upgraded in place — run `make db-clean`
+> (or `podman compose down -v` for the full stack), then bring services back up so
+> `alembic upgrade head` and seed run on an empty database.
+> See [docs/standards/database.md](docs/standards/database.md#baseline).
+
 **Database Configuration**:
 The application uses these environment variables (with defaults):
 - `APP_DB_USER` (default: `admin`)

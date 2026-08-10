@@ -65,6 +65,31 @@ Nexus uses a **single PostgreSQL database** for all application data, including 
 
 ## Migrations
 
+### Baseline
+
+Schema history was flattened into a single baseline revision (`b69ef9067e66`). There is
+**no in-place upgrade path** from databases created with the previous revision chain.
+
+After pulling this change, wipe and recreate local or long-lived databases, then migrate
+and seed:
+
+```bash
+# From repo root — destroy the Postgres volume and bring the stack back up
+podman compose -f podman-compose.yml down -v
+# then start services as usual (e.g. make run-all from backend/)
+# nexus startup runs: alembic upgrade head && python -m nexus.seed --all
+```
+
+For a database outside Compose, if it is a dedicated local/dev AO database
+created from the previous migration chain, start with a fresh database before
+migrating and seeding. There is no in-place upgrade path from the previous
+migration history.
+
+```bash
+uv run alembic upgrade head
+uv run python -m nexus.seed --all
+```
+
 ### Alembic Workflow
 
 All schema changes MUST go through Alembic migrations. Models are the source of truth — update models first, then generate migrations:

@@ -1,27 +1,20 @@
-"""Tests for principal migration consistency."""
+"""Tests for UserOwnedResource → principals FK consistency.
 
-from nexus.core.database.migrations.versions.a0b1c2d3e4f5_add_principals_table import (
-    _OWNED_TABLES,
-)
+Historically this imported ``_OWNED_TABLES`` from the principals Alembic revision
+to ensure new owned tables were retargeted. That revision was removed when
+migrations were flattened to a single baseline; the invariant now lives on the
+models (``created_by`` / ``updated_by`` → ``principals.id``).
+"""
+
+from typing import Any
+
+from nexus.core.database.migrations.models import ALL_MODELS  # noqa: F401
 from nexus.core.models.base.user_owned import UserOwnedResource
 
-_TABLES_WITH_PRINCIPAL_FKS_AT_CREATION = {
-    "service_account_credentials",
-}
 
-
-def test_owned_tables_covers_all_user_owned_resource_subclasses() -> None:
-    """Every concrete UserOwnedResource subclass must appear in the migration's _OWNED_TABLES.
-
-    If this fails, a new UserOwnedResource subclass was added without updating
-    the principal migration's FK retargeting list.
-
-    Tables in _TABLES_WITH_PRINCIPAL_FKS_AT_CREATION are excluded because their
-    migration was created *after* the principal migration and already creates
-    FKs pointing to principals.id directly (no retargeting needed).
-    """
-    concrete_tables: set[str] = set()
-    queue = list(UserOwnedResource.__subclasses__())
+def _concrete_user_owned_subclasses() -> list[type[Any]]:
+    concrete: list[type[Any]] = []
+    queue: list[type[Any]] = list(UserOwnedResource.__subclasses__())
     while queue:
         cls = queue.pop()
         tablename = getattr(cls, "__tablename__", None)
@@ -30,15 +23,26 @@ def test_owned_tables_covers_all_user_owned_resource_subclasses() -> None:
             and getattr(cls, "__table__", None) is not None
             and not tablename.startswith("mock_")
         ):
-            concrete_tables.add(tablename)
+            concrete.append(cls)
         queue.extend(cls.__subclasses__())
+    return concrete
 
-    owned_set = set(_OWNED_TABLES) | _TABLES_WITH_PRINCIPAL_FKS_AT_CREATION
-    missing = concrete_tables - owned_set
-    assert not missing, (
-        f"Tables {missing} inherit from UserOwnedResource but are missing "
-        f"from the principal migration's _OWNED_TABLES list. "
-        f"Add them to a0b1c2d3e4f5_add_principals_table.py, or to "
-        f"_TABLES_WITH_PRINCIPAL_FKS_AT_CREATION if they already create "
-        f"FKs to principals.id directly."
-    )
+
+def test_user_owned_resources_fk_to_principals() -> None:
+    """Every concrete UserOwnedResource must FK created_by/updated_by to principals.id.
+
+    If this fails, a new UserOwnedResource subclass was added with the wrong FK
+    target (e.g. users.id instead of principals.id).
+    """
+    failures: list[str] = []
+    for cls in _concrete_user_owned_subclasses():
+        table = getattr(cls, "__table__", None)
+        tablename = getattr(cls, "__tablename__", None)
+        assert table is not None
+        assert isinstance(tablename, str)
+        for col_name in ("created_by", "updated_by"):
+            targets = {(fk.column.table.name, fk.column.name) for fk in table.c[col_name].foreign_keys}
+            if ("principals", "id") not in targets:
+                failures.append(f"{tablename}.{col_name} → {targets or 'no FK'}")
+
+    assert not failures, f"UserOwnedResource ownership columns must reference principals.id. Bad columns: {failures}"
