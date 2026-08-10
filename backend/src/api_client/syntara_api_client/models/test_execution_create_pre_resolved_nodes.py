@@ -31,7 +31,7 @@ class TestExecutionCreatePreResolvedNodes:
         from ..models.pre_resolved_node_output import PreResolvedNodeOutput
 
         d = dict(src_dict)
-        ***REMOVED*** = cls()
+        test_execution_create_pre_resolved_nodes = cls()
 
         additional_properties = {}
         for prop_name, prop_dict in d.items():
@@ -39,8 +39,8 @@ class TestExecutionCreatePreResolvedNodes:
 
             additional_properties[prop_name] = additional_property
 
-        ***REMOVED***.additional_properties = additional_properties
-        return ***REMOVED***
+        test_execution_create_pre_resolved_nodes.additional_properties = additional_properties
+        return test_execution_create_pre_resolved_nodes
 
     @property
     def additional_keys(self) -> list[str]:
