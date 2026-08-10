@@ -493,7 +493,7 @@ class TestStaleTokenMiddlewareSA:
         _user_status_cache.clear()
         _cred_status_cache.clear()
 
-    def ***REMOVED***(self) -> None:
+    def test_active_sa_with_current_token_passes(self) -> None:
         """Active SA with matching token_ver and active credential passes through."""
         app = _build_app()
         payload = _make_sa_payload(sub="sa-456", token_version=1, credential_id="cred-001")

@@ -86,7 +86,7 @@ class TestMTLS1TemporalTLSConfig:
         assert tls_config is not None
         assert tls_config.client_cert == mtls_certs["backend_cert"].read_bytes()
 
-    def ***REMOVED***(
+    def test_client_private_key_matches_key_file(
         self,
         mtls_certs: dict[str, Path],
         override_settings: Callable[..., AbstractContextManager[object]],

@@ -625,7 +625,7 @@ async def test_delete_builtin_project_raises(seeded_db: AsyncSession, test_user:
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(seeded_db: AsyncSession, test_user: User) -> None:
+async def test_update_non_builtin_project_succeeds(seeded_db: AsyncSession, test_user: User) -> None:
     """Updating a non-builtin project succeeds normally."""
     svc = ProjectService(seeded_db, test_user)
     project = await svc.create_project(name="normal-project")
@@ -634,7 +634,7 @@ async def ***REMOVED***(seeded_db: AsyncSession, test_user: User) -> None:
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(seeded_db: AsyncSession, test_user: User) -> None:
+async def test_delete_non_builtin_project_succeeds(seeded_db: AsyncSession, test_user: User) -> None:
     """Deleting a non-builtin project succeeds normally."""
     svc = ProjectService(seeded_db, test_user)
     project = await svc.create_project(name="deletable-project")

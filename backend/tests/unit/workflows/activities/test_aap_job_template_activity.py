@@ -1661,7 +1661,7 @@ class TestAuditEventIntegration:
             mock_dispatcher.dispatch.assert_not_called()
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self, mock_activity_context: object) -> None:
+    async def test_unexpected_error_emits_failed_event(self, mock_activity_context: object) -> None:
         launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
         activity_config = build_activity_config(job_template_id=42)
 

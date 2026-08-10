@@ -786,7 +786,7 @@ class TestCheckWebSocketAuthorization:
         assert authz_request.resource_type == "invocation"
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self) -> None:
+    async def test_unknown_resource_type_returns_false(self) -> None:
         resource_id = str(uuid4())
         ws = MagicMock()
         ws.path_params = {"task_id": resource_id}

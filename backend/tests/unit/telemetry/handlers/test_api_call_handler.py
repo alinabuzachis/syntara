@@ -150,7 +150,7 @@ class TestRecordUsage:
         snapshot = fresh_accumulator.drain()
         assert snapshot.callers_by_interface == {"ui": 1}
 
-    def ***REMOVED***(self, mock_registry: MagicMock):
+    def test_does_not_raise_on_accumulator_error(self, mock_registry: MagicMock):
         event = _make_event(actor_id=uuid4(), actor_type=PrincipalType.USER)
 
         mock_acc = MagicMock()

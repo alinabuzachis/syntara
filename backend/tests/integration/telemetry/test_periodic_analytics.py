@@ -458,7 +458,7 @@ class TestQueryModelUsageRealDB:
 
         assert result == []
 
-    async def ***REMOVED***(
+    async def test_excludes_records_without_model_name(
         self, test_db_session: AsyncSession, test_user: User, test_project_id
     ):
         """Invocations without a model_name are excluded from aggregation."""

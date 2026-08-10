@@ -108,7 +108,7 @@ async def test_expire_filters_by_node_id(execution_id: str, node_id: str) -> Non
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(execution_id: str, node_id: str) -> None:
+async def test_expire_api_error_returns_gracefully(execution_id: str, node_id: str) -> None:
     """API errors are caught and returned as error info, not raised."""
     from nexus.workflows.clients.approvals_client import ApprovalsApiClientError
 

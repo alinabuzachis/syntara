@@ -71,7 +71,7 @@ class TestIntegrationValidateHandler:
         assert "timeout" in audit_event.event_message
         assert audit_event.structured_data.timeout is True  # type: ignore[attr-defined]
 
-    def ***REMOVED***(self) -> None:
+    def test_resource_fields_with_integration_id(self) -> None:
         """Should set resource URN when integration_id is present."""
         handler = IntegrationValidateHandler()
         integration_id = uuid4()

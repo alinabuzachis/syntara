@@ -634,7 +634,7 @@ async def test_invocation_indexes_exist(test_db_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(
+async def test_invocation_timestamp_timezone_aware(
     test_db_session: AsyncSession, test_user: User, test_project_id
 ) -> None:
     """Test that timestamp fields preserve timezone information."""

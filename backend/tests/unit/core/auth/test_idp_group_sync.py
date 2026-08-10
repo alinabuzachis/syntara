@@ -835,7 +835,7 @@ class TestAapRoleMapping:
         assert result is True
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self):
+    async def test_issuer_match_without_trailing_slash(self):
         """Issuer comparison tolerates missing trailing slash in the iss claim."""
         user = _make_user()
         provider_id = uuid4()

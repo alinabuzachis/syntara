@@ -62,7 +62,7 @@ class TestAdaptiveCallback:
             assert worker._adaptive_sm.current_batch_size == 130
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(
+    async def test_adaptive_callback_skips_on_db_error(
         self, test_session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
         """DB error (None from _get_pending_outbox_count) skips adjustment, preserves params."""
@@ -128,7 +128,7 @@ class TestAdaptiveCallback:
             assert worker._adaptive_sm.current_batch_size == 100
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(
+    async def test_adaptive_callback_shrinking_backlog(
         self, test_session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
         """Shrinking backlog slows down interval and decreases batch size."""

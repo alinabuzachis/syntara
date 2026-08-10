@@ -60,7 +60,7 @@ class TestIsTransientPollError:
         exc = httpx.ReadTimeout("Read timed out")
         assert _is_transient_poll_error(exc) is True
 
-    def ***REMOVED***(self) -> None:
+    def test_generic_http_error_is_not_transient(self) -> None:
         exc = httpx.HTTPError("Some other error")
         assert _is_transient_poll_error(exc) is False
 

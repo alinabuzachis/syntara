@@ -35,7 +35,7 @@ def test_file_manager_unconfigured_when_no_s3_env() -> None:
     assert fm._retriever is None
 
 
-def ***REMOVED***(
+def test_file_manager_configured_when_s3_set(
     override_settings: Callable[..., AbstractContextManager[object]],
 ) -> None:
     """FileManager registers S3 retriever when endpoint is configured."""
@@ -439,7 +439,7 @@ async def test_update_file_status_with_error() -> None:
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***() -> None:
+async def test_update_file_status_not_found_raises() -> None:
     """update_file_status raises SafeValueError when file not found."""
     from uuid import uuid4
 

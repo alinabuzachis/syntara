@@ -709,7 +709,7 @@ class TestFanInConverge:
 
         mock_ct.assert_not_called()
 
-    def ***REMOVED***(self, mock_timeout_workflow: MagicMock) -> None:
+    def test_converge_timeout_handler_no_timeout(self, mock_timeout_workflow: MagicMock) -> None:
         """When predecessors complete before timeout, no failure occurs."""
         mock_timeout_workflow.wait_condition = AsyncMock()
         wf = _make_workflow()
@@ -1436,7 +1436,7 @@ class TestConvergeIntermediateFailure:
 class TestDetachInFlightPredecessors:
     """Test that _detach_in_flight_predecessors correctly marks in-flight predecessors as detached."""
 
-    def ***REMOVED***(self) -> None:
+    def test_in_flight_predecessors_are_detached(self) -> None:
         """Predecessors in pending_tasks with no resolver namespace are added to _detached_nodes."""
         wf = _make_workflow()
         graph = _build_fanin_graph()

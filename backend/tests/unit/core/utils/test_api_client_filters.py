@@ -148,7 +148,7 @@ class TestEdgeCasesFieldNames:
         result = build_filters(**{"created-at__gte": "2025-01-01"})
         assert result == {"created-at[gte]": "2025-01-01"}
 
-    def ***REMOVED***(self) -> None:
+    def test_field_name_that_looks_like_operator(self) -> None:
         """Field name 'contains' without operator works."""
         result = build_filters(contains="some-value")
         assert result == {"contains": "some-value"}

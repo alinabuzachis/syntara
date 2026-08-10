@@ -1752,7 +1752,7 @@ class ActivitySyncService:
             # retry the query. This handles the case where Temporal emits the
             # ACTIVITY_TASK_COMPLETED event before the workflow's async loop
             # stores the result in the resolver namespace.
-            
+
             # (e.g., workflow signal after output is stored).
             if activity_data["status"] == ActivityStatus.COMPLETED and queried_output is None:
                 max_retries = _OUTPUT_QUERY_MAX_RETRIES

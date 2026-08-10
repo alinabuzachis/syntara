@@ -233,7 +233,7 @@ class TestS3VerifySSL:
             S3FileRetriever(endpoint_url=None, bucket_name=BUCKET_NAME, region_name=REGION, verify_ssl=False)
             assert mock_client.call_args.kwargs["verify"] is False
 
-    def ***REMOVED***(self) -> None:
+    def test_ca_bundle_used_when_verify_ssl_true(self) -> None:
         with mock_aws(), patch("nexus.files.retrievers.s3.boto3.client", wraps=boto3.client) as mock_client:
             S3FileRetriever(
                 endpoint_url=None,

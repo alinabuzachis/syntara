@@ -9,7 +9,7 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.***REMOVED*** import TestExecutionCreatePreResolvedNodes
+    from ..models.test_execution_create_pre_resolved_nodes import TestExecutionCreatePreResolvedNodes
     from ..models.test_execution_create_trigger_inputs import TestExecutionCreateTriggerInputs
 
 
@@ -72,7 +72,7 @@ class TestExecutionCreate:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.***REMOVED*** import TestExecutionCreatePreResolvedNodes
+        from ..models.test_execution_create_pre_resolved_nodes import TestExecutionCreatePreResolvedNodes
         from ..models.test_execution_create_trigger_inputs import TestExecutionCreateTriggerInputs
 
         d = dict(src_dict)

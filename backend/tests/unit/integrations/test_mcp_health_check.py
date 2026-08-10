@@ -460,7 +460,7 @@ class TestMCPServerDiscoverErrors:
         mock_provider.close.assert_called_once()
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self, mcp_config: MCPServerConfiguration) -> None:
+    async def test_http_401_classified_as_auth_failure(self, mcp_config: MCPServerConfiguration) -> None:
         """HTTP 401 returns AUTH_FAILURE error type."""
         adapter = MCPServerAdapter(mcp_config)
 
@@ -479,7 +479,7 @@ class TestMCPServerDiscoverErrors:
         assert "401" in (result.error or "")
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self, mcp_config: MCPServerConfiguration) -> None:
+    async def test_http_403_classified_as_auth_failure(self, mcp_config: MCPServerConfiguration) -> None:
         """HTTP 403 returns AUTH_FAILURE error type."""
         adapter = MCPServerAdapter(mcp_config)
 

@@ -130,7 +130,7 @@ class TestMCPIntegrationDiscovery:
         with pytest.raises(httpx.ConnectError):
             await client.get_all_mcp_integrations()
 
-    async def ***REMOVED***(self, client: ToolManagerClient) -> None:
+    async def test_get_all_mcp_integrations_pagination(self, client: ToolManagerClient) -> None:
         """Test handling of paginated integration responses."""
         page1 = [_make_integration_response("integration_1")]
         page2 = [_make_integration_response("integration_2")]

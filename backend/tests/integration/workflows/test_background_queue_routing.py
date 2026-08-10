@@ -289,7 +289,7 @@ class TestQueueDepthMetricLabels:
         )
         assert "orchestrator-workflow-queue" in task_queues
 
-    def ***REMOVED***(self) -> None:
+    def test_background_queue_depth_metric_value(self) -> None:
         """Background queue depth metric reflects the correct value."""
         from prometheus_client import CollectorRegistry
 

@@ -337,7 +337,7 @@ class TestExistingMetricsNotRegressed:
         results = list(recorder.query(metric_types={MetricType.ERROR}))
         assert len(results) == 1
 
-    def ***REMOVED***(self, recorder: MetricsRecorder) -> None:
+    def test_database_query_metric_still_records(self, recorder: MetricsRecorder) -> None:
         """DATABASE_QUERY_RESPONSE_TIME metric continues to work."""
         recorder.record(
             MetricType.DATABASE_QUERY_RESPONSE_TIME,

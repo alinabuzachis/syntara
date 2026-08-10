@@ -15,7 +15,7 @@ class TestListProjectWorkflows:
     """Tests for the list_project_workflows endpoint."""
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self) -> None:
+    async def test_populates_published_version_numbers(self) -> None:
         """Verify endpoint calls populate_published_version_numbers on result."""
         project_id = uuid4()
         mock_service = AsyncMock()

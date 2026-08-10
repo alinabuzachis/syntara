@@ -451,7 +451,7 @@ class TestSecretUrlCredential:
             await execute_http_request_activity(config, None)
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self) -> None:
+    async def test_url_credential_redacts_url_in_error(self) -> None:
         resp = _mock_response(401)
         secret_url = "https://hooks.slack.com/services/T/B/supersecret"  # noqa: S105
         config = {

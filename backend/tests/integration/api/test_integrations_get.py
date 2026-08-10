@@ -65,7 +65,7 @@ class TestIntegrationsGet:
         response = await auth_client.get(f"{BASE_URL}/not-a-uuid")
         assert response.status_code == 422
 
-    async def ***REMOVED***(
+    async def test_get_deleted_integration_returns_404(
         self,
         auth_client: AsyncClient,
         test_db_session: AsyncSession,

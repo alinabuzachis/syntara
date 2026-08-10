@@ -665,7 +665,7 @@ class TestLLMProviderLogging:
         assert "LLM request timed out" in caplog.text
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self, caplog: pytest.LogCaptureFixture) -> None:
+    async def test_validate_http_error_logs_error_type(self, caplog: pytest.LogCaptureFixture) -> None:
         """HTTP error logs at WARNING with error_type."""
         import logging
 
@@ -825,7 +825,7 @@ class TestLLMProviderDiscoverPagination:
         assert second_call.kwargs["params"] == {"after": "claude-opus-4"}
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self) -> None:
+    async def test_google_discover_paginates_two_pages(self) -> None:
         adapter = LLMProviderAdapter(_make_config("gemini", base_url=None))
         page1 = _mock_response(
             {

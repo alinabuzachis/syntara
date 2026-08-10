@@ -146,7 +146,7 @@ async def test_lw2_user_with_multiple_projects_sees_workflows_from_all(
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(
+async def test_lw3_global_admin_sees_all_workflows(
     auth_client: AsyncClient,
     test_db_session: AsyncSession,
     test_user: User,

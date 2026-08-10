@@ -35,7 +35,7 @@ class TestResolveTelemetryConfig:
         assert host == "http://runtime:9999"
 
     @patch("nexus.telemetry.client.get_settings")
-    def ***REMOVED***(self, mock_get_settings: MagicMock) -> None:
+    def test_empty_override_falls_back_to_static(self, mock_get_settings: MagicMock) -> None:
         mock_settings = MagicMock()
         mock_settings.segment_write_key.get_secret_value.return_value = "static-key"
         mock_get_settings.return_value = mock_settings
@@ -191,7 +191,7 @@ class TestReinitializeFromRuntime:
     @patch("nexus.telemetry.client.get_telemetry_registry")
     @patch("nexus.telemetry.client.get_settings")
     @patch("nexus.settings.cache.settings_cache.get_runtime_settings")
-    def ***REMOVED***(
+    def test_no_keys_anywhere_disables_telemetry(
         self,
         mock_get_runtime: MagicMock,
         mock_get_settings: MagicMock,

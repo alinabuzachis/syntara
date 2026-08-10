@@ -47,7 +47,7 @@ class TestAnthropicProvider:
         assert models[1].id == "claude-sonnet-4-6"
         assert models[1].name == "Claude Sonnet 4.6"
 
-    def ***REMOVED***_to_id(self) -> None:
+    def test_parse_models_response_fallback_name_to_id_to_id(self) -> None:
         """If display_name is missing, falls back to id."""
         provider = AnthropicProvider()
         models = provider.parse_models_response({"data": [{"id": "claude-4"}]})

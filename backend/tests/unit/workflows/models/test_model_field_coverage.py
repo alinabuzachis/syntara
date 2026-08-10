@@ -27,7 +27,7 @@ class TestWorkflowPublishEventFields:
         event = WorkflowPublishEvent.model_construct(version_id=vid)
         assert event.__dict__["version_id"] == vid
 
-    def ***REMOVED***(self) -> None:
+    def test_model_construct_sets_action_in_dict(self) -> None:
         event = WorkflowPublishEvent.model_construct(action=PublishAction.PUBLISHED)
         assert event.__dict__["action"] == PublishAction.PUBLISHED
 

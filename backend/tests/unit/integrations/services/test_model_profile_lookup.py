@@ -87,7 +87,7 @@ def test_openrouter_prefixed_ids_resolve(model_id: str, expected_name: str) -> N
     assert profile["name"] == expected_name
 
 
-def ***REMOVED***() -> None:
+def test_unknown_prefixed_model_returns_none() -> None:
     """A prefixed model not in any registry returns None."""
     assert lookup_model_profile("deepseek/deepseek-chat-v99") is None
 

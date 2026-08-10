@@ -557,7 +557,7 @@ class TestTriggerExpressions:
         assert len(errors) == 1
         assert "ghost" in errors[0].message
 
-    def ***REMOVED***(self) -> None:
+    def test_valid_builtin_expression_in_trigger(self) -> None:
         defn = _base_definition(
             triggers=[
                 {
@@ -573,7 +573,7 @@ class TestTriggerExpressions:
         errors = check_template_expressions(defn, node_ids)
         assert errors == []
 
-    def ***REMOVED***(self) -> None:
+    def test_empty_workflow_produces_no_findings(self) -> None:
         defn = _base_definition(nodes=[], edges=[])
         errors = check_template_expressions(defn, {"t1"})
         assert errors == []

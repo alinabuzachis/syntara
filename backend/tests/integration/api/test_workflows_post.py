@@ -278,7 +278,7 @@ async def test_post_workflow_with_labels_not_strings(jwt_client: AsyncClient, te
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(jwt_client: AsyncClient, test_project_id: str) -> None:
+async def test_post_workflow_with_long_description(jwt_client: AsyncClient, test_project_id: str) -> None:
     """Test creating a workflow with a long description. The field limit is 2,000 characters.
 
     Expected: 422 Unprocessable

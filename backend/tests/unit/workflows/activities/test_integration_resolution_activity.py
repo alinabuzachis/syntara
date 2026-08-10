@@ -85,7 +85,7 @@ class TestResolveIntegration:
             await _resolve_integration(session, "missing-id")
 
     @pytest.mark.anyio
-    async def ***REMOVED***(self) -> None:
+    async def test_wrong_type_raises_application_error(self) -> None:
         integration = _make_integration(integration_type="llm_provider")
         session = AsyncMock()
         result_mock = MagicMock()

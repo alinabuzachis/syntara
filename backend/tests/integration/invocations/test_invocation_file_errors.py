@@ -174,7 +174,7 @@ async def test_validation_error_no_invocation_created(
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(
+async def test_error_response_structure_consistent(
     auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id
 ) -> None:
     """Test that POST /invocations/chat file error responses follow consistent RFC 9457 structure.

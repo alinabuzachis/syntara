@@ -798,7 +798,7 @@ class TestConvergeNodeValidation:
         schema_errors = [f for f in result.findings if f.category == ValidationCategory.schema_violation]
         assert any("minimum" in f.message.lower() or "0" in f.message for f in schema_errors)
 
-    def ***REMOVED***(self, validator: WorkflowValidator) -> None:
+    def test_multiple_converge_nodes_independent(self, validator: WorkflowValidator) -> None:
         """Only the misconfigured converge gets findings."""
         definition: dict[str, Any] = {
             "schema_version": "2.0.0",

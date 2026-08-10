@@ -169,7 +169,7 @@ class TestWorkflowExecutionErrorHandler:
         assert audit_event.resource_urn == f"urn:syntara:workflow:{WORKFLOW_ID}"
         assert audit_event.resource_name is None
 
-    def ***REMOVED***(self) -> None:
+    def test_resource_fields_without_workflow_id(self) -> None:
         """Resource URN is None when workflow_id is None."""
         event = WorkflowExecutionErrorEvent(
             execution_id=EXECUTION_ID,

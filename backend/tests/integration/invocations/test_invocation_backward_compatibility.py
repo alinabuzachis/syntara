@@ -16,7 +16,7 @@ from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_IDS
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(
+async def test_json_request_without_files_succeeds(
     auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id
 ) -> None:
     """Test that application/json requests still work without files.
@@ -117,7 +117,7 @@ async def test_json_request_with_existing_context_data(
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(
+async def test_multipart_rejected_by_json_endpoint(
     auth_client_with_mocked_llm: AsyncClient, test_user, test_project_id
 ) -> None:
     """Test that POST /invocations rejects multipart/form-data requests.

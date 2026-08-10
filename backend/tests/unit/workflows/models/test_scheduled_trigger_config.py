@@ -147,7 +147,7 @@ class TestMissedSchedulePolicy:
 class TestRequiredFieldValidation:
     """Tests for conditional required field validation."""
 
-    async def ***REMOVED***(self) -> None:
+    async def test_interval_required_for_interval_type(self) -> None:
         """Interval field is required when schedule_type is 'interval'."""
         with pytest.raises((ValidationError, ValueError)):
             ScheduledTriggerConfig(schedule_type=ScheduleType.INTERVAL)
@@ -157,7 +157,7 @@ class TestRequiredFieldValidation:
         with pytest.raises((ValidationError, ValueError)):
             ScheduledTriggerConfig(schedule_type=ScheduleType.CRON)
 
-    async def ***REMOVED***(self) -> None:
+    async def test_interval_not_required_for_cron_type(self) -> None:
         """Interval field should not be required for cron type."""
         config = ScheduledTriggerConfig(
             schedule_type=ScheduleType.CRON,
@@ -165,7 +165,7 @@ class TestRequiredFieldValidation:
         )
         assert config.interval is None
 
-    async def ***REMOVED***(self) -> None:
+    async def test_cron_not_required_for_interval_type(self) -> None:
         """Cron field should not be required for interval type."""
         config = ScheduledTriggerConfig(
             schedule_type=ScheduleType.INTERVAL,

@@ -35,7 +35,7 @@ from nexus.workflows.workflow_engine.models.workflow_definition import (
 class TestApprovalOutputFieldNaming:
     """Verify ApprovalOutput uses the domain convention field names."""
 
-    def ***REMOVED***(self) -> None:
+    def test_field_names_match_domain_convention(self) -> None:
         """ApprovalOutput fields use decided_by/decided_at/decision_notes, not approver/timestamp/comments."""
         field_names = set(ApprovalOutput.model_fields.keys())
         assert "decided_by" in field_names

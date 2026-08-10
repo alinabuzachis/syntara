@@ -200,7 +200,7 @@ class TestProjectAssignmentLifecycle:
 class TestProjectAssignmentScopeErrors:
     """Scope enforcement: cannot assign projects to global-scoped integrations."""
 
-    async def ***REMOVED***(
+    async def test_assign_to_global_scoped_returns_422(
         self,
         auth_client: AsyncClient,
         test_db_session: AsyncSession,

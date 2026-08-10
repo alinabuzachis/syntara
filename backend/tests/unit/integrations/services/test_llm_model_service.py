@@ -105,7 +105,7 @@ class TestListModels:
     """Tests for LLMModelService.list_models."""
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(
+    async def test_list_returns_models_for_integration(
         self,
         test_db_session: AsyncSession,
         model_service: LLMModelService,

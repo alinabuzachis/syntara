@@ -115,7 +115,7 @@ class TestIntegrationDiscoverContract:
         )
         assert response.status_code == 422
 
-    async def ***REMOVED***(
+    async def test_unauthenticated_request_returns_401(
         self, base_client: AsyncClient, test_db_session: AsyncSession, test_user: User
     ) -> None:
         """Request without authentication returns 401."""

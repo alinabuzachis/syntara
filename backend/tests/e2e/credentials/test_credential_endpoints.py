@@ -570,7 +570,7 @@ class TestRbacAuditorReadOnly:
 class TestRbacProjectScopedVisibility:
     """Credentials with project_id are only visible to users with project access."""
 
-    def ***REMOVED***(self, nexus_api: SyntaraApiRegistry) -> None:
+    def test_org_level_credential_visible_to_all(self, nexus_api: SyntaraApiRegistry) -> None:
         """Credential with project_id=NULL is visible to all authorized users."""
         # ANSTRAT-1901: implement when workflow+credential wiring is available
         # 1. Create org-level credential (project_id=NULL — if supported)

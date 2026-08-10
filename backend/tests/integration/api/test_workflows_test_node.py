@@ -263,7 +263,7 @@ async def test_test_workflow_node_invalid_workflow_id(
 
 
 @pytest.mark.asyncio
-async def ***REMOVED***(
+async def test_test_node_with_execute_target_false(
     auth_client: AsyncClient,
     test_db_session: AsyncSession,
     test_user: User,

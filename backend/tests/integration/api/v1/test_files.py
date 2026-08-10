@@ -438,7 +438,7 @@ class TestFilesAPIMetadata:
         assert returned_ids == {str(fm1.id), str(fm2.id)}
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(
+    async def test_metadata_empty_file_ids_returns_422(
         self,
         auth_client: AsyncClient,
     ) -> None:

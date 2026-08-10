@@ -220,7 +220,7 @@ class TestListAssignedProjects:
         assert len(result.resources) == 0
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(
+    async def test_list_nonexistent_integration_raises(
         self, test_db_session: AsyncSession, integration_service: IntegrationService
     ) -> None:
         fake_integration_id = uuid4()

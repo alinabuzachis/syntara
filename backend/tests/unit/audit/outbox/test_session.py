@@ -32,7 +32,7 @@ def test_audit_worker_pool_size() -> None:
     assert worker_pool_size > 0, "Worker pool should have at least 1 connection"
 
 
-def ***REMOVED***() -> None:
+def test_audit_worker_session_factory_exists() -> None:
     """Audit worker session factory should be properly configured."""
     assert AuditWorkerAsyncSessionLocal is not None
     assert callable(AuditWorkerAsyncSessionLocal)

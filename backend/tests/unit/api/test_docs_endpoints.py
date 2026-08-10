@@ -272,7 +272,7 @@ class TestDocsEnabledWiring:
             object.__setattr__(main_module._settings, "enable_api_docs", original)
             main_module.app.dependency_overrides.pop(get_current_user, None)
 
-    def ***REMOVED***(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_docs_routes_registered_when_enabled(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import importlib
 
         import nexus.api.main as main_module

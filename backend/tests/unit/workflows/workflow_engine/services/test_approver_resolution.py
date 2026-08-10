@@ -169,7 +169,7 @@ class TestResolveUsernamesToIds:
         assert alice.id in result
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(
+    async def test_all_usernames_successfully_resolved(
         self, service: ApproverResolutionService, test_users: dict[str, User]
     ):
         """Test that all valid usernames are successfully resolved."""
@@ -209,7 +209,7 @@ class TestResolveGroupNamesToIds:
         assert result == []
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(
+    async def test_nonexistent_group_name_filtered_out(
         self, service: ApproverResolutionService, test_groups: dict[str, Group]
     ):
         """Test that non-existent group names are silently filtered out."""

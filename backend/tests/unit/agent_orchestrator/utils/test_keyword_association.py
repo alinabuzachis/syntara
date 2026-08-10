@@ -198,7 +198,7 @@ class TestAnnotateToolsWithRelevance:
 
         assert result[0].name == "search_repos"
 
-    def ***REMOVED***(self) -> None:
+    def test_deterministic_alphabetical_tiebreak(self) -> None:
         """Equal-score tools sorted alphabetically by name."""
         tools = [
             _make_tool("zebra_search", "Search for data"),
