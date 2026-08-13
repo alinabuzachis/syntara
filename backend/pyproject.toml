@@ -321,6 +321,7 @@ omit = [
     "tools/*",  # Manual utilities, not production code
     "src/api_client/*",  # Auto-generated API client, not production code
     "src/cli/*",  # CLI package, tested separately
+    "src/syntara/core/database/migrations/**",  # Alembic migrations, not unit-testable
     "src/syntara/workflows/worker.py",  # Entrypoint scripts, not unit-testable
     "src/syntara/workflows/background_worker.py",
 ]
