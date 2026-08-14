@@ -281,7 +281,7 @@ export default tseslint.config(
         'error',
         {
           // XMLHttpRequest required for upload progress (fetch lacks upload progress events)
-          allowedFiles: ['**/useFileUploadWithProgress.ts', '**/useFileStorageStatus.ts'],
+          allowedFiles: ['**/useFileUploadWithProgress.ts', '**/useFileStorageStatus.ts', '**/e2e/global-setup.ts'],
         },
       ],
       'syntara/prefer-pf-list-components': 'error',
@@ -334,6 +334,14 @@ export default tseslint.config(
     // Currents requires a default export for its config file — exempt from the default-export ban
     files: ['currents.config.ts'],
     rules: {
+      'no-restricted-exports': 'off',
+    },
+  },
+  {
+    // Playwright globalSetup runs in Node before tests — requires default export and uses console for logging
+    files: ['e2e/global-setup.ts'],
+    rules: {
+      'no-console': 'off',
       'no-restricted-exports': 'off',
     },
   },
