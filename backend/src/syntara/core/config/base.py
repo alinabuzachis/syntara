@@ -1460,6 +1460,17 @@ class WorkflowEngineSettings(BaseSettings):
         ge=1024,
     )
 
+    # SECURITY: Script nodes execute arbitrary user-supplied code (bash/Python)
+    # directly in the Temporal worker process without additional sandboxing. Enabling this
+    # grants any user with workflow:create + execution:run permissions the ability
+    # to run arbitrary commands on the worker infrastructure, with access to all
+    # environment variables.
+    # Enabling Script Node is not recommended for production deployments.
+    script_nodes_enabled: bool = Field(
+        default=False,
+        description="Enable Script node execution in workflows (Developer Preview)",
+    )
+
     agent_orchestrator_base_url: HttpUrl = Field(  # type: ignore[assignment]
         default="http://localhost:8000/api/v1",
         description="Base URL for Agent Orchestrator API",
