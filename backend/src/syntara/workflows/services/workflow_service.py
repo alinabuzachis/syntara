@@ -60,7 +60,11 @@ from syntara.workflows.models.workflow_publish_event import PublishAction, Workf
 from syntara.workflows.services.scheduled_trigger_service import ScheduledTriggerService
 from syntara.workflows.services.webhook_trigger_service import WEBHOOK_TRIGGER_TYPES, WebhookTriggerService
 from syntara.workflows.services.workflow_diff import generate_change_summary
-from syntara.workflows.validators import validate_workflow_references, workflow_validator
+from syntara.workflows.validators import (
+    get_system_continue_on_failure,
+    validate_workflow_references,
+    workflow_validator,
+)
 
 if TYPE_CHECKING:
     from syntara.workflows.models import WorkflowVersionListResponse
@@ -486,12 +490,16 @@ class WorkflowService(BaseService):
         """
         recorder = get_metrics_recorder()
         component = ComponentLabel.WORKFLOW_ENGINE
+        system_cof = await get_system_continue_on_failure()
 
         with recorder.time(
             MetricType.WORKFLOW_VALIDATION_DURATION,
             labels={"component": component.value, "operation": "create"},
         ):
-            result = workflow_validator.collect_findings(workflow_definition)
+            result = workflow_validator.collect_findings(
+                workflow_definition,
+                system_continue_on_failure=system_cof,
+            )
 
         has_validation_issues = _has_validation_issues(result)
         if has_validation_issues:
@@ -1037,12 +1045,16 @@ class WorkflowService(BaseService):
 
         """
         recorder = get_metrics_recorder()
+        system_cof = await get_system_continue_on_failure()
 
         with recorder.time(
             MetricType.WORKFLOW_VALIDATION_DURATION,
             labels={"component": ComponentLabel.WORKFLOW_ENGINE.value, "operation": "version_update"},
         ):
-            result = workflow_validator.collect_findings(workflow_definition)
+            result = workflow_validator.collect_findings(
+                workflow_definition,
+                system_continue_on_failure=system_cof,
+            )
 
         workflow.has_validation_issues = _has_validation_issues(result)
         if workflow.has_validation_issues:
@@ -1228,7 +1240,11 @@ class WorkflowService(BaseService):
             )
 
         definition = target_version.workflow_definition
-        result = workflow_validator.collect_findings(definition)
+        system_cof = await get_system_continue_on_failure()
+        result = workflow_validator.collect_findings(
+            definition,
+            system_continue_on_failure=system_cof,
+        )
         if len(definition.get("nodes", [])) == 0:
             result = ValidationResult.from_findings(
                 [
