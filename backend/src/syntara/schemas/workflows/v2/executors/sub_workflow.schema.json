@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://automation.example.com/schemas/workflows/v2/executors/sub_workflow",
+  "title": "Sub-workflow Node",
+  "description": "Execute another workflow as a sub-workflow in reference mode. The parent workflow invokes the child workflow and waits for its completion.",
+  "parameterSchema": {
+    "type": "object",
+    "required": ["workflow_id"],
+    "properties": {
+      "workflow_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "UUID of the child workflow to invoke (latest published version)"
+      },
+      "input_mapping": {
+        "type": "object",
+        "description": "Mapping of child workflow input field names to static values or template expressions. Keys are child workflow input field names; values can be static types (string, int, bool, dict, list) or template expression strings (${step_id.field.path}).",
+        "additionalProperties": true
+      }
+    },
+    "additionalProperties": false
+  },
+  "settingSchema": {
+    "$ref": "../common-definitions.schema.json#/$defs/nodeSettingsNoRetry"
+  },
+  "resultSchema": {
+    "description": "Result structure available after sub-workflow execution completes",
+    "oneOf": [
+      {
+        "title": "Completed Result",
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "completed",
+            "description": "Sub-workflow execution completed successfully"
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "title": "Failed Result",
+        "type": "object",
+        "required": [
+          "status",
+          "error"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "failed",
+            "description": "Sub-workflow execution failed"
+          },
+          "error": {
+            "type": "string",
+            "description": "Error message describing the failure"
+          }
+        },
+        "additionalProperties": false
+      }
+    ],
+    "discriminator": {
+      "propertyName": "status"
+    }
+  }
+}
