@@ -1,4 +1,4 @@
-import { RhUiTopologyIcon } from '@patternfly/react-icons'
+import { RhUiNetworkIcon } from '@patternfly/react-icons'
 
 import { RegistryNodeId } from '../../../../constants'
 import { createSubWorkflowActivity, useWorkflowStore } from '../../../../stores/useWorkflowStore'
@@ -18,9 +18,9 @@ export default function registerSubWorkflowNode() {
   NodeRegistry.register<SubWorkflowFormData>({
     id: RegistryNodeId.SUB_WORKFLOW,
     label: 'Sub-workflow',
-    icon: RhUiTopologyIcon,
+    icon: RhUiNetworkIcon,
     category: 'action',
-    description: 'Call another workflow as a sub-workflow (reference mode)',
+    description: 'Call another published workflow and receive its output.',
     keywords: ['workflow', 'sub', 'child', 'call', 'reference', 'nested', 'reuse'],
     order: 40,
     formComponent: SubWorkflowNodeForm,
