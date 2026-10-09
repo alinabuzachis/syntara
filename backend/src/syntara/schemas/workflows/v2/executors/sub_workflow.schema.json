@@ -29,46 +29,91 @@
     "$ref": "../common-definitions.schema.json#/$defs/nodeSettingsNoRetry"
   },
   "resultSchema": {
-    "description": "Result structure available after sub-workflow execution completes. Full SubWorkflowOutput contract (including child execution metadata and nested outputs) to be implemented in AAP-94069.",
-    "oneOf": [
-      {
-        "title": "Completed Result",
-        "type": "object",
-        "required": [
-          "status"
-        ],
-        "properties": {
-          "status": {
-            "type": "string",
-            "const": "completed",
-            "description": "Sub-workflow execution completed successfully"
-          }
+    "$ref": "#/$defs/SubWorkflowOutput"
+  },
+  "$defs": {
+    "StandardOutputWrapper": {
+      "type": "object",
+      "description": "Standard output envelope per ANSTRAT-2422 R4 (AC-3). All Step SDK outputs follow this structure.",
+      "properties": {
+        "Result": {
+          "description": "Primary task return payload (type varies by step)"
         },
-        "additionalProperties": false
+        "StatusCode": {
+          "type": ["integer", "null"],
+          "description": "Execution status code (0=success, non-zero=failure per POSIX convention)"
+        },
+        "StatusMessage": {
+          "type": ["string", "null"],
+          "description": "Human-readable status summary (max 500 chars)"
+        },
+        "ErrorMessage": {
+          "type": ["string", "null"],
+          "description": "Detailed error diagnostics (max 10k chars)"
+        }
       },
-      {
-        "title": "Failed Result",
-        "type": "object",
-        "required": [
-          "status",
-          "error"
-        ],
-        "properties": {
-          "status": {
-            "type": "string",
-            "const": "failed",
-            "description": "Sub-workflow execution failed"
-          },
-          "error": {
-            "type": "string",
-            "description": "Error message describing the failure"
-          }
+      "additionalProperties": false
+    },
+    "SubWorkflowOutputResult": {
+      "type": ["object", "null"],
+      "description": "Child execution metadata for Sub-workflow steps (AAP-94069). Structure based on spike AAP-95060.",
+      "properties": {
+        "child_execution_id": {
+          "type": ["string", "null"],
+          "format": "uuid",
+          "description": "UUID of the child workflow execution instance (null if invocation failed)"
         },
-        "additionalProperties": false
-      }
-    ],
-    "discriminator": {
-      "propertyName": "status"
+        "child_workflow_id": {
+          "type": ["string", "null"],
+          "format": "uuid",
+          "description": "UUID of the invoked child workflow definition"
+        },
+        "child_workflow_name": {
+          "type": ["string", "null"],
+          "description": "Human-readable name of the child workflow"
+        },
+        "child_workflow_version": {
+          "type": ["integer", "null"],
+          "description": "Version number of the child workflow that was invoked"
+        },
+        "child_status": {
+          "type": ["string", "null"],
+          "enum": ["running", "succeeded", "failed", "cancelled", null],
+          "description": "Terminal status of the child workflow execution"
+        },
+        "outputs": {
+          "type": ["object", "null"],
+          "description": "Child workflow terminal step outputs. Keys are child step IDs, values are StandardOutputWrapper envelopes. May be null if authorization denied.",
+          "additionalProperties": {
+            "$ref": "#/$defs/StandardOutputWrapper"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "SubWorkflowOutput": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/StandardOutputWrapper"
+        }
+      ],
+      "type": "object",
+      "description": "Output model for Sub-workflow steps (AAP-94069). Follows StandardOutputWrapper structure with Result containing child execution metadata.",
+      "properties": {
+        "Result": {
+          "$ref": "#/$defs/SubWorkflowOutputResult"
+        },
+        "StatusCode": {
+          "type": ["integer", "null"]
+        },
+        "StatusMessage": {
+          "type": ["string", "null"]
+        },
+        "ErrorMessage": {
+          "type": ["string", "null"]
+        }
+      },
+      "additionalProperties": false
     }
   }
 }
