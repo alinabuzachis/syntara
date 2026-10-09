@@ -13,9 +13,39 @@ import pytest
 
 from syntara.workflows.workflow_engine.models.workflow_definition import (
     NodeOutput,
+    StandardOutputWrapper,
     SubWorkflowOutput,
     SubWorkflowOutputResult,
 )
+
+
+class TestStandardOutputWrapper:
+    """Verify StandardOutputWrapper structure per ANSTRAT-2422 R4."""
+
+    def test_has_required_fields(self) -> None:
+        """StandardOutputWrapper has Result, StatusCode, StatusMessage, ErrorMessage."""
+        expected = {"Result", "StatusCode", "StatusMessage", "ErrorMessage"}
+        assert set(StandardOutputWrapper.model_fields.keys()) == expected
+
+    def test_all_fields_default_to_none(self) -> None:
+        """All fields default to None for flexibility."""
+        wrapper = StandardOutputWrapper()
+        assert wrapper.Result is None
+        assert wrapper.StatusCode is None
+        assert wrapper.StatusMessage is None
+        assert wrapper.ErrorMessage is None
+
+    def test_can_create_with_values(self) -> None:
+        """Can create StandardOutputWrapper with values."""
+        wrapper = StandardOutputWrapper(
+            Result={"deployment_url": "https://example.com"},
+            StatusCode=0,
+            StatusMessage="Deployment successful",
+            ErrorMessage="",
+        )
+        assert wrapper.Result == {"deployment_url": "https://example.com"}
+        assert wrapper.StatusCode == 0
+        assert wrapper.StatusMessage == "Deployment successful"
 
 
 class TestSubWorkflowOutputStandardWrapper:

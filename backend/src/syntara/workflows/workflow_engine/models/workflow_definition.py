@@ -1022,6 +1022,26 @@ class WaitOutput(NodeOutput):
     """Output model for wait control nodes."""
 
 
+class StandardOutputWrapper(BaseModel):
+    """Standard output wrapper per ANSTRAT-2422 R4 (AC-3).
+
+    All steps in the Step SDK must return this envelope structure with:
+    - Result: Primary task return payload (type varies by step)
+    - StatusCode: Integer 0-255 (0=success, non-zero=failure per POSIX convention)
+    - StatusMessage: Human-readable summary (max 500 chars)
+    - ErrorMessage: Detailed error diagnostics (max 10k chars)
+
+    This is a forward-compatible structure defined for sub-workflow outputs.
+    Existing NodeOutput models use flat structure but will eventually migrate
+    to this pattern when ANSTRAT-2422 Step SDK is fully implemented.
+    """
+
+    Result: Any = None
+    StatusCode: int | None = None
+    StatusMessage: str | None = None
+    ErrorMessage: str | None = None
+
+
 class SubWorkflowOutputResult(BaseModel):
     """Result payload for Sub-workflow steps containing child execution metadata.
 
@@ -1038,7 +1058,7 @@ class SubWorkflowOutputResult(BaseModel):
     child_workflow_name: str | None = None
     child_workflow_version: int | None = None
     child_status: Literal["running", "succeeded", "failed", "cancelled"] | None = None
-    outputs: dict[str, Any] | None = None
+    outputs: dict[str, StandardOutputWrapper] | None = None
 
 
 class SubWorkflowOutput(NodeOutput):
