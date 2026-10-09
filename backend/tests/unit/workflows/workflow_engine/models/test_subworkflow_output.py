@@ -27,13 +27,14 @@ class TestStandardOutputWrapper:
         expected = {"Result", "StatusCode", "StatusMessage", "ErrorMessage"}
         assert set(StandardOutputWrapper.model_fields.keys()) == expected
 
-    def test_all_fields_default_to_none(self) -> None:
+    @pytest.mark.parametrize(
+        "field_name",
+        ["Result", "StatusCode", "StatusMessage", "ErrorMessage"],
+    )
+    def test_all_fields_default_to_none(self, field_name: str) -> None:
         """All fields default to None for flexibility."""
         wrapper = StandardOutputWrapper()
-        assert wrapper.Result is None
-        assert wrapper.StatusCode is None
-        assert wrapper.StatusMessage is None
-        assert wrapper.ErrorMessage is None
+        assert getattr(wrapper, field_name) is None
 
     def test_can_create_with_values(self) -> None:
         """Can create StandardOutputWrapper with values."""
@@ -50,11 +51,6 @@ class TestStandardOutputWrapper:
 
 class TestSubWorkflowOutputStandardWrapper:
     """Verify SubWorkflowOutput follows StandardOutputWrapper structure (ANSTRAT-2422 R4)."""
-
-    def test_has_standard_output_wrapper_fields(self) -> None:
-        """SubWorkflowOutput has Result, StatusCode, StatusMessage, ErrorMessage per ANSTRAT-2422."""
-        expected = {"Result", "StatusCode", "StatusMessage", "ErrorMessage"}
-        assert set(SubWorkflowOutput.model_fields.keys()) == expected
 
     @pytest.mark.parametrize(
         "field_name",
@@ -136,7 +132,11 @@ class TestSubWorkflowOutputPopulated:
                     "child_workflow_name": "Deploy Application",
                     "child_workflow_version": 3,
                     "child_status": "succeeded",
-                    "outputs": {"step_1": {"Result": {"status": "ok"}}},
+                    "outputs": {
+                        "step_1": StandardOutputWrapper(
+                            Result={"status": "ok"}, StatusCode=0, StatusMessage="Step completed"
+                        )
+                    },
                 },
                 {"StatusCode": 0, "StatusMessage": "Sub-workflow completed successfully"},
                 0,
@@ -169,9 +169,15 @@ class TestSubWorkflowOutputPopulated:
     def test_outputs_multi_terminal_structure(self) -> None:
         """Outputs dict supports multiple child step outputs (multi-terminal scenario)."""
         outputs_data = {
-            "deploy_us": {"Result": {"region": "us-east-1"}},
-            "deploy_eu": {"Result": {"region": "eu-west-1"}},
-            "deploy_ap": {"Result": {"region": "ap-south-1"}},
+            "deploy_us": StandardOutputWrapper(
+                Result={"region": "us-east-1"}, StatusCode=0, StatusMessage="US deployed"
+            ),
+            "deploy_eu": StandardOutputWrapper(
+                Result={"region": "eu-west-1"}, StatusCode=0, StatusMessage="EU deployed"
+            ),
+            "deploy_ap": StandardOutputWrapper(
+                Result={"region": "ap-south-1"}, StatusCode=0, StatusMessage="AP deployed"
+            ),
         }
         result = SubWorkflowOutputResult(
             child_workflow_id="wf-id",
@@ -184,6 +190,8 @@ class TestSubWorkflowOutputPopulated:
         assert output.Result.outputs is not None
         assert len(output.Result.outputs) == 3
         assert all(key in output.Result.outputs for key in ["deploy_us", "deploy_eu", "deploy_ap"])
+        # Verify they're StandardOutputWrapper instances
+        assert all(isinstance(v, StandardOutputWrapper) for v in output.Result.outputs.values())
 
 
 class TestSubWorkflowOutputNullabilitySemantics:
@@ -243,7 +251,7 @@ class TestSubWorkflowOutputInheritanceAndSerialization:
             child_workflow_name="Deploy",
             child_workflow_version=3,
             child_status="succeeded",
-            outputs={"step_1": {"Result": {"status": "ok"}}},
+            outputs={"step_1": StandardOutputWrapper(Result={"status": "ok"}, StatusCode=0, StatusMessage="Completed")},
         )
         output = SubWorkflowOutput(
             Result=result,
