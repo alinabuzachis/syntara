@@ -1084,10 +1084,10 @@ class StandardOutputWrapper(BaseModel):
     to this pattern when ANSTRAT-2422 Step SDK is fully implemented.
     """
 
-    Result: Any = None
+    Result: Any = None  # Type varies by step - validated by step-specific models
     StatusCode: int | None = None
-    StatusMessage: str | None = None
-    ErrorMessage: str | None = None
+    StatusMessage: str | None = Field(default=None, max_length=500)
+    ErrorMessage: str | None = Field(default=None, max_length=10000)
 
 
 class SubWorkflowOutputResult(BaseModel):
@@ -1103,10 +1103,10 @@ class SubWorkflowOutputResult(BaseModel):
 
     child_execution_id: str | None = None
     child_workflow_id: str | None = None
-    child_workflow_name: str | None = None
+    child_workflow_name: str | None = Field(default=None, max_length=255)
     child_workflow_version: int | None = None
     child_status: Literal["running", "succeeded", "failed", "cancelled"] | None = None
-    outputs: dict[str, StandardOutputWrapper] | None = None
+    outputs: dict[str, StandardOutputWrapper] | None = Field(default=None, max_length=1000)
 
 
 class SubWorkflowOutput(NodeOutput):
@@ -1126,8 +1126,8 @@ class SubWorkflowOutput(NodeOutput):
 
     Result: SubWorkflowOutputResult | None = None
     StatusCode: int | None = None
-    StatusMessage: str | None = None
-    ErrorMessage: str | None = None
+    StatusMessage: str | None = Field(default=None, max_length=500)
+    ErrorMessage: str | None = Field(default=None, max_length=10000)
 
 
 NODE_OUTPUT_MODELS: dict[str, type[NodeOutput]] = {

@@ -9,8 +9,9 @@
     "properties": {
       "workflow_id": {
         "type": "string",
-        "pattern": "^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\\$\\{.+\\})$",
-        "description": "UUID of the child workflow to invoke (latest published version), or template expression"
+        "pattern": "^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\\$\\{.{1,500}\\})$",
+        "maxLength": 550,
+        "description": "UUID of the child workflow to invoke (latest published version), or template expression (max 500 chars)"
       },
       "trigger_node_id": {
         "type": "string",
@@ -20,6 +21,7 @@
       "input_mapping": {
         "type": "object",
         "description": "Mapping of child workflow input field names to static values or template expressions. Keys are child workflow input field names; values can be static types (string, int, bool, dict, list) or template expression strings (${step_id.field.path}).",
+        "maxProperties": 100,
         "additionalProperties": true
       }
     },
@@ -45,10 +47,12 @@
         },
         "StatusMessage": {
           "type": ["string", "null"],
+          "maxLength": 500,
           "description": "Human-readable status summary (max 500 chars)"
         },
         "ErrorMessage": {
           "type": ["string", "null"],
+          "maxLength": 10000,
           "description": "Detailed error diagnostics (max 10k chars)"
         }
       },
@@ -70,6 +74,7 @@
         },
         "child_workflow_name": {
           "type": ["string", "null"],
+          "maxLength": 255,
           "description": "Human-readable name of the child workflow"
         },
         "child_workflow_version": {
@@ -84,6 +89,7 @@
         "outputs": {
           "type": ["object", "null"],
           "description": "Child workflow terminal step outputs. Keys are child step IDs, values are StandardOutputWrapper envelopes. May be null if authorization denied.",
+          "maxProperties": 1000,
           "additionalProperties": {
             "$ref": "#/$defs/StandardOutputWrapper"
           }
@@ -107,10 +113,12 @@
           "type": ["integer", "null"]
         },
         "StatusMessage": {
-          "type": ["string", "null"]
+          "type": ["string", "null"],
+          "maxLength": 500
         },
         "ErrorMessage": {
-          "type": ["string", "null"]
+          "type": ["string", "null"],
+          "maxLength": 10000
         }
       },
       "additionalProperties": false
