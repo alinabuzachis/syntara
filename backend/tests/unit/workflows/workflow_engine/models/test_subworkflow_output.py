@@ -218,6 +218,47 @@ class TestSubWorkflowOutputNullabilitySemantics:
         assert output.StatusCode == 0
 
 
+class TestSubWorkflowOutputSecurityConstraints:
+    """Verify security constraints prevent DoS via oversized fields."""
+
+    def test_status_message_length_constraint(self) -> None:
+        """StatusMessage field rejects strings > 500 chars."""
+        import pytest
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError) as exc_info:
+            StandardOutputWrapper(StatusMessage="x" * 501)
+        assert "at most 500 characters" in str(exc_info.value).lower()
+
+    def test_error_message_length_constraint(self) -> None:
+        """ErrorMessage field rejects strings > 10000 chars."""
+        import pytest
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError) as exc_info:
+            StandardOutputWrapper(ErrorMessage="x" * 10001)
+        assert "at most 10000 characters" in str(exc_info.value).lower() or "10,000" in str(exc_info.value)
+
+    def test_child_workflow_name_length_constraint(self) -> None:
+        """child_workflow_name field rejects strings > 255 chars."""
+        import pytest
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError) as exc_info:
+            SubWorkflowOutputResult(child_workflow_name="x" * 256)
+        assert "at most 255 characters" in str(exc_info.value).lower()
+
+    def test_outputs_dict_size_constraint(self) -> None:
+        """Outputs dict rejects > 1000 entries."""
+        import pytest
+        from pydantic import ValidationError
+
+        large_outputs = {f"step_{i}": StandardOutputWrapper() for i in range(1001)}
+        with pytest.raises(ValidationError) as exc_info:
+            SubWorkflowOutputResult(outputs=large_outputs)
+        assert "at most 1000" in str(exc_info.value).lower() or "1,000" in str(exc_info.value)
+
+
 class TestSubWorkflowOutputInheritanceAndSerialization:
     """Verify NodeOutput inheritance and dump() method."""
 
