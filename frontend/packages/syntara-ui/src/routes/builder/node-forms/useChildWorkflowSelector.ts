@@ -31,7 +31,7 @@ export function useChildWorkflowSelector({ projectId, selectedWorkflowId, onChan
   const { workflowsQuery, workflows } = useWorkflowsQuery({
     queryParams: {
       name: searchTerm,
-      status: 'published', // Only published workflows (ANSTRAT-2347 AC: Reference mode)
+      status: 'published', // Only published workflows
     },
     isAllProjects: false, // V1: Same-project only
     stableProjectId: projectId ?? undefined,
