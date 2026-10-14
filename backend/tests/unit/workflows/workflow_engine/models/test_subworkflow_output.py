@@ -9,6 +9,8 @@ Covers StandardOutputWrapper structure per ANSTRAT-2422 R4:
 - NodeOutput inheritance and dump() method
 """
 
+from typing import Any
+
 import pytest
 
 from syntara.workflows.workflow_engine.models.workflow_definition import (
@@ -156,7 +158,7 @@ class TestSubWorkflowOutputPopulated:
         ],
     )
     def test_standard_wrapper_population_scenarios(
-        self, scenario: str, result_data: dict, wrapper_data: dict, expected_status_code: int
+        self, scenario: str, result_data: dict[str, Any], wrapper_data: dict[str, Any], expected_status_code: int
     ) -> None:
         """StandardOutputWrapper fields populate correctly for different scenarios."""
         result = SubWorkflowOutputResult(**result_data)
@@ -187,6 +189,7 @@ class TestSubWorkflowOutputPopulated:
         )
         output = SubWorkflowOutput(Result=result, StatusCode=0)
 
+        assert output.Result is not None
         assert output.Result.outputs is not None
         assert len(output.Result.outputs) == 3
         assert all(key in output.Result.outputs for key in ["deploy_us", "deploy_eu", "deploy_ap"])
@@ -213,6 +216,7 @@ class TestSubWorkflowOutputNullabilitySemantics:
             StatusMessage="Sub-workflow completed (outputs not visible due to permissions)",
         )
 
+        assert output.Result is not None
         assert output.Result.child_status == "succeeded"
         assert output.Result.outputs is None
         assert output.StatusCode == 0
@@ -284,7 +288,7 @@ class TestSubWorkflowOutputInheritanceAndSerialization:
             ),  # Selective mapping
         ],
     )
-    def test_dump_with_output_mapping(self, output_config: dict | None, expected_keys: set) -> None:
+    def test_dump_with_output_mapping(self, output_config: dict[str, Any] | None, expected_keys: set[str]) -> None:
         """dump() applies output mapping correctly."""
         result = SubWorkflowOutputResult(
             child_execution_id="exec-123",

@@ -102,7 +102,7 @@ class TestSubWorkflowNodeSchemaValidation:
         subworkflow_schema: dict[str, Any],
     ) -> None:
         """Values that pass JSON Schema also pass Pydantic model validation."""
-        config = {
+        config: dict[str, Any] = {
             "workflow_id": workflow_id,
             "trigger_node_id": trigger_node_id,
         }
