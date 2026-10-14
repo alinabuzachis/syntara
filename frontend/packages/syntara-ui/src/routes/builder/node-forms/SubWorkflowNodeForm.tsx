@@ -55,6 +55,8 @@ export function SubWorkflowNodeForm({ onSubmit, initialData }: BaseNodeFormProps
     },
   })
 
+  const workflowId = methods.watch('workflow_id')
+
   const autoSubmitRef = use(NodeEditorAutoSubmitContext)
   useRegisterAutoSubmit(autoSubmitRef, methods, onSubmit)
 
@@ -96,7 +98,11 @@ export function SubWorkflowNodeForm({ onSubmit, initialData }: BaseNodeFormProps
               name="input_mapping"
               control={methods.control}
               render={({ field }) => (
-                <InputMappingFields entries={field.value} onChange={field.onChange} isDisabled={isVersionView} />
+                <InputMappingFields
+                  entries={field.value}
+                  onChange={field.onChange}
+                  isDisabled={isVersionView || !workflowId}
+                />
               )}
             />
           </StackItem>
