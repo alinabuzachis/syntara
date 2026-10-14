@@ -213,6 +213,30 @@ describe('SubWorkflowNodeForm', () => {
   })
 
   describe('Input Mapping Management', () => {
+    it('disables input mapping when no workflow selected', () => {
+      renderWithQueryClient(<SubWorkflowNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
+
+      const addButton = screen.getByRole('button', { name: 'Add input mapping' })
+      expect(addButton).toBeDisabled()
+    })
+
+    it('enables input mapping when workflow is selected', () => {
+      renderWithQueryClient(
+        <SubWorkflowNodeForm
+          onSubmit={mockOnSubmit}
+          onCancel={vi.fn()}
+          initialData={{
+            name: 'Test',
+            workflow_id: 'wf-1',
+            input_mapping: [],
+          }}
+        />
+      )
+
+      const addButton = screen.getByRole('button', { name: 'Add input mapping' })
+      expect(addButton).toBeEnabled()
+    })
+
     it('adds multiple input mappings', async () => {
       const user = userEvent.setup()
       renderWithQueryClient(<SubWorkflowNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
