@@ -31,7 +31,7 @@ export type ChildWorkflowSelectorProps = {
  * Child workflow selector dropdown for Sub-workflow step configuration.
  *
  * Provides a typeahead dropdown for selecting a child workflow from the current project.
- * Filters to published workflows only (ANSTRAT-2347 AC: Reference mode).
+ * Filters to published workflows only (reference mode).
  *
  * Features:
  * - Typeahead search with 300ms debounce
