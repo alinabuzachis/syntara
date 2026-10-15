@@ -125,3 +125,84 @@ async def test_empty_triggers_array(jwt_client: AsyncClient) -> None:
     response = await jwt_client.post("/api/v1/workflows", json=payload)
 
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_subworkflow_node_valid(jwt_client: AsyncClient) -> None:
+    """Workflow with valid sub_workflow node should be accepted."""
+    payload = _base_payload("subworkflow-valid")
+    payload["workflow_definition"]["nodes"] = [
+        {
+            "id": "sub1",
+            "type": "sub_workflow",
+            "parameters": {
+                "workflow_id": "550e8400-e29b-41d4-a716-446655440000",
+                "trigger_node_id": "trigger_1",
+            },
+        },
+    ]
+    payload["workflow_definition"]["edges"] = [
+        {"from": "trigger_manual", "to": "sub1"},
+    ]
+
+    response = await jwt_client.post("/api/v1/workflows", json=payload)
+
+    assert response.status_code in (200, 201)
+
+
+@pytest.mark.asyncio
+async def test_subworkflow_node_missing_workflow_id(jwt_client: AsyncClient) -> None:
+    """Sub-workflow node without workflow_id should be rejected."""
+    payload = _base_payload("subworkflow-no-workflow-id")
+    payload["workflow_definition"]["nodes"] = [
+        {
+            "id": "sub1",
+            "type": "sub_workflow",
+            "parameters": {
+                "trigger_node_id": "trigger_1",
+            },
+        },
+    ]
+
+    response = await jwt_client.post("/api/v1/workflows", json=payload)
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_subworkflow_node_missing_trigger_node_id(jwt_client: AsyncClient) -> None:
+    """Sub-workflow node without trigger_node_id should be rejected."""
+    payload = _base_payload("subworkflow-no-trigger-id")
+    payload["workflow_definition"]["nodes"] = [
+        {
+            "id": "sub1",
+            "type": "sub_workflow",
+            "parameters": {
+                "workflow_id": "550e8400-e29b-41d4-a716-446655440000",
+            },
+        },
+    ]
+
+    response = await jwt_client.post("/api/v1/workflows", json=payload)
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_subworkflow_node_invalid_trigger_node_id_pattern(jwt_client: AsyncClient) -> None:
+    """Sub-workflow node with invalid trigger_node_id pattern should be rejected."""
+    payload = _base_payload("subworkflow-invalid-trigger-id")
+    payload["workflow_definition"]["nodes"] = [
+        {
+            "id": "sub1",
+            "type": "sub_workflow",
+            "parameters": {
+                "workflow_id": "550e8400-e29b-41d4-a716-446655440000",
+                "trigger_node_id": "123-invalid",
+            },
+        },
+    ]
+
+    response = await jwt_client.post("/api/v1/workflows", json=payload)
+
+    assert response.status_code == 422
