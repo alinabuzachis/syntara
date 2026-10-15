@@ -452,7 +452,7 @@ class TestNodeOutputModelsRegistry:
         assert NODE_OUTPUT_MODELS[NodeType.APPROVAL] is ApprovalOutput
 
     def test_sub_workflow_maps_to_sub_workflow_output(self) -> None:
-        """SUB_WORKFLOW maps to SubWorkflowOutput (AAP-94072)."""
+        """SUB_WORKFLOW maps to SubWorkflowOutput."""
         assert NODE_OUTPUT_MODELS[NodeType.SUB_WORKFLOW] is SubWorkflowOutput
 
     def test_all_values_are_node_output_subclasses(self) -> None:

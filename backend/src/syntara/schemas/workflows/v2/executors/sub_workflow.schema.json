@@ -36,7 +36,7 @@
   "$defs": {
     "StandardOutputWrapper": {
       "type": "object",
-      "description": "Standard output envelope per ANSTRAT-2422 R4 (AC-3). All Step SDK outputs follow this structure.",
+      "description": "Standard output envelope for Step SDK. All step outputs follow this structure.",
       "properties": {
         "Result": {
           "description": "Primary task return payload (type varies by step)"
@@ -60,7 +60,7 @@
     },
     "SubWorkflowOutputResult": {
       "type": ["object", "null"],
-      "description": "Child execution metadata for Sub-workflow steps (AAP-94069). Structure based on spike AAP-95060.",
+      "description": "Child execution metadata for Sub-workflow steps.",
       "properties": {
         "child_execution_id": {
           "type": ["string", "null"],
@@ -104,7 +104,7 @@
         }
       ],
       "type": "object",
-      "description": "Output model for Sub-workflow steps (AAP-94069). Follows StandardOutputWrapper structure with Result containing child execution metadata.",
+      "description": "Output model for Sub-workflow steps. Follows StandardOutputWrapper structure with Result containing child execution metadata.",
       "properties": {
         "Result": {
           "$ref": "#/$defs/SubWorkflowOutputResult"
