@@ -130,29 +130,41 @@ async def test_empty_triggers_array(jwt_client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_subworkflow_node_valid(jwt_client: AsyncClient) -> None:
     """Workflow with valid sub_workflow node should be accepted."""
-    payload = _base_payload("subworkflow-valid")
-    # Add sub_workflow node alongside existing test_activity node
-    payload["workflow_definition"]["nodes"].append(
-        {
-            "id": "sub1",
-            "type": "sub_workflow",
-            "parameters": {
-                "workflow_id": "550e8400-e29b-41d4-a716-446655440000",
-                "trigger_node_id": "trigger_1",
-            },
-        }
-    )
-    # Add edge from test_activity to sub1
-    payload["workflow_definition"]["edges"].append(
-        {
-            "from": "test_activity",
-            "to": "sub1",
-        }
-    )
+    payload = {
+        "name": "subworkflow-test",
+        "workflow_definition": {
+            "schema_version": "2.0.0",
+            "name": "subworkflow-test",
+            "description": "Test workflow with sub_workflow node",
+            "triggers": [
+                {
+                    "id": "trigger_manual",
+                    "type": "manual_trigger",
+                    "parameters": {},
+                }
+            ],
+            "nodes": [
+                {
+                    "id": "sub1",
+                    "type": "sub_workflow",
+                    "parameters": {
+                        "workflow_id": "550e8400-e29b-41d4-a716-446655440000",
+                        "trigger_node_id": "trigger_1",
+                    },
+                },
+            ],
+            "edges": [
+                {
+                    "from": "trigger_manual",
+                    "to": "sub1",
+                }
+            ],
+        },
+    }
 
     response = await jwt_client.post("/api/v1/workflows", json=payload)
 
-    assert response.status_code in (200, 201)
+    assert response.status_code in (200, 201), f"Got {response.status_code}: {response.json()}"
 
 
 @pytest.mark.asyncio
