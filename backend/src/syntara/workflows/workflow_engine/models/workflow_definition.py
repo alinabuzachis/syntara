@@ -1105,7 +1105,7 @@ class SubWorkflowOutputResult(BaseModel):
     child_workflow_id: str | None = None
     child_workflow_name: str | None = Field(default=None, max_length=255)
     child_workflow_version: int | None = None
-    child_status: Literal["running", "succeeded", "failed", "cancelled"] | None = None
+    child_status: Literal["running", "completed", "completed_with_errors", "failed", "cancelled"] | None = None
     outputs: dict[str, StandardOutputWrapper] | None = Field(default=None, max_length=1000)
 
 
@@ -1137,6 +1137,7 @@ NODE_OUTPUT_MODELS: dict[str, type[NodeOutput]] = {
     NodeType.AAP_WORKFLOW_JOB_TEMPLATE: AAPWorkflowJobTemplateOutput,
     NodeType.AGENTIC: AgenticOutput,
     NodeType.APPROVAL: ApprovalOutput,
+    NodeType.SUB_WORKFLOW: SubWorkflowOutput,
     NodeType.CONDITION: ConditionOutput,
     NodeType.SWITCH: SwitchOutput,
     NodeType.CONVERGE: ConvergeOutput,

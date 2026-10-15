@@ -101,7 +101,7 @@ class TestSubWorkflowOutputPopulated:
 
     @pytest.mark.parametrize(
         "status_value",
-        ["running", "succeeded", "failed", "cancelled"],
+        ["running", "completed", "completed_with_errors", "failed", "cancelled"],
     )
     def test_child_status_enum_values(self, status_value: str) -> None:
         """child_status accepts all valid enum values."""
@@ -133,7 +133,7 @@ class TestSubWorkflowOutputPopulated:
                     "child_workflow_id": "wf-456",
                     "child_workflow_name": "Deploy Application",
                     "child_workflow_version": 3,
-                    "child_status": "succeeded",
+                    "child_status": "completed",
                     "outputs": {
                         "step_1": StandardOutputWrapper(
                             Result={"status": "ok"}, StatusCode=0, StatusMessage="Step completed"
@@ -200,14 +200,14 @@ class TestSubWorkflowOutputPopulated:
 class TestSubWorkflowOutputNullabilitySemantics:
     """Verify nullability semantics per spike AAP-95060."""
 
-    def test_outputs_null_when_child_succeeded_but_unauthorized(self) -> None:
-        """Outputs is None when child succeeded but parent lacks read permission (OQ-5)."""
+    def test_outputs_null_when_child_completed_but_unauthorized(self) -> None:
+        """Outputs is None when child completed but parent lacks read permission (OQ-5)."""
         result = SubWorkflowOutputResult(
             child_execution_id="exec-123",
             child_workflow_id="wf-456",
             child_workflow_name="Deploy",
             child_workflow_version=1,
-            child_status="succeeded",
+            child_status="completed",
             outputs=None,  # Null due to authorization denial
         )
         output = SubWorkflowOutput(
@@ -217,7 +217,7 @@ class TestSubWorkflowOutputNullabilitySemantics:
         )
 
         assert output.Result is not None
-        assert output.Result.child_status == "succeeded"
+        assert output.Result.child_status == "completed"
         assert output.Result.outputs is None
         assert output.StatusCode == 0
 
@@ -295,7 +295,7 @@ class TestSubWorkflowOutputInheritanceAndSerialization:
             child_workflow_id="wf-456",
             child_workflow_name="Deploy",
             child_workflow_version=3,
-            child_status="succeeded",
+            child_status="completed",
             outputs={"step_1": StandardOutputWrapper(Result={"status": "ok"}, StatusCode=0, StatusMessage="Completed")},
         )
         output = SubWorkflowOutput(
