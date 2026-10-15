@@ -83,8 +83,8 @@
         },
         "child_status": {
           "type": ["string", "null"],
-          "enum": ["running", "succeeded", "failed", "cancelled", null],
-          "description": "Terminal status of the child workflow execution"
+          "enum": ["running", "completed", "completed_with_errors", "failed", "cancelled", null],
+          "description": "Terminal status of the child workflow execution (aligned with ExecutionStatus enum)"
         },
         "outputs": {
           "type": ["object", "null"],
