@@ -791,8 +791,8 @@ class SubWorkflowExecutorParameters(TemplateAwareBaseModel):
     a parent workflow. The Sub-workflow step always invokes the latest published
     version of the target workflow.
 
-    Per ANSTRAT-2347 (updated 2026-10-08): When a workflow has multiple
-    Subworkflow Triggers, the calling step must select a specific trigger to invoke.
+    When a workflow has multiple Subworkflow Triggers, the calling step must
+    select a specific trigger to invoke via the trigger_node_id field.
 
     Attributes:
         workflow_id: UUID of the child workflow to invoke.
@@ -1071,7 +1071,7 @@ class WaitOutput(NodeOutput):
 
 
 class StandardOutputWrapper(BaseModel):
-    """Standard output wrapper per ANSTRAT-2422 R4 (AC-3).
+    """Standard output wrapper for Step SDK.
 
     All steps in the Step SDK must return this envelope structure with:
     - Result: Primary task return payload (type varies by step)
@@ -1081,7 +1081,7 @@ class StandardOutputWrapper(BaseModel):
 
     This is a forward-compatible structure defined for sub-workflow outputs.
     Existing NodeOutput models use flat structure but will eventually migrate
-    to this pattern when ANSTRAT-2422 Step SDK is fully implemented.
+    to this pattern when the Step SDK is fully implemented.
     """
 
     Result: Any = None  # Type varies by step - validated by step-specific models
@@ -1093,12 +1093,8 @@ class StandardOutputWrapper(BaseModel):
 class SubWorkflowOutputResult(BaseModel):
     """Result payload for Sub-workflow steps containing child execution metadata.
 
-    This is the Result field of the StandardOutputWrapper structure per ANSTRAT-2422 R4.
+    This is the Result field of the StandardOutputWrapper structure.
     Contains aggregate child execution metadata and nested child step outputs.
-
-    Based on spike AAP-95060. Field names and structure are provisional pending
-    resolution of spike open questions (OQ-2: which outputs to include, OQ-5:
-    authorization behavior). See https://redhat.atlassian.net/browse/AAP-95060
     """
 
     child_execution_id: str | None = None
@@ -1112,8 +1108,8 @@ class SubWorkflowOutputResult(BaseModel):
 class SubWorkflowOutput(NodeOutput):
     """Output model for Sub-workflow steps (reference mode).
 
-    Follows StandardOutputWrapper structure per ANSTRAT-2422 R4 (AC-3):
-    immutable envelope with Result, StatusCode, StatusMessage, ErrorMessage.
+    Follows StandardOutputWrapper structure: immutable envelope with Result,
+    StatusCode, StatusMessage, ErrorMessage.
 
     This model adopts the StandardOutputWrapper pattern proactively, even though
     existing NodeOutput models use flat structure, to align with the Step SDK

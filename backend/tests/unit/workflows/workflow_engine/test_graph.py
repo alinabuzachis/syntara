@@ -187,7 +187,7 @@ class TestParseNodeSettings:
         assert settings.disabled is True
 
     def test_sub_workflow_gets_no_retry(self) -> None:
-        """Sub-workflow steps use NodeSettingsNoRetry (AAP-94072)."""
+        """Sub-workflow steps use NodeSettingsNoRetry."""
         settings = _parse_node_settings("sub_workflow", {"timeout": 120})
         assert isinstance(settings, NodeSettingsNoRetry)
         assert settings.timeout == 120
