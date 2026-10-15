@@ -1,6 +1,6 @@
-"""Tests for SubWorkflowOutput model (AAP-94069).
+"""Tests for SubWorkflowOutput model.
 
-Covers StandardOutputWrapper structure per ANSTRAT-2422 R4:
+Covers StandardOutputWrapper structure:
 - Result field contains child execution metadata
 - StatusCode, StatusMessage, ErrorMessage top-level fields
 - Field population and validation
@@ -22,7 +22,7 @@ from syntara.workflows.workflow_engine.models.workflow_definition import (
 
 
 class TestStandardOutputWrapper:
-    """Verify StandardOutputWrapper structure per ANSTRAT-2422 R4."""
+    """Verify StandardOutputWrapper structure."""
 
     def test_has_required_fields(self) -> None:
         """StandardOutputWrapper has Result, StatusCode, StatusMessage, ErrorMessage."""
@@ -52,7 +52,7 @@ class TestStandardOutputWrapper:
 
 
 class TestSubWorkflowOutputStandardWrapper:
-    """Verify SubWorkflowOutput follows StandardOutputWrapper structure (ANSTRAT-2422 R4)."""
+    """Verify SubWorkflowOutput follows StandardOutputWrapper structure."""
 
     @pytest.mark.parametrize(
         "field_name",
@@ -68,7 +68,7 @@ class TestSubWorkflowOutputResultContract:
     """Verify SubWorkflowOutputResult contains expected child execution fields."""
 
     def test_result_has_expected_fields(self) -> None:
-        """SubWorkflowOutputResult has child execution fields from spike AAP-95060."""
+        """SubWorkflowOutputResult has child execution fields."""
         expected = {
             "child_execution_id",
             "child_workflow_id",
@@ -198,10 +198,10 @@ class TestSubWorkflowOutputPopulated:
 
 
 class TestSubWorkflowOutputNullabilitySemantics:
-    """Verify nullability semantics per spike AAP-95060."""
+    """Verify nullability semantics for authorization scenarios."""
 
     def test_outputs_null_when_child_completed_but_unauthorized(self) -> None:
-        """Outputs is None when child completed but parent lacks read permission (OQ-5)."""
+        """Outputs is None when child completed but parent lacks read permission."""
         result = SubWorkflowOutputResult(
             child_execution_id="exec-123",
             child_workflow_id="wf-456",

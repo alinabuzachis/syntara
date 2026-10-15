@@ -1,4 +1,4 @@
-"""Integration tests for sub-workflow node configuration validation (AAP-94068/AAP-94071).
+"""Integration tests for sub-workflow node configuration validation.
 
 Tests validate JSON Schema and Pydantic model alignment for SubWorkflowExecutorParameters,
 ensuring contract consistency between schema-level validation (frontend) and model-level
@@ -9,7 +9,7 @@ These are contract-level tests — no database or Temporal required. They test t
 2. Values accepted by JSON Schema are also accepted by Pydantic
 3. Required fields are enforced at both schema and model levels
 
-Note: Comprehensive Pydantic-only validation is covered in unit tests (PR #816).
+Note: Comprehensive Pydantic-only validation is covered in unit tests.
 These integration tests focus on schema-model alignment.
 """
 
