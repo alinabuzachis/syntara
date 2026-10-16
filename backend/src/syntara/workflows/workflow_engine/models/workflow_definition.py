@@ -1104,9 +1104,7 @@ class SubWorkflowOutputResult(BaseModel):
     child_workflow_id: str | None = None
     child_workflow_name: str | None = Field(default=None, max_length=255)
     child_workflow_version: int | None = None
-    child_status: (
-        Literal["pending", "running", "paused", "completed", "completed_with_errors", "failed", "cancelled"] | None
-    ) = None
+    child_status: WorkflowTerminalStatus | None = None
     outputs: dict[str, StandardOutputWrapper] | None = Field(default=None, max_length=1000)
 
 

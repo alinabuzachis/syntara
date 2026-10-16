@@ -168,8 +168,8 @@ async def test_subworkflow_node_valid(jwt_client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_subworkflow_node_missing_workflow_id(jwt_client: AsyncClient) -> None:
     """Sub-workflow node without workflow_id should be rejected."""
-    payload = _base_payload("subworkflow-no-workflow-id")
-    payload["workflow_definition"]["nodes"].append(
+    workflow_definition = create_minimal_workflow_definition(name="subworkflow-no-workflow-id")
+    workflow_definition["nodes"].append(
         {
             "id": "sub1",
             "type": "sub_workflow",
@@ -178,14 +178,14 @@ async def test_subworkflow_node_missing_workflow_id(jwt_client: AsyncClient) -> 
             },
         }
     )
-    payload["workflow_definition"]["edges"].append(
+    workflow_definition["edges"].append(
         {
             "from": "test_activity",
             "to": "sub1",
         }
     )
 
-    response = await jwt_client.post("/api/v1/workflows", json=payload)
+    response = await jwt_client.post("/api/v1/workflows/validate", json={"workflow_definition": workflow_definition})
 
     assert response.status_code == 422
 
@@ -193,8 +193,8 @@ async def test_subworkflow_node_missing_workflow_id(jwt_client: AsyncClient) -> 
 @pytest.mark.asyncio
 async def test_subworkflow_node_missing_trigger_node_id(jwt_client: AsyncClient) -> None:
     """Sub-workflow node without trigger_node_id should be rejected."""
-    payload = _base_payload("subworkflow-no-trigger-id")
-    payload["workflow_definition"]["nodes"].append(
+    workflow_definition = create_minimal_workflow_definition(name="subworkflow-no-trigger-id")
+    workflow_definition["nodes"].append(
         {
             "id": "sub1",
             "type": "sub_workflow",
@@ -203,14 +203,14 @@ async def test_subworkflow_node_missing_trigger_node_id(jwt_client: AsyncClient)
             },
         }
     )
-    payload["workflow_definition"]["edges"].append(
+    workflow_definition["edges"].append(
         {
             "from": "test_activity",
             "to": "sub1",
         }
     )
 
-    response = await jwt_client.post("/api/v1/workflows", json=payload)
+    response = await jwt_client.post("/api/v1/workflows/validate", json={"workflow_definition": workflow_definition})
 
     assert response.status_code == 422
 
@@ -218,8 +218,8 @@ async def test_subworkflow_node_missing_trigger_node_id(jwt_client: AsyncClient)
 @pytest.mark.asyncio
 async def test_subworkflow_node_invalid_trigger_node_id_pattern(jwt_client: AsyncClient) -> None:
     """Sub-workflow node with invalid trigger_node_id pattern should be rejected."""
-    payload = _base_payload("subworkflow-invalid-trigger-id")
-    payload["workflow_definition"]["nodes"].append(
+    workflow_definition = create_minimal_workflow_definition(name="subworkflow-invalid-trigger-id")
+    workflow_definition["nodes"].append(
         {
             "id": "sub1",
             "type": "sub_workflow",
@@ -229,13 +229,13 @@ async def test_subworkflow_node_invalid_trigger_node_id_pattern(jwt_client: Asyn
             },
         }
     )
-    payload["workflow_definition"]["edges"].append(
+    workflow_definition["edges"].append(
         {
             "from": "test_activity",
             "to": "sub1",
         }
     )
 
-    response = await jwt_client.post("/api/v1/workflows", json=payload)
+    response = await jwt_client.post("/api/v1/workflows/validate", json={"workflow_definition": workflow_definition})
 
     assert response.status_code == 422
