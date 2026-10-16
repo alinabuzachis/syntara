@@ -18,6 +18,7 @@ from syntara.workflows.workflow_engine.models.workflow_definition import (
     StandardOutputWrapper,
     SubWorkflowOutput,
     SubWorkflowOutputResult,
+    WorkflowTerminalStatus,
 )
 
 
@@ -133,7 +134,7 @@ class TestSubWorkflowOutputPopulated:
                     "child_workflow_id": "wf-456",
                     "child_workflow_name": "Deploy Application",
                     "child_workflow_version": 3,
-                    "child_status": "completed",
+                    "child_status": WorkflowTerminalStatus.COMPLETED,
                     "outputs": {
                         "step_1": StandardOutputWrapper(
                             Result={"status": "ok"}, StatusCode=0, StatusMessage="Step completed"
@@ -207,7 +208,7 @@ class TestSubWorkflowOutputNullabilitySemantics:
             child_workflow_id="wf-456",
             child_workflow_name="Deploy",
             child_workflow_version=1,
-            child_status="completed",
+            child_status=WorkflowTerminalStatus.COMPLETED,
             outputs=None,  # Null due to authorization denial
         )
         output = SubWorkflowOutput(
@@ -343,7 +344,7 @@ class TestSubWorkflowOutputInheritanceAndSerialization:
             child_workflow_id="wf-456",
             child_workflow_name="Deploy",
             child_workflow_version=3,
-            child_status="completed",
+            child_status=WorkflowTerminalStatus.COMPLETED,
             outputs={"step_1": StandardOutputWrapper(Result={"status": "ok"}, StatusCode=0, StatusMessage="Completed")},
         )
         output = SubWorkflowOutput(
