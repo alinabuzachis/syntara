@@ -44,7 +44,7 @@ export type ChildWorkflowSelectorProps = {
  * @param projectId - Current project ID (null disables selector)
  * @param selectedWorkflowId - Currently selected workflow ID
  * @param onChange - Callback when workflow selection changes
- * @param label - Form label (default: "Child Workflow")
+ * @param label - Form label (default: "Workflow")
  * @param isRequired - Show required indicator
  * @param isDisabled - Disable the selector
  */
@@ -52,7 +52,7 @@ export function ChildWorkflowSelector({
   projectId,
   selectedWorkflowId,
   onChange,
-  label = 'Child Workflow',
+  label = 'Workflow',
   isRequired = false,
   isDisabled = false,
 }: ChildWorkflowSelectorProps) {

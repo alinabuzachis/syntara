@@ -54,7 +54,7 @@ describe('ChildWorkflowSelector', () => {
     it('renders with default label', () => {
       render(<ChildWorkflowSelector projectId="proj-1" selectedWorkflowId={null} onChange={mockOnChange} />)
 
-      expect(screen.getByText('Child Workflow')).toBeInTheDocument()
+      expect(screen.getByText('Workflow')).toBeInTheDocument()
     })
 
     it('renders with custom label', () => {
@@ -378,7 +378,7 @@ describe('ChildWorkflowSelector', () => {
       render(<ChildWorkflowSelector projectId="proj-1" selectedWorkflowId={null} onChange={mockOnChange} />)
 
       // Label is displayed via FormGroup
-      expect(screen.getByText('Child Workflow')).toBeInTheDocument()
+      expect(screen.getByText('Workflow')).toBeInTheDocument()
     })
 
     it('has proper aria label for clear button', () => {
