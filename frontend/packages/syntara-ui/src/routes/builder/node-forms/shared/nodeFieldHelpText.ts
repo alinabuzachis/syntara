@@ -40,6 +40,9 @@ export const HTTP_HEADERS_HELP =
 export const HTTP_BODY_HELP =
   'Enter the request body as JSON or text. Used with POST, PUT, and PATCH methods. You can include expressions to insert dynamic values from previous steps.'
 
+export const SUBWORKFLOW_WORKFLOW_HELP =
+  'Select the published workflow to call. Only workflows you have permission to access are shown. The latest published version is always used at runtime.'
+
 export const AI_MODEL_HELP =
   'Select the large language model (LLM) to use for this task agent step. Models are provided by integrations configured by your administrator.'
 
