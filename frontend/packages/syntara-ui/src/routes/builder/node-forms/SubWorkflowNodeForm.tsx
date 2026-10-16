@@ -62,6 +62,12 @@ export function SubWorkflowNodeForm({
 }) {
   const isVersionView = useIsVersionView()
   const projectId = useWorkflowStore((state) => state.projectId)
+  const currentWorkflow = useWorkflowStore((state) => state.currentWorkflow)
+
+  // Fallback: if projectId is not in store, try to get it from the current workflow
+  const effectiveProjectId = projectId ?? (currentWorkflow as any)?.project_id ?? null
+
+  console.log('[SubWorkflowNodeForm] Project debug:', { projectId, currentWorkflow, effectiveProjectId })
 
   const methods = useForm<SubWorkflowFormData>({
     resolver: zodResolver(subWorkflowFormSchema),
@@ -114,7 +120,7 @@ export function SubWorkflowNodeForm({
           control={methods.control}
           render={({ field }) => (
             <ChildWorkflowSelector
-              projectId={projectId}
+              projectId={effectiveProjectId}
               selectedWorkflowId={field.value}
               onChange={field.onChange}
               labelHelp={nodeHelp.subworkflowWorkflow}
