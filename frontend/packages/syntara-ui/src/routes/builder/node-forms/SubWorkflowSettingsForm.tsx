@@ -1,8 +1,5 @@
 import {
   FormGroup,
-  FormSection,
-  HelperText,
-  HelperTextItem,
   MenuToggle,
   SelectList,
   SelectOption,
@@ -134,26 +131,16 @@ export function SubWorkflowSettingsForm() {
       </StackItem>
 
       <StackItem>
-        <Stack hasGutter>
-          <StackItem>
-            <SynTextField
-              name="settings.expected_duration"
-              label="Expected duration (seconds)"
-              fieldId="subworkflow-settings-expected-duration"
-              type="number"
-              min={1}
-              placeholder={expectedDurationPlaceholder}
-              isDisabled={isVersionView}
-            />
-          </StackItem>
-          <StackItem>
-            <HelperText>
-              <HelperTextItem>
-                Estimated time for the sub-workflow to complete. Used for progress tracking and monitoring. System default: 600 seconds (10 minutes).
-              </HelperTextItem>
-            </HelperText>
-          </StackItem>
-        </Stack>
+        <SynTextField
+          name="settings.expected_duration"
+          label="Expected duration (seconds)"
+          labelHelp={nodeHelp.subworkflowExpectedDuration}
+          fieldId="subworkflow-settings-expected-duration"
+          type="number"
+          min={1}
+          placeholder={expectedDurationPlaceholder}
+          isDisabled={isVersionView}
+        />
       </StackItem>
     </Stack>
   )
