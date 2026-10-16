@@ -82,8 +82,8 @@
         },
         "child_status": {
           "type": ["string", "null"],
-          "enum": ["pending", "running", "paused", "completed", "completed_with_errors", "failed", "cancelled", null],
-          "description": "Execution status of the child workflow (aligned with ExecutionStatus enum)"
+          "enum": ["completed", "completed_with_errors", "failed", "cancelled", null],
+          "description": "Terminal execution status of the child workflow (reference mode: parent blocks until child completes, so only terminal statuses are returned)"
         },
         "outputs": {
           "type": ["object", "null"],
