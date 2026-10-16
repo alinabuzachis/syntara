@@ -274,6 +274,54 @@ class TestSubWorkflowOutputInheritanceAndSerialization:
         assert hasattr(output, "dump")
         assert callable(output.dump)
 
+    def test_inherits_from_standard_output_wrapper(self) -> None:
+        """SubWorkflowOutput is a subclass of StandardOutputWrapper."""
+        assert issubclass(SubWorkflowOutput, StandardOutputWrapper)
+        output = SubWorkflowOutput()
+        assert isinstance(output, StandardOutputWrapper)
+
+    def test_multiple_inheritance_mro_order(self) -> None:
+        """Verify MRO order: SubWorkflowOutput → StandardOutputWrapper → NodeOutput → BaseModel."""
+        mro_names = [cls.__name__ for cls in SubWorkflowOutput.__mro__]
+        # Verify critical order: StandardOutputWrapper before NodeOutput
+        assert mro_names.index("StandardOutputWrapper") < mro_names.index("NodeOutput")
+        # Verify all expected classes present
+        assert "SubWorkflowOutput" in mro_names
+        assert "StandardOutputWrapper" in mro_names
+        assert "NodeOutput" in mro_names
+        assert "BaseModel" in mro_names
+
+    def test_fields_inherited_not_redeclared(self) -> None:
+        """StatusCode/StatusMessage/ErrorMessage are inherited, not redeclared.
+
+        This prevents regression where someone might re-add field declarations,
+        defeating the purpose of multiple inheritance (DRY + auto-updates when
+        StandardOutputWrapper field constraints change).
+        """
+        # SubWorkflowOutput should only declare Result field explicitly
+        # (StatusCode, StatusMessage, ErrorMessage come from StandardOutputWrapper)
+        declared_fields = set(SubWorkflowOutput.__annotations__.keys())
+        assert declared_fields == {"Result"}, (
+            f"SubWorkflowOutput should only declare Result field. "
+            f"Found: {declared_fields}. "
+            f"StatusCode/StatusMessage/ErrorMessage should be inherited from StandardOutputWrapper."
+        )
+
+    def test_field_constraints_inherited(self) -> None:
+        """Field constraints (max_length) are inherited from StandardOutputWrapper."""
+        import pytest
+        from pydantic import ValidationError
+
+        # StatusMessage max_length constraint should be inherited
+        with pytest.raises(ValidationError) as exc_info:
+            SubWorkflowOutput(StatusMessage="x" * 501)
+        assert "at most 500 characters" in str(exc_info.value).lower()
+
+        # ErrorMessage max_length constraint should be inherited
+        with pytest.raises(ValidationError) as exc_info:
+            SubWorkflowOutput(ErrorMessage="x" * 10001)
+        assert "at most 10000 characters" in str(exc_info.value).lower() or "10,000" in str(exc_info.value)
+
     @pytest.mark.parametrize(
         ("output_config", "expected_keys"),
         [
