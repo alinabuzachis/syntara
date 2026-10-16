@@ -15,7 +15,8 @@ import { ActivityNameField } from './shared/ActivityNameField'
 import { nodeHelp } from './shared/nodeFieldHelp'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
-import { NodeSettingsForm } from './shared/NodeSettingsForm'
+import { nodeSettingsSchema } from './shared/nodeSettingsSchema'
+import { SubWorkflowSettingsForm } from './SubWorkflowSettingsForm'
 
 /**
  * Form data for Sub-workflow step configuration
@@ -24,7 +25,12 @@ export type SubWorkflowFormData = {
   name: string
   workflow_id: string | null
   input_mapping: InputMappingEntry[]
+  settings?: z.infer<typeof nodeSettingsSchema> & { expected_duration?: number }
 }
+
+const subWorkflowSettingsSchema = nodeSettingsSchema.extend({
+  expected_duration: z.number().int().positive().optional(),
+})
 
 const subWorkflowFormSchema = z.object({
   name: z.string().trim().min(1, 'Step name is required'),
@@ -36,6 +42,7 @@ const subWorkflowFormSchema = z.object({
       value: z.string(),
     })
   ),
+  settings: subWorkflowSettingsSchema.optional(),
 })
 
 /**
@@ -62,6 +69,7 @@ export function SubWorkflowNodeForm({
       name: initialData?.name ?? '',
       workflow_id: initialData?.workflow_id ?? null,
       input_mapping: initialData?.input_mapping ?? [],
+      settings: initialData?.settings ?? {},
     },
   })
 
@@ -133,7 +141,7 @@ export function SubWorkflowNodeForm({
     </Stack>
   )
 
-  const settingsContent = <NodeSettingsForm timeoutNodeType="sub_workflow" supportsRetryPolicy={false} />
+  const settingsContent = <SubWorkflowSettingsForm />
 
   return (
     <FormProvider {...methods}>

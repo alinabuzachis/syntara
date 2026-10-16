@@ -1,0 +1,170 @@
+import {
+  FormGroup,
+  FormSection,
+  HelperText,
+  HelperTextItem,
+  MenuToggle,
+  SelectList,
+  SelectOption,
+  Stack,
+  StackItem,
+} from '@patternfly/react-core'
+import { useState } from 'react'
+import { useFormContext, useWatch } from 'react-hook-form'
+
+import { SynTextField } from '../../../components/forms/SynTextField'
+import { SynSelect } from '../../../components/SynSelect'
+import { useWorkflowEngineDefaults } from '../hooks/useWorkflowEngineDefaults'
+import { useIsVersionView } from '../VersionViewContext'
+
+import { nodeHelp } from './shared/nodeFieldHelp'
+import type { NodeSettingsFormData } from './shared/nodeSettingsSchema'
+
+type FormWithSettings = { settings: NodeSettingsFormData & { expected_duration?: number } }
+
+const COF_OPTIONS = [
+  {
+    value: 'default' as const,
+    label: 'System default',
+    description: (systemDefault: string) =>
+      `Uses the system-wide setting configured by an administrator${systemDefault}.`,
+  },
+  {
+    value: 'on' as const,
+    label: 'Continue on failure',
+    description: () => 'Downstream nodes continue executing even if this node fails.',
+  },
+  {
+    value: 'off' as const,
+    label: 'Stop workflow or branch on failure',
+    description: () => 'The workflow (or current branch) stops at this node if it fails.',
+  },
+] as const
+
+type CofValue = 'default' | 'on' | 'off'
+
+function cofValueFromBool(v: boolean | undefined | null): CofValue {
+  if (v === true) return 'on'
+  if (v === false) return 'off'
+  return 'default'
+}
+
+function cofValueToBool(v: CofValue): boolean | undefined {
+  if (v === 'on') return true
+  if (v === 'off') return false
+  return undefined
+}
+
+function getCofDefaultLabel(cofDefault: boolean | null): string {
+  if (cofDefault === null) return ''
+  if (cofDefault) return ' (system default: continue on failure)'
+  return ' (system default: stop on failure)'
+}
+
+export function SubWorkflowSettingsForm() {
+  const isVersionView = useIsVersionView()
+  const { control, setValue } = useFormContext<FormWithSettings>()
+  const continueOnFailure = useWatch({ control, name: 'settings.continue_on_failure' })
+
+  const [isCofOpen, setIsCofOpen] = useState(false)
+
+  const { defaults } = useWorkflowEngineDefaults()
+
+  const timeoutDefault = defaults?.timeoutSeconds?.sub_workflow ?? null
+  const cofDefault = defaults?.continueOnFailure ?? null
+
+  const cofDefaultLabel = getCofDefaultLabel(cofDefault)
+  const timeoutPlaceholder = timeoutDefault !== null ? `${String(timeoutDefault)} — system default` : 'System default'
+  const expectedDurationPlaceholder = '600 — system default'
+
+  const selected = cofValueFromBool(continueOnFailure)
+  const selectedLabel = COF_OPTIONS.find((o) => o.value === selected)?.label ?? 'System default'
+
+  function handleCofSelect(_event: React.MouseEvent | undefined, value: string | number | undefined) {
+    setValue('settings.continue_on_failure', cofValueToBool(value as CofValue))
+    setIsCofOpen(false)
+  }
+
+  return (
+    <Stack hasGutter>
+      <StackItem>
+        <FormSection title="On failure">
+          <Stack hasGutter>
+            <StackItem>
+              <FormGroup label="On failure behavior" labelHelp={nodeHelp.onFailureBehavior} fieldId="subworkflow-settings-cof">
+                <SynSelect
+                  id="subworkflow-settings-cof"
+                  isOpen={isCofOpen}
+                  selected={selected}
+                  onSelect={handleCofSelect}
+                  onOpenChange={setIsCofOpen}
+                  shouldFocusToggleOnSelect
+                  toggle={(ref) => (
+                    <MenuToggle
+                      ref={ref}
+                      onClick={() => setIsCofOpen((o) => !o)}
+                      isExpanded={isCofOpen}
+                      isFullWidth
+                      isDisabled={isVersionView}
+                      aria-label="On failure behavior"
+                    >
+                      {selectedLabel}
+                    </MenuToggle>
+                  )}
+                >
+                  <SelectList>
+                    {COF_OPTIONS.map((opt) => (
+                      <SelectOption key={opt.value} value={opt.value} description={opt.description(cofDefaultLabel)}>
+                        {opt.label}
+                      </SelectOption>
+                    ))}
+                  </SelectList>
+                </SynSelect>
+              </FormGroup>
+            </StackItem>
+          </Stack>
+        </FormSection>
+      </StackItem>
+
+      <StackItem>
+        <FormSection title="Timeout (seconds)">
+          <SynTextField
+            name="settings.timeout"
+            label="Timeout (seconds)"
+            labelHelp={nodeHelp.timeout}
+            fieldId="subworkflow-settings-timeout"
+            type="number"
+            min={1}
+            placeholder={timeoutPlaceholder}
+            isDisabled={isVersionView}
+          />
+        </FormSection>
+      </StackItem>
+
+      <StackItem>
+        <FormSection title="Expected duration (seconds)">
+          <Stack hasGutter>
+            <StackItem>
+              <SynTextField
+                name="settings.expected_duration"
+                label="Expected duration (seconds)"
+                fieldId="subworkflow-settings-expected-duration"
+                type="number"
+                min={1}
+                placeholder={expectedDurationPlaceholder}
+                isDisabled={isVersionView}
+              />
+            </StackItem>
+            <StackItem>
+              <HelperText>
+                <HelperTextItem>
+                  Estimated time for the sub-workflow to complete. Used for progress tracking and monitoring. System default: 600 seconds (10 minutes).
+                </HelperTextItem>
+              </HelperText>
+            </StackItem>
+          </Stack>
+        </FormSection>
+      </StackItem>
+    </Stack>
+  )
+}
