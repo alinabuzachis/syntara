@@ -53136,8 +53136,9 @@
         "properties": {
           "workflow_id": {
             "type": "string",
+            "maxLength": 550,
             "title": "Workflow Id",
-            "description": "UUID of the child workflow to invoke (latest published version)"
+            "description": "UUID of the child workflow to invoke (latest published version), or template expression (max 500 chars)"
           },
           "trigger_node_id": {
             "type": "string",

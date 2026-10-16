@@ -94,14 +94,19 @@ def test_subworkflow_config_rejects_missing_trigger_node_id(subworkflow_schema: 
     assert "trigger_node_id" in str(exc_info.value)
 
 
-def test_subworkflow_config_rejects_invalid_workflow_id(subworkflow_schema: dict[str, Any]) -> None:
-    """Config with invalid workflow_id (not UUID or template) should be rejected."""
+def test_subworkflow_config_rejects_workflow_id_exceeding_max_length(subworkflow_schema: dict[str, Any]) -> None:
+    """Config with workflow_id exceeding maxLength should be rejected by JSON Schema.
+
+    Note: JSON Schema only enforces maxLength (550 chars). UUID format and template
+    expression validation is delegated to Pydantic's validate_uuid_or_template().
+    """
     config = {
-        "workflow_id": "not-a-valid-uuid",
+        "workflow_id": "x" * 551,  # Exceeds maxLength: 550
         "trigger_node_id": "trigger_1",
     }
-    with pytest.raises(jsonschema.ValidationError):
+    with pytest.raises(jsonschema.ValidationError) as exc_info:
         jsonschema.validate(instance=config, schema=subworkflow_schema["parameterSchema"])
+    assert "maxLength" in str(exc_info.value).lower() or "550" in str(exc_info.value)
 
 
 def test_subworkflow_config_rejects_invalid_trigger_node_id_pattern(

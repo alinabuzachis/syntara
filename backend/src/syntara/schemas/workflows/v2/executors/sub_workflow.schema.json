@@ -9,9 +9,8 @@
     "properties": {
       "workflow_id": {
         "type": "string",
-        "pattern": "^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\\$\\{.{1,500}\\})$",
         "maxLength": 550,
-        "description": "UUID of the child workflow to invoke (latest published version), or template expression (max 500 chars)"
+        "description": "UUID of the child workflow to invoke (latest published version), or template expression (max 500 chars). Validated by Pydantic validator."
       },
       "trigger_node_id": {
         "type": "string",
@@ -83,7 +82,7 @@
         },
         "child_status": {
           "type": ["string", "null"],
-          "enum": ["running", "completed", "completed_with_errors", "failed", "cancelled", null],
+          "enum": ["pending", "running", "paused", "completed", "completed_with_errors", "failed", "cancelled", null],
           "description": "Execution status of the child workflow (aligned with ExecutionStatus enum)"
         },
         "outputs": {
