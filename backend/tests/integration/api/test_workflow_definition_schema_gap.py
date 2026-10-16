@@ -159,7 +159,7 @@ async def test_subworkflow_node_valid(jwt_client: AsyncClient) -> None:
         ],
     }
 
-    response = await jwt_client.post("/api/v1/workflows/validate", json=workflow_definition)
+    response = await jwt_client.post("/api/v1/workflows/validate", json={"workflow_definition": workflow_definition})
 
     assert response.status_code == 200, f"Got {response.status_code}: {response.json()}"
     assert response.json()["valid"] is True
