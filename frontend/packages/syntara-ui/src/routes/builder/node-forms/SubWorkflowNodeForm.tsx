@@ -13,6 +13,8 @@ import { ChildWorkflowSelector } from './ChildWorkflowSelector'
 import { InputMappingFields, type InputMappingEntry } from './InputMappingFields'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { NodeFormContainer } from './shared/NodeFormContainer'
+import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
+import { NodeSettingsForm } from './shared/NodeSettingsForm'
 
 /**
  * Form data for Sub-workflow step configuration
@@ -95,40 +97,46 @@ export function SubWorkflowNodeForm({
     [onHeaderContentChange]
   )
 
+  const parametersContent = (
+    <Stack hasGutter style={{ paddingInline: 'var(--pf-t--global--spacer--xs)' }}>
+      <StackItem>
+        <Controller
+          name="workflow_id"
+          control={methods.control}
+          render={({ field }) => (
+            <ChildWorkflowSelector
+              projectId={projectId}
+              selectedWorkflowId={field.value}
+              onChange={field.onChange}
+              isRequired
+              isDisabled={isVersionView}
+            />
+          )}
+        />
+      </StackItem>
+
+      <StackItem>
+        <Controller
+          name="input_mapping"
+          control={methods.control}
+          render={({ field }) => (
+            <InputMappingFields
+              entries={field.value}
+              onChange={field.onChange}
+              isDisabled={isVersionView || !workflowId}
+            />
+          )}
+        />
+      </StackItem>
+    </Stack>
+  )
+
+  const settingsContent = <NodeSettingsForm timeoutNodeType="sub_workflow" supportsRetryPolicy={false} />
+
   return (
     <FormProvider {...methods}>
       <NodeFormContainer formId="sub-workflow-node-form" onSubmit={methods.handleSubmit(onSubmit)}>
-        <Stack hasGutter style={{ paddingInline: 'var(--pf-t--global--spacer--xs)' }}>
-          <StackItem>
-            <Controller
-              name="workflow_id"
-              control={methods.control}
-              render={({ field }) => (
-                <ChildWorkflowSelector
-                  projectId={projectId}
-                  selectedWorkflowId={field.value}
-                  onChange={field.onChange}
-                  isRequired
-                  isDisabled={isVersionView}
-                />
-              )}
-            />
-          </StackItem>
-
-          <StackItem>
-            <Controller
-              name="input_mapping"
-              control={methods.control}
-              render={({ field }) => (
-                <InputMappingFields
-                  entries={field.value}
-                  onChange={field.onChange}
-                  isDisabled={isVersionView || !workflowId}
-                />
-              )}
-            />
-          </StackItem>
-        </Stack>
+        <NodeFormTabsLayout parametersContent={parametersContent} settingsContent={settingsContent} />
       </NodeFormContainer>
     </FormProvider>
   )
