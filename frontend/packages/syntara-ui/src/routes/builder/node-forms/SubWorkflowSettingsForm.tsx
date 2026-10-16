@@ -70,11 +70,11 @@ export function SubWorkflowSettingsForm() {
 
   const { defaults } = useWorkflowEngineDefaults()
 
-  const timeoutDefault = defaults?.timeoutSeconds?.sub_workflow ?? null
+  const timeoutDefault = 300
   const cofDefault = defaults?.continueOnFailure ?? null
 
   const cofDefaultLabel = getCofDefaultLabel(cofDefault)
-  const timeoutPlaceholder = timeoutDefault !== null ? `${String(timeoutDefault)} — system default` : 'System default'
+  const timeoutPlaceholder = `${String(timeoutDefault)} — system default`
   const expectedDurationPlaceholder = '600 — system default'
 
   const selected = cofValueFromBool(continueOnFailure)
@@ -88,82 +88,72 @@ export function SubWorkflowSettingsForm() {
   return (
     <Stack hasGutter>
       <StackItem>
-        <FormSection title="On failure">
-          <Stack hasGutter>
-            <StackItem>
-              <FormGroup label="On failure behavior" labelHelp={nodeHelp.onFailureBehavior} fieldId="subworkflow-settings-cof">
-                <SynSelect
-                  id="subworkflow-settings-cof"
-                  isOpen={isCofOpen}
-                  selected={selected}
-                  onSelect={handleCofSelect}
-                  onOpenChange={setIsCofOpen}
-                  shouldFocusToggleOnSelect
-                  toggle={(ref) => (
-                    <MenuToggle
-                      ref={ref}
-                      onClick={() => setIsCofOpen((o) => !o)}
-                      isExpanded={isCofOpen}
-                      isFullWidth
-                      isDisabled={isVersionView}
-                      aria-label="On failure behavior"
-                    >
-                      {selectedLabel}
-                    </MenuToggle>
-                  )}
-                >
-                  <SelectList>
-                    {COF_OPTIONS.map((opt) => (
-                      <SelectOption key={opt.value} value={opt.value} description={opt.description(cofDefaultLabel)}>
-                        {opt.label}
-                      </SelectOption>
-                    ))}
-                  </SelectList>
-                </SynSelect>
-              </FormGroup>
-            </StackItem>
-          </Stack>
-        </FormSection>
-      </StackItem>
-
-      <StackItem>
-        <FormSection title="Timeout (seconds)">
-          <SynTextField
-            name="settings.timeout"
-            label="Timeout (seconds)"
-            labelHelp={nodeHelp.timeout}
-            fieldId="subworkflow-settings-timeout"
-            type="number"
-            min={1}
-            placeholder={timeoutPlaceholder}
-            isDisabled={isVersionView}
-          />
-        </FormSection>
-      </StackItem>
-
-      <StackItem>
-        <FormSection title="Expected duration (seconds)">
-          <Stack hasGutter>
-            <StackItem>
-              <SynTextField
-                name="settings.expected_duration"
-                label="Expected duration (seconds)"
-                fieldId="subworkflow-settings-expected-duration"
-                type="number"
-                min={1}
-                placeholder={expectedDurationPlaceholder}
+        <FormGroup label="On failure" labelHelp={nodeHelp.onFailureBehavior} fieldId="subworkflow-settings-cof">
+          <SynSelect
+            id="subworkflow-settings-cof"
+            isOpen={isCofOpen}
+            selected={selected}
+            onSelect={handleCofSelect}
+            onOpenChange={setIsCofOpen}
+            shouldFocusToggleOnSelect
+            toggle={(ref) => (
+              <MenuToggle
+                ref={ref}
+                onClick={() => setIsCofOpen((o) => !o)}
+                isExpanded={isCofOpen}
+                isFullWidth
                 isDisabled={isVersionView}
-              />
-            </StackItem>
-            <StackItem>
-              <HelperText>
-                <HelperTextItem>
-                  Estimated time for the sub-workflow to complete. Used for progress tracking and monitoring. System default: 600 seconds (10 minutes).
-                </HelperTextItem>
-              </HelperText>
-            </StackItem>
-          </Stack>
-        </FormSection>
+                aria-label="On failure behavior"
+              >
+                {selectedLabel}
+              </MenuToggle>
+            )}
+          >
+            <SelectList>
+              {COF_OPTIONS.map((opt) => (
+                <SelectOption key={opt.value} value={opt.value} description={opt.description(cofDefaultLabel)}>
+                  {opt.label}
+                </SelectOption>
+              ))}
+            </SelectList>
+          </SynSelect>
+        </FormGroup>
+      </StackItem>
+
+      <StackItem>
+        <SynTextField
+          name="settings.timeout"
+          label="Timeout (seconds)"
+          labelHelp={nodeHelp.timeout}
+          fieldId="subworkflow-settings-timeout"
+          type="number"
+          min={1}
+          placeholder={timeoutPlaceholder}
+          isDisabled={isVersionView}
+        />
+      </StackItem>
+
+      <StackItem>
+        <Stack hasGutter>
+          <StackItem>
+            <SynTextField
+              name="settings.expected_duration"
+              label="Expected duration (seconds)"
+              fieldId="subworkflow-settings-expected-duration"
+              type="number"
+              min={1}
+              placeholder={expectedDurationPlaceholder}
+              isDisabled={isVersionView}
+            />
+          </StackItem>
+          <StackItem>
+            <HelperText>
+              <HelperTextItem>
+                Estimated time for the sub-workflow to complete. Used for progress tracking and monitoring. System default: 600 seconds (10 minutes).
+              </HelperTextItem>
+            </HelperText>
+          </StackItem>
+        </Stack>
       </StackItem>
     </Stack>
   )
