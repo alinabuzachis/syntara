@@ -112,6 +112,24 @@ class TestSubWorkflowNodeSchemaValidation:
         assert params.workflow_id == workflow_id
         assert params.trigger_node_id == trigger_node_id
 
+    def test_workflow_id_exceeding_max_length_rejected_by_schema(
+        self,
+        subworkflow_schema: dict[str, Any],
+    ) -> None:
+        """JSON Schema rejects workflow_id exceeding maxLength (550 chars).
+
+        Note: JSON Schema only validates structure (maxLength). UUID format and
+        template expression validation is delegated to Pydantic's validate_uuid_or_template().
+        This follows the existing pattern used by credential_id and file_ids fields.
+        """
+        config = {
+            "workflow_id": "x" * 551,  # Exceeds maxLength: 550
+            "trigger_node_id": "trigger_node",
+        }
+        with pytest.raises(jsonschema.ValidationError) as exc_info:
+            _validate_params(config, subworkflow_schema)
+        assert "maxLength" in str(exc_info.value).lower() or "550" in str(exc_info.value)
+
     @pytest.mark.parametrize(
         "invalid_workflow_id",
         [
@@ -122,18 +140,28 @@ class TestSubWorkflowNodeSchemaValidation:
             "${}",  # Empty template
         ],
     )
-    def test_invalid_workflow_id_rejected_by_schema(
+    def test_invalid_workflow_id_rejected_by_pydantic(
         self,
         invalid_workflow_id: str,
         subworkflow_schema: dict[str, Any],
     ) -> None:
-        """JSON Schema rejects invalid workflow_id (neither UUID nor valid template)."""
+        """Pydantic rejects invalid workflow_id (neither UUID nor valid template).
+
+        JSON Schema passes these (only checks maxLength), but Pydantic's
+        validate_uuid_or_template() rejects them as invalid UUID/template format.
+        """
+        from pydantic import ValidationError
+
         config = {
             "workflow_id": invalid_workflow_id,
             "trigger_node_id": "trigger_node",
         }
-        with pytest.raises(jsonschema.ValidationError):
-            _validate_params(config, subworkflow_schema)
+        # JSON Schema passes (only checks maxLength)
+        _validate_params(config, subworkflow_schema)
+
+        # Pydantic rejects (validates UUID/template format)
+        with pytest.raises(ValidationError):
+            SubWorkflowExecutorParameters(**config)
 
     @pytest.mark.parametrize(
         "invalid_trigger_node_id",
