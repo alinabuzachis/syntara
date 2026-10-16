@@ -152,7 +152,7 @@ class TestSubWorkflowNodeSchemaValidation:
         """
         from pydantic import ValidationError
 
-        config = {
+        config: dict[str, Any] = {
             "workflow_id": invalid_workflow_id,
             "trigger_node_id": "trigger_node",
         }
