@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { FormGroup, Stack, StackItem, TextInput } from '@patternfly/react-core'
-import { use } from 'react'
+import { Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
+import { type ReactNode, use, useEffect, useMemo } from 'react'
 import { Controller, FormProvider, useForm } from 'react-hook-form'
 import { z } from 'zod'
 
@@ -11,6 +11,7 @@ import { useIsVersionView } from '../VersionViewContext'
 
 import { ChildWorkflowSelector } from './ChildWorkflowSelector'
 import { InputMappingFields, type InputMappingEntry } from './InputMappingFields'
+import { ActivityNameField } from './shared/ActivityNameField'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 
 /**
@@ -42,7 +43,13 @@ const subWorkflowFormSchema = z.object({
  * - Select a child workflow
  * - Configure input mappings
  */
-export function SubWorkflowNodeForm({ onSubmit, initialData }: BaseNodeFormProps<SubWorkflowFormData>) {
+export function SubWorkflowNodeForm({
+  onSubmit,
+  initialData,
+  onHeaderContentChange,
+}: BaseNodeFormProps<SubWorkflowFormData> & {
+  onHeaderContentChange?: (content: ReactNode | null) => void
+}) {
   const isVersionView = useIsVersionView()
   const projectId = useWorkflowStore((state) => state.projectId)
 
@@ -55,28 +62,43 @@ export function SubWorkflowNodeForm({ onSubmit, initialData }: BaseNodeFormProps
     },
   })
 
+  const { control } = methods
   const workflowId = methods.watch('workflow_id')
 
   const autoSubmitRef = use(NodeEditorAutoSubmitContext)
   useRegisterAutoSubmit(autoSubmitRef, methods, onSubmit)
 
+  const headerContent = useMemo(
+    () => (
+      <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
+        <FlexItem>
+          <ActivityNameField
+            control={control}
+            fieldId="sub-workflow-name"
+            placeholder="Enter step name"
+            ariaLabel="Name"
+          />
+        </FlexItem>
+      </Flex>
+    ),
+    [control]
+  )
+
+  useEffect(() => {
+    onHeaderContentChange?.(headerContent)
+  }, [headerContent, onHeaderContentChange])
+
+  useEffect(
+    () => () => {
+      onHeaderContentChange?.(null)
+    },
+    [onHeaderContentChange]
+  )
+
   return (
     <FormProvider {...methods}>
       <NodeFormContainer formId="sub-workflow-node-form" onSubmit={methods.handleSubmit(onSubmit)}>
         <Stack hasGutter style={{ paddingInline: 'var(--pf-t--global--spacer--xs)' }}>
-          <StackItem>
-            <FormGroup label="Step name" isRequired>
-              <TextInput
-                id="sub-workflow-name"
-                {...methods.register('name')}
-                placeholder="Enter step name"
-                type="text"
-                aria-label="Step name"
-                isDisabled={isVersionView}
-              />
-            </FormGroup>
-          </StackItem>
-
           <StackItem>
             <Controller
               name="workflow_id"
