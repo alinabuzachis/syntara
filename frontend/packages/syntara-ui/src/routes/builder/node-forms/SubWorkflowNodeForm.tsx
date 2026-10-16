@@ -4,8 +4,6 @@ import { type ReactNode, use, useEffect, useMemo } from 'react'
 import { Controller, FormProvider, useForm } from 'react-hook-form'
 import { z } from 'zod'
 
-import { useProjectSelector } from '../../../hooks/useProjectSelector'
-import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import { NodeEditorAutoSubmitContext, useRegisterAutoSubmit } from '../hooks/useNodeEditorAutoSubmit'
 import type { BaseNodeFormProps } from '../registry/NodeRegistry'
 import { useIsVersionView } from '../VersionViewContext'
@@ -58,28 +56,11 @@ export function SubWorkflowNodeForm({
   onSubmit,
   initialData,
   onHeaderContentChange,
-}: BaseNodeFormProps<SubWorkflowFormData> & {
-  onHeaderContentChange?: (content: ReactNode | null) => void
-}) {
+  projectId,
+}: BaseNodeFormProps<SubWorkflowFormData>) {
   const isVersionView = useIsVersionView()
-  const storeProjectId = useWorkflowStore((state) => state.projectId)
-  const currentWorkflow = useWorkflowStore((state) => state.currentWorkflow)
 
-  // Get project from the project selector (used by BuilderContent)
-  const { stableProjectId } = useProjectSelector({
-    requireProject: false,
-    initialProjectId: storeProjectId ?? (currentWorkflow as any)?.project_id ?? undefined,
-  })
-
-  // Use stableProjectId from selector as primary source
-  const projectId = stableProjectId ?? storeProjectId ?? null
-
-  console.log('[SubWorkflowNodeForm] Project debug:', {
-    storeProjectId,
-    currentWorkflow,
-    stableProjectId,
-    finalProjectId: projectId
-  })
+  console.log('[SubWorkflowNodeForm] Project from props:', { projectId })
 
   const methods = useForm<SubWorkflowFormData>({
     resolver: zodResolver(subWorkflowFormSchema),
@@ -132,7 +113,7 @@ export function SubWorkflowNodeForm({
           control={methods.control}
           render={({ field }) => (
             <ChildWorkflowSelector
-              projectId={projectId}
+              projectId={projectId ?? null}
               selectedWorkflowId={field.value}
               onChange={field.onChange}
               labelHelp={nodeHelp.subworkflowWorkflow}
