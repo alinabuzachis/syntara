@@ -1524,7 +1524,7 @@ export interface components {
     SubWorkflowExecutorParameters: {
       /**
        * Workflow Id
-       * @description UUID of the child workflow to invoke (latest published version)
+       * @description UUID of the child workflow to invoke (latest published version), or template expression (max 500 chars)
        */
       workflow_id: string
       /**

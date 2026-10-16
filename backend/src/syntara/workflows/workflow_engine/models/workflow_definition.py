@@ -804,7 +804,10 @@ class SubWorkflowExecutorParameters(TemplateAwareBaseModel):
     """
 
     workflow_id: str = Field(
-        description="UUID of the child workflow to invoke (latest published version)",
+        max_length=550,
+        description=(
+            "UUID of the child workflow to invoke (latest published version), or template expression (max 500 chars)"
+        ),
     )
     trigger_node_id: str = Field(
         pattern=r"^[a-zA-Z_][a-zA-Z0-9_]*$",
@@ -1101,15 +1104,18 @@ class SubWorkflowOutputResult(BaseModel):
     child_workflow_id: str | None = None
     child_workflow_name: str | None = Field(default=None, max_length=255)
     child_workflow_version: int | None = None
-    child_status: Literal["running", "completed", "completed_with_errors", "failed", "cancelled"] | None = None
+    child_status: (
+        Literal["pending", "running", "paused", "completed", "completed_with_errors", "failed", "cancelled"] | None
+    ) = None
     outputs: dict[str, StandardOutputWrapper] | None = Field(default=None, max_length=1000)
 
 
-class SubWorkflowOutput(NodeOutput):
+class SubWorkflowOutput(StandardOutputWrapper, NodeOutput):
     """Output model for Sub-workflow steps (reference mode).
 
-    Follows StandardOutputWrapper structure: immutable envelope with Result,
-    StatusCode, StatusMessage, ErrorMessage.
+    Inherits from StandardOutputWrapper to ensure field consistency (StatusCode,
+    StatusMessage, ErrorMessage) and from NodeOutput to provide the dump() method
+    for output mapping.
 
     This model adopts the StandardOutputWrapper pattern proactively, even though
     existing NodeOutput models use flat structure, to align with the Step SDK
@@ -1120,10 +1126,7 @@ class SubWorkflowOutput(NodeOutput):
     template expressions like: ${sub_workflow_step.Result.outputs.child_step_id.field}
     """
 
-    Result: SubWorkflowOutputResult | None = None
-    StatusCode: int | None = None
-    StatusMessage: str | None = Field(default=None, max_length=500)
-    ErrorMessage: str | None = Field(default=None, max_length=10000)
+    Result: SubWorkflowOutputResult | None = None  # Override to specify concrete Result type
 
 
 NODE_OUTPUT_MODELS: dict[str, type[NodeOutput]] = {

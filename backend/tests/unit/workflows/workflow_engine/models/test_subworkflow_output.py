@@ -101,7 +101,7 @@ class TestSubWorkflowOutputPopulated:
 
     @pytest.mark.parametrize(
         "status_value",
-        ["running", "completed", "completed_with_errors", "failed", "cancelled"],
+        ["pending", "running", "paused", "completed", "completed_with_errors", "failed", "cancelled"],
     )
     def test_child_status_enum_values(self, status_value: str) -> None:
         """child_status accepts all valid enum values."""

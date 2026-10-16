@@ -34,7 +34,8 @@ class SubWorkflowExecutorParameters:
             expressions (${step_id.field.path}).
 
         Attributes:
-            workflow_id (str): UUID of the child workflow to invoke (latest published version)
+            workflow_id (str): UUID of the child workflow to invoke (latest published version), or template expression (max
+                500 chars)
             trigger_node_id (str): Graph node ID of the Subworkflow Trigger to invoke in the child workflow
             input_mapping (SubWorkflowExecutorParametersInputMapping | Unset): Mapping of child workflow input field names
                 to static values or template expressions. Keys are child workflow input field names; values can be static types
