@@ -38,6 +38,18 @@ export function useChildWorkflowSelector({ projectId, selectedWorkflowId, onChan
     projectSelectorReady: !!projectId,
   })
 
+  // Debug logging
+  console.log('[ChildWorkflowSelector] Debug:', {
+    projectId,
+    searchTerm,
+    isLoading: workflowsQuery.isLoading,
+    isError: workflowsQuery.isError,
+    error: workflowsQuery.error,
+    workflowsCount: workflows.length,
+    workflows: workflows.map(wf => ({ id: wf.id, name: wf.name, is_enabled: wf.is_enabled })),
+    rawData: workflowsQuery.data,
+  })
+
   const options = useMemo<ChildWorkflowOption[]>(() => {
     return workflows.map((wf) => ({
       value: wf.id ?? '',
