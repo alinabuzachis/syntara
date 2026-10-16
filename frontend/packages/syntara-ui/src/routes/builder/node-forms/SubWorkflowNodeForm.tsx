@@ -12,6 +12,7 @@ import { useIsVersionView } from '../VersionViewContext'
 import { ChildWorkflowSelector } from './ChildWorkflowSelector'
 import { InputMappingFields, type InputMappingEntry } from './InputMappingFields'
 import { ActivityNameField } from './shared/ActivityNameField'
+import { nodeHelp } from './shared/nodeFieldHelp'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 import { NodeSettingsForm } from './shared/NodeSettingsForm'
@@ -108,6 +109,7 @@ export function SubWorkflowNodeForm({
               projectId={projectId}
               selectedWorkflowId={field.value}
               onChange={field.onChange}
+              labelHelp={nodeHelp.subworkflowWorkflow}
               isRequired
               isDisabled={isVersionView}
             />

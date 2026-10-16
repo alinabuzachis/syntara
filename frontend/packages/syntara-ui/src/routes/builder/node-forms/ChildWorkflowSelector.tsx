@@ -1,6 +1,7 @@
 import {
   Button,
   FormGroup,
+  type FormGroupLabelInfo,
   MenuToggle,
   SelectList,
   SelectOption,
@@ -23,6 +24,7 @@ export type ChildWorkflowSelectorProps = {
   selectedWorkflowId: string | null
   onChange: (workflowId: string | null) => void
   label?: string
+  labelHelp?: FormGroupLabelInfo
   isRequired?: boolean
   isDisabled?: boolean
 }
@@ -45,6 +47,7 @@ export type ChildWorkflowSelectorProps = {
  * @param selectedWorkflowId - Currently selected workflow ID
  * @param onChange - Callback when workflow selection changes
  * @param label - Form label (default: "Workflow")
+ * @param labelHelp - Optional help popover for the field
  * @param isRequired - Show required indicator
  * @param isDisabled - Disable the selector
  */
@@ -53,6 +56,7 @@ export function ChildWorkflowSelector({
   selectedWorkflowId,
   onChange,
   label = 'Workflow',
+  labelHelp,
   isRequired = false,
   isDisabled = false,
 }: ChildWorkflowSelectorProps) {
@@ -139,7 +143,7 @@ export function ChildWorkflowSelector({
   )
 
   return (
-    <FormGroup label={label} isRequired={isRequired}>
+    <FormGroup label={label} labelHelp={labelHelp} isRequired={isRequired}>
       <SynSelect
         id="child-workflow-selector"
         aria-label={label}
