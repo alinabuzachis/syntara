@@ -201,6 +201,56 @@ components:
           $ref: '#/components/schemas/WorkflowVersionRead'
           description: Current active version details
 
+    WorkflowInvocationTriggerSchema:
+      type: object
+      title: WorkflowInvocationTriggerSchema
+      description: One dedicated Subworkflow Trigger available for Reference mode.
+      required:
+        - trigger_node_id
+      properties:
+        trigger_node_id:
+          type: string
+          title: Trigger Node Id
+        name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Name
+        input_schema:
+          type: object
+          additionalProperties: true
+          title: Input Schema
+
+    WorkflowInvocationSchemaRead:
+      type: object
+      title: WorkflowInvocationSchemaRead
+      description: Published invocation schemas for a child workflow.
+      required:
+        - workflow_id
+        - published_version_id
+        - published_version
+        - is_eligible
+      properties:
+        workflow_id:
+          type: string
+          format: uuid
+          title: Workflow Id
+        published_version_id:
+          type: string
+          format: uuid
+          title: Published Version Id
+        published_version:
+          type: integer
+          title: Published Version
+        is_eligible:
+          type: boolean
+          title: Is Eligible
+        triggers:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowInvocationTriggerSchema'
+          title: Triggers
+
     PublishWorkflowVersionResponse:
       type: object
       title: PublishWorkflowVersionResponse

@@ -92,6 +92,26 @@ export interface paths {
     patch: operations['update_workflow']
     trace?: never
   }
+  '/workflows/{workflow_id}/invocation-schema': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get workflow invocation schema
+     * @description Get the latest published Subworkflow Trigger schemas for a workflow.
+     */
+    get: operations['get_workflow_invocation_schema']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/workflows/{workflow_id}/test': {
     parameters: {
       query?: never
@@ -431,6 +451,42 @@ export interface components {
       validation_result?: components['schemas']['ValidationResult'] | null
       /** @description Current active version details */
       version: components['schemas']['WorkflowVersionRead']
+    }
+    /**
+     * WorkflowInvocationTriggerSchema
+     * @description One dedicated Subworkflow Trigger available for Reference mode.
+     */
+    WorkflowInvocationTriggerSchema: {
+      /** Trigger Node Id */
+      trigger_node_id: string
+      /** Name */
+      name?: string | null
+      /** Input Schema */
+      input_schema?: {
+        [key: string]: unknown
+      }
+    }
+    /**
+     * WorkflowInvocationSchemaRead
+     * @description Published invocation schemas for a child workflow.
+     */
+    WorkflowInvocationSchemaRead: {
+      /**
+       * Workflow Id
+       * Format: uuid
+       */
+      workflow_id: string
+      /**
+       * Published Version Id
+       * Format: uuid
+       */
+      published_version_id: string
+      /** Published Version */
+      published_version: number
+      /** Is Eligible */
+      is_eligible: boolean
+      /** Triggers */
+      triggers?: components['schemas']['WorkflowInvocationTriggerSchema'][]
     }
     /**
      * PublishWorkflowVersionResponse
@@ -2763,6 +2819,36 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['WorkflowReadWithVersion']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      429: components['responses']['RateLimitError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  get_workflow_invocation_schema: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        workflow_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Published Subworkflow Trigger schemas */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['WorkflowInvocationSchemaRead']
         }
       }
       400: components['responses']['BadRequestError']
