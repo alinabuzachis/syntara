@@ -1,344 +1,116 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { InputMappingFields } from './InputMappingFields'
+import { InputMappingFields, type VariableOption } from './InputMappingFields'
+import type { InvocationInputField } from './invocationSchemaUtils'
+
+const schemaFields: InvocationInputField[] = [
+  { name: 'host', type: 'string', required: true, description: 'Child target host' },
+  { name: 'port', type: 'integer', required: false, defaultValue: 22 },
+]
+const variableOptions: VariableOption[] = [{ label: 'Lookup · hostname', expression: '${lookup.hostname}' }]
+
+function StatefulMapping({
+  fields = schemaFields,
+  initialValues = {},
+  isDisabled = false,
+}: {
+  fields?: InvocationInputField[]
+  initialValues?: Record<string, unknown>
+  isDisabled?: boolean
+}) {
+  const [values, setValues] = useState(initialValues)
+  const [freeformJson, setFreeformJson] = useState('{}')
+
+  return (
+    <InputMappingFields
+      fields={fields}
+      values={values}
+      onChange={setValues}
+      variableOptions={variableOptions}
+      freeformJson={freeformJson}
+      onFreeformJsonChange={setFreeformJson}
+      isDisabled={isDisabled}
+    />
+  )
+}
 
 describe('InputMappingFields', () => {
-  it('renders add button with correct label', () => {
-    render(<InputMappingFields entries={[]} onChange={vi.fn()} />)
+  it('renders a field for each declared child input and shows defaults', () => {
+    render(<StatefulMapping />)
 
-    expect(screen.getByRole('button', { name: 'Add input mapping' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'host' })).toBeRequired()
+    expect(screen.getByRole('textbox', { name: 'host' })).toHaveAccessibleDescription('Child target host')
+    expect(screen.getByRole('textbox', { name: 'port' })).toHaveValue('22')
+    expect(screen.getAllByRole('button', { name: 'Insert variable' })).toHaveLength(2)
   })
 
-  it('clicking add button appends an empty row', async () => {
+  it('updates a child input value as the user types', async () => {
     const user = userEvent.setup()
-    const handleChange = vi.fn()
-    render(<InputMappingFields entries={[]} onChange={handleChange} />)
+    render(<StatefulMapping />)
 
-    await user.click(screen.getByRole('button', { name: 'Add input mapping' }))
+    await user.type(screen.getByRole('textbox', { name: 'host' }), 'server.example')
 
-    expect(handleChange).toHaveBeenCalledWith([expect.objectContaining({ key: '', value: '' })])
+    expect(screen.getByRole('textbox', { name: 'host' })).toHaveValue('server.example')
   })
 
-  it('can type a child input name', async () => {
+  it('opens the variable picker and inserts the selected expression', async () => {
     const user = userEvent.setup()
-    const handleChange = vi.fn()
-    render(<InputMappingFields entries={[{ id: 'i1', key: '', value: '' }]} onChange={handleChange} />)
+    render(<StatefulMapping initialValues={{ host: 'server=' }} />)
 
-    await user.type(screen.getByRole('textbox', { name: 'Child input name 1' }), 'target_host')
+    await user.click(screen.getAllByRole('button', { name: 'Insert variable' })[0])
+    await user.click(screen.getByRole('button', { name: 'Lookup · hostname' }))
 
-    expect(handleChange).toHaveBeenCalledWith([{ id: 'i1', key: 'target_host', value: '' }])
+    expect(screen.getByRole('textbox', { name: 'host' })).toHaveValue('server=${lookup.hostname}')
   })
 
-  it('updates only the changed key and preserves other entries', async () => {
+  it('shows free-form JSON when the child schema declares no fields', () => {
+    render(<StatefulMapping fields={[]} />)
+
+    expect(screen.getByRole('textbox', { name: 'Input Mapping JSON' })).toHaveValue('{}')
+    expect(screen.getByText('Enter a JSON object with child input values.')).toBeInTheDocument()
+  })
+
+  it('updates free-form JSON', async () => {
     const user = userEvent.setup()
-    const handleChange = vi.fn()
+    render(<StatefulMapping fields={[]} />)
+    const mappingInput = screen.getByRole('textbox', { name: 'Input Mapping JSON' })
+
+    await user.click(mappingInput)
+    await user.clear(mappingInput)
+    await user.paste('{"host":"server.example"}')
+
+    expect(mappingInput).toHaveValue('{"host":"server.example"}')
+  })
+
+  it('disables fields and variable picker in version view', () => {
+    render(<StatefulMapping isDisabled />)
+
+    expect(screen.getByRole('textbox', { name: 'host' })).toBeDisabled()
+    expect(screen.getAllByRole('button', { name: 'Insert variable' })[0]).toBeDisabled()
+  })
+
+  it('shows form errors for invalid free-form JSON', () => {
     render(
       <InputMappingFields
-        entries={[
-          { id: 'i1', key: 'host', value: '${ inventory_host }' },
-          { id: 'i2', key: 'port', value: '22' },
-        ]}
-        onChange={handleChange}
-      />
-    )
-
-    const nameInputs = screen.getAllByRole('textbox', { name: /Child input name/i })
-    await user.type(nameInputs[0], '_name')
-
-    expect(handleChange).toHaveBeenCalledWith([
-      { id: 'i1', key: 'host_name', value: '${ inventory_host }' },
-      { id: 'i2', key: 'port', value: '22' },
-    ])
-  })
-
-  it('can type a parent value', async () => {
-    const user = userEvent.setup()
-    const handleChange = vi.fn()
-    render(<InputMappingFields entries={[{ id: 'i1', key: 'target', value: '' }]} onChange={handleChange} />)
-
-    await user.type(screen.getByRole('textbox', { name: 'Parent value 1' }), '${ parent_var }')
-
-    expect(handleChange).toHaveBeenCalledWith([{ id: 'i1', key: 'target', value: '${ parent_var }' }])
-  })
-
-  it('updates only the changed value and preserves other entries', async () => {
-    const user = userEvent.setup()
-    const handleChange = vi.fn()
-    render(
-      <InputMappingFields
-        entries={[
-          { id: 'i1', key: 'host', value: '${ inventory_host }' },
-          { id: 'i2', key: 'port', value: '22' },
-        ]}
-        onChange={handleChange}
-      />
-    )
-
-    const valueInputs = screen.getAllByRole('textbox', { name: /Parent value/i })
-    await user.type(valueInputs[1], '3')
-
-    expect(handleChange).toHaveBeenCalledWith([
-      { id: 'i1', key: 'host', value: '${ inventory_host }' },
-      { id: 'i2', key: 'port', value: '223' },
-    ])
-  })
-
-  it('clicking remove button removes the row', async () => {
-    const user = userEvent.setup()
-    const handleChange = vi.fn()
-    render(
-      <InputMappingFields
-        entries={[
-          { id: 'i1', key: 'host', value: '${ inventory_host }' },
-          { id: 'i2', key: 'port', value: '22' },
-        ]}
-        onChange={handleChange}
-      />
-    )
-
-    const removeButtons = screen.getAllByRole('button', { name: /Remove input mapping/i })
-    await user.click(removeButtons[0])
-
-    expect(handleChange).toHaveBeenCalledWith([{ id: 'i2', key: 'port', value: '22' }])
-  })
-
-  it('renders existing entries', () => {
-    render(
-      <InputMappingFields
-        entries={[
-          { id: 'i1', key: 'target_host', value: '${ inventory_host }' },
-          { id: 'i2', key: 'port', value: '22' },
-        ]}
+        fields={[]}
+        values={{}}
         onChange={vi.fn()}
+        variableOptions={[]}
+        freeformJson="[]"
+        onFreeformJsonChange={vi.fn()}
+        error="Input mapping must be a JSON object."
       />
     )
 
-    const nameInputs = screen.getAllByRole('textbox', { name: /Child input name/i })
-    expect(nameInputs).toHaveLength(2)
-    expect(nameInputs[0]).toHaveValue('target_host')
-    expect(nameInputs[1]).toHaveValue('port')
-
-    const valueInputs = screen.getAllByRole('textbox', { name: /Parent value/i })
-    expect(valueInputs).toHaveLength(2)
-    expect(valueInputs[0]).toHaveValue('${ inventory_host }')
-    expect(valueInputs[1]).toHaveValue('22')
-  })
-
-  it('hides add and remove buttons when disabled', () => {
-    render(
-      <InputMappingFields
-        entries={[{ id: 'i1', key: 'host', value: '${ inventory_host }' }]}
-        onChange={vi.fn()}
-        isDisabled
-      />
-    )
-
-    expect(screen.queryByRole('button', { name: 'Add input mapping' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Remove input mapping/i })).not.toBeInTheDocument()
-  })
-
-  it('disables inputs when disabled', () => {
-    render(
-      <InputMappingFields
-        entries={[{ id: 'i1', key: 'host', value: '${ inventory_host }' }]}
-        onChange={vi.fn()}
-        isDisabled
-      />
-    )
-
-    expect(screen.getByRole('textbox', { name: 'Child input name 1' })).toBeDisabled()
-    expect(screen.getByRole('textbox', { name: 'Parent value 1' })).toBeDisabled()
-  })
-
-  it('renders correct placeholders', () => {
-    render(<InputMappingFields entries={[{ id: 'i1', key: '', value: '' }]} onChange={vi.fn()} />)
-
-    expect(screen.getByPlaceholderText('Child input name')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Parent value or ${ expression }')).toBeInTheDocument()
-  })
-
-  it('renders no rows when entries is empty', () => {
-    render(<InputMappingFields entries={[]} onChange={vi.fn()} />)
-
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
-  })
-
-  it('removes the last remaining row', async () => {
-    const user = userEvent.setup()
-    const handleChange = vi.fn()
-    render(
-      <InputMappingFields entries={[{ id: 'i1', key: 'host', value: '${ inventory_host }' }]} onChange={handleChange} />
-    )
-
-    await user.click(screen.getByRole('button', { name: /Remove input mapping/i }))
-
-    expect(handleChange).toHaveBeenCalledWith([])
-  })
-
-  it('adds a row when entries already exist', async () => {
-    const user = userEvent.setup()
-    const handleChange = vi.fn()
-    render(
-      <InputMappingFields entries={[{ id: 'i1', key: 'host', value: '${ inventory_host }' }]} onChange={handleChange} />
-    )
-
-    await user.click(screen.getByRole('button', { name: 'Add input mapping' }))
-
-    expect(handleChange).toHaveBeenCalledWith([
-      { id: 'i1', key: 'host', value: '${ inventory_host }' },
-      expect.objectContaining({ key: '', value: '' }),
-    ])
-  })
-
-  it('renders correct label and fieldId', () => {
-    render(<InputMappingFields entries={[{ id: 'i1', key: '', value: '' }]} onChange={vi.fn()} />)
-
-    expect(screen.getByText('Input Mapping')).toBeInTheDocument()
+    expect(screen.getByText('Input mapping must be a JSON object.')).toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {
-    const { container } = render(
-      <InputMappingFields entries={[{ id: 'i1', key: 'host', value: '${ inventory_host }' }]} onChange={vi.fn()} />
-    )
-
-    const results = await axe(container)
-    expect(results).toHaveNoViolations()
-  })
-
-  it('has no accessibility violations when disabled', async () => {
-    const { container } = render(
-      <InputMappingFields
-        entries={[{ id: 'i1', key: 'host', value: '${ inventory_host }' }]}
-        onChange={vi.fn()}
-        isDisabled
-      />
-    )
-
-    const results = await axe(container)
-    expect(results).toHaveNoViolations()
-  })
-
-  it('has no accessibility violations with empty entries', async () => {
-    const { container } = render(<InputMappingFields entries={[]} onChange={vi.fn()} />)
-
-    const results = await axe(container)
-    expect(results).toHaveNoViolations()
-  })
-
-  it('callbacks work after re-render with updated entries', async () => {
-    const user = userEvent.setup()
-    const handleChange = vi.fn()
-    const { rerender } = render(
-      <InputMappingFields entries={[{ id: 'i1', key: 'host', value: '${ var }' }]} onChange={handleChange} />
-    )
-
-    rerender(
-      <InputMappingFields
-        entries={[
-          { id: 'i1', key: 'host', value: '${ var }' },
-          { id: 'i2', key: 'port', value: '22' },
-        ]}
-        onChange={handleChange}
-      />
-    )
-
-    await user.click(screen.getByRole('button', { name: 'Add input mapping' }))
-
-    expect(handleChange).toHaveBeenCalledWith([
-      { id: 'i1', key: 'host', value: '${ var }' },
-      { id: 'i2', key: 'port', value: '22' },
-      expect.objectContaining({ key: '', value: '' }),
-    ])
-  })
-
-  it('remove works after re-render with updated entries', async () => {
-    const user = userEvent.setup()
-    const handleChange = vi.fn()
-    const { rerender } = render(
-      <InputMappingFields entries={[{ id: 'i1', key: 'A', value: '1' }]} onChange={handleChange} />
-    )
-
-    rerender(
-      <InputMappingFields
-        entries={[
-          { id: 'i1', key: 'A', value: '1' },
-          { id: 'i2', key: 'B', value: '2' },
-        ]}
-        onChange={handleChange}
-      />
-    )
-
-    const removeButtons = screen.getAllByRole('button', { name: /Remove input mapping/i })
-    await user.click(removeButtons[0])
-
-    expect(handleChange).toHaveBeenCalledWith([{ id: 'i2', key: 'B', value: '2' }])
-  })
-
-  it('key change works after re-render with updated entries', async () => {
-    const user = userEvent.setup()
-    const handleChange = vi.fn()
-    const { rerender } = render(
-      <InputMappingFields entries={[{ id: 'i1', key: 'A', value: '1' }]} onChange={handleChange} />
-    )
-
-    rerender(
-      <InputMappingFields
-        entries={[
-          { id: 'i1', key: 'A', value: '1' },
-          { id: 'i2', key: 'B', value: '2' },
-        ]}
-        onChange={handleChange}
-      />
-    )
-
-    const nameInputs = screen.getAllByRole('textbox', { name: /Child input name/i })
-    await user.type(nameInputs[1], 'X')
-
-    expect(handleChange).toHaveBeenCalledWith([
-      { id: 'i1', key: 'A', value: '1' },
-      { id: 'i2', key: 'BX', value: '2' },
-    ])
-  })
-
-  it('value change works after re-render with updated entries', async () => {
-    const user = userEvent.setup()
-    const handleChange = vi.fn()
-    const { rerender } = render(
-      <InputMappingFields entries={[{ id: 'i1', key: 'A', value: '1' }]} onChange={handleChange} />
-    )
-
-    rerender(
-      <InputMappingFields
-        entries={[
-          { id: 'i1', key: 'A', value: '1' },
-          { id: 'i2', key: 'B', value: '2' },
-        ]}
-        onChange={handleChange}
-      />
-    )
-
-    const valueInputs = screen.getAllByRole('textbox', { name: /Parent value/i })
-    await user.type(valueInputs[1], 'X')
-
-    expect(handleChange).toHaveBeenCalledWith([
-      { id: 'i1', key: 'A', value: '1' },
-      { id: 'i2', key: 'B', value: '2X' },
-    ])
-  })
-
-  it('transitions from disabled to enabled shows add and remove buttons', () => {
-    const { rerender } = render(
-      <InputMappingFields entries={[{ id: 'i1', key: 'A', value: '1' }]} onChange={vi.fn()} isDisabled />
-    )
-
-    expect(screen.queryByRole('button', { name: 'Add input mapping' })).not.toBeInTheDocument()
-
-    rerender(<InputMappingFields entries={[{ id: 'i1', key: 'A', value: '1' }]} onChange={vi.fn()} />)
-
-    expect(screen.getByRole('button', { name: 'Add input mapping' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Remove input mapping/i })).toBeInTheDocument()
+    const { container } = render(<StatefulMapping />)
+    expect(await axe(container)).toHaveNoViolations()
   })
 })

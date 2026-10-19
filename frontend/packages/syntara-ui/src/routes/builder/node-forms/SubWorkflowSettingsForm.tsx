@@ -1,11 +1,4 @@
-import {
-  FormGroup,
-  MenuToggle,
-  SelectList,
-  SelectOption,
-  Stack,
-  StackItem,
-} from '@patternfly/react-core'
+import { FormGroup, MenuToggle, SelectList, SelectOption, Stack, StackItem } from '@patternfly/react-core'
 import { useState } from 'react'
 import { useFormContext, useWatch } from 'react-hook-form'
 
@@ -17,7 +10,7 @@ import { useIsVersionView } from '../VersionViewContext'
 import { nodeHelp } from './shared/nodeFieldHelp'
 import type { NodeSettingsFormData } from './shared/nodeSettingsSchema'
 
-type FormWithSettings = { settings: NodeSettingsFormData & { expected_duration?: number } }
+type FormWithSettings = { settings: Omit<NodeSettingsFormData, 'retry_policy'> }
 
 const COF_OPTIONS = [
   {
@@ -72,7 +65,6 @@ export function SubWorkflowSettingsForm() {
 
   const cofDefaultLabel = getCofDefaultLabel(cofDefault)
   const timeoutPlaceholder = `${String(timeoutDefault)} — system default`
-  const expectedDurationPlaceholder = '600 — system default'
 
   const selected = cofValueFromBool(continueOnFailure)
   const selectedLabel = COF_OPTIONS.find((o) => o.value === selected)?.label ?? 'System default'
@@ -126,19 +118,6 @@ export function SubWorkflowSettingsForm() {
           type="number"
           min={1}
           placeholder={timeoutPlaceholder}
-          isDisabled={isVersionView}
-        />
-      </StackItem>
-
-      <StackItem>
-        <SynTextField
-          name="settings.expected_duration"
-          label="Expected duration (seconds)"
-          labelHelp={nodeHelp.subworkflowExpectedDuration}
-          fieldId="subworkflow-settings-expected-duration"
-          type="number"
-          min={1}
-          placeholder={expectedDurationPlaceholder}
           isDisabled={isVersionView}
         />
       </StackItem>

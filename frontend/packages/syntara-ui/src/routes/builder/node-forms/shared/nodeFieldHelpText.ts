@@ -43,8 +43,8 @@ export const HTTP_BODY_HELP =
 export const SUBWORKFLOW_WORKFLOW_HELP =
   'Select the published workflow to call. Only workflows you have permission to access are shown. The latest published version is always used at runtime.'
 
-export const SUBWORKFLOW_EXPECTED_DURATION_HELP =
-  'Estimated time for the sub-workflow to complete. Used for progress tracking and monitoring. System default: 600 seconds (10 minutes).'
+export const SUBWORKFLOW_INPUT_MAPPING_HELP =
+  'Provide values for the selected trigger inputs. Values may be static or template expressions that reference data from the parent workflow.'
 
 export const AI_MODEL_HELP =
   'Select the large language model (LLM) to use for this task agent step. Models are provided by integrations configured by your administrator.'

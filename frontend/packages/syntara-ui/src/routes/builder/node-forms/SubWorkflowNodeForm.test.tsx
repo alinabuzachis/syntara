@@ -1,340 +1,277 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { ReactNode } from 'react'
+import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { useWorkflowStore } from '../../../stores/useWorkflowStore'
-
 import { SubWorkflowNodeForm } from './SubWorkflowNodeForm'
 
-// Mock useWorkflowStore
-vi.mock('../../../stores/useWorkflowStore', () => ({
-  useWorkflowStore: vi.fn(),
-}))
+const mocks = vi.hoisted(() => ({ get: vi.fn() }))
 
-// Mock useWorkflowsQuery (used by ChildWorkflowSelector)
+vi.mock('../../../client', () => ({ workflowFetchClient: { GET: mocks.get } }))
 vi.mock('../../workflows/useWorkflowsQuery', () => ({
   useWorkflowsQuery: vi.fn(() => ({
     workflowsQuery: { isLoading: false, isError: false },
     workflows: [
       {
-        id: 'wf-1',
-        name: 'Test Workflow',
-        current_version: 1,
-        description: 'Test workflow',
+        id: 'workflow-1',
+        name: 'Child workflow',
+        current_version: 9,
+        published_version_number: 3,
         is_enabled: true,
-        project_id: 'proj-1',
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z',
+        project_id: 'project-1',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
       },
     ],
   })),
 }))
+vi.mock('../hooks/useWorkflowEngineDefaults', () => ({
+  useWorkflowEngineDefaults: vi.fn(() => ({ defaults: { continueOnFailure: true } })),
+}))
 
-function renderWithQueryClient(ui: React.ReactElement) {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
+function buildInvocationSchema(overrides: Record<string, unknown> = {}) {
+  return {
+    workflow_id: 'workflow-1',
+    published_version_id: 'version-3',
+    published_version: 3,
+    is_eligible: true,
+    triggers: [
+      {
+        trigger_node_id: 'sub-trigger-1',
+        name: 'Subworkflow Trigger',
+        input_schema: {
+          type: 'object',
+          required: ['host'],
+          properties: {
+            host: { type: 'string', description: 'Target host' },
+            port: { type: 'integer', default: 22 },
+          },
+        },
       },
-    },
-  })
+    ],
+    ...overrides,
+  }
+}
 
-  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
+function renderForm(props: Partial<React.ComponentProps<typeof SubWorkflowNodeForm>> = {}) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <FormWithHeader {...props} />
+    </QueryClientProvider>
+  )
+}
+
+function submitWorkflowForm() {
+  screen.getByTestId<HTMLFormElement>('sub-workflow-node-form').requestSubmit()
+}
+
+function FormWithHeader(props: Partial<React.ComponentProps<typeof SubWorkflowNodeForm>>) {
+  const [headerContent, setHeaderContent] = useState<ReactNode | null>(null)
+  return (
+    <>
+      <div data-testid="subworkflow-form-header">{headerContent}</div>
+      <SubWorkflowNodeForm
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        projectId="project-1"
+        onHeaderContentChange={setHeaderContent}
+        {...props}
+      />
+    </>
+  )
+}
+
+async function selectChildWorkflow(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByPlaceholderText('Select an eligible workflow...'))
+  await user.click(await screen.findByText('Child workflow (v3)'))
 }
 
 describe('SubWorkflowNodeForm', () => {
-  const mockOnSubmit = vi.fn()
-
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(useWorkflowStore).mockImplementation((selector) => selector({ projectId: 'proj-1' } as never))
+    mocks.get.mockResolvedValue({ data: buildInvocationSchema(), response: new Response() })
   })
 
-  describe('Rendering', () => {
-    it('renders step name field', () => {
-      renderWithQueryClient(<SubWorkflowNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
+  it('renders the workflow selector and loads schema fields after a child is selected', async () => {
+    const user = userEvent.setup()
+    renderForm()
 
-      expect(screen.getByLabelText('Step name')).toBeInTheDocument()
-    })
+    expect(screen.getByLabelText('Name')).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Input Mapping JSON' })).not.toBeInTheDocument()
+    await selectChildWorkflow(user)
 
-    it('renders child workflow selector', () => {
-      renderWithQueryClient(<SubWorkflowNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
+    expect(await screen.findByRole('textbox', { name: 'host' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'port' })).toHaveValue('22')
+  })
 
-      expect(screen.getByText('Child Workflow')).toBeInTheDocument()
-      expect(screen.getByPlaceholderText('Select a workflow...')).toBeInTheDocument()
-    })
+  it('submits the selected workflow, trigger, and typed mapping values', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    renderForm({ onSubmit })
 
-    it('renders input mapping fields', () => {
-      renderWithQueryClient(<SubWorkflowNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
+    await user.type(screen.getByLabelText('Name'), 'Call child')
+    await selectChildWorkflow(user)
+    await user.click(screen.getByRole('textbox', { name: 'host' }))
+    await user.paste('${lookup.hostname}')
+    await user.clear(screen.getByRole('textbox', { name: 'port' }))
+    await user.type(screen.getByRole('textbox', { name: 'port' }), '8443')
+    submitWorkflowForm()
 
-      expect(screen.getByText('Input Mapping')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Add input mapping' })).toBeInTheDocument()
-    })
-
-    it('populates fields with initial data', () => {
-      renderWithQueryClient(
-        <SubWorkflowNodeForm
-          onSubmit={mockOnSubmit}
-          onCancel={vi.fn()}
-          initialData={{
-            name: 'Existing Step',
-            workflow_id: 'wf-1',
-            input_mapping: [{ id: 'i1', key: 'host', value: '${ inventory_host }' }],
-          }}
-        />
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'Call child',
+          workflow_id: 'workflow-1',
+          trigger_node_id: 'sub-trigger-1',
+          input_mapping: { host: '${lookup.hostname}', port: 8443 },
+        })
       )
-
-      expect(screen.getByLabelText('Step name')).toHaveValue('Existing Step')
-      expect(screen.getByPlaceholderText('Select a workflow...')).toHaveValue('Test Workflow (v1)')
-      expect(screen.getByDisplayValue('host')).toBeInTheDocument()
-      expect(screen.getByDisplayValue('${ inventory_host }')).toBeInTheDocument()
     })
   })
 
-  describe('Form Submission', () => {
-    it('submits with step name only', async () => {
-      const user = userEvent.setup()
-      renderWithQueryClient(<SubWorkflowNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
-
-      await user.type(screen.getByLabelText('Step name'), 'My Sub-workflow')
-      fireEvent.submit(screen.getByTestId('sub-workflow-node-form'))
-
-      await waitFor(() => {
-        expect(mockOnSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({
-            name: 'My Sub-workflow',
-            workflow_id: null,
-            input_mapping: [],
-          })
-        )
-      })
+  it('fills the sole trigger when editing an older reference without a saved trigger ID', async () => {
+    const onSubmit = vi.fn()
+    mocks.get.mockResolvedValue({
+      data: buildInvocationSchema({
+        triggers: [{ trigger_node_id: 'sub-trigger-1', name: 'Subworkflow Trigger' }],
+      }),
+      response: new Response(),
     })
+    renderForm({ onSubmit, initialData: { name: 'Legacy child step', workflow_id: 'workflow-1' } })
 
-    it('submits with workflow selected', async () => {
-      const user = userEvent.setup()
-      renderWithQueryClient(<SubWorkflowNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
+    await waitFor(() => expect(screen.queryByLabelText('Loading child workflow inputs')).not.toBeInTheDocument())
+    submitWorkflowForm()
 
-      await user.type(screen.getByLabelText('Step name'), 'Call Workflow')
-      const workflowInput = screen.getByPlaceholderText('Select a workflow...')
-      await user.click(workflowInput)
-      await user.click(screen.getByText('Test Workflow (v1)'))
-      fireEvent.submit(screen.getByTestId('sub-workflow-node-form'))
-
-      await waitFor(() => {
-        expect(mockOnSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({
-            name: 'Call Workflow',
-            workflow_id: 'wf-1',
-            input_mapping: [],
-          })
-        )
-      })
-    })
-
-    it('submits with input mapping', async () => {
-      const user = userEvent.setup()
-      renderWithQueryClient(<SubWorkflowNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
-
-      await user.type(screen.getByLabelText('Step name'), 'With Inputs')
-      await user.click(screen.getByRole('button', { name: 'Add input mapping' }))
-
-      const keyInput = screen.getByLabelText('Child input name 1')
-      const valueInput = screen.getByLabelText('Parent value 1')
-      await user.type(keyInput, 'target_host')
-      await user.type(valueInput, '${ inventory_host }')
-      fireEvent.submit(screen.getByTestId('sub-workflow-node-form'))
-
-      await waitFor(() => {
-        expect(mockOnSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({
-            name: 'With Inputs',
-            workflow_id: null,
-            input_mapping: [expect.objectContaining({ key: 'target_host', value: '${ inventory_host }' })],
-          })
-        )
-      })
-    })
-
-    it('submits complete form with all fields', async () => {
-      const user = userEvent.setup()
-      renderWithQueryClient(<SubWorkflowNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
-
-      await user.type(screen.getByLabelText('Step name'), 'Complete Step')
-
-      const workflowInput = screen.getByPlaceholderText('Select a workflow...')
-      await user.click(workflowInput)
-      await user.click(screen.getByText('Test Workflow (v1)'))
-
-      await user.click(screen.getByRole('button', { name: 'Add input mapping' }))
-      await user.type(screen.getByLabelText('Child input name 1'), 'host')
-      await user.type(screen.getByLabelText('Parent value 1'), '${ my_host }')
-      fireEvent.submit(screen.getByTestId('sub-workflow-node-form'))
-
-      await waitFor(() => {
-        expect(mockOnSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({
-            name: 'Complete Step',
-            workflow_id: 'wf-1',
-            input_mapping: [expect.objectContaining({ key: 'host', value: '${ my_host }' })],
-          })
-        )
-      })
-    })
-  })
-
-  describe('Validation', () => {
-    it('does not submit when name is empty', async () => {
-      renderWithQueryClient(<SubWorkflowNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
-
-      fireEvent.submit(screen.getByTestId('sub-workflow-node-form'))
-
-      await waitFor(() => {
-        expect(mockOnSubmit).not.toHaveBeenCalled()
-      })
-    })
-
-    it('trims whitespace from step name', async () => {
-      const user = userEvent.setup()
-      renderWithQueryClient(<SubWorkflowNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
-
-      await user.type(screen.getByLabelText('Step name'), '   Trimmed   ')
-      fireEvent.submit(screen.getByTestId('sub-workflow-node-form'))
-
-      await waitFor(() => {
-        expect(mockOnSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({
-            name: 'Trimmed',
-          })
-        )
-      })
-    })
-  })
-
-  describe('Input Mapping Management', () => {
-    it('disables input mapping when no workflow selected', () => {
-      renderWithQueryClient(<SubWorkflowNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
-
-      const addButton = screen.getByRole('button', { name: 'Add input mapping' })
-      expect(addButton).toBeDisabled()
-    })
-
-    it('enables input mapping when workflow is selected', () => {
-      renderWithQueryClient(
-        <SubWorkflowNodeForm
-          onSubmit={mockOnSubmit}
-          onCancel={vi.fn()}
-          initialData={{
-            name: 'Test',
-            workflow_id: 'wf-1',
-            input_mapping: [],
-          }}
-        />
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ workflow_id: 'workflow-1', trigger_node_id: 'sub-trigger-1' })
       )
-
-      const addButton = screen.getByRole('button', { name: 'Add input mapping' })
-      expect(addButton).toBeEnabled()
-    })
-
-    it('adds multiple input mappings', async () => {
-      const user = userEvent.setup()
-      renderWithQueryClient(<SubWorkflowNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
-
-      await user.type(screen.getByLabelText('Step name'), 'Multi Input')
-      await user.click(screen.getByRole('button', { name: 'Add input mapping' }))
-      await user.click(screen.getByRole('button', { name: 'Add input mapping' }))
-
-      const keyInputs = screen.getAllByLabelText(/Child input name/i)
-      const valueInputs = screen.getAllByLabelText(/Parent value/i)
-
-      await user.type(keyInputs[0], 'host')
-      await user.type(valueInputs[0], '${ my_host }')
-      await user.type(keyInputs[1], 'port')
-      await user.type(valueInputs[1], '22')
-      fireEvent.submit(screen.getByTestId('sub-workflow-node-form'))
-
-      await waitFor(() => {
-        expect(mockOnSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({
-            name: 'Multi Input',
-            input_mapping: [
-              expect.objectContaining({ key: 'host', value: '${ my_host }' }),
-              expect.objectContaining({ key: 'port', value: '22' }),
-            ],
-          })
-        )
-      })
-    })
-
-    it('removes input mapping', async () => {
-      const user = userEvent.setup()
-      renderWithQueryClient(
-        <SubWorkflowNodeForm
-          onSubmit={mockOnSubmit}
-          onCancel={vi.fn()}
-          initialData={{
-            name: 'Test',
-            workflow_id: null,
-            input_mapping: [
-              { id: 'i1', key: 'host', value: '${ my_host }' },
-              { id: 'i2', key: 'port', value: '22' },
-            ],
-          }}
-        />
-      )
-
-      const removeButtons = screen.getAllByRole('button', { name: /Remove input mapping/i })
-      await user.click(removeButtons[0])
-
-      expect(screen.queryByDisplayValue('host')).not.toBeInTheDocument()
-      expect(screen.getByDisplayValue('port')).toBeInTheDocument()
     })
   })
 
-  describe('Child Workflow Selection', () => {
-    it('selects and clears workflow', async () => {
-      const user = userEvent.setup()
-      renderWithQueryClient(<SubWorkflowNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
+  it('requires a workflow and trigger before submitting', async () => {
+    const onSubmit = vi.fn()
+    renderForm({ onSubmit })
 
-      await user.type(screen.getByLabelText('Step name'), 'Test')
+    submitWorkflowForm()
 
-      const workflowInput = screen.getByPlaceholderText('Select a workflow...')
-      await user.click(workflowInput)
-      await user.click(screen.getByText('Test Workflow (v1)'))
+    await waitFor(() => expect(onSubmit).not.toHaveBeenCalled())
+    expect(await screen.findByText('Select a child workflow')).toBeInTheDocument()
+  })
 
-      expect(workflowInput).toHaveValue('Test Workflow (v1)')
+  it('allows selecting one trigger when the child has multiple', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    mocks.get.mockResolvedValue({
+      data: buildInvocationSchema({
+        triggers: [
+          {
+            trigger_node_id: 'trigger-1',
+            name: 'One',
+            input_schema: { type: 'object', properties: { a: { type: 'string' } } },
+          },
+          {
+            trigger_node_id: 'trigger-2',
+            name: 'Two',
+            input_schema: { type: 'object', properties: { b: { type: 'string' } } },
+          },
+        ],
+      }),
+      response: new Response(),
+    })
+    renderForm({ onSubmit })
 
-      const clearButton = screen.getByLabelText('Clear selection')
-      await user.click(clearButton)
+    await user.type(screen.getByLabelText('Name'), 'Multiple triggers')
+    await selectChildWorkflow(user)
+    await user.click(screen.getByRole('button', { name: 'Subworkflow Trigger' }))
+    await user.click(screen.getByText('Two'))
+    await user.type(await screen.findByRole('textbox', { name: 'b' }), 'value')
+    submitWorkflowForm()
 
-      expect(workflowInput).toHaveValue('')
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ trigger_node_id: 'trigger-2', input_mapping: { b: 'value' } })
+      )
     })
   })
 
-  describe('Accessibility', () => {
-    it('has no accessibility violations', async () => {
-      const { container } = renderWithQueryClient(<SubWorkflowNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} />)
-
-      const results = await axe(container)
-      expect(results).toHaveNoViolations()
+  it('requires choosing a trigger when the child has multiple', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    mocks.get.mockResolvedValue({
+      data: buildInvocationSchema({
+        triggers: [
+          { trigger_node_id: 'trigger-1', name: 'One', input_schema: { type: 'object', properties: {} } },
+          { trigger_node_id: 'trigger-2', name: 'Two', input_schema: { type: 'object', properties: {} } },
+        ],
+      }),
+      response: new Response(),
     })
+    renderForm({ onSubmit })
 
-    it('has no accessibility violations with data', async () => {
-      const { container } = renderWithQueryClient(
-        <SubWorkflowNodeForm
-          onSubmit={mockOnSubmit}
-          onCancel={vi.fn()}
-          initialData={{
-            name: 'Test Step',
-            workflow_id: 'wf-1',
-            input_mapping: [{ id: 'i1', key: 'host', value: '${ my_host }' }],
-          }}
-        />
-      )
+    await user.type(screen.getByLabelText('Name'), 'Choose a trigger')
+    await selectChildWorkflow(user)
+    await screen.findByRole('button', { name: 'Subworkflow Trigger' })
+    submitWorkflowForm()
 
-      const results = await axe(container)
-      expect(results).toHaveNoViolations()
+    expect(await screen.findByText('Select a workflow with an available Subworkflow Trigger.')).toBeInTheDocument()
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('uses free-form JSON when the selected trigger has no input schema', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    mocks.get.mockResolvedValue({
+      data: buildInvocationSchema({
+        triggers: [{ trigger_node_id: 'sub-trigger-1', name: 'Subworkflow Trigger' }],
+      }),
+      response: new Response(),
     })
+    renderForm({ onSubmit })
+
+    await user.type(screen.getByLabelText('Name'), 'JSON mapping')
+    await selectChildWorkflow(user)
+    const mappingInput = await screen.findByRole('textbox', { name: 'Input Mapping JSON' })
+    await user.clear(mappingInput)
+    await user.click(mappingInput)
+    await user.paste('{"payload":{"count":3}}')
+    submitWorkflowForm()
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ input_mapping: { payload: { count: 3 } } }))
+    })
+  })
+
+  it('shows a read-permission warning for an existing child the user cannot read', async () => {
+    mocks.get.mockResolvedValue({
+      error: { detail: 'Forbidden' },
+      response: new Response(null, { status: 403 }),
+    })
+    renderForm({ initialData: { workflow_id: 'workflow-1', trigger_node_id: 'sub-trigger-1' } })
+
+    expect(await screen.findByText('You do not have permission to read this child workflow.')).toBeInTheDocument()
+  })
+
+  it('shows a warning when the selected workflow is no longer eligible', async () => {
+    mocks.get.mockResolvedValue({
+      data: buildInvocationSchema({ is_eligible: false, triggers: [] }),
+      response: new Response(),
+    })
+    renderForm({ initialData: { workflow_id: 'workflow-1' } })
+
+    expect(await screen.findByText('This workflow has no eligible Subworkflow Trigger.')).toBeInTheDocument()
+  })
+
+  it('has no accessibility violations after selecting an eligible child', async () => {
+    const user = userEvent.setup()
+    const { container } = renderForm()
+    await selectChildWorkflow(user)
+
+    await screen.findByRole('textbox', { name: 'host' })
+    expect(await axe(container)).toHaveNoViolations()
   })
 })

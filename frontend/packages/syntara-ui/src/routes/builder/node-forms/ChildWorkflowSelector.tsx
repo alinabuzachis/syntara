@@ -1,7 +1,9 @@
 import {
+  Alert,
   Button,
   FormGroup,
-  type FormGroupLabelInfo,
+  HelperText,
+  HelperTextItem,
   MenuToggle,
   SelectList,
   SelectOption,
@@ -11,168 +13,242 @@ import {
   TextInputGroupUtilities,
 } from '@patternfly/react-core'
 import { RhUiCloseIcon } from '@patternfly/react-icons'
+import type { ReactElement } from 'react'
 import { useEffect, useRef, useState } from 'react'
 
 import { SynSelect } from '../../../components/SynSelect'
 
-import { useChildWorkflowSelector } from './useChildWorkflowSelector'
+import type { ChildWorkflowOption, InvocationTrigger } from './useChildWorkflowSelector'
 
 const DEBOUNCE_MS = 300
 
 export type ChildWorkflowSelectorProps = {
-  projectId: string | null
+  options: ChildWorkflowOption[]
+  selectedOption?: ChildWorkflowOption
   selectedWorkflowId: string | null
-  onChange: (workflowId: string | null) => void
+  selectedTriggerNodeId: string
+  workflowError?: string
+  triggerError?: string
+  onWorkflowChange: (workflowId: string | null, defaultTriggerId: string) => void
+  onTriggerChange: (triggerNodeId: string) => void
+  setSearchTerm: (searchTerm: string) => void
+  isLoading: boolean
+  hasError: boolean
   label?: string
-  labelHelp?: FormGroupLabelInfo
+  labelHelp?: ReactElement
   isRequired?: boolean
   isDisabled?: boolean
 }
 
-/**
- * Child workflow selector dropdown for Sub-workflow step configuration.
- *
- * Provides a typeahead dropdown for selecting a child workflow from the current project.
- * Filters to published workflows only (reference mode).
- *
- * Features:
- * - Typeahead search with 300ms debounce
- * - Displays workflow name and version: "Workflow Name (vN)"
- * - Loading and error states
- * - Clear button to reset selection
- *
- * V1 Scope: Same-project workflows only
- *
- * @param projectId - Current project ID (null disables selector)
- * @param selectedWorkflowId - Currently selected workflow ID
- * @param onChange - Callback when workflow selection changes
- * @param label - Form label (default: "Workflow")
- * @param labelHelp - Optional help popover for the field
- * @param isRequired - Show required indicator
- * @param isDisabled - Disable the selector
- */
-export function ChildWorkflowSelector({
-  projectId,
-  selectedWorkflowId,
+function getTriggerLabel(trigger: InvocationTrigger, index: number) {
+  return trigger.name?.trim() || `Trigger ${index + 1}`
+}
+
+function InvocationTriggerSelector({
+  triggers,
+  selectedTriggerNodeId,
   onChange,
+  isDisabled,
+  error,
+}: Readonly<{
+  triggers: InvocationTrigger[]
+  selectedTriggerNodeId: string
+  onChange: (triggerNodeId: string) => void
+  isDisabled: boolean
+  error?: string
+}>) {
+  const [isOpen, setIsOpen] = useState(false)
+  const selectedIndex = triggers.findIndex((trigger) => trigger.trigger_node_id === selectedTriggerNodeId)
+  const selectedLabel =
+    selectedIndex >= 0 ? getTriggerLabel(triggers[selectedIndex], selectedIndex) : 'Select a trigger...'
+
+  return (
+    <FormGroup label="Subworkflow Trigger" isRequired fieldId="subworkflow-trigger-selector">
+      <SynSelect
+        id="subworkflow-trigger-selector"
+        aria-label="Subworkflow Trigger"
+        isOpen={isOpen}
+        selected={selectedTriggerNodeId || undefined}
+        onSelect={(_event, value) => {
+          if (value !== undefined) onChange(String(value))
+          setIsOpen(false)
+        }}
+        onOpenChange={setIsOpen}
+        shouldFocusToggleOnSelect
+        toggle={(toggleRef) => (
+          <MenuToggle
+            ref={toggleRef}
+            onClick={() => setIsOpen((open) => !open)}
+            isExpanded={isOpen}
+            isFullWidth
+            isDisabled={isDisabled}
+            aria-label="Subworkflow Trigger"
+          >
+            {selectedLabel}
+          </MenuToggle>
+        )}
+      >
+        <SelectList>
+          {triggers.map((trigger, index) => (
+            <SelectOption key={trigger.trigger_node_id} value={trigger.trigger_node_id}>
+              {getTriggerLabel(trigger, index)}
+            </SelectOption>
+          ))}
+        </SelectList>
+      </SynSelect>
+      {error && (
+        <HelperText>
+          <HelperTextItem variant="error">{error}</HelperTextItem>
+        </HelperText>
+      )}
+    </FormGroup>
+  )
+}
+
+/** Select a published same-project workflow and one of its Subworkflow Triggers. */
+export function ChildWorkflowSelector({
+  options,
+  selectedOption,
+  selectedWorkflowId,
+  selectedTriggerNodeId,
+  workflowError,
+  triggerError,
+  onWorkflowChange,
+  onTriggerChange,
+  setSearchTerm,
+  isLoading,
+  hasError,
   label = 'Workflow',
   labelHelp,
   isRequired = false,
   isDisabled = false,
-}: ChildWorkflowSelectorProps) {
+}: Readonly<ChildWorkflowSelectorProps>) {
   const [isOpen, setIsOpen] = useState(false)
   const [filterValue, setFilterValue] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
-  const { options, selectedOption, onSelectionChange, setSearchTerm, isLoading, hasError } = useChildWorkflowSelector({
-    projectId,
-    selectedWorkflowId,
-    onChange,
-  })
-
-  // Debounce search for server-side filtering
   useEffect(() => {
-    debounceRef.current = setTimeout(() => {
-      setSearchTerm(filterValue)
-    }, DEBOUNCE_MS)
+    debounceRef.current = setTimeout(() => setSearchTerm(filterValue), DEBOUNCE_MS)
     return () => clearTimeout(debounceRef.current)
   }, [filterValue, setSearchTerm])
 
-  // Cleanup on unmount
   useEffect(() => () => clearTimeout(debounceRef.current), [])
 
   const onSelect = (_event: React.MouseEvent | undefined, value: string | number | undefined) => {
-    onSelectionChange(String(value ?? ''))
+    const workflowId = value === undefined ? null : String(value)
+    const option = options.find((candidate) => candidate.value === workflowId)
+    const defaultTriggerId = option?.triggers.length === 1 ? option.triggers[0].trigger_node_id : ''
+
+    onWorkflowChange(workflowId, defaultTriggerId)
     setFilterValue('')
     setIsOpen(false)
   }
 
   const clear = () => {
-    onSelectionChange(null)
+    onWorkflowChange(null, '')
     setFilterValue('')
     inputRef.current?.focus()
   }
 
-  const onInputChange = (_e: React.FormEvent<HTMLInputElement>, val: string) => {
-    setFilterValue(val)
+  const onInputChange = (_event: React.FormEvent<HTMLInputElement>, value: string) => {
+    setFilterValue(value)
     if (!isOpen) setIsOpen(true)
   }
 
-  const displayLabel = selectedOption?.label ?? ''
-  const noResultsText = isLoading ? 'Loading...' : `No workflows match "${filterValue}"`
-
-  const toggle = (toggleRef: React.Ref<HTMLButtonElement>) => (
-    <MenuToggle
-      ref={toggleRef}
-      variant="typeahead"
-      onClick={() => setIsOpen(!isOpen)}
-      isExpanded={isOpen}
-      isFullWidth
-      isDisabled={isDisabled}
-      status={hasError ? 'danger' : undefined}
-    >
-      <TextInputGroup isPlain>
-        <TextInputGroupMain
-          value={isOpen ? filterValue : displayLabel}
-          onChange={onInputChange}
-          onClick={() => {
-            if (!isOpen) setIsOpen(true)
-          }}
-          placeholder="Select a workflow..."
-          autoComplete="off"
-          innerRef={inputRef}
-        />
-        <TextInputGroupUtilities>
-          {isLoading && <Spinner size="sm" aria-label="Loading workflows" />}
-          {selectedWorkflowId && !isLoading && !isDisabled && (
-            <Button
-              variant="plain"
-              onClick={(e) => {
-                e.stopPropagation()
-                clear()
-              }}
-              aria-label="Clear selection"
-            >
-              <RhUiCloseIcon />
-            </Button>
-          )}
-        </TextInputGroupUtilities>
-      </TextInputGroup>
-    </MenuToggle>
-  )
+  const displayLabel = selectedOption?.label ?? selectedWorkflowId ?? ''
+  const noResultsText = isLoading ? 'Loading eligible workflows...' : 'No eligible workflows match this search.'
 
   return (
-    <FormGroup label={label} labelHelp={labelHelp} isRequired={isRequired}>
-      <SynSelect
-        id="child-workflow-selector"
-        aria-label={label}
-        isOpen={isOpen}
-        onOpenChange={(open) => {
-          setIsOpen(open)
-          if (!open) setFilterValue('')
-        }}
-        onSelect={onSelect}
-        selected={selectedWorkflowId ?? undefined}
-        toggle={toggle}
-      >
-        <SelectList style={{ maxHeight: '200px', overflow: 'auto' }}>
-          {options.length === 0 ? (
-            <SelectOption isDisabled>{noResultsText}</SelectOption>
-          ) : (
-            options.map((option) => (
-              <SelectOption
-                key={option.value}
-                value={option.value}
-                isSelected={option.value === selectedWorkflowId}
-                description={option.description}
-              >
-                {option.label}
-              </SelectOption>
-            ))
+    <>
+      <FormGroup label={label} labelHelp={labelHelp} isRequired={isRequired} fieldId="child-workflow-selector-input">
+        <SynSelect
+          id="child-workflow-selector"
+          aria-label={label}
+          isOpen={isOpen}
+          onOpenChange={(open) => {
+            setIsOpen(open)
+            if (!open) setFilterValue('')
+          }}
+          onSelect={onSelect}
+          selected={selectedWorkflowId ?? undefined}
+          toggle={(toggleRef) => (
+            <MenuToggle
+              ref={toggleRef}
+              variant="typeahead"
+              onClick={() => setIsOpen((open) => !open)}
+              isExpanded={isOpen}
+              isFullWidth
+              isDisabled={isDisabled}
+              aria-label={label}
+              status={hasError || workflowError ? 'danger' : undefined}
+            >
+              <TextInputGroup isPlain isDisabled={isDisabled}>
+                <TextInputGroupMain
+                  value={isOpen ? filterValue : displayLabel}
+                  id="child-workflow-selector-input"
+                  aria-label={label}
+                  onChange={onInputChange}
+                  onClick={() => {
+                    if (!isOpen) setIsOpen(true)
+                  }}
+                  placeholder="Select an eligible workflow..."
+                  autoComplete="off"
+                  innerRef={inputRef}
+                />
+                <TextInputGroupUtilities>
+                  {isLoading && <Spinner size="sm" aria-label="Loading workflows" />}
+                  {selectedWorkflowId && !isLoading && !isDisabled && (
+                    <Button
+                      variant="plain"
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        clear()
+                      }}
+                      aria-label="Clear selection"
+                    >
+                      <RhUiCloseIcon />
+                    </Button>
+                  )}
+                </TextInputGroupUtilities>
+              </TextInputGroup>
+            </MenuToggle>
           )}
-        </SelectList>
-      </SynSelect>
-    </FormGroup>
+        >
+          <SelectList>
+            {options.length === 0 ? (
+              <SelectOption isDisabled>{noResultsText}</SelectOption>
+            ) : (
+              options.map((option) => (
+                <SelectOption
+                  key={option.value}
+                  value={option.value}
+                  isSelected={option.value === selectedWorkflowId}
+                  description={option.description}
+                >
+                  {option.label}
+                </SelectOption>
+              ))
+            )}
+          </SelectList>
+        </SynSelect>
+      </FormGroup>
+      {workflowError && (
+        <HelperText>
+          <HelperTextItem variant="error">{workflowError}</HelperTextItem>
+        </HelperText>
+      )}
+      {hasError && <Alert variant="danger" isInline isPlain title="Unable to verify eligible workflows" />}
+      {selectedOption && selectedOption.triggers.length > 1 && (
+        <InvocationTriggerSelector
+          triggers={selectedOption.triggers}
+          selectedTriggerNodeId={selectedTriggerNodeId}
+          onChange={onTriggerChange}
+          isDisabled={isDisabled}
+          error={triggerError}
+        />
+      )}
+    </>
   )
 }

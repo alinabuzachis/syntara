@@ -3,423 +3,145 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { ChildWorkflowSelector } from './ChildWorkflowSelector'
+import { ChildWorkflowSelector, type ChildWorkflowSelectorProps } from './ChildWorkflowSelector'
+import type { ChildWorkflowOption } from './useChildWorkflowSelector'
 
-// Mock useWorkflowsQuery
-vi.mock('../../workflows/useWorkflowsQuery', () => ({
-  useWorkflowsQuery: vi.fn(() => ({
-    workflowsQuery: { isLoading: false, isError: false },
-    workflows: [
-      {
-        id: 'wf-1',
-        name: 'Workflow A',
-        current_version: 1,
-        description: 'Test workflow A',
-        is_enabled: true,
-        project_id: 'proj-1',
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z',
-      },
-      {
-        id: 'wf-2',
-        name: 'Workflow B',
-        current_version: 2,
-        description: 'Test workflow B',
-        is_enabled: true,
-        project_id: 'proj-1',
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z',
-      },
-      {
-        id: 'wf-3',
-        name: 'Workflow C',
-        current_version: 1,
-        is_enabled: true,
-        project_id: 'proj-1',
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z',
-      },
-    ],
-  })),
-}))
+const singleTriggerOption: ChildWorkflowOption = {
+  value: 'workflow-1',
+  label: 'Child Workflow (v4)',
+  description: 'Reusable child flow',
+  triggers: [{ trigger_node_id: 'sub-trigger-1', name: 'Subworkflow Trigger', input_schema: {} }],
+}
+
+const multipleTriggerOption: ChildWorkflowOption = {
+  value: 'workflow-2',
+  label: 'Workflow with multiple triggers (v2)',
+  triggers: [
+    { trigger_node_id: 'first-trigger', name: 'First trigger', input_schema: {} },
+    { trigger_node_id: 'second-trigger', name: 'Second trigger', input_schema: {} },
+  ],
+}
+
+function buildProps(overrides: Partial<ChildWorkflowSelectorProps> = {}): ChildWorkflowSelectorProps {
+  return {
+    options: [singleTriggerOption, multipleTriggerOption],
+    selectedWorkflowId: null,
+    selectedTriggerNodeId: '',
+    onWorkflowChange: vi.fn(),
+    onTriggerChange: vi.fn(),
+    setSearchTerm: vi.fn(),
+    isLoading: false,
+    hasError: false,
+    ...overrides,
+  }
+}
 
 describe('ChildWorkflowSelector', () => {
-  const mockOnChange = vi.fn()
+  beforeEach(() => vi.clearAllMocks())
 
-  beforeEach(() => {
-    vi.clearAllMocks()
+  it('shows eligible published workflows and their published versions', async () => {
+    const user = userEvent.setup()
+    render(<ChildWorkflowSelector {...buildProps()} />)
+
+    const workflowInput = screen.getByRole('textbox', { name: 'Workflow' })
+    await user.click(workflowInput)
+
+    expect(screen.getByText('Child Workflow (v4)')).toBeInTheDocument()
+    expect(screen.getByText('Workflow with multiple triggers (v2)')).toBeInTheDocument()
+    expect(screen.getByText('Reusable child flow')).toBeInTheDocument()
   })
 
-  describe('Rendering', () => {
-    it('renders with default label', () => {
-      render(<ChildWorkflowSelector projectId="proj-1" selectedWorkflowId={null} onChange={mockOnChange} />)
+  it('selects the workflow and its only trigger together', async () => {
+    const user = userEvent.setup()
+    const props = buildProps()
+    render(<ChildWorkflowSelector {...props} />)
 
-      expect(screen.getByText('Workflow')).toBeInTheDocument()
-    })
+    await user.click(screen.getByPlaceholderText('Select an eligible workflow...'))
+    await user.click(screen.getByText('Child Workflow (v4)'))
 
-    it('renders with custom label', () => {
-      render(
-        <ChildWorkflowSelector
-          projectId="proj-1"
-          selectedWorkflowId={null}
-          onChange={mockOnChange}
-          label="Select Target Workflow"
-        />
-      )
-
-      expect(screen.getByText('Select Target Workflow')).toBeInTheDocument()
-    })
-
-    it('renders the form group', () => {
-      const { container } = render(
-        <ChildWorkflowSelector projectId="proj-1" selectedWorkflowId={null} onChange={mockOnChange} />
-      )
-
-      expect(container).toBeInTheDocument()
-    })
-
-    it('shows placeholder when no workflow selected', () => {
-      render(<ChildWorkflowSelector projectId="proj-1" selectedWorkflowId={null} onChange={mockOnChange} />)
-
-      expect(screen.getByPlaceholderText('Select a workflow...')).toBeInTheDocument()
-    })
-
-    it('displays selected workflow label', () => {
-      render(<ChildWorkflowSelector projectId="proj-1" selectedWorkflowId="wf-2" onChange={mockOnChange} />)
-
-      const input = screen.getByPlaceholderText('Select a workflow...')
-      expect(input).toHaveValue('Workflow B (v2)')
-    })
+    expect(props.onWorkflowChange).toHaveBeenCalledWith('workflow-1', 'sub-trigger-1')
   })
 
-  describe('Workflow Selection', () => {
-    it('displays workflow options when opened', async () => {
-      const user = userEvent.setup()
-      render(<ChildWorkflowSelector projectId="proj-1" selectedWorkflowId={null} onChange={mockOnChange} />)
+  it('debounces the workflow search term', async () => {
+    const user = userEvent.setup()
+    const props = buildProps()
+    render(<ChildWorkflowSelector {...props} />)
 
-      const input = screen.getByPlaceholderText('Select a workflow...')
-      await user.click(input)
+    const input = screen.getByRole('textbox', { name: 'Workflow' })
+    await user.click(input)
+    await user.type(input, 'Child')
 
-      expect(screen.getByText('Workflow A (v1)')).toBeInTheDocument()
-      expect(screen.getByText('Workflow B (v2)')).toBeInTheDocument()
-      expect(screen.getByText('Workflow C (v1)')).toBeInTheDocument()
-    })
-
-    it('displays workflow descriptions', async () => {
-      const user = userEvent.setup()
-      render(<ChildWorkflowSelector projectId="proj-1" selectedWorkflowId={null} onChange={mockOnChange} />)
-
-      const input = screen.getByPlaceholderText('Select a workflow...')
-      await user.click(input)
-
-      expect(screen.getByText('Test workflow A')).toBeInTheDocument()
-      expect(screen.getByText('Test workflow B')).toBeInTheDocument()
-    })
-
-    it('calls onChange when workflow selected', async () => {
-      const user = userEvent.setup()
-      render(<ChildWorkflowSelector projectId="proj-1" selectedWorkflowId={null} onChange={mockOnChange} />)
-
-      const input = screen.getByPlaceholderText('Select a workflow...')
-      await user.click(input)
-
-      const option = screen.getByText('Workflow A (v1)')
-      await user.click(option)
-
-      expect(mockOnChange).toHaveBeenCalledWith('wf-1')
-      expect(mockOnChange).toHaveBeenCalledTimes(1)
-    })
-
-    it('closes dropdown after selection', async () => {
-      const user = userEvent.setup()
-      render(<ChildWorkflowSelector projectId="proj-1" selectedWorkflowId={null} onChange={mockOnChange} />)
-
-      const input = screen.getByPlaceholderText('Select a workflow...')
-      await user.click(input)
-
-      const option = screen.getByText('Workflow A (v1)')
-      expect(option).toBeInTheDocument()
-
-      await user.click(option)
-
-      // Dropdown should close after selection - verify onChange was called
-      expect(mockOnChange).toHaveBeenCalledWith('wf-1')
-    })
+    await waitFor(() => expect(props.setSearchTerm).toHaveBeenLastCalledWith('Child'))
   })
 
-  describe('Clear Functionality', () => {
-    it('shows clear button when workflow is selected', () => {
-      render(<ChildWorkflowSelector projectId="proj-1" selectedWorkflowId="wf-1" onChange={mockOnChange} />)
+  it('requires an explicit trigger selection when a workflow has multiple triggers', async () => {
+    const user = userEvent.setup()
+    const props = buildProps()
+    render(<ChildWorkflowSelector {...props} />)
 
-      expect(screen.getByLabelText('Clear selection')).toBeInTheDocument()
+    await user.click(screen.getByPlaceholderText('Select an eligible workflow...'))
+    await user.click(screen.getByText('Workflow with multiple triggers (v2)'))
+    expect(props.onWorkflowChange).toHaveBeenCalledWith('workflow-2', '')
+
+    const selectedProps = buildProps({
+      selectedWorkflowId: 'workflow-2',
+      selectedOption: multipleTriggerOption,
     })
+    render(<ChildWorkflowSelector {...selectedProps} />)
+    await user.click(screen.getByRole('button', { name: 'Subworkflow Trigger' }))
+    await user.click(screen.getByText('Second trigger'))
 
-    it('does not show clear button when no selection', () => {
-      render(<ChildWorkflowSelector projectId="proj-1" selectedWorkflowId={null} onChange={mockOnChange} />)
-
-      expect(screen.queryByLabelText('Clear selection')).not.toBeInTheDocument()
-    })
-
-    it('clears selection when clear button clicked', async () => {
-      const user = userEvent.setup()
-      render(<ChildWorkflowSelector projectId="proj-1" selectedWorkflowId="wf-1" onChange={mockOnChange} />)
-
-      const clearButton = screen.getByLabelText('Clear selection')
-      await user.click(clearButton)
-
-      expect(mockOnChange).toHaveBeenCalledWith(null)
-      expect(mockOnChange).toHaveBeenCalledTimes(1)
-    })
+    expect(selectedProps.onTriggerChange).toHaveBeenCalledWith('second-trigger')
   })
 
-  describe('Search and Filtering', () => {
-    it('updates filter value as user types', async () => {
-      const user = userEvent.setup()
-      render(<ChildWorkflowSelector projectId="proj-1" selectedWorkflowId={null} onChange={mockOnChange} />)
-
-      const input = screen.getByPlaceholderText('Select a workflow...')
-      await user.click(input)
-      await user.type(input, 'Wor')
-
-      expect(input).toHaveValue('Wor')
+  it('clears the selected workflow', async () => {
+    const user = userEvent.setup()
+    const props = buildProps({
+      selectedWorkflowId: 'workflow-1',
+      selectedOption: singleTriggerOption,
+      selectedTriggerNodeId: 'sub-trigger-1',
     })
+    render(<ChildWorkflowSelector {...props} />)
 
-    it('shows no results message when filter returns empty', async () => {
-      const { useWorkflowsQuery } = await import('../../workflows/useWorkflowsQuery')
-      // Set up mock before render to return empty workflows
-      vi.mocked(useWorkflowsQuery).mockImplementation(
-        () =>
-          ({
-            workflowsQuery: { isLoading: false, isError: false },
-            workflows: [],
-          }) as unknown as ReturnType<typeof useWorkflowsQuery>
-      )
+    await user.click(screen.getByRole('button', { name: 'Clear selection' }))
 
-      const user = userEvent.setup()
-      render(<ChildWorkflowSelector projectId="proj-1" selectedWorkflowId={null} onChange={mockOnChange} />)
-
-      const input = screen.getByPlaceholderText('Select a workflow...')
-      await user.click(input)
-
-      // With empty workflows, should show no results with current filter
-      await waitFor(() => {
-        expect(screen.getByText(/No workflows match ""/)).toBeInTheDocument()
-      })
-
-      // Reset mock to default
-      vi.mocked(useWorkflowsQuery).mockImplementation(
-        () =>
-          ({
-            workflowsQuery: { isLoading: false, isError: false },
-            workflows: [
-              {
-                id: 'wf-1',
-                name: 'Workflow A',
-                current_version: 1,
-                description: 'Test workflow A',
-                is_enabled: true,
-                project_id: 'proj-1',
-                created_at: '2024-01-01T00:00:00Z',
-                updated_at: '2024-01-01T00:00:00Z',
-              },
-              {
-                id: 'wf-2',
-                name: 'Workflow B',
-                current_version: 2,
-                description: 'Test workflow B',
-                is_enabled: true,
-                project_id: 'proj-1',
-                created_at: '2024-01-01T00:00:00Z',
-                updated_at: '2024-01-01T00:00:00Z',
-              },
-              {
-                id: 'wf-3',
-                name: 'Workflow C',
-                current_version: 1,
-                is_enabled: true,
-                project_id: 'proj-1',
-                created_at: '2024-01-01T00:00:00Z',
-                updated_at: '2024-01-01T00:00:00Z',
-              },
-            ],
-          }) as ReturnType<typeof useWorkflowsQuery>
-      )
-    })
-
-    it('clears filter value when dropdown closes', async () => {
-      const user = userEvent.setup()
-      const { rerender } = render(
-        <ChildWorkflowSelector projectId="proj-1" selectedWorkflowId={null} onChange={mockOnChange} />
-      )
-
-      const input = screen.getByPlaceholderText('Select a workflow...')
-      await user.click(input)
-      await user.type(input, 'Workflow')
-
-      // Select an option to close dropdown
-      await user.click(screen.getByText('Workflow A (v1)'))
-
-      // Simulate parent updating selectedWorkflowId
-      rerender(<ChildWorkflowSelector projectId="proj-1" selectedWorkflowId="wf-1" onChange={mockOnChange} />)
-
-      // Filter should be cleared, showing selected label
-      await waitFor(() => {
-        expect(screen.getByPlaceholderText('Select a workflow...')).toHaveValue('Workflow A (v1)')
-      })
-    })
+    expect(props.onWorkflowChange).toHaveBeenCalledWith(null, '')
   })
 
-  describe('Loading and Error States', () => {
-    it('shows loading spinner when fetching workflows', async () => {
-      const { useWorkflowsQuery } = await import('../../workflows/useWorkflowsQuery')
-      vi.mocked(useWorkflowsQuery).mockReturnValueOnce({
-        workflowsQuery: { isLoading: true, isError: false } as unknown,
-        workflows: [],
-      } as ReturnType<typeof useWorkflowsQuery>)
+  it('shows an error when eligible workflows cannot be verified', () => {
+    render(<ChildWorkflowSelector {...buildProps({ hasError: true })} />)
 
-      render(<ChildWorkflowSelector projectId="proj-1" selectedWorkflowId={null} onChange={mockOnChange} />)
-
-      expect(screen.getByLabelText('Loading workflows')).toBeInTheDocument()
-    })
-
-    it('hides clear button while loading', async () => {
-      const { useWorkflowsQuery } = await import('../../workflows/useWorkflowsQuery')
-      vi.mocked(useWorkflowsQuery).mockReturnValueOnce({
-        workflowsQuery: { isLoading: true, isError: false } as unknown,
-        workflows: [],
-      } as ReturnType<typeof useWorkflowsQuery>)
-
-      render(<ChildWorkflowSelector projectId="proj-1" selectedWorkflowId="wf-1" onChange={mockOnChange} />)
-
-      expect(screen.queryByLabelText('Clear selection')).not.toBeInTheDocument()
-      expect(screen.getByLabelText('Loading workflows')).toBeInTheDocument()
-    })
-
-    it('shows loading message in dropdown when opened', async () => {
-      const { useWorkflowsQuery } = await import('../../workflows/useWorkflowsQuery')
-      // Set mock to loading state before render
-      vi.mocked(useWorkflowsQuery).mockImplementation(
-        () =>
-          ({
-            workflowsQuery: { isLoading: true, isError: false },
-            workflows: [],
-          }) as unknown as ReturnType<typeof useWorkflowsQuery>
-      )
-
-      const user = userEvent.setup()
-      render(<ChildWorkflowSelector projectId="proj-1" selectedWorkflowId={null} onChange={mockOnChange} />)
-
-      const input = screen.getByPlaceholderText('Select a workflow...')
-      await user.click(input)
-
-      // Should show Loading... in the dropdown
-      expect(screen.getByText('Loading...')).toBeInTheDocument()
-
-      // Reset mock to default
-      vi.mocked(useWorkflowsQuery).mockImplementation(
-        () =>
-          ({
-            workflowsQuery: { isLoading: false, isError: false },
-            workflows: [
-              {
-                id: 'wf-1',
-                name: 'Workflow A',
-                current_version: 1,
-                description: 'Test workflow A',
-                is_enabled: true,
-                project_id: 'proj-1',
-                created_at: '2024-01-01T00:00:00Z',
-                updated_at: '2024-01-01T00:00:00Z',
-              },
-              {
-                id: 'wf-2',
-                name: 'Workflow B',
-                current_version: 2,
-                description: 'Test workflow B',
-                is_enabled: true,
-                project_id: 'proj-1',
-                created_at: '2024-01-01T00:00:00Z',
-                updated_at: '2024-01-01T00:00:00Z',
-              },
-              {
-                id: 'wf-3',
-                name: 'Workflow C',
-                current_version: 1,
-                is_enabled: true,
-                project_id: 'proj-1',
-                created_at: '2024-01-01T00:00:00Z',
-                updated_at: '2024-01-01T00:00:00Z',
-              },
-            ],
-          }) as ReturnType<typeof useWorkflowsQuery>
-      )
-    })
+    expect(screen.getByRole('heading', { name: /Unable to verify eligible workflows/ })).toBeInTheDocument()
   })
 
-  describe('Disabled State', () => {
-    it('does not show clear button when disabled', () => {
-      render(<ChildWorkflowSelector projectId="proj-1" selectedWorkflowId="wf-1" onChange={mockOnChange} isDisabled />)
+  it('shows loading and empty states', async () => {
+    const user = userEvent.setup()
+    const props = buildProps({ options: [], isLoading: true })
+    render(<ChildWorkflowSelector {...props} />)
 
-      expect(screen.queryByLabelText('Clear selection')).not.toBeInTheDocument()
-    })
+    expect(screen.getByRole('progressbar', { name: 'Loading workflows' })).toBeInTheDocument()
+    await user.click(screen.getByRole('textbox', { name: 'Workflow' }))
+    expect(screen.getByText('Loading eligible workflows...')).toBeInTheDocument()
   })
 
-  describe('Accessibility', () => {
-    it('has no accessibility violations', async () => {
-      const { container } = render(
-        <ChildWorkflowSelector projectId="proj-1" selectedWorkflowId={null} onChange={mockOnChange} />
-      )
+  it('disables the selector and hides its clear control in version view', () => {
+    render(
+      <ChildWorkflowSelector
+        {...buildProps({
+          selectedWorkflowId: 'workflow-1',
+          selectedOption: singleTriggerOption,
+          selectedTriggerNodeId: 'sub-trigger-1',
+          isDisabled: true,
+        })}
+      />
+    )
 
-      const results = await axe(container, { rules: { 'aria-valid-attr-value': { enabled: false } } })
-      expect(results).toHaveNoViolations()
-    })
-
-    it('has proper label displayed', () => {
-      render(<ChildWorkflowSelector projectId="proj-1" selectedWorkflowId={null} onChange={mockOnChange} />)
-
-      // Label is displayed via FormGroup
-      expect(screen.getByText('Workflow')).toBeInTheDocument()
-    })
-
-    it('has proper aria label for clear button', () => {
-      render(<ChildWorkflowSelector projectId="proj-1" selectedWorkflowId="wf-1" onChange={mockOnChange} />)
-
-      expect(screen.getByLabelText('Clear selection')).toBeInTheDocument()
-    })
+    expect(screen.getByRole('textbox', { name: 'Workflow' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument()
   })
 
-  describe('Complete Selection Flow', () => {
-    it('completes full selection workflow: open → search → select', async () => {
-      const user = userEvent.setup()
-      const { rerender } = render(
-        <ChildWorkflowSelector projectId="proj-1" selectedWorkflowId={null} onChange={mockOnChange} />
-      )
-
-      // 1. Open dropdown
-      const input = screen.getByPlaceholderText('Select a workflow...')
-      await user.click(input)
-      expect(screen.getByText('Workflow A (v1)')).toBeInTheDocument()
-
-      // 2. Search
-      await user.type(input, 'B')
-      expect(input).toHaveValue('B')
-
-      // 3. Select workflow
-      await user.click(screen.getByText('Workflow B (v2)'))
-      expect(mockOnChange).toHaveBeenCalledWith('wf-2')
-
-      // 4. Re-render with selected workflow ID to simulate parent state update
-      rerender(<ChildWorkflowSelector projectId="proj-1" selectedWorkflowId="wf-2" onChange={mockOnChange} />)
-
-      // 5. Verify selected value is displayed
-      await waitFor(() => {
-        expect(screen.getByPlaceholderText('Select a workflow...')).toHaveValue('Workflow B (v2)')
-      })
-
-      // 6. Clear selection
-      const clearButton = screen.getByLabelText('Clear selection')
-      await user.click(clearButton)
-      expect(mockOnChange).toHaveBeenCalledWith(null)
-    })
+  it('has no accessibility violations', async () => {
+    const { container } = render(<ChildWorkflowSelector {...buildProps()} />)
+    expect(await axe(container)).toHaveNoViolations()
   })
 })

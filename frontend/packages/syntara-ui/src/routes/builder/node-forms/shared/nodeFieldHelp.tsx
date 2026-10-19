@@ -25,7 +25,7 @@ export const nodeHelp = {
 
   // Sub-workflow
   subworkflowWorkflow: createFieldHelp('Workflow', T.SUBWORKFLOW_WORKFLOW_HELP),
-  subworkflowExpectedDuration: createFieldHelp('Expected duration', T.SUBWORKFLOW_EXPECTED_DURATION_HELP),
+  subworkflowInputMapping: createFieldHelp('Input mapping', T.SUBWORKFLOW_INPUT_MAPPING_HELP),
 
   // AI agent
   aiModel: createFieldHelp('Model', T.AI_MODEL_HELP),

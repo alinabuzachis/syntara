@@ -1,107 +1,260 @@
-import { Button, Flex, FlexItem, FormGroup, TextInput } from '@patternfly/react-core'
-import { RhUiAddIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import {
+  Button,
+  FormGroup,
+  HelperText,
+  HelperTextItem,
+  Popover,
+  Stack,
+  StackItem,
+  TextArea,
+  TextInput,
+} from '@patternfly/react-core'
 import type { ReactElement } from 'react'
+import { useState } from 'react'
 
-import { generateUUID } from '../../../utils/generateUUID'
+import { ExpressionFormField } from '../panels/fields/ExpressionFormField'
 
-import styles from './KeyValueFields.module.css'
+import type { InvocationInputField } from './invocationSchemaUtils'
 
-type InputMappingEntry = {
-  id: string
-  key: string
-  value: string
-}
-
-type InputMappingFieldsProps = {
-  entries: InputMappingEntry[]
-  onChange: (entries: InputMappingEntry[]) => void
+export type InputMappingFieldsProps = {
+  fields: InvocationInputField[]
+  values: Record<string, unknown>
+  onChange: (values: Record<string, unknown>) => void
+  variableOptions: VariableOption[]
+  freeformJson: string
+  onFreeformJsonChange: (value: string) => void
   isDisabled?: boolean
-  /** Optional PatternFly FormGroup labelHelp (e.g. FieldHelpPopover). */
   labelHelp?: ReactElement
+  error?: string
 }
 
-function addEntry(entries: InputMappingEntry[]): InputMappingEntry[] {
-  return [...entries, { id: generateUUID(), key: '', value: '' }]
+export type VariableOption = {
+  label: string
+  expression: string
 }
 
-function removeEntry(entries: InputMappingEntry[], index: number): InputMappingEntry[] {
-  const next = entries.slice()
-  next.splice(index, 1)
-  return next
-}
+function VariablePickerBody({
+  options,
+  onSelect,
+}: Readonly<{ options: VariableOption[]; onSelect: (expression: string) => void }>) {
+  if (options.length === 0) {
+    return (
+      <HelperText>
+        <HelperTextItem>No parent workflow variables are available.</HelperTextItem>
+      </HelperText>
+    )
+  }
 
-function updateKey(entries: InputMappingEntry[], index: number, newKey: string): InputMappingEntry[] {
-  const next = entries.slice()
-  next[index] = { ...next[index], key: newKey }
-  return next
-}
-
-function updateValue(entries: InputMappingEntry[], index: number, newValue: string): InputMappingEntry[] {
-  const next = entries.slice()
-  next[index] = { ...next[index], value: newValue }
-  return next
-}
-
-/**
- * Input mapping configuration for Sub-workflow step.
- *
- * Maps parent workflow variables to child workflow inputs.
- * Supports static values and Jinja2 expressions (e.g., ${ parent_var }).
- *
- * @param entries - Current input mappings
- * @param onChange - Callback when mappings change
- * @param isDisabled - Disable editing
- * @param labelHelp - Optional help popover
- */
-function InputMappingFields({ entries, onChange, isDisabled, labelHelp }: Readonly<InputMappingFieldsProps>) {
   return (
-    <FormGroup label="Input Mapping" labelHelp={labelHelp} fieldId="input-mapping">
-      {entries.map((entry, index) => (
-        <Flex
-          key={entry.id}
-          className={styles.entryRow}
-          alignItems={{ default: 'alignItemsFlexStart' }}
-          gap={{ default: 'gapSm' }}
-        >
-          <FlexItem grow={{ default: 'grow' }}>
-            <TextInput
-              aria-label={`Child input name ${String(index + 1)}`}
-              value={entry.key}
-              onChange={(_event, val) => onChange(updateKey(entries, index, val))}
-              placeholder="Child input name"
-              isDisabled={isDisabled}
-            />
-          </FlexItem>
-          <FlexItem grow={{ default: 'grow' }}>
-            <TextInput
-              aria-label={`Parent value ${String(index + 1)}`}
-              value={entry.value}
-              onChange={(_event, val) => onChange(updateValue(entries, index, val))}
-              placeholder="Parent value or ${ expression }"
-              isDisabled={isDisabled}
-            />
-          </FlexItem>
-          {!isDisabled && (
-            <FlexItem>
-              <Button
-                variant="plain"
-                aria-label={`Remove input mapping ${String(index + 1)}`}
-                onClick={() => onChange(removeEntry(entries, index))}
-              >
-                <RhUiTrashIcon />
-              </Button>
-            </FlexItem>
-          )}
-        </Flex>
+    <Stack>
+      {options.map((option) => (
+        <StackItem key={option.expression}>
+          <Button variant="link" type="button" onClick={() => onSelect(option.expression)}>
+            {option.label}
+          </Button>
+        </StackItem>
       ))}
-      {!isDisabled && (
-        <Button variant="link" icon={<RhUiAddIcon />} onClick={() => onChange(addEntry(entries))}>
-          Add input mapping
-        </Button>
+    </Stack>
+  )
+}
+
+function VariablePicker({
+  label,
+  options,
+  onSelect,
+  isDisabled,
+}: Readonly<{
+  label: string
+  options: VariableOption[]
+  onSelect: (expression: string) => void
+  isDisabled: boolean
+}>) {
+  const [isOpen, setIsOpen] = useState(false)
+  const bodyContent = (
+    <VariablePickerBody
+      options={options}
+      onSelect={(expression) => {
+        onSelect(expression)
+        setIsOpen(false)
+      }}
+    />
+  )
+
+  return (
+    <Popover
+      isVisible={isOpen}
+      onHide={() => setIsOpen(false)}
+      headerContent="Insert variable"
+      bodyContent={bodyContent}
+      aria-label={`Insert variable for ${label}`}
+      triggerAction="click"
+    >
+      <Button
+        variant="link"
+        type="button"
+        isDisabled={isDisabled}
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen(true)}
+      >
+        Insert variable
+      </Button>
+    </Popover>
+  )
+}
+
+function formatValue(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (value === undefined || value === null) return ''
+  return JSON.stringify(value)
+}
+
+function updateValue(values: Record<string, unknown>, name: string, value: string) {
+  return { ...values, [name]: value }
+}
+
+function renderSchemaInputField(
+  field: InvocationInputField,
+  index: number,
+  context: {
+    values: Record<string, unknown>
+    onChange: (values: Record<string, unknown>) => void
+    variableOptions: VariableOption[]
+    isDisabled: boolean
+  }
+): ReactElement {
+  const { values, onChange, variableOptions, isDisabled } = context
+  const value = formatValue(Object.hasOwn(values, field.name) ? values[field.name] : field.defaultValue)
+  const fieldId = `child-input-${index}`
+  const help = field.description ? (
+    <HelperText>
+      <HelperTextItem>{field.description}</HelperTextItem>
+    </HelperText>
+  ) : undefined
+
+  if (field.type === 'object' || field.type === 'array') {
+    return (
+      <StackItem key={field.name}>
+        <FormGroup label={field.name} isRequired={field.required} fieldId={fieldId}>
+          {help}
+          <TextArea
+            id={fieldId}
+            aria-label={field.name}
+            value={value}
+            onChange={(_event, nextValue) => onChange(updateValue(values, field.name, nextValue))}
+            isRequired={field.required}
+            isDisabled={isDisabled}
+            validated="default"
+            resizeOrientation="vertical"
+            placeholder={field.type === 'array' ? '[] or ${ expression }' : '{} or ${ expression }'}
+          />
+          <VariablePicker
+            label={field.name}
+            options={variableOptions}
+            onSelect={(expression) => onChange(updateValue(values, field.name, expression))}
+            isDisabled={isDisabled}
+          />
+        </FormGroup>
+      </StackItem>
+    )
+  }
+
+  if (field.type === 'string') {
+    return (
+      <StackItem key={field.name}>
+        <ExpressionFormField
+          id={fieldId}
+          label={field.name}
+          value={value}
+          onChange={(nextValue) => onChange(updateValue(values, field.name, nextValue))}
+          placeholder="Value or ${ expression }"
+          isRequired={field.required}
+          isDisabled={isDisabled}
+          hint={field.description}
+        />
+        <VariablePicker
+          label={field.name}
+          options={variableOptions}
+          onSelect={(expression) => onChange(updateValue(values, field.name, `${value}${expression}`))}
+          isDisabled={isDisabled}
+        />
+      </StackItem>
+    )
+  }
+
+  return (
+    <StackItem key={field.name}>
+      <FormGroup label={field.name} isRequired={field.required} fieldId={fieldId}>
+        {help}
+        <TextInput
+          id={fieldId}
+          aria-label={field.name}
+          value={value}
+          onChange={(_event, nextValue) => onChange(updateValue(values, field.name, nextValue))}
+          isRequired={field.required}
+          isDisabled={isDisabled}
+          validated="default"
+          placeholder={`${field.type} value or \${ expression }`}
+        />
+        <VariablePicker
+          label={field.name}
+          options={variableOptions}
+          onSelect={(expression) => onChange(updateValue(values, field.name, expression))}
+          isDisabled={isDisabled}
+        />
+      </FormGroup>
+    </StackItem>
+  )
+}
+
+/** Schema-driven values for child workflow inputs, with a JSON fallback when no schema is declared. */
+function InputMappingFields({
+  fields,
+  values,
+  onChange,
+  variableOptions,
+  freeformJson,
+  onFreeformJsonChange,
+  isDisabled = false,
+  labelHelp,
+  error,
+}: Readonly<InputMappingFieldsProps>) {
+  if (fields.length === 0) {
+    return (
+      <FormGroup label="Input Mapping (JSON)" labelHelp={labelHelp} fieldId="input-mapping-json">
+        <TextArea
+          id="input-mapping-json"
+          aria-label="Input Mapping JSON"
+          value={freeformJson}
+          onChange={(_event, value) => onFreeformJsonChange(value)}
+          isDisabled={isDisabled}
+          validated={error ? 'error' : 'default'}
+          resizeOrientation="vertical"
+        />
+        <HelperText>
+          <HelperTextItem variant={error ? 'error' : 'default'}>
+            {error ?? 'Enter a JSON object with child input values.'}
+          </HelperTextItem>
+        </HelperText>
+      </FormGroup>
+    )
+  }
+
+  return (
+    <Stack hasGutter>
+      <StackItem>
+        <FormGroup label="Input Mapping" labelHelp={labelHelp}>
+          <HelperText>
+            <HelperTextItem variant={error ? 'error' : 'default'}>
+              {error ?? 'Set a value for each child input. Use a template expression to reference parent data.'}
+            </HelperTextItem>
+          </HelperText>
+        </FormGroup>
+      </StackItem>
+      {fields.map((field, index) =>
+        renderSchemaInputField(field, index, { values, onChange, variableOptions, isDisabled })
       )}
-    </FormGroup>
+    </Stack>
   )
 }
 
 export { InputMappingFields }
-export type { InputMappingEntry, InputMappingFieldsProps }

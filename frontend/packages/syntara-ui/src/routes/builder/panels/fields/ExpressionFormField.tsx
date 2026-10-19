@@ -11,6 +11,8 @@ type ExpressionFormFieldProps = {
   onChange: (value: string) => void
   placeholder?: string
   isRequired?: boolean
+  isDisabled?: boolean
+  hint?: string
   error?: string
 }
 
@@ -22,6 +24,8 @@ function ExpressionFormField({
   onChange,
   placeholder = EXPRESSION_FIELD_PLACEHOLDER,
   isRequired = false,
+  isDisabled = false,
+  hint,
   error,
 }: Readonly<ExpressionFormFieldProps>) {
   const [isDropTarget, setIsDropTarget] = useState(false)
@@ -39,6 +43,9 @@ function ExpressionFormField({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
+        isRequired={isRequired}
+        isDisabled={isDisabled}
+        hint={hint}
         externalError={error}
         onDropTargetChange={setIsDropTarget}
       />

@@ -92,6 +92,26 @@ export interface paths {
     patch: operations['update_workflow']
     trace?: never
   }
+  '/workflows/{workflow_id}/invocation-schema': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get workflow invocation schema
+     * @description Get the latest published Subworkflow Trigger schemas for a workflow.
+     */
+    get: operations['get_workflow_invocation_schema']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/workflows/{workflow_id}/test': {
     parameters: {
       query?: never
@@ -431,6 +451,42 @@ export interface components {
       validation_result?: components['schemas']['ValidationResult'] | null
       /** @description Current active version details */
       version: components['schemas']['WorkflowVersionRead']
+    }
+    /**
+     * WorkflowInvocationTriggerSchema
+     * @description One dedicated Subworkflow Trigger available for Reference mode.
+     */
+    WorkflowInvocationTriggerSchema: {
+      /** Trigger Node Id */
+      trigger_node_id: string
+      /** Name */
+      name?: string | null
+      /** Input Schema */
+      input_schema?: {
+        [key: string]: unknown
+      }
+    }
+    /**
+     * WorkflowInvocationSchemaRead
+     * @description Published invocation schemas for a child workflow.
+     */
+    WorkflowInvocationSchemaRead: {
+      /**
+       * Workflow Id
+       * Format: uuid
+       */
+      workflow_id: string
+      /**
+       * Published Version Id
+       * Format: uuid
+       */
+      published_version_id: string
+      /** Published Version */
+      published_version: number
+      /** Is Eligible */
+      is_eligible: boolean
+      /** Triggers */
+      triggers?: components['schemas']['WorkflowInvocationTriggerSchema'][]
     }
     /**
      * PublishWorkflowVersionResponse
@@ -1013,6 +1069,7 @@ export interface components {
         | components['schemas']['AgenticNode']
         | components['schemas']['ScriptNode']
         | components['schemas']['ApprovalNode']
+        | components['schemas']['SubWorkflowNode']
         | components['schemas']['ConditionNode']
         | components['schemas']['SwitchNode']
         | components['schemas']['LoopNode']
@@ -1257,6 +1314,48 @@ export interface components {
        */
       type: 'approval'
       parameters: components['schemas']['ApprovalNodeParameters']
+      settings?: components['schemas']['NodeSettingsNoRetry'] | null
+    } & {
+      [key: string]: unknown
+    }
+    /**
+     * SubWorkflowNode
+     * @description Sub-workflow executor node.
+     *
+     *     Invokes another published workflow in reference mode and waits for its completion.
+     *     The parent workflow can access child workflow outputs via template expressions.
+     */
+    SubWorkflowNode: {
+      /**
+       * Id
+       * @description Unique identifier for the node within the workflow
+       */
+      id: string
+      /**
+       * Name
+       * @description Human-readable name for the node
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Human-readable description of the node purpose
+       */
+      description?: string | null
+      /**
+       * Outputs
+       * @description Output extraction mapping
+       */
+      outputs?: {
+        [key: string]: string
+      } | null
+      /** @description Optional UI position hint */
+      position?: components['schemas']['NodePosition'] | null
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'sub_workflow'
+      parameters: components['schemas']['SubWorkflowExecutorParameters']
       settings?: components['schemas']['NodeSettingsNoRetry'] | null
     } & {
       [key: string]: unknown
@@ -1824,6 +1923,43 @@ export interface components {
        * @description Response timeout in seconds
        */
       decision_window?: number | null
+    }
+    /**
+     * SubWorkflowExecutorParameters
+     * @description Parameters for Sub-workflow executor.
+     *
+     *     Defines the design-time configuration for invoking a child workflow from
+     *     a parent workflow. The Sub-workflow step always invokes the latest published
+     *     version of the target workflow.
+     *
+     *     When a workflow has multiple Subworkflow Triggers, the calling step must
+     *     select a specific trigger to invoke via the trigger_node_id field.
+     *
+     *     Attributes:
+     *         workflow_id: UUID of the child workflow to invoke.
+     *         trigger_node_id: Graph node ID of the Subworkflow Trigger to invoke.
+     *         input_mapping: Mapping of child workflow input field names to values.
+     *             Values can be static (string, int, bool, dict, list) or template
+     *             expressions (${step_id.field.path}).
+     */
+    SubWorkflowExecutorParameters: {
+      /**
+       * Workflow Id
+       * @description UUID of the child workflow to invoke (latest published version), or template expression (max 500 chars)
+       */
+      workflow_id: string
+      /**
+       * Trigger Node Id
+       * @description Graph node ID of the Subworkflow Trigger to invoke in the child workflow
+       */
+      trigger_node_id: string
+      /**
+       * Input Mapping
+       * @description Mapping of child workflow input field names to static values or template expressions. Keys are child workflow input field names; values can be static types (string, int, bool, dict, list) or template expression strings (${step_id.field.path}). Max 100 entries.
+       */
+      input_mapping?: {
+        [key: string]: unknown
+      }
     }
     /**
      * ConditionNodeParameters
@@ -2683,6 +2819,36 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['WorkflowReadWithVersion']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      429: components['responses']['RateLimitError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  get_workflow_invocation_schema: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        workflow_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Published Subworkflow Trigger schemas */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['WorkflowInvocationSchemaRead']
         }
       }
       400: components['responses']['BadRequestError']

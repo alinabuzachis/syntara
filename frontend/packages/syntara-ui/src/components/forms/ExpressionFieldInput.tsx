@@ -20,6 +20,7 @@ export type ExpressionFieldInputProps = {
   onBlur?: () => void
   name?: string
   placeholder?: string
+  isRequired?: boolean
   isDisabled?: boolean
   /** External validation message; takes precedence over inline syntax validation. */
   externalError?: string | null
@@ -40,6 +41,7 @@ export function ExpressionFieldInput({
   onBlur,
   name,
   placeholder = EXPRESSION_FIELD_PLACEHOLDER,
+  isRequired = false,
   isDisabled,
   externalError,
   hint,
@@ -49,6 +51,7 @@ export function ExpressionFieldInput({
   const syntaxError = validateExpressionSyntax(value)
   const displayError = externalError ?? syntaxError
   const hasError = Boolean(displayError)
+  const helperTextId = `${id}-helper-text`
 
   const handleChange = useCallback(
     (_event: React.FormEvent<HTMLInputElement>, newValue: string) => {
@@ -106,12 +109,18 @@ export function ExpressionFieldInput({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         placeholder={placeholder}
+        isRequired={isRequired}
         validated={hasError ? 'error' : 'default'}
         isDisabled={isDisabled}
+        aria-describedby={displayError || hint ? helperTextId : undefined}
         className={isDropTarget ? styles.dropTargetActive : undefined}
         data-drop-target={isDropTarget ? 'active' : 'inactive'}
       />
-      {displayError ? <FormFieldError message={displayError} /> : hint && <FormFieldHintOrError hint={hint} />}
+      {displayError ? (
+        <FormFieldError id={helperTextId} message={displayError} />
+      ) : (
+        hint && <FormFieldHintOrError id={helperTextId} hint={hint} />
+      )}
     </>
   )
 }
