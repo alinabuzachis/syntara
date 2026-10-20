@@ -316,7 +316,7 @@ paths:
           $ref: "../../base/shared-resources.openapi.yaml#/components/responses/RateLimitError"
         '500':
           $ref: '../../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
-  /workflows/{workflow_id}/invocation-schema:
+  /workflows/{workflow_id}/invocation_schema:
     get:
       summary: Get workflow invocation schema
       description: Get the latest published Subworkflow Trigger schemas for a workflow.

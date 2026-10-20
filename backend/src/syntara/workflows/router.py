@@ -348,7 +348,7 @@ async def get_workflow(
 
 
 @router.get(
-    "/{workflow_id}/invocation-schema",
+    "/{workflow_id}/invocation_schema",
     summary="Get workflow invocation schema",
     dependencies=[Depends(_wf_perm_read)],
     operation_id="get_workflow_invocation_schema",

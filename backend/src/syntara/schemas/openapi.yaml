@@ -25989,7 +25989,7 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
-  /workflows/{workflow_id}/invocation-schema:
+  /workflows/{workflow_id}/invocation_schema:
     get:
       summary: Get workflow invocation schema
       description: Get the latest published Subworkflow Trigger schemas for a workflow.
@@ -37129,9 +37129,10 @@ components:
       properties:
         workflow_id:
           type: string
-          maxLength: 550
+          maxLength: 36
+          format: uuid
           title: Workflow Id
-          description: UUID of the child workflow to invoke (latest published version), or template expression (max 500 chars)
+          description: UUID of the selected child workflow in the same Project (latest published version).
         trigger_node_id:
           type: string
           pattern: ^[a-zA-Z_][a-zA-Z0-9_]*$
@@ -37153,13 +37154,13 @@ components:
 
         Defines the design-time configuration for invoking a child workflow from
         a parent workflow. The Sub-workflow step always invokes the latest published
-        version of the target workflow.
+        version of the selected target workflow in the same Project (V1).
 
         When a workflow has multiple Subworkflow Triggers, the calling step must
         select a specific trigger to invoke via the trigger_node_id field.
 
         Attributes:
-            workflow_id: UUID of the child workflow to invoke.
+            workflow_id: UUID of the selected child workflow to invoke.
             trigger_node_id: Graph node ID of the Subworkflow Trigger to invoke.
             input_mapping: Mapping of child workflow input field names to values.
                 Values can be static (string, int, bool, dict, list) or template

@@ -131,7 +131,7 @@ async def test_get_workflow_includes_only_published_subworkflow_trigger_schemas(
     assert "invocation_schema" not in ordinary_response.json()
     assert ordinary_response.json()["version"]["version"] == 2
 
-    response = await auth_client.get(f"{path}/invocation-schema")
+    response = await auth_client.get(f"{path}/invocation_schema")
 
     assert response.status_code == 200
     body = response.json()
@@ -172,14 +172,14 @@ async def test_invocation_schema_requires_a_published_version_but_plain_get_does
     assert ordinary_response.status_code == 200
     assert "invocation_schema" not in ordinary_response.json()
 
-    schema_response = await auth_client.get(f"{path}/invocation-schema")
+    schema_response = await auth_client.get(f"{path}/invocation_schema")
     assert schema_response.status_code == 404
 
 
 @pytest.mark.asyncio
 async def test_invocation_schema_request_for_unknown_workflow_returns_404(auth_client: AsyncClient) -> None:
     response = await auth_client.get(
-        f"/api/v1/workflows/{uuid4()}/invocation-schema",
+        f"/api/v1/workflows/{uuid4()}/invocation_schema",
     )
 
     assert response.status_code == 404
@@ -202,7 +202,7 @@ async def test_invocation_schema_requires_workflow_read_permission(
     auth_as(reader_without_permission)
 
     response = await auth_client.get(
-        f"/api/v1/workflows/{workflow.id}/invocation-schema",
+        f"/api/v1/workflows/{workflow.id}/invocation_schema",
     )
 
     assert response.status_code == 403
@@ -224,7 +224,7 @@ async def test_published_workflow_without_subworkflow_trigger_returns_empty_sche
     )
 
     response = await auth_client.get(
-        f"/api/v1/workflows/{workflow.id}/invocation-schema",
+        f"/api/v1/workflows/{workflow.id}/invocation_schema",
     )
 
     assert response.status_code == 200

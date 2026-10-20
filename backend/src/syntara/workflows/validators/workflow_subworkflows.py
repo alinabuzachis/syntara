@@ -8,7 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from syntara.workflows.models.validation_finding import ValidationCategory, ValidationFinding, ValidationSeverity
 from syntara.workflows.models.workflow import Workflow
-from syntara.workflows.workflow_engine.models.workflow_definition import NodeType
+from syntara.workflows.workflow_engine.models.workflow_definition import NodeType, SubWorkflowExecutorParameters
 
 
 async def validate_subworkflow_project_references(
@@ -18,9 +18,8 @@ async def validate_subworkflow_project_references(
 ) -> list[ValidationFinding]:
     """Ensure every configured sub-workflow target exists in the parent Project.
 
-    Workflow IDs are selected resources, not runtime expressions. We collect all
-    UUIDs first so the database check is batched instead of issuing one query per
-    sub-workflow node.
+    Reuse the parameter model's UUID check because the service can receive raw
+    workflow-definition dictionaries. Collect IDs first to batch the lookup.
     """
     node_targets: list[tuple[str | None, UUID]] = []
     target_ids: set[UUID] = set()
@@ -49,22 +48,21 @@ async def validate_subworkflow_project_references(
             continue
 
         try:
-            target_id = UUID(workflow_id)
-        except ValueError:
+            SubWorkflowExecutorParameters.validate_workflow_id_format(workflow_id)
+        except ValueError as exc:
             findings.append(
                 ValidationFinding(
                     severity=ValidationSeverity.error,
                     category=ValidationCategory.invalid_reference,
-                    message=(
-                        "A sub-workflow step must use a selected workflow ID; "
-                        "workflow ID expressions are not supported."
-                    ),
+                    message=str(exc),
                     node_id=node_id,
                     field_path="parameters.workflow_id",
                 )
             )
             continue
 
+        # Convert the validated string for the UUID-typed database lookup.
+        target_id = UUID(workflow_id)
         target_ids.add(target_id)
         node_targets.append((node_id, target_id))
 
