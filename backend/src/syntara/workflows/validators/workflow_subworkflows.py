@@ -1,5 +1,6 @@
 """Database-backed validation for sub-workflow references."""
 
+from collections.abc import Mapping
 from typing import Any
 from uuid import UUID
 
@@ -12,7 +13,7 @@ from syntara.workflows.models.workflow_version import WorkflowVersion
 from syntara.workflows.workflow_engine.models.workflow_definition import NodeType, SubWorkflowExecutorParameters
 
 NodeTarget = tuple[str | None, UUID, str]
-TargetWorkflow = tuple[UUID, UUID | None, dict[str, Any] | None]
+TargetWorkflow = tuple[UUID, UUID | None, Mapping[str, Any] | None]
 
 
 def _invalid_reference_finding(message: str, node_id: str | None, field_path: str) -> ValidationFinding:
@@ -84,7 +85,7 @@ async def _load_target_workflows(
             Workflow.published_version_id,
             WorkflowVersion.workflow_definition,
         )
-        .outerjoin(WorkflowVersion, Workflow.published_version_id == WorkflowVersion.id)
+        .outerjoin(WorkflowVersion, col(Workflow.published_version_id) == col(WorkflowVersion.id))
         .where(col(Workflow.id).in_(target_ids))
     )
     return {
@@ -93,13 +94,13 @@ async def _load_target_workflows(
     }
 
 
-def _has_selected_subworkflow_trigger(definition: dict[str, Any] | None, trigger_node_id: str) -> bool:
-    if not isinstance(definition, dict):
+def _has_selected_subworkflow_trigger(definition: Mapping[str, Any] | None, trigger_node_id: str) -> bool:
+    if not isinstance(definition, Mapping):
         return False
 
     triggers = definition.get("triggers")
     return isinstance(triggers, list) and any(
-        isinstance(trigger, dict)
+        isinstance(trigger, Mapping)
         and trigger.get("type") == NodeType.SUBWORKFLOW_TRIGGER
         and trigger.get("id") == trigger_node_id
         for trigger in triggers
