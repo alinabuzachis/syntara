@@ -54,7 +54,10 @@ export function renderNodeIcon(
   const isAapIcon = AAP_NODE_IDS.has(nodeId as (typeof RegistryNodeId)[keyof typeof RegistryNodeId])
   const isEdaIcon = nodeId === RegistryNodeId.TRIGGER_EDA
   const isCustomIcon = isAapIcon || isEdaIcon
-  const shouldRotateIcon = nodeId === RegistryNodeId.LOGIC_CONDITION || nodeId === RegistryNodeId.LOGIC_CONVERGE
+  const shouldRotateIcon =
+    nodeId === RegistryNodeId.LOGIC_CONDITION ||
+    nodeId === RegistryNodeId.LOGIC_CONVERGE ||
+    nodeId === RegistryNodeId.SUB_WORKFLOW
   const { size, iconSize, customIconScale, customIconOffsetY } = getVariantConfig(nodeId)[variant]
 
   const iconStyle: CSSProperties = {

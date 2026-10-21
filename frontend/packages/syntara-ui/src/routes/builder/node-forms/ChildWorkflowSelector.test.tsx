@@ -56,7 +56,7 @@ describe('ChildWorkflowSelector', () => {
     const props = buildProps()
     render(<ChildWorkflowSelector {...props} />)
 
-    await user.click(screen.getByPlaceholderText('Select an eligible workflow...'))
+    await user.click(screen.getByPlaceholderText('Search for a published workflow...'))
     await user.click(screen.getByText('Child Workflow (v4)'))
 
     expect(props.onWorkflowChange).toHaveBeenCalledWith('workflow-1', 'sub-trigger-1')
@@ -79,7 +79,7 @@ describe('ChildWorkflowSelector', () => {
     const props = buildProps()
     render(<ChildWorkflowSelector {...props} />)
 
-    await user.click(screen.getByPlaceholderText('Select an eligible workflow...'))
+    await user.click(screen.getByPlaceholderText('Search for a published workflow...'))
     await user.click(screen.getByText('Workflow with multiple triggers (v2)'))
     expect(props.onWorkflowChange).toHaveBeenCalledWith('workflow-2', '')
 

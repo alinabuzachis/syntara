@@ -34,7 +34,7 @@ export function isInvocationSchemaNotFound(error: unknown): error is InvocationS
 }
 
 async function fetchInvocationSchema(workflowId: string): Promise<InvocationSchema> {
-  const { data, error, response } = await workflowFetchClient.GET('/workflows/{workflow_id}/invocation-schema', {
+  const { data, error, response } = await workflowFetchClient.GET('/workflows/{workflow_id}/invocation_schema', {
     params: { path: { workflow_id: workflowId } },
   })
 

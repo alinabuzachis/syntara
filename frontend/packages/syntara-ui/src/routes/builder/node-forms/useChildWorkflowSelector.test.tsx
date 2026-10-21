@@ -113,7 +113,7 @@ describe('useChildWorkflowSelector', () => {
     )
 
     await waitFor(() => expect(result.current.selectedSchema?.workflow_id).toBe('workflow-private'))
-    expect(mocks.get).toHaveBeenCalledWith('/workflows/{workflow_id}/invocation-schema', {
+    expect(mocks.get).toHaveBeenCalledWith('/workflows/{workflow_id}/invocation_schema', {
       params: { path: { workflow_id: 'workflow-private' } },
     })
   })

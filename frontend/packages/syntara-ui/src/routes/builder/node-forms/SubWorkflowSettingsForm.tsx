@@ -60,11 +60,10 @@ export function SubWorkflowSettingsForm() {
 
   const { defaults } = useWorkflowEngineDefaults()
 
-  const timeoutDefault = 300
   const cofDefault = defaults?.continueOnFailure ?? null
 
   const cofDefaultLabel = getCofDefaultLabel(cofDefault)
-  const timeoutPlaceholder = `${String(timeoutDefault)} — system default`
+  const timeoutPlaceholder = 'System default'
 
   const selected = cofValueFromBool(continueOnFailure)
   const selectedLabel = COF_OPTIONS.find((o) => o.value === selected)?.label ?? 'System default'

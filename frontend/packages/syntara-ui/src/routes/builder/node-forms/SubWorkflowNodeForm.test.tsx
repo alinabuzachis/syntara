@@ -86,7 +86,7 @@ function FormWithHeader(props: Partial<React.ComponentProps<typeof SubWorkflowNo
 }
 
 async function selectChildWorkflow(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByPlaceholderText('Select an eligible workflow...'))
+  await user.click(screen.getByPlaceholderText('Search for a published workflow...'))
   await user.click(await screen.findByText('Child workflow (v3)'))
 }
 
@@ -106,6 +106,18 @@ describe('SubWorkflowNodeForm', () => {
 
     expect(await screen.findByRole('textbox', { name: 'host' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'port' })).toHaveValue('22')
+  })
+
+  it('shows the backend timeout fallback in the settings tab', async () => {
+    const user = userEvent.setup()
+    renderForm()
+
+    await user.click(screen.getByRole('tab', { name: 'Settings' }))
+
+    expect(screen.getByRole('spinbutton', { name: 'Timeout (seconds)' })).toHaveAttribute(
+      'placeholder',
+      'System default'
+    )
   })
 
   it('submits the selected workflow, trigger, and typed mapping values', async () => {

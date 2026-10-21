@@ -79,7 +79,7 @@ test('designer selects a published child, maps its inputs, and saves the Sub-wor
     await selectCategoryAndType(app, 'Action', 'Sub-workflow')
 
     await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Invoke child workflow')
-    await app.getByPlaceholder('Select an eligible workflow...').click()
+    await app.getByPlaceholder('Search for a published workflow...').click()
     await app.getByRole('option', { name: new RegExp(childName) }).click()
     await app.getByRole('textbox', { name: 'host', exact: true }).fill('parent-host.example')
     await app.getByRole('button', { name: 'Create', exact: true }).click()

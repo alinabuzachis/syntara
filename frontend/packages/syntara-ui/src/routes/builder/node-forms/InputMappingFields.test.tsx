@@ -45,7 +45,8 @@ describe('InputMappingFields', () => {
     expect(screen.getByRole('textbox', { name: 'host' })).toBeRequired()
     expect(screen.getByRole('textbox', { name: 'host' })).toHaveAccessibleDescription('Child target host')
     expect(screen.getByRole('textbox', { name: 'port' })).toHaveValue('22')
-    expect(screen.getAllByRole('button', { name: 'Insert variable' })).toHaveLength(2)
+    expect(screen.getByRole('button', { name: 'Insert variable for host' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Insert variable for port' })).toBeInTheDocument()
   })
 
   it('updates a child input value as the user types', async () => {
@@ -61,7 +62,7 @@ describe('InputMappingFields', () => {
     const user = userEvent.setup()
     render(<StatefulMapping initialValues={{ host: 'server=' }} />)
 
-    await user.click(screen.getAllByRole('button', { name: 'Insert variable' })[0])
+    await user.click(screen.getByRole('button', { name: 'Insert variable for host' }))
     await user.click(screen.getByRole('button', { name: 'Lookup · hostname' }))
 
     expect(screen.getByRole('textbox', { name: 'host' })).toHaveValue('server=${lookup.hostname}')
@@ -90,7 +91,7 @@ describe('InputMappingFields', () => {
     render(<StatefulMapping isDisabled />)
 
     expect(screen.getByRole('textbox', { name: 'host' })).toBeDisabled()
-    expect(screen.getAllByRole('button', { name: 'Insert variable' })[0]).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Insert variable for host' })).toBeDisabled()
   })
 
   it('shows form errors for invalid free-form JSON', () => {

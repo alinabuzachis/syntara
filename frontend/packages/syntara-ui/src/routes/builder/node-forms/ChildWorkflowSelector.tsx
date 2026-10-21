@@ -192,7 +192,7 @@ export function ChildWorkflowSelector({
                   onClick={() => {
                     if (!isOpen) setIsOpen(true)
                   }}
-                  placeholder="Select an eligible workflow..."
+                  placeholder="Search for a published workflow..."
                   autoComplete="off"
                   innerRef={inputRef}
                 />

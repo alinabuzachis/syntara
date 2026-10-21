@@ -69,10 +69,6 @@ type UpdateWorkflowBody =
 
 type MutableWorkflowWithVersion = { -readonly [K in keyof WorkflowWithVersion]: WorkflowWithVersion[K] }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
 type MockVersionRecord = {
   id: string
   workflow_id: string
@@ -1076,55 +1072,6 @@ export const handlers = [
     }
 
     return HttpResponse.json({ is_valid: true, error_count: 0, warning_count: 0, findings: [] })
-  }),
-
-  http.get('/api/v1/workflows/:workflowId/invocation-schema', ({ params }) => {
-    const workflowId = String(params.workflowId)
-    const workflow = workflows.find((candidate) => candidate.id === workflowId)
-    if (!workflow || !workflow.published_version_id || workflow.published_version_number == null) {
-      return HttpResponse.json(
-        {
-          type: 'https://api.example.com/errors/workflow-not-found',
-          title: 'Workflow Not Found',
-          detail: `Published workflow with id '${workflowId}' not found`,
-          code: 'WORKFLOW_NOT_FOUND',
-          retryable: false,
-        },
-        { status: 404 }
-      )
-    }
-
-    const publishedVersion = workflow.published_version_number
-    const publishedVersionRecord = getOrCreateVersionStore(workflowId, workflow).find(
-      (record) => record.version === publishedVersion
-    )
-    const definition =
-      publishedVersionRecord?.workflow_definition ??
-      (workflow.version.version === publishedVersion ? workflow.version.workflow_definition : undefined)
-    const rawTriggers = isRecord(definition) && Array.isArray(definition.triggers) ? definition.triggers : []
-    const triggers = rawTriggers.flatMap((rawTrigger) => {
-      if (!isRecord(rawTrigger) || rawTrigger.type !== 'subworkflow_trigger' || typeof rawTrigger.id !== 'string') {
-        return []
-      }
-
-      const parameters = isRecord(rawTrigger.parameters) ? rawTrigger.parameters : {}
-      return [
-        {
-          trigger_node_id: rawTrigger.id,
-          name: typeof rawTrigger.name === 'string' ? rawTrigger.name : null,
-          ...(isRecord(parameters.input_schema) && { input_schema: parameters.input_schema }),
-        },
-      ]
-    })
-
-    const response: WorkflowAPI.components['schemas']['WorkflowInvocationSchemaRead'] = {
-      workflow_id: workflow.id,
-      published_version_id: workflow.published_version_id,
-      published_version: workflow.published_version_number,
-      is_eligible: triggers.length > 0,
-      triggers,
-    }
-    return HttpResponse.json(response)
   }),
 
   http.get('/api/v1/workflows/:workflowId', (request) => {

@@ -93,6 +93,7 @@ function VariablePicker({
         variant="link"
         type="button"
         isDisabled={isDisabled}
+        aria-label={`Insert variable for ${label}`}
         aria-expanded={isOpen}
         onClick={() => setIsOpen(true)}
       >
