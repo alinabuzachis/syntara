@@ -1,4 +1,4 @@
-"""Integration tests for project-scoped Sub-workflow references."""
+"""Integration tests for project-scoped, published Sub-workflow references."""
 
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -17,7 +17,7 @@ from syntara.workflows.services.workflow_service import WorkflowService
 from syntara.workflows.validators import validate_subworkflow_project_references
 
 
-def _definition_with_subworkflow(child_workflow_id: UUID) -> dict[str, Any]:
+def _definition_with_subworkflow(child_workflow_id: UUID, *, trigger_node_id: str = "child_entry") -> dict[str, Any]:
     """Build a valid-shaped definition containing one selected child workflow."""
     return {
         "schema_version": "2.0.0",
@@ -30,7 +30,7 @@ def _definition_with_subworkflow(child_workflow_id: UUID) -> dict[str, Any]:
                 "type": "sub_workflow",
                 "parameters": {
                     "workflow_id": str(child_workflow_id),
-                    "trigger_node_id": "child_entry",
+                    "trigger_node_id": trigger_node_id,
                 },
             }
         ],
@@ -60,6 +60,10 @@ async def _create_child_workflow(
     session: AsyncSession,
     user: User,
     project_id: UUID,
+    *,
+    published: bool = True,
+    trigger_node_id: str = "child_entry",
+    trigger_type: str = "subworkflow_trigger",
 ) -> Workflow:
     child = Workflow(
         name=f"child-{uuid4().hex[:8]}",
@@ -70,6 +74,27 @@ async def _create_child_workflow(
     )
     session.add(child)
     await session.flush()
+
+    if published:
+        version = WorkflowVersion(
+            workflow_id=child.id,
+            version=1,
+            schema_version="2.0.0",
+            workflow_definition={
+                "schema_version": "2.0.0",
+                "name": child.name,
+                "triggers": [{"id": trigger_node_id, "type": trigger_type, "parameters": {}}],
+                "nodes": [],
+                "edges": [],
+            },
+            created_by=user.id,
+        )
+        session.add(version)
+        await session.flush()
+        child.published_version_id = version.id
+        child.is_enabled = True
+        await session.flush()
+
     return child
 
 
@@ -218,6 +243,72 @@ async def test_same_project_reference_can_be_saved_and_published(
 
     assert published_workflow.published_version_id == published_version.id
     assert published_workflow.is_enabled is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("child_state", "child_trigger_id", "child_trigger_type", "selected_trigger_id", "expected_field_path"),
+    [
+        ("unpublished", "child_entry", "subworkflow_trigger", "child_entry", "parameters.workflow_id"),
+        ("published", "available_entry", "subworkflow_trigger", "missing_entry", "parameters.trigger_node_id"),
+        ("published", "child_entry", "manual_trigger", "child_entry", "parameters.trigger_node_id"),
+    ],
+)
+async def test_unavailable_child_invocation_is_reported_when_saved_and_blocks_publish(
+    test_db_session: AsyncSession,
+    test_user: User,
+    test_project_id: UUID,
+    child_state: str,
+    child_trigger_id: str,
+    child_trigger_type: str,
+    selected_trigger_id: str,
+    expected_field_path: str,
+) -> None:
+    child = await _create_child_workflow(
+        test_db_session,
+        test_user,
+        test_project_id,
+        published=child_state == "published",
+        trigger_node_id=child_trigger_id,
+        trigger_type=child_trigger_type,
+    )
+    service = WorkflowService(test_db_session, test_user)
+
+    with (
+        patch(
+            "syntara.workflows.services.workflow_service.workflow_validator",
+            _valid_workflow_validator(),
+        ),
+        patch(
+            "syntara.workflows.services.workflow_service.get_system_continue_on_failure",
+            new_callable=AsyncMock,
+            return_value=False,
+        ),
+    ):
+        parent, _initial_version, _initial_validation = await service.create_workflow(
+            name=f"parent-{uuid4().hex[:8]}",
+            description=None,
+            labels={},
+            workflow_definition=_definition_without_subworkflow(),
+            project_id=test_project_id,
+        )
+
+        version, validation_result = await service.create_workflow_version(
+            parent,
+            _definition_with_subworkflow(child.id, trigger_node_id=selected_trigger_id),
+            "Add unavailable sub-workflow reference",
+        )
+
+        assert version is not None
+        assert parent.has_validation_issues is True
+        assert validation_result.error_count == 1
+        assert validation_result.findings[0].field_path == expected_field_path
+
+        with pytest.raises(WorkflowPublishValidationError) as exc_info:
+            await service.publish_workflow_version(workflow_id=parent.id, version=version.version)
+
+    assert exc_info.value.validation_result.error_count == 1
+    assert exc_info.value.validation_result.findings[0].field_path == expected_field_path
 
 
 @pytest.mark.asyncio
