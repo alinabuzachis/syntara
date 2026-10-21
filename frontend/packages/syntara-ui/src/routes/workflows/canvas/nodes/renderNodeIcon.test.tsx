@@ -76,12 +76,12 @@ describe('renderNodeIcon', () => {
     expect(iconWrapper).toHaveStyle({ transform: 'rotate(90deg)' })
   })
 
-  it('applies rotation transform for sub-workflow node', () => {
+  it('rotates the sub-workflow parent bar to the left of its child squares', () => {
     const view = buildNodeIconView(MockIcon, RegistryNodeId.SUB_WORKFLOW)
     render(<>{view}</>)
 
     const iconWrapper = screen.getByTestId('node-icon-wrapper')
-    expect(iconWrapper).toHaveStyle({ transform: 'rotate(90deg)' })
+    expect(iconWrapper).toHaveStyle({ transform: 'rotate(-90deg)' })
   })
 
   it('does not apply rotation for regular nodes', () => {

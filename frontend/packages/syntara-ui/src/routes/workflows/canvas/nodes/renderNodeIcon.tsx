@@ -61,7 +61,9 @@ export function renderNodeIcon(
   const { size, iconSize, customIconScale, customIconOffsetY } = getVariantConfig(nodeId)[variant]
 
   const iconStyle: CSSProperties = {
-    ...(shouldRotateIcon && { transform: 'rotate(90deg)' }),
+    ...(shouldRotateIcon && {
+      transform: nodeId === RegistryNodeId.SUB_WORKFLOW ? 'rotate(-90deg)' : 'rotate(90deg)',
+    }),
     ...(color && {
       color,
       // Override PatternFly Icon's inner content color so the SVG (fill: currentColor) picks it up
