@@ -42,10 +42,15 @@ describe('InputMappingFields', () => {
   it('renders a field for each declared child input and shows defaults', () => {
     render(<StatefulMapping />)
 
-    expect(screen.getByRole('textbox', { name: 'host' })).toBeRequired()
-    expect(screen.getByRole('textbox', { name: 'host' })).toHaveAccessibleDescription('Child target host')
+    const hostField = screen.getByRole('textbox', { name: 'host' })
+    const variableButton = screen.getByRole('button', { name: 'Insert variable for host' })
+    const hostHint = screen.getByText('Child target host')
+
+    expect(hostField).toBeRequired()
+    expect(hostField).toHaveAccessibleDescription('Child target host')
+    expect(hostHint.compareDocumentPosition(hostField) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
+    expect(hostField.compareDocumentPosition(variableButton) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
     expect(screen.getByRole('textbox', { name: 'port' })).toHaveValue('22')
-    expect(screen.getByRole('button', { name: 'Insert variable for host' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Insert variable for port' })).toBeInTheDocument()
   })
 
@@ -66,6 +71,16 @@ describe('InputMappingFields', () => {
     await user.click(screen.getByRole('button', { name: 'Lookup · hostname' }))
 
     expect(screen.getByRole('textbox', { name: 'host' })).toHaveValue('server=${lookup.hostname}')
+  })
+
+  it('does not duplicate an expression when the same variable is selected again', async () => {
+    const user = userEvent.setup()
+    render(<StatefulMapping initialValues={{ host: '${lookup.hostname}' }} />)
+
+    await user.click(screen.getByRole('button', { name: 'Insert variable for host' }))
+    await user.click(screen.getByRole('button', { name: 'Lookup · hostname' }))
+
+    expect(screen.getByRole('textbox', { name: 'host' })).toHaveValue('${lookup.hostname}')
   })
 
   it('shows free-form JSON when the child schema declares no fields', () => {

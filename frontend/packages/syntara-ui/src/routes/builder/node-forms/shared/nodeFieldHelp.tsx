@@ -25,6 +25,7 @@ export const nodeHelp = {
 
   // Sub-workflow
   subworkflowWorkflow: createFieldHelp('Workflow', T.SUBWORKFLOW_WORKFLOW_HELP),
+  subworkflowTrigger: createFieldHelp('Workflow trigger', T.SUBWORKFLOW_TRIGGER_HELP),
   subworkflowInputMapping: createFieldHelp('Input mapping', T.SUBWORKFLOW_INPUT_MAPPING_HELP),
 
   // AI agent

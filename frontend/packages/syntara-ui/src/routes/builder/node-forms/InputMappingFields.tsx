@@ -23,6 +23,7 @@ export type InputMappingFieldsProps = {
   variableOptions: VariableOption[]
   freeformJson: string
   onFreeformJsonChange: (value: string) => void
+  sectionTitle?: string
   isDisabled?: boolean
   labelHelp?: ReactElement
   error?: string
@@ -113,6 +114,10 @@ function updateValue(values: Record<string, unknown>, name: string, value: strin
   return { ...values, [name]: value }
 }
 
+function appendVariableExpression(value: string, expression: string): string {
+  return value.endsWith(expression) ? value : `${value}${expression}`
+}
+
 function renderSchemaInputField(
   field: InvocationInputField,
   index: number,
@@ -171,12 +176,17 @@ function renderSchemaInputField(
           isRequired={field.required}
           isDisabled={isDisabled}
           hint={field.description}
-        />
-        <VariablePicker
-          label={field.name}
-          options={variableOptions}
-          onSelect={(expression) => onChange(updateValue(values, field.name, `${value}${expression}`))}
-          isDisabled={isDisabled}
+          hintPlacement="before-input"
+          afterInput={
+            <VariablePicker
+              label={field.name}
+              options={variableOptions}
+              onSelect={(expression) =>
+                onChange(updateValue(values, field.name, appendVariableExpression(value, expression)))
+              }
+              isDisabled={isDisabled}
+            />
+          }
         />
       </StackItem>
     )
@@ -215,13 +225,14 @@ function InputMappingFields({
   variableOptions,
   freeformJson,
   onFreeformJsonChange,
+  sectionTitle = 'Input Mapping',
   isDisabled = false,
   labelHelp,
   error,
 }: Readonly<InputMappingFieldsProps>) {
   if (fields.length === 0) {
     return (
-      <FormGroup label="Input Mapping (JSON)" labelHelp={labelHelp} fieldId="input-mapping-json">
+      <FormGroup label={`${sectionTitle} (JSON)`} labelHelp={labelHelp} fieldId="input-mapping-json">
         <TextArea
           id="input-mapping-json"
           aria-label="Input Mapping JSON"
@@ -243,7 +254,7 @@ function InputMappingFields({
   return (
     <Stack hasGutter>
       <StackItem>
-        <FormGroup label="Input Mapping" labelHelp={labelHelp}>
+        <FormGroup label={sectionTitle} labelHelp={labelHelp}>
           <HelperText>
             <HelperTextItem variant={error ? 'error' : 'default'}>
               {error ?? 'Set a value for each child input. Use a template expression to reference parent data.'}

@@ -1,5 +1,6 @@
 import { TextInput } from '@patternfly/react-core'
 import { useCallback, useState } from 'react'
+import type { ReactNode } from 'react'
 
 import { buildContextExpression, buildExpression } from '../../utils/expressions/templateBuilder'
 import {
@@ -25,6 +26,8 @@ export type ExpressionFieldInputProps = {
   /** External validation message; takes precedence over inline syntax validation. */
   externalError?: string | null
   hint?: string
+  hintPlacement?: 'before-input' | 'after-input'
+  afterInput?: ReactNode
   /** Notifies parent wrappers when drag-and-drop highlight state changes. */
   onDropTargetChange?: (active: boolean) => void
 }
@@ -45,6 +48,8 @@ export function ExpressionFieldInput({
   isDisabled,
   externalError,
   hint,
+  hintPlacement = 'after-input',
+  afterInput,
   onDropTargetChange,
 }: Readonly<ExpressionFieldInputProps>) {
   const [isDropTarget, setIsDropTarget] = useState(false)
@@ -99,6 +104,9 @@ export function ExpressionFieldInput({
 
   return (
     <>
+      {!displayError && hint && hintPlacement === 'before-input' && (
+        <FormFieldHintOrError id={helperTextId} hint={hint} />
+      )}
       <TextInput
         id={id}
         value={value}
@@ -116,10 +124,11 @@ export function ExpressionFieldInput({
         className={isDropTarget ? styles.dropTargetActive : undefined}
         data-drop-target={isDropTarget ? 'active' : 'inactive'}
       />
+      {afterInput}
       {displayError ? (
         <FormFieldError id={helperTextId} message={displayError} />
       ) : (
-        hint && <FormFieldHintOrError id={helperTextId} hint={hint} />
+        hint && hintPlacement === 'after-input' && <FormFieldHintOrError id={helperTextId} hint={hint} />
       )}
     </>
   )

@@ -1,5 +1,6 @@
 import { FormGroup } from '@patternfly/react-core'
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 
 import { EXPRESSION_FIELD_PLACEHOLDER } from '../../../../components/expressions/expressionFieldDrag'
 import { ExpressionFieldInput } from '../../../../components/forms/ExpressionFieldInput'
@@ -13,6 +14,8 @@ type ExpressionFormFieldProps = {
   isRequired?: boolean
   isDisabled?: boolean
   hint?: string
+  hintPlacement?: 'before-input' | 'after-input'
+  afterInput?: ReactNode
   error?: string
 }
 
@@ -26,6 +29,8 @@ function ExpressionFormField({
   isRequired = false,
   isDisabled = false,
   hint,
+  hintPlacement,
+  afterInput,
   error,
 }: Readonly<ExpressionFormFieldProps>) {
   const [isDropTarget, setIsDropTarget] = useState(false)
@@ -46,6 +51,8 @@ function ExpressionFormField({
         isRequired={isRequired}
         isDisabled={isDisabled}
         hint={hint}
+        hintPlacement={hintPlacement}
+        afterInput={afterInput}
         externalError={error}
         onDropTargetChange={setIsDropTarget}
       />

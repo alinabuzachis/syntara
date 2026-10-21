@@ -8,6 +8,9 @@ import {
   SelectList,
   SelectOption,
   Spinner,
+  Stack,
+  StackItem,
+  TextInput,
   TextInputGroup,
   TextInputGroupMain,
   TextInputGroupUtilities,
@@ -36,6 +39,7 @@ export type ChildWorkflowSelectorProps = {
   hasError: boolean
   label?: string
   labelHelp?: ReactElement
+  triggerLabelHelp?: ReactElement
   isRequired?: boolean
   isDisabled?: boolean
 }
@@ -50,12 +54,14 @@ function InvocationTriggerSelector({
   onChange,
   isDisabled,
   error,
+  labelHelp,
 }: Readonly<{
   triggers: InvocationTrigger[]
   selectedTriggerNodeId: string
   onChange: (triggerNodeId: string) => void
   isDisabled: boolean
   error?: string
+  labelHelp?: ReactElement
 }>) {
   const [isOpen, setIsOpen] = useState(false)
   const selectedIndex = triggers.findIndex((trigger) => trigger.trigger_node_id === selectedTriggerNodeId)
@@ -63,10 +69,10 @@ function InvocationTriggerSelector({
     selectedIndex >= 0 ? getTriggerLabel(triggers[selectedIndex], selectedIndex) : 'Select a trigger...'
 
   return (
-    <FormGroup label="Subworkflow Trigger" isRequired fieldId="subworkflow-trigger-selector">
+    <FormGroup label="Workflow trigger" labelHelp={labelHelp} isRequired fieldId="subworkflow-trigger-selector">
       <SynSelect
         id="subworkflow-trigger-selector"
-        aria-label="Subworkflow Trigger"
+        aria-label="Workflow trigger"
         isOpen={isOpen}
         selected={selectedTriggerNodeId || undefined}
         onSelect={(_event, value) => {
@@ -82,7 +88,7 @@ function InvocationTriggerSelector({
             isExpanded={isOpen}
             isFullWidth
             isDisabled={isDisabled}
-            aria-label="Subworkflow Trigger"
+            aria-label="Workflow trigger"
           >
             {selectedLabel}
           </MenuToggle>
@@ -105,6 +111,23 @@ function InvocationTriggerSelector({
   )
 }
 
+function StaticInvocationTrigger({
+  trigger,
+  labelHelp,
+}: Readonly<{ trigger: InvocationTrigger; labelHelp?: ReactElement }>) {
+  return (
+    <FormGroup label="Workflow trigger" labelHelp={labelHelp} fieldId="selected-workflow-trigger">
+      <TextInput
+        id="selected-workflow-trigger"
+        aria-label="Workflow trigger"
+        value={getTriggerLabel(trigger, 0)}
+        readOnly
+        readOnlyVariant="plain"
+      />
+    </FormGroup>
+  )
+}
+
 /** Select a published same-project workflow and one of its Subworkflow Triggers. */
 export function ChildWorkflowSelector({
   options,
@@ -120,6 +143,7 @@ export function ChildWorkflowSelector({
   hasError,
   label = 'Workflow',
   labelHelp,
+  triggerLabelHelp,
   isRequired = false,
   isDisabled = false,
 }: Readonly<ChildWorkflowSelectorProps>) {
@@ -158,97 +182,108 @@ export function ChildWorkflowSelector({
 
   const displayLabel = selectedOption?.label ?? selectedWorkflowId ?? ''
   const noResultsText = isLoading ? 'Loading eligible workflows...' : 'No eligible workflows match this search.'
+  const singleTrigger = selectedOption?.triggers.length === 1 ? selectedOption.triggers[0] : undefined
 
   return (
-    <>
-      <FormGroup label={label} labelHelp={labelHelp} isRequired={isRequired} fieldId="child-workflow-selector-input">
-        <SynSelect
-          id="child-workflow-selector"
-          aria-label={label}
-          isOpen={isOpen}
-          onOpenChange={(open) => {
-            setIsOpen(open)
-            if (!open) setFilterValue('')
-          }}
-          onSelect={onSelect}
-          selected={selectedWorkflowId ?? undefined}
-          toggle={(toggleRef) => (
-            <MenuToggle
-              ref={toggleRef}
-              variant="typeahead"
-              onClick={() => setIsOpen((open) => !open)}
-              isExpanded={isOpen}
-              isFullWidth
-              isDisabled={isDisabled}
-              aria-label={label}
-              status={hasError || workflowError ? 'danger' : undefined}
-            >
-              <TextInputGroup isPlain isDisabled={isDisabled}>
-                <TextInputGroupMain
-                  value={isOpen ? filterValue : displayLabel}
-                  id="child-workflow-selector-input"
-                  aria-label={label}
-                  onChange={onInputChange}
-                  onClick={() => {
-                    if (!isOpen) setIsOpen(true)
-                  }}
-                  placeholder="Search for a published workflow..."
-                  autoComplete="off"
-                  innerRef={inputRef}
-                />
-                <TextInputGroupUtilities>
-                  {isLoading && <Spinner size="sm" aria-label="Loading workflows" />}
-                  {selectedWorkflowId && !isLoading && !isDisabled && (
-                    <Button
-                      variant="plain"
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        clear()
-                      }}
-                      aria-label="Clear selection"
-                    >
-                      <RhUiCloseIcon />
-                    </Button>
-                  )}
-                </TextInputGroupUtilities>
-              </TextInputGroup>
-            </MenuToggle>
-          )}
-        >
-          <SelectList>
-            {options.length === 0 ? (
-              <SelectOption isDisabled>{noResultsText}</SelectOption>
-            ) : (
-              options.map((option) => (
-                <SelectOption
-                  key={option.value}
-                  value={option.value}
-                  isSelected={option.value === selectedWorkflowId}
-                  description={option.description}
-                >
-                  {option.label}
-                </SelectOption>
-              ))
+    <Stack hasGutter>
+      <StackItem>
+        <FormGroup label={label} labelHelp={labelHelp} isRequired={isRequired} fieldId="child-workflow-selector-input">
+          <SynSelect
+            id="child-workflow-selector"
+            aria-label={label}
+            isOpen={isOpen}
+            onOpenChange={(open) => {
+              setIsOpen(open)
+              if (!open) setFilterValue('')
+            }}
+            onSelect={onSelect}
+            selected={selectedWorkflowId ?? undefined}
+            toggle={(toggleRef) => (
+              <MenuToggle
+                ref={toggleRef}
+                variant="typeahead"
+                onClick={() => setIsOpen((open) => !open)}
+                isExpanded={isOpen}
+                isFullWidth
+                isDisabled={isDisabled}
+                aria-label={label}
+                status={hasError || workflowError ? 'danger' : undefined}
+              >
+                <TextInputGroup isPlain isDisabled={isDisabled}>
+                  <TextInputGroupMain
+                    value={isOpen ? filterValue : displayLabel}
+                    id="child-workflow-selector-input"
+                    aria-label={label}
+                    onChange={onInputChange}
+                    onClick={() => {
+                      if (!isOpen) setIsOpen(true)
+                    }}
+                    placeholder="Search for a published workflow..."
+                    autoComplete="off"
+                    innerRef={inputRef}
+                  />
+                  <TextInputGroupUtilities>
+                    {isLoading && <Spinner size="sm" aria-label="Loading workflows" />}
+                    {selectedWorkflowId && !isLoading && !isDisabled && (
+                      <Button
+                        variant="plain"
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          clear()
+                        }}
+                        aria-label="Clear selection"
+                      >
+                        <RhUiCloseIcon />
+                      </Button>
+                    )}
+                  </TextInputGroupUtilities>
+                </TextInputGroup>
+              </MenuToggle>
             )}
-          </SelectList>
-        </SynSelect>
-      </FormGroup>
-      {workflowError && (
-        <HelperText>
-          <HelperTextItem variant="error">{workflowError}</HelperTextItem>
-        </HelperText>
+          >
+            <SelectList>
+              {options.length === 0 ? (
+                <SelectOption isDisabled>{noResultsText}</SelectOption>
+              ) : (
+                options.map((option) => (
+                  <SelectOption
+                    key={option.value}
+                    value={option.value}
+                    isSelected={option.value === selectedWorkflowId}
+                    description={option.description}
+                  >
+                    {option.label}
+                  </SelectOption>
+                ))
+              )}
+            </SelectList>
+          </SynSelect>
+        </FormGroup>
+        {workflowError && (
+          <HelperText>
+            <HelperTextItem variant="error">{workflowError}</HelperTextItem>
+          </HelperText>
+        )}
+        {hasError && <Alert variant="danger" isInline isPlain title="Unable to verify eligible workflows" />}
+      </StackItem>
+      {singleTrigger && (
+        <StackItem>
+          <StaticInvocationTrigger trigger={singleTrigger} labelHelp={triggerLabelHelp} />
+        </StackItem>
       )}
-      {hasError && <Alert variant="danger" isInline isPlain title="Unable to verify eligible workflows" />}
       {selectedOption && selectedOption.triggers.length > 1 && (
-        <InvocationTriggerSelector
-          triggers={selectedOption.triggers}
-          selectedTriggerNodeId={selectedTriggerNodeId}
-          onChange={onTriggerChange}
-          isDisabled={isDisabled}
-          error={triggerError}
-        />
+        <StackItem>
+          <InvocationTriggerSelector
+            triggers={selectedOption.triggers}
+            selectedTriggerNodeId={selectedTriggerNodeId}
+            onChange={onTriggerChange}
+            isDisabled={isDisabled}
+            error={triggerError}
+            labelHelp={triggerLabelHelp}
+          />
+        </StackItem>
       )}
-    </>
+    </Stack>
   )
 }

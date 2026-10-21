@@ -100,6 +100,11 @@ function getInvocationTriggers(invocation: WorkflowSelectorState): InvocationTri
   return invocation.selectedSchema?.triggers ?? invocation.selectedOption?.triggers ?? []
 }
 
+function getInputMappingSectionTitle(trigger?: InvocationTrigger): string {
+  if (!trigger) return 'Input Mapping'
+  return `Inputs for ${trigger.name?.trim() || trigger.trigger_node_id}`
+}
+
 function handleWorkflowSelection(methods: SubWorkflowMethods, workflowId: string | null, triggerNodeId: string) {
   methods.setValue('workflow_id', workflowId ?? '', { shouldDirty: true, shouldValidate: true })
   methods.setValue('trigger_node_id', triggerNodeId, { shouldDirty: true, shouldValidate: true })
@@ -206,6 +211,7 @@ function WorkflowSelectionFields({
               isLoading={invocation.isLoading}
               hasError={invocation.hasError}
               labelHelp={nodeHelp.subworkflowWorkflow}
+              triggerLabelHelp={nodeHelp.subworkflowTrigger}
               isRequired
               isDisabled={isVersionView}
             />
@@ -240,12 +246,14 @@ function WorkflowSelectionFields({
 function WorkflowInputMapping({
   methods,
   inputFields,
+  sectionTitle,
   variableOptions,
   freeformJson,
   isDisabled,
 }: Readonly<{
   methods: SubWorkflowMethods
   inputFields: InvocationInputField[]
+  sectionTitle: string
   variableOptions: VariableOption[]
   freeformJson: string
   isDisabled: boolean
@@ -257,6 +265,7 @@ function WorkflowInputMapping({
       render={({ field, fieldState }) => (
         <InputMappingFields
           fields={inputFields}
+          sectionTitle={sectionTitle}
           values={field.value}
           variableOptions={variableOptions}
           onChange={(value) => {
@@ -314,6 +323,7 @@ export function SubWorkflowNodeForm({
     () => getInvocationInputFields(selectedTrigger?.input_schema),
     [selectedTrigger?.input_schema]
   )
+  const inputSectionTitle = getInputMappingSectionTitle(selectedTrigger)
   const variableOptions = useMemo(
     () => buildVariableOptions(currentWorkflow?.workflow.activities),
     [currentWorkflow?.workflow.activities]
@@ -371,6 +381,7 @@ export function SubWorkflowNodeForm({
           <WorkflowInputMapping
             methods={methods}
             inputFields={inputFields}
+            sectionTitle={inputSectionTitle}
             variableOptions={variableOptions}
             freeformJson={freeformJson}
             isDisabled={isVersionView}

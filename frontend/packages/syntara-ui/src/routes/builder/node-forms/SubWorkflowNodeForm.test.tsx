@@ -104,8 +104,18 @@ describe('SubWorkflowNodeForm', () => {
     expect(screen.queryByRole('textbox', { name: 'Input Mapping JSON' })).not.toBeInTheDocument()
     await selectChildWorkflow(user)
 
+    expect(screen.getByText('Inputs for Subworkflow Trigger')).toBeInTheDocument()
     expect(await screen.findByRole('textbox', { name: 'host' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'port' })).toHaveValue('22')
+    const triggerField = screen.getByRole('textbox', { name: 'Workflow trigger' })
+    expect(triggerField).toHaveValue('Subworkflow Trigger')
+    expect(triggerField).toHaveAttribute('readonly')
+    await user.click(screen.getByRole('button', { name: 'More info for Workflow trigger' }))
+    expect(
+      await screen.findByText(
+        'The selected Sub-workflow Trigger determines which entry point is invoked when this sub-workflow runs. A workflow with one trigger selects it automatically; choose a trigger here when the workflow has multiple entry points.'
+      )
+    ).toBeInTheDocument()
   })
 
   it('shows the backend timeout fallback in the settings tab', async () => {
@@ -199,7 +209,13 @@ describe('SubWorkflowNodeForm', () => {
 
     await user.type(screen.getByLabelText('Name'), 'Multiple triggers')
     await selectChildWorkflow(user)
-    await user.click(screen.getByRole('button', { name: 'Subworkflow Trigger' }))
+    await user.click(screen.getByRole('button', { name: 'More info for Workflow trigger' }))
+    expect(
+      await screen.findByText(
+        'The selected Sub-workflow Trigger determines which entry point is invoked when this sub-workflow runs. A workflow with one trigger selects it automatically; choose a trigger here when the workflow has multiple entry points.'
+      )
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Workflow trigger' }))
     await user.click(screen.getByText('Two'))
     await user.type(await screen.findByRole('textbox', { name: 'b' }), 'value')
     submitWorkflowForm()
@@ -227,7 +243,7 @@ describe('SubWorkflowNodeForm', () => {
 
     await user.type(screen.getByLabelText('Name'), 'Choose a trigger')
     await selectChildWorkflow(user)
-    await screen.findByRole('button', { name: 'Subworkflow Trigger' })
+    await screen.findByRole('button', { name: 'Workflow trigger' })
     submitWorkflowForm()
 
     expect(await screen.findByText('Select a workflow with an available Subworkflow Trigger.')).toBeInTheDocument()
@@ -247,6 +263,7 @@ describe('SubWorkflowNodeForm', () => {
 
     await user.type(screen.getByLabelText('Name'), 'JSON mapping')
     await selectChildWorkflow(user)
+    expect(screen.getByText('Inputs for Subworkflow Trigger (JSON)')).toBeInTheDocument()
     const mappingInput = await screen.findByRole('textbox', { name: 'Input Mapping JSON' })
     await user.clear(mappingInput)
     await user.click(mappingInput)

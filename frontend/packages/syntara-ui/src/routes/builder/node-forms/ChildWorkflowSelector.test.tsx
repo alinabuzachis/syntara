@@ -62,6 +62,23 @@ describe('ChildWorkflowSelector', () => {
     expect(props.onWorkflowChange).toHaveBeenCalledWith('workflow-1', 'sub-trigger-1')
   })
 
+  it('shows the only trigger as a read-only value instead of a selector', () => {
+    render(
+      <ChildWorkflowSelector
+        {...buildProps({
+          selectedWorkflowId: 'workflow-1',
+          selectedOption: singleTriggerOption,
+          selectedTriggerNodeId: '',
+        })}
+      />
+    )
+
+    const triggerField = screen.getByRole('textbox', { name: 'Workflow trigger' })
+    expect(triggerField).toHaveValue('Subworkflow Trigger')
+    expect(triggerField).toHaveAttribute('readonly')
+    expect(screen.queryByRole('button', { name: 'Workflow trigger' })).not.toBeInTheDocument()
+  })
+
   it('debounces the workflow search term', async () => {
     const user = userEvent.setup()
     const props = buildProps()
@@ -88,7 +105,7 @@ describe('ChildWorkflowSelector', () => {
       selectedOption: multipleTriggerOption,
     })
     render(<ChildWorkflowSelector {...selectedProps} />)
-    await user.click(screen.getByRole('button', { name: 'Subworkflow Trigger' }))
+    await user.click(screen.getByRole('button', { name: 'Workflow trigger' }))
     await user.click(screen.getByText('Second trigger'))
 
     expect(selectedProps.onTriggerChange).toHaveBeenCalledWith('second-trigger')
