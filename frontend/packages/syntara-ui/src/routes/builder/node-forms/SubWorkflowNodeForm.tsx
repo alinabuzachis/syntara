@@ -105,6 +105,20 @@ function getInputMappingSectionTitle(trigger?: InvocationTrigger): string {
   return `Inputs for ${trigger.name?.trim() || trigger.trigger_node_id}`
 }
 
+function hasExplicitEmptyInputSchema(trigger?: InvocationTrigger): boolean {
+  const schema = trigger?.input_schema
+  if (schema?.type !== 'object') return false
+
+  const properties = schema.properties
+  return (
+    typeof properties === 'object' &&
+    properties !== null &&
+    !Array.isArray(properties) &&
+    Object.keys(properties).length === 0 &&
+    schema.additionalProperties === false
+  )
+}
+
 function handleWorkflowSelection(methods: SubWorkflowMethods, workflowId: string | null, triggerNodeId: string) {
   methods.setValue('workflow_id', workflowId ?? '', { shouldDirty: true, shouldValidate: true })
   methods.setValue('trigger_node_id', triggerNodeId, { shouldDirty: true, shouldValidate: true })
@@ -151,10 +165,13 @@ function submitSubWorkflowForm(
 
   let inputMapping: Record<string, unknown>
   try {
-    inputMapping =
-      inputFields.length > 0
-        ? serializeInvocationInputMapping(values.input_mapping, inputFields)
-        : parseFreeformInputMapping(values.input_mapping_json)
+    if (hasExplicitEmptyInputSchema(selectedTrigger)) {
+      inputMapping = {}
+    } else if (inputFields.length > 0) {
+      inputMapping = serializeInvocationInputMapping(values.input_mapping, inputFields)
+    } else {
+      inputMapping = parseFreeformInputMapping(values.input_mapping_json)
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Invalid input mapping.'
     methods.setError(inputFields.length > 0 ? 'input_mapping' : 'input_mapping_json', {
@@ -317,6 +334,7 @@ export function SubWorkflowNodeForm({
   })
   const triggers = getInvocationTriggers(invocation)
   const selectedTrigger = resolveSelectedTrigger(triggers, triggerNodeId)
+  const hasNoDeclaredInputs = hasExplicitEmptyInputSchema(selectedTrigger)
   const canConfigureInputMapping =
     Boolean(workflowId) && invocation.selectedSchema?.is_eligible === true && selectedTrigger !== undefined
   const inputFields = useMemo(
@@ -376,7 +394,7 @@ export function SubWorkflowNodeForm({
           isVersionView={isVersionView}
         />
       </StackItem>
-      {canConfigureInputMapping && (
+      {canConfigureInputMapping && !hasNoDeclaredInputs && (
         <StackItem>
           <WorkflowInputMapping
             methods={methods}
