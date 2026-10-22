@@ -101,7 +101,7 @@ function normalizeFieldValue(value: unknown, field: InvocationInputField): unkno
   return normalizers[field.type]?.(value, field) ?? value
 }
 
-/** Apply schema defaults and coerce static values to the declared child input types. */
+/** Apply defaults and coerce present values, leaving missing required inputs for workflow validation. */
 export function serializeInvocationInputMapping(
   values: Record<string, unknown>,
   fields: InvocationInputField[]
@@ -109,10 +109,7 @@ export function serializeInvocationInputMapping(
   return Object.fromEntries(
     fields.flatMap((field) => {
       const rawValue = Object.hasOwn(values, field.name) ? values[field.name] : field.defaultValue
-      if (isMissing(rawValue)) {
-        if (field.required) throw new Error(`Enter a value for required input "${field.name}".`)
-        return []
-      }
+      if (isMissing(rawValue)) return []
       return [[field.name, normalizeFieldValue(rawValue, field)]]
     })
   )

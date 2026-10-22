@@ -56,11 +56,11 @@ describe('invocationSchemaUtils', () => {
     })
   })
 
-  it('rejects missing required values and values that do not match the declared type', () => {
+  it('omits missing required values and rejects values that do not match the declared type', () => {
     const requiredField = getInvocationInputFields({ properties: { host: { type: 'string' } }, required: ['host'] })
     const integerField = getInvocationInputFields({ properties: { port: { type: 'integer' } } })
 
-    expect(() => serializeInvocationInputMapping({}, requiredField)).toThrow('required input "host"')
+    expect(serializeInvocationInputMapping({}, requiredField)).toEqual({})
     expect(() => serializeInvocationInputMapping({ port: '2.5' }, integerField)).toThrow('valid integer')
     expect(() =>
       serializeInvocationInputMapping(

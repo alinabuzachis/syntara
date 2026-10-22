@@ -49,7 +49,7 @@ type SubWorkflowMethods = UseFormReturn<SubWorkflowFormValues>
 
 const subWorkflowFormSchema = z.object({
   name: z.string().trim().min(1, 'Step name is required'),
-  workflow_id: z.string().min(1, 'Select a child workflow'),
+  workflow_id: z.string(),
   trigger_node_id: z.string(),
   input_mapping: z.record(z.string(), z.unknown()),
   input_mapping_json: z.string(),
@@ -108,29 +108,13 @@ function submitSubWorkflowForm(
   context: {
     onSubmit: (data: SubWorkflowFormData) => void
     methods: SubWorkflowMethods
-    invocation: WorkflowSelectorState
     selectedTrigger?: InvocationTrigger
     inputFields: InvocationInputField[]
   }
 ): boolean {
-  const { invocation, methods, selectedTrigger, inputFields, onSubmit } = context
-  if (invocation.isLoading) return false
-
-  if (isInvocationSchemaForbidden(invocation.selectedSchemaError)) {
-    methods.setError('workflow_id', {
-      type: 'permission',
-      message: 'You do not have permission to read this workflow.',
-    })
-    return false
-  }
-
-  if (!invocation.selectedSchema?.is_eligible || !selectedTrigger) {
-    methods.setError('trigger_node_id', {
-      type: 'eligibility',
-      message: 'Select a workflow with an available Subworkflow Trigger.',
-    })
-    return false
-  }
+  // Persist the current configuration, including incomplete references and mappings. The
+  // database-backed workflow validator reports missing configuration after the parent is saved.
+  const { methods, selectedTrigger, inputFields, onSubmit } = context
 
   let inputMapping: Record<string, unknown>
   try {
@@ -153,7 +137,7 @@ function submitSubWorkflowForm(
   onSubmit({
     name: values.name,
     workflow_id: values.workflow_id,
-    trigger_node_id: selectedTrigger.trigger_node_id,
+    trigger_node_id: values.trigger_node_id || selectedTrigger?.trigger_node_id || '',
     input_mapping: inputMapping,
     settings: values.settings,
   })
@@ -334,8 +318,8 @@ export function SubWorkflowNodeForm({
 
   const submitForm = useCallback(
     (values: SubWorkflowFormValues) =>
-      submitSubWorkflowForm(values, { onSubmit, methods, invocation, selectedTrigger, inputFields }),
-    [inputFields, invocation, methods, onSubmit, selectedTrigger]
+      submitSubWorkflowForm(values, { onSubmit, methods, selectedTrigger, inputFields }),
+    [inputFields, methods, onSubmit, selectedTrigger]
   )
   useRegisterAutoSubmit(autoSubmitRef, methods, submitForm)
 

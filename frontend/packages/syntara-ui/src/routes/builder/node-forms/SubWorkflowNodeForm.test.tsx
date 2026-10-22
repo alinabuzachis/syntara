@@ -180,14 +180,103 @@ describe('SubWorkflowNodeForm', () => {
     })
   })
 
-  it('requires a workflow and trigger before submitting', async () => {
+  it('submits an incomplete step when no workflow or trigger is selected', async () => {
+    const user = userEvent.setup()
     const onSubmit = vi.fn()
     renderForm({ onSubmit })
 
+    await user.type(screen.getByLabelText('Name'), 'Incomplete child step')
     submitWorkflowForm()
 
-    await waitFor(() => expect(onSubmit).not.toHaveBeenCalled())
-    expect(await screen.findByText('Select a child workflow')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'Incomplete child step',
+          workflow_id: '',
+          trigger_node_id: '',
+          input_mapping: {},
+        })
+      )
+    })
+  })
+
+  it('submits the partial mapping when a required child input is blank', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    renderForm({ onSubmit })
+
+    await user.type(screen.getByLabelText('Name'), 'Partial mapping')
+    await selectChildWorkflow(user)
+    submitWorkflowForm()
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workflow_id: 'workflow-1',
+          trigger_node_id: 'sub-trigger-1',
+          input_mapping: { port: 22 },
+        })
+      )
+    })
+  })
+
+  it('submits the current selection while another workflow schema lookup is pending', async () => {
+    const onSubmit = vi.fn()
+    mocks.listWorkflows.mockResolvedValue({
+      data: {
+        resources: [
+          {
+            id: 'workflow-1',
+            name: 'Child workflow',
+            current_version: 9,
+            published_version_number: 3,
+            is_enabled: true,
+            project_id: 'project-1',
+            created_at: '2026-01-01T00:00:00Z',
+            updated_at: '2026-01-01T00:00:00Z',
+          },
+          {
+            id: 'workflow-2',
+            name: 'Other child workflow',
+            current_version: 1,
+            published_version_number: 1,
+            is_enabled: true,
+            project_id: 'project-1',
+            created_at: '2026-01-01T00:00:00Z',
+            updated_at: '2026-01-01T00:00:00Z',
+          },
+        ],
+        next: null,
+      },
+    })
+    mocks.get.mockImplementation((_path: string, options: { params: { path: { workflow_id: string } } }) => {
+      if (options.params.path.workflow_id === 'workflow-2') return new Promise(() => undefined)
+      return Promise.resolve({ data: buildInvocationSchema(), response: new Response() })
+    })
+
+    renderForm({
+      onSubmit,
+      initialData: {
+        name: 'Saved child step',
+        workflow_id: 'workflow-1',
+        trigger_node_id: 'sub-trigger-1',
+        input_mapping: { host: 'saved-host' },
+      },
+    })
+
+    expect(await screen.findByRole('textbox', { name: 'host' })).toHaveValue('saved-host')
+    expect(await screen.findByRole('progressbar', { name: 'Loading workflows' })).toBeInTheDocument()
+    submitWorkflowForm()
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workflow_id: 'workflow-1',
+          trigger_node_id: 'sub-trigger-1',
+          input_mapping: { host: 'saved-host' },
+        })
+      )
+    })
   })
 
   it('allows selecting one trigger when the child has multiple', async () => {
@@ -232,7 +321,7 @@ describe('SubWorkflowNodeForm', () => {
     })
   })
 
-  it('requires choosing a trigger when the child has multiple', async () => {
+  it('submits an empty trigger selection when the child has multiple triggers', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
     mocks.get.mockResolvedValue({
@@ -251,8 +340,11 @@ describe('SubWorkflowNodeForm', () => {
     await screen.findByRole('button', { name: 'Workflow trigger' })
     submitWorkflowForm()
 
-    expect(await screen.findByText('Select a workflow with an available Subworkflow Trigger.')).toBeInTheDocument()
-    expect(onSubmit).not.toHaveBeenCalled()
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ workflow_id: 'workflow-1', trigger_node_id: '', input_mapping: {} })
+      )
+    })
   })
 
   it('uses free-form JSON when the selected trigger has no input schema', async () => {
