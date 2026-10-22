@@ -183,6 +183,49 @@ describe('ChildWorkflowSelector', () => {
     expect(screen.getByRole('heading', { name: /Unable to verify eligible workflows/ })).toBeInTheDocument()
   })
 
+  it('keeps verified workflows selectable and retries failed lookups', async () => {
+    const user = userEvent.setup()
+    const onRetry = vi.fn()
+    render(
+      <ChildWorkflowSelector
+        {...buildProps({
+          hasError: true,
+          errorMessage: 'Some workflows could not be checked because of permissions.',
+          options: [singleTriggerOption],
+          onRetry,
+        })}
+      />
+    )
+
+    expect(
+      screen.getByRole('heading', { name: /Some workflows could not be checked because of permissions/ })
+    ).toBeInTheDocument()
+    expect(screen.getByText('Successfully verified workflows remain selectable.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(onRetry).toHaveBeenCalledOnce()
+
+    await user.click(screen.getByRole('textbox', { name: 'Workflow' }))
+    expect(screen.getByText('Child Workflow (v4)')).toBeInTheDocument()
+  })
+
+  it('explains how to make workflows eligible after a successful empty lookup', async () => {
+    const user = userEvent.setup()
+    const onRetry = vi.fn()
+    render(<ChildWorkflowSelector {...buildProps({ options: [], onRetry })} />)
+
+    expect(
+      screen.getByText(
+        /This picker shows enabled, published workflows in this project that have a Sub-workflow Trigger/
+      )
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/add a Sub-workflow Trigger to a child workflow in this project and publish it/)
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Refresh workflows' }))
+    expect(onRetry).toHaveBeenCalledOnce()
+  })
+
   it('shows loading and empty states', async () => {
     const user = userEvent.setup()
     const props = buildProps({ options: [], isLoading: true })

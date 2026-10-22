@@ -25,6 +25,8 @@ import type { ChildWorkflowOption, InvocationTrigger } from './useChildWorkflowS
 
 const DEBOUNCE_MS = 300
 const LOAD_MORE_VALUE = '__load_more_workflows__'
+const ELIGIBILITY_HELP_TEXT =
+  'Check your search. This picker shows enabled, published workflows in this project that have a Sub-workflow Trigger. To make one eligible, add a Sub-workflow Trigger to a child workflow in this project and publish it, then refresh workflows.'
 
 export type ChildWorkflowSelectorProps = {
   options: ChildWorkflowOption[]
@@ -306,10 +308,7 @@ function WorkflowSelectorFeedback({
       )}
       {showEligibilityHelp && (
         <HelperText>
-          <HelperTextItem>
-            Check your search, or use a workflow that is enabled, published in this project, and has a Sub-workflow
-            Trigger.
-          </HelperTextItem>
+          <HelperTextItem>{ELIGIBILITY_HELP_TEXT}</HelperTextItem>
         </HelperText>
       )}
       {showEligibilityHelp && (

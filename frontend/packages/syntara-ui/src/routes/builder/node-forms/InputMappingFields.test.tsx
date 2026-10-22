@@ -1,8 +1,10 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
+
+import { DRAG_TYPE_FIELD } from '../../../components/expressions/expressionFieldDrag'
 
 import { InputMappingFields } from './InputMappingFields'
 import type { InvocationInputField } from './invocationSchemaUtils'
@@ -39,6 +41,8 @@ describe('InputMappingFields', () => {
   it('renders a field for each declared child input and shows defaults', () => {
     render(<StatefulMapping />)
 
+    expect(screen.getByRole('heading', { name: 'Input Mapping', level: 3 })).toBeInTheDocument()
+
     const hostField = screen.getByRole('textbox', { name: 'host' })
     const hostHint = screen.getByText('Child target host')
 
@@ -69,6 +73,43 @@ describe('InputMappingFields', () => {
     await user.paste('${lookup.hostname}')
 
     expect(hostInput).toHaveValue('${lookup.hostname}')
+  })
+
+  it('supports dragged expressions and type guidance for non-string child inputs', () => {
+    const fields: InvocationInputField[] = [
+      { name: 'retries', type: 'integer', required: false },
+      { name: 'count', type: 'number', required: false },
+      { name: 'enabled', type: 'boolean', required: false },
+      { name: 'config', type: 'object', required: false },
+      { name: 'tags', type: 'array', required: false },
+    ]
+    const typeHints: Record<string, string> = {
+      retries: 'Enter an integer or a template expression.',
+      count: 'Enter a number or a template expression.',
+      enabled: 'Enter true or false, or a template expression.',
+      config: 'Enter a JSON object or a template expression.',
+      tags: 'Enter a JSON array or a template expression.',
+    }
+    render(<StatefulMapping fields={fields} />)
+
+    for (const field of fields) {
+      const input = screen.getByRole('textbox', { name: field.name })
+      expect(input).toHaveAttribute('placeholder', 'Enter or drag and drop value')
+      expect(input).toHaveAccessibleDescription(typeHints[field.name])
+
+      fireEvent.drop(input, {
+        dataTransfer: {
+          getData: () =>
+            JSON.stringify({
+              type: DRAG_TYPE_FIELD,
+              nodeId: 'parent-step',
+              fieldPath: ['result', 'value'],
+            }),
+        },
+      })
+
+      expect(input).toHaveValue('${parent-step.result.value}')
+    }
   })
 
   it('uses multiline expression fields for object and array inputs', () => {

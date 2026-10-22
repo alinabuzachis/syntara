@@ -14,6 +14,7 @@ import type { ReactElement } from 'react'
 import { EXPRESSION_FIELD_PLACEHOLDER } from '../../../components/expressions/expressionFieldDrag'
 import { ExpressionFormField } from '../panels/fields/ExpressionFormField'
 
+import styles from './InputMappingFields.module.css'
 import type { InvocationInputField } from './invocationSchemaUtils'
 
 export type InputMappingFieldsProps = {
@@ -122,7 +123,7 @@ function InputMappingFields({
       <StackItem>
         <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
           <FlexItem>
-            <Title headingLevel="h3" size="md">
+            <Title headingLevel="h3" size="md" className={styles.sectionTitle}>
               {sectionTitle}
             </Title>
           </FlexItem>

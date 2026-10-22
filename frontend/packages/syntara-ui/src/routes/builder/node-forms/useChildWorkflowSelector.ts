@@ -105,17 +105,30 @@ function getSchemaLookupState(
   }
 }
 
+class ProjectWorkflowFetchError extends Error {
+  readonly status: number
+
+  constructor(status: number) {
+    super(`Failed to load project workflows (${status})`)
+    this.name = 'ProjectWorkflowFetchError'
+    this.status = status
+  }
+}
+
 function getWorkflowErrorMessage({
   workflowsError,
   selectedWorkflowError,
   hasPermissionError,
   hasNotFoundError,
 }: Readonly<{
-  workflowsError: boolean
+  workflowsError: unknown
   selectedWorkflowError: boolean
   hasPermissionError: boolean
   hasNotFoundError: boolean
 }>): string {
+  if (workflowsError instanceof ProjectWorkflowFetchError && workflowsError.status === 403) {
+    return 'You do not have permission to view workflows in this project.'
+  }
   if (workflowsError) return 'Unable to load workflows.'
   if (selectedWorkflowError) return 'Unable to load the selected workflow name.'
   if (hasPermissionError) return 'Some workflows could not be checked because of permissions.'
@@ -183,11 +196,11 @@ export function useChildWorkflowSelector({
         is_enabled: true,
         ...(nameFilter ? { 'name[contains]': nameFilter } : {}),
       }
-      const { data, error } = await accessFetchClient.GET('/projects/{project_id}/workflows', {
+      const { data, error, response } = await accessFetchClient.GET('/projects/{project_id}/workflows', {
         params: { path: { project_id: projectId ?? '' }, query },
       })
 
-      if (error || !data) throw new Error('Unable to load project workflows.')
+      if (error || !data) throw new ProjectWorkflowFetchError(response.status)
       return data
     },
     getNextPageParam: (lastPage) => lastPage.next ?? undefined,
@@ -247,7 +260,7 @@ export function useChildWorkflowSelector({
   const schemaLookup = getSchemaLookupState(schemasByWorkflowId, selectedWorkflowId)
   const hasError = workflowsQuery.isError || selectedWorkflowQuery.isError || schemaLookup.hasError
   const errorMessage = getWorkflowErrorMessage({
-    workflowsError: workflowsQuery.isError,
+    workflowsError: workflowsQuery.error,
     selectedWorkflowError: selectedWorkflowQuery.isError,
     hasPermissionError: schemaLookup.hasPermissionError,
     hasNotFoundError: schemaLookup.hasNotFoundError,

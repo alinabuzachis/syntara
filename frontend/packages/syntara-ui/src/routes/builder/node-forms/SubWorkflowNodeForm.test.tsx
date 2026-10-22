@@ -109,7 +109,7 @@ describe('SubWorkflowNodeForm', () => {
     expect(screen.queryByRole('textbox', { name: 'Input Mapping JSON' })).not.toBeInTheDocument()
     await selectChildWorkflow(user)
 
-    expect(screen.getByRole('heading', { name: 'Inputs' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Inputs', level: 3 })).toBeInTheDocument()
     expect(await screen.findByRole('textbox', { name: 'host' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'port' })).toHaveValue('22')
     const triggerField = screen.getByRole('textbox', { name: 'Workflow trigger' })

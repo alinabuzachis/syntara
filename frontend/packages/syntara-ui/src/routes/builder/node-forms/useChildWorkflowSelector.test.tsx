@@ -155,6 +155,27 @@ describe('useChildWorkflowSelector', () => {
     )
   })
 
+  it('reports project workflow permission failures and recovers on retry', async () => {
+    mocks.projectWorkflowsGet
+      .mockResolvedValueOnce({
+        error: { detail: 'Forbidden' },
+        response: new Response(null, { status: 403 }),
+      })
+      .mockResolvedValueOnce({ data: { resources: [testWorkflows[0]], next: null } })
+
+    const { result } = renderHook(
+      () => useChildWorkflowSelector({ projectId: 'project-1', selectedWorkflowId: null }),
+      { wrapper: createWrapper() }
+    )
+
+    await waitFor(() => expect(result.current.hasError).toBe(true))
+    expect(result.current.errorMessage).toBe('You do not have permission to view workflows in this project.')
+
+    act(() => result.current.retryFailedLookups())
+    await waitFor(() => expect(result.current.options).toHaveLength(1))
+    expect(result.current.hasError).toBe(false)
+  })
+
   it('loads additional workflow pages on demand', async () => {
     const { result } = renderHook(
       () => useChildWorkflowSelector({ projectId: 'project-1', selectedWorkflowId: null }),
@@ -216,5 +237,37 @@ describe('useChildWorkflowSelector', () => {
 
     await waitFor(() => expect(result.current.selectedSchemaError).toBeInstanceOf(InvocationSchemaFetchError))
     expect(result.current.selectedSchemaError).toMatchObject({ status: 403 })
+  })
+
+  it('keeps verified workflows selectable when another invocation schema lookup is forbidden', async () => {
+    mocks.invocationSchemaGet.mockImplementation(
+      (_path: string, options: { params: { path: { workflow_id: string } } }) => {
+        if (options.params.path.workflow_id === 'workflow-2') {
+          return Promise.resolve({
+            error: { detail: 'Forbidden' },
+            response: new Response(null, { status: 403 }),
+          })
+        }
+        return Promise.resolve({
+          data: {
+            workflow_id: options.params.path.workflow_id,
+            published_version_id: `version-${options.params.path.workflow_id}`,
+            published_version: 4,
+            is_eligible: true,
+            triggers: [{ trigger_node_id: 'sub-trigger', name: 'Subworkflow Trigger', input_schema: {} }],
+          },
+          response: new Response(),
+        })
+      }
+    )
+
+    const { result } = renderHook(
+      () => useChildWorkflowSelector({ projectId: 'project-1', selectedWorkflowId: null }),
+      { wrapper: createWrapper() }
+    )
+
+    await waitFor(() => expect(result.current.hasError).toBe(true))
+    expect(result.current.errorMessage).toBe('Some workflows could not be checked because of permissions.')
+    expect(result.current.options.map((option) => option.value)).toEqual(['workflow-1'])
   })
 })
