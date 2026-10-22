@@ -13,6 +13,7 @@ type ExpressionFormFieldProps = {
   placeholder?: string
   isRequired?: boolean
   isDisabled?: boolean
+  isMultiline?: boolean
   hint?: string
   hintPlacement?: 'before-input' | 'after-input'
   afterInput?: ReactNode
@@ -28,6 +29,7 @@ function ExpressionFormField({
   placeholder = EXPRESSION_FIELD_PLACEHOLDER,
   isRequired = false,
   isDisabled = false,
+  isMultiline = false,
   hint,
   hintPlacement,
   afterInput,
@@ -50,6 +52,7 @@ function ExpressionFormField({
         placeholder={placeholder}
         isRequired={isRequired}
         isDisabled={isDisabled}
+        isMultiline={isMultiline}
         hint={hint}
         hintPlacement={hintPlacement}
         afterInput={afterInput}

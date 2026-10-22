@@ -31,7 +31,13 @@ function buildProps(overrides: Partial<ChildWorkflowSelectorProps> = {}): ChildW
     onTriggerChange: vi.fn(),
     setSearchTerm: vi.fn(),
     isLoading: false,
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    onLoadMore: vi.fn(),
     hasError: false,
+    errorMessage: 'Unable to verify eligible workflows.',
+    errorVariant: 'danger',
+    onRetry: vi.fn(),
     ...overrides,
   }
 }
@@ -123,6 +129,52 @@ describe('ChildWorkflowSelector', () => {
     await user.click(screen.getByRole('button', { name: 'Clear selection' }))
 
     expect(props.onWorkflowChange).toHaveBeenCalledWith(null, '')
+  })
+
+  it('clears search text without clearing the selected workflow', async () => {
+    const user = userEvent.setup()
+    const props = buildProps({
+      selectedWorkflowId: 'workflow-1',
+      selectedOption: singleTriggerOption,
+      selectedTriggerNodeId: 'sub-trigger-1',
+    })
+    render(<ChildWorkflowSelector {...props} />)
+
+    const workflowInput = screen.getByRole('textbox', { name: 'Workflow' })
+    await user.click(workflowInput)
+    await user.type(workflowInput, 'missing')
+    await user.click(screen.getByRole('button', { name: 'Clear search' }))
+
+    expect(props.onWorkflowChange).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    expect(workflowInput).toHaveValue('Child Workflow (v4)')
+    expect(screen.getByRole('button', { name: 'Clear selection' })).toBeInTheDocument()
+  })
+
+  it('shows the selected workflow name when its option is not in the current results', () => {
+    render(
+      <ChildWorkflowSelector
+        {...buildProps({
+          options: [],
+          selectedWorkflowId: 'workflow-outside-results',
+          selectedWorkflowLabel: 'Selected workflow (v2)',
+        })}
+      />
+    )
+
+    expect(screen.getByRole('textbox', { name: 'Workflow' })).toHaveValue('Selected workflow (v2)')
+  })
+
+  it('loads the next workflow page from the picker menu', async () => {
+    const user = userEvent.setup()
+    const onLoadMore = vi.fn()
+    render(<ChildWorkflowSelector {...buildProps({ hasNextPage: true, onLoadMore })} />)
+
+    await user.click(screen.getByRole('textbox', { name: 'Workflow' }))
+    await user.click(screen.getByRole('button', { name: 'Load more workflows' }))
+
+    expect(onLoadMore).toHaveBeenCalledOnce()
   })
 
   it('shows an error when eligible workflows cannot be verified', () => {

@@ -1,4 +1,4 @@
-import { TextInput } from '@patternfly/react-core'
+import { TextArea, TextInput } from '@patternfly/react-core'
 import { useCallback, useState } from 'react'
 import type { ReactNode } from 'react'
 
@@ -23,6 +23,8 @@ export type ExpressionFieldInputProps = {
   placeholder?: string
   isRequired?: boolean
   isDisabled?: boolean
+  /** Renders a multiline text area for JSON-like expression values. */
+  isMultiline?: boolean
   /** External validation message; takes precedence over inline syntax validation. */
   externalError?: string | null
   hint?: string
@@ -32,10 +34,94 @@ export type ExpressionFieldInputProps = {
   onDropTargetChange?: (active: boolean) => void
 }
 
+type ExpressionFieldControlProps = {
+  id: string
+  value: string
+  onTextInputChange: (event: React.FormEvent<HTMLInputElement>, value: string) => void
+  onTextAreaChange: (event: React.FormEvent<HTMLTextAreaElement>, value: string) => void
+  onBlur?: () => void
+  name?: string
+  onDragOver: (event: React.DragEvent) => void
+  onDragLeave: () => void
+  onDrop: (event: React.DragEvent) => void
+  placeholder: string
+  isRequired: boolean
+  validated: 'default' | 'error'
+  isDisabled?: boolean
+  describedBy?: string
+  isDropTarget: boolean
+  isMultiline: boolean
+}
+
+function ExpressionFieldControl({
+  id,
+  value,
+  onTextInputChange,
+  onTextAreaChange,
+  onBlur,
+  name,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  placeholder,
+  isRequired,
+  validated,
+  isDisabled,
+  describedBy,
+  isDropTarget,
+  isMultiline,
+}: Readonly<ExpressionFieldControlProps>) {
+  const className = isDropTarget ? styles.dropTargetActive : undefined
+  const dropTarget = isDropTarget ? 'active' : 'inactive'
+
+  if (isMultiline) {
+    return (
+      <TextArea
+        id={id}
+        value={value}
+        onChange={onTextAreaChange}
+        onBlur={onBlur}
+        name={name}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+        placeholder={placeholder}
+        isRequired={isRequired}
+        validated={validated}
+        isDisabled={isDisabled}
+        aria-describedby={describedBy}
+        className={className}
+        data-drop-target={dropTarget}
+        resizeOrientation="vertical"
+      />
+    )
+  }
+
+  return (
+    <TextInput
+      id={id}
+      value={value}
+      onChange={onTextInputChange}
+      onBlur={onBlur}
+      name={name}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      placeholder={placeholder}
+      isRequired={isRequired}
+      validated={validated}
+      isDisabled={isDisabled}
+      aria-describedby={describedBy}
+      className={className}
+      data-drop-target={dropTarget}
+    />
+  )
+}
+
 /**
- * Shared expression text input with drag-and-drop token support and inline
- * `${...}` syntax validation. Used by `SynExpressionField` and builder
- * `ExpressionFormField`.
+ * Shared expression input with drag-and-drop token support and inline
+ * `${...}` syntax validation. It renders a text input or multiline text area
+ * and is used by `SynExpressionField` and builder `ExpressionFormField`.
  */
 export function ExpressionFieldInput({
   id,
@@ -46,6 +132,7 @@ export function ExpressionFieldInput({
   placeholder = EXPRESSION_FIELD_PLACEHOLDER,
   isRequired = false,
   isDisabled,
+  isMultiline = false,
   externalError,
   hint,
   hintPlacement = 'after-input',
@@ -58,8 +145,14 @@ export function ExpressionFieldInput({
   const hasError = Boolean(displayError)
   const helperTextId = `${id}-helper-text`
 
-  const handleChange = useCallback(
+  const handleTextInputChange = useCallback(
     (_event: React.FormEvent<HTMLInputElement>, newValue: string) => {
+      onChange(newValue)
+    },
+    [onChange]
+  )
+  const handleTextAreaChange = useCallback(
+    (_event: React.FormEvent<HTMLTextAreaElement>, newValue: string) => {
       onChange(newValue)
     },
     [onChange]
@@ -107,10 +200,11 @@ export function ExpressionFieldInput({
       {!displayError && hint && hintPlacement === 'before-input' && (
         <FormFieldHintOrError id={helperTextId} hint={hint} />
       )}
-      <TextInput
+      <ExpressionFieldControl
         id={id}
         value={value}
-        onChange={handleChange}
+        onTextInputChange={handleTextInputChange}
+        onTextAreaChange={handleTextAreaChange}
         onBlur={onBlur}
         name={name}
         onDragOver={handleDragOver}
@@ -120,9 +214,9 @@ export function ExpressionFieldInput({
         isRequired={isRequired}
         validated={hasError ? 'error' : 'default'}
         isDisabled={isDisabled}
-        aria-describedby={displayError || hint ? helperTextId : undefined}
-        className={isDropTarget ? styles.dropTargetActive : undefined}
-        data-drop-target={isDropTarget ? 'active' : 'inactive'}
+        describedBy={displayError || hint ? helperTextId : undefined}
+        isDropTarget={isDropTarget}
+        isMultiline={isMultiline}
       />
       {afterInput}
       {displayError ? (

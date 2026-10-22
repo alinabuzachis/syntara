@@ -1,18 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Alert, Flex, FlexItem, Spinner, Stack, StackItem } from '@patternfly/react-core'
-import type { Activity } from '@syntara/contracts'
+import { Alert, Button, Flex, FlexItem, Spinner, Stack, StackItem } from '@patternfly/react-core'
 import { useCallback, use, useEffect, useMemo } from 'react'
 import { Controller, FormProvider, useForm, useWatch, type UseFormReturn } from 'react-hook-form'
 import { z } from 'zod'
 
-import { selectCurrentWorkflow, useWorkflowStore } from '../../../stores/useWorkflowStore'
-import { buildContextExpression, tryBuildExpression } from '../../../utils/expressions/templateBuilder'
 import { NodeEditorAutoSubmitContext, useRegisterAutoSubmit } from '../hooks/useNodeEditorAutoSubmit'
 import type { BaseNodeFormProps } from '../registry/NodeRegistry'
 import { useIsVersionView } from '../VersionViewContext'
 
 import { ChildWorkflowSelector } from './ChildWorkflowSelector'
-import { InputMappingFields, type VariableOption } from './InputMappingFields'
+import { InputMappingFields } from './InputMappingFields'
 import {
   formatInputMappingJson,
   getInvocationInputFields,
@@ -59,29 +56,6 @@ const subWorkflowFormSchema = z.object({
   settings: subWorkflowSettingsSchema.optional(),
 })
 
-const WORKFLOW_CONTEXT_VARIABLES = [
-  { label: 'Workflow context · now', path: 'workflow_context.now' },
-  { label: 'Workflow context · today', path: 'workflow_context.today' },
-  { label: 'Workflow context · workflow ID', path: 'workflow_context.workflow.id' },
-  { label: 'Workflow context · workflow name', path: 'workflow_context.workflow.name' },
-  { label: 'Workflow context · execution ID', path: 'workflow_context.execution.id' },
-]
-
-function buildVariableOptions(activities: Activity[] = []): VariableOption[] {
-  const contextOptions = WORKFLOW_CONTEXT_VARIABLES.map(({ label, path }) => ({
-    label,
-    expression: buildContextExpression(path),
-  }))
-  const activityOptions = activities.flatMap((activity) =>
-    Object.keys(activity.outputs ?? {}).flatMap((outputName) => {
-      const expression = tryBuildExpression({ nodeId: activity.id, fieldPath: [outputName] })
-      return expression ? [{ label: `${activity.name ?? activity.id} · ${outputName}`, expression }] : []
-    })
-  )
-
-  return [...contextOptions, ...activityOptions]
-}
-
 function resolveSelectedTrigger(triggers: InvocationTrigger[], triggerNodeId: string): InvocationTrigger | undefined {
   const selectedTrigger = triggers.find((trigger) => trigger.trigger_node_id === triggerNodeId)
   if (selectedTrigger) return selectedTrigger
@@ -98,11 +72,6 @@ function normalizeWorkflowId(workflowId: string): string | null {
 
 function getInvocationTriggers(invocation: WorkflowSelectorState): InvocationTrigger[] {
   return invocation.selectedSchema?.triggers ?? invocation.selectedOption?.triggers ?? []
-}
-
-function getInputMappingSectionTitle(trigger?: InvocationTrigger): string {
-  if (!trigger) return 'Input Mapping'
-  return `Inputs for ${trigger.name?.trim() || trigger.trigger_node_id}`
 }
 
 function hasExplicitEmptyInputSchema(trigger?: InvocationTrigger): boolean {
@@ -216,6 +185,7 @@ function WorkflowSelectionFields({
             <ChildWorkflowSelector
               options={invocation.options}
               selectedOption={invocation.selectedOption}
+              selectedWorkflowLabel={invocation.selectedWorkflowLabel}
               selectedWorkflowId={field.value || null}
               selectedTriggerNodeId={triggerNodeId}
               workflowError={methods.formState.errors.workflow_id?.message}
@@ -226,7 +196,13 @@ function WorkflowSelectionFields({
               onTriggerChange={(selectedTriggerId) => handleTriggerSelection(methods, selectedTriggerId)}
               setSearchTerm={invocation.setSearchTerm}
               isLoading={invocation.isLoading}
+              hasNextPage={Boolean(invocation.hasNextPage)}
+              isFetchingNextPage={invocation.isFetchingNextPage}
+              onLoadMore={invocation.loadMoreWorkflows}
               hasError={invocation.hasError}
+              errorMessage={invocation.errorMessage}
+              errorVariant={invocation.errorVariant}
+              onRetry={invocation.retryFailedLookups}
               labelHelp={nodeHelp.subworkflowWorkflow}
               triggerLabelHelp={nodeHelp.subworkflowTrigger}
               isRequired
@@ -238,17 +214,33 @@ function WorkflowSelectionFields({
 
       {workflowId && isInvocationSchemaForbidden(invocation.selectedSchemaError) && (
         <StackItem>
-          <Alert variant="warning" isInline title="You do not have permission to read this child workflow." />
+          <Alert variant="warning" isInline title="You do not have permission to read this child workflow.">
+            <Button variant="link" type="button" onClick={() => invocation.retryFailedLookups(workflowId)}>
+              Retry
+            </Button>
+          </Alert>
         </StackItem>
       )}
       {workflowId && isInvocationSchemaNotFound(invocation.selectedSchemaError) && (
         <StackItem>
-          <Alert variant="warning" isInline title="This workflow has no published version available to invoke." />
+          <Alert variant="warning" isInline title="This workflow has no published version available to invoke.">
+            Publish the child workflow, then{' '}
+            <Button variant="link" type="button" onClick={() => invocation.retryFailedLookups(workflowId)}>
+              retry
+            </Button>
+            .
+          </Alert>
         </StackItem>
       )}
       {workflowId && invocation.selectedSchema && (!invocation.selectedSchema.is_eligible || !hasTriggers) && (
         <StackItem>
-          <Alert variant="warning" isInline title="This workflow has no eligible Subworkflow Trigger." />
+          <Alert variant="warning" isInline title="This workflow has no eligible Sub-workflow Trigger.">
+            Add a Sub-workflow Trigger to the child workflow, publish it, then{' '}
+            <Button variant="link" type="button" onClick={() => invocation.retryFailedLookups(workflowId)}>
+              retry
+            </Button>
+            .
+          </Alert>
         </StackItem>
       )}
       {workflowId && invocation.selectedSchemaQuery?.isPending && (
@@ -264,14 +256,12 @@ function WorkflowInputMapping({
   methods,
   inputFields,
   sectionTitle,
-  variableOptions,
   freeformJson,
   isDisabled,
 }: Readonly<{
   methods: SubWorkflowMethods
   inputFields: InvocationInputField[]
   sectionTitle: string
-  variableOptions: VariableOption[]
   freeformJson: string
   isDisabled: boolean
 }>) {
@@ -284,7 +274,6 @@ function WorkflowInputMapping({
           fields={inputFields}
           sectionTitle={sectionTitle}
           values={field.value}
-          variableOptions={variableOptions}
           onChange={(value) => {
             field.onChange(value)
             methods.clearErrors('input_mapping')
@@ -311,7 +300,6 @@ export function SubWorkflowNodeForm({
   projectId,
 }: BaseNodeFormProps<SubWorkflowFormData>) {
   const isVersionView = useIsVersionView()
-  const currentWorkflow = useWorkflowStore(selectCurrentWorkflow)
   const methods = useForm<SubWorkflowFormValues>({
     resolver: zodResolver(subWorkflowFormSchema, undefined, { mode: 'sync' }),
     defaultValues: {
@@ -341,11 +329,7 @@ export function SubWorkflowNodeForm({
     () => getInvocationInputFields(selectedTrigger?.input_schema),
     [selectedTrigger?.input_schema]
   )
-  const inputSectionTitle = getInputMappingSectionTitle(selectedTrigger)
-  const variableOptions = useMemo(
-    () => buildVariableOptions(currentWorkflow?.workflow.activities),
-    [currentWorkflow?.workflow.activities]
-  )
+  const inputSectionTitle = 'Inputs'
   const autoSubmitRef = use(NodeEditorAutoSubmitContext)
 
   const submitForm = useCallback(
@@ -400,7 +384,6 @@ export function SubWorkflowNodeForm({
             methods={methods}
             inputFields={inputFields}
             sectionTitle={inputSectionTitle}
-            variableOptions={variableOptions}
             freeformJson={freeformJson}
             isDisabled={isVersionView}
           />

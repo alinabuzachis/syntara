@@ -1,18 +1,126 @@
-import type { WorkflowAPI } from '@syntara/contracts'
-import { useQueries } from '@tanstack/react-query'
+import type { ProjectsAPI, WorkflowAPI } from '@syntara/contracts'
+import { useInfiniteQuery, useQueries } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 
-import { workflowFetchClient } from '../../../client'
-import { useWorkflowsQuery } from '../../workflows/useWorkflowsQuery'
+import { workflowClient, workflowFetchClient } from '../../../client'
+import { detachPromise } from '../../../utils/detachPromise'
+import { accessFetchClient } from '../../access/accessClient'
+
+const WORKFLOW_PAGE_SIZE = 20
 
 type InvocationSchema = WorkflowAPI.components['schemas']['WorkflowInvocationSchemaRead']
 type InvocationTrigger = WorkflowAPI.components['schemas']['WorkflowInvocationTriggerSchema']
+type Workflow = WorkflowAPI.components['schemas']['WorkflowRead']
+type ProjectWorkflowListQuery = NonNullable<ProjectsAPI.operations['list_project_workflows']['parameters']['query']> & {
+  is_enabled?: boolean
+  'name[contains]'?: string
+}
 
 export type ChildWorkflowOption = {
   value: string
   label: string
   description?: string
   triggers: InvocationTrigger[]
+}
+
+type SchemaQueryResult = {
+  data?: InvocationSchema
+  error: unknown
+  isError: boolean
+  isPending: boolean
+}
+
+function workflowLabel(workflow: Workflow): string {
+  const version = workflow.published_version_number
+  return version == null ? workflow.name : `${workflow.name} (v${version})`
+}
+
+function buildWorkflowOptions(
+  workflows: Workflow[],
+  schemasByWorkflowId: ReadonlyMap<string, SchemaQueryResult | undefined>
+): ChildWorkflowOption[] {
+  return workflows.flatMap((workflow) => {
+    const invocationSchema = schemasByWorkflowId.get(workflow.id)?.data
+    if (!invocationSchema?.is_eligible || invocationSchema.triggers.length === 0) return []
+
+    return [
+      {
+        value: workflow.id,
+        label: `${workflow.name} (v${invocationSchema.published_version})`,
+        description: workflow.description ?? undefined,
+        triggers: invocationSchema.triggers,
+      },
+    ]
+  })
+}
+
+function selectedWorkflowOption({
+  existingOption,
+  workflowId,
+  workflow,
+  schema,
+  label,
+}: Readonly<{
+  existingOption?: ChildWorkflowOption
+  workflowId: string | null
+  workflow?: Workflow
+  schema?: InvocationSchema
+  label?: string
+}>): ChildWorkflowOption | undefined {
+  if (existingOption) return existingOption
+  if (!workflowId || !workflow || !schema?.is_eligible || schema.triggers.length === 0) return undefined
+
+  return {
+    value: workflowId,
+    label: label ?? workflow.name,
+    description: workflow.description ?? undefined,
+    triggers: schema.triggers,
+  }
+}
+
+function getSchemaLookupState(
+  schemasByWorkflowId: ReadonlyMap<string, SchemaQueryResult | undefined>,
+  selectedWorkflowId: string | null
+) {
+  const entries = [...schemasByWorkflowId.entries()]
+  const errors = entries.filter(([workflowId, query]) => {
+    if (!query?.isError) return false
+    if (workflowId !== selectedWorkflowId) return true
+    return !isInvocationSchemaForbidden(query.error) && !isInvocationSchemaNotFound(query.error)
+  })
+
+  return {
+    isLoading: entries.some(([, query]) => query?.isPending ?? false),
+    hasError: errors.length > 0,
+    hasPermissionError: errors.some(
+      ([workflowId, query]) => workflowId !== selectedWorkflowId && isInvocationSchemaForbidden(query?.error)
+    ),
+    hasNotFoundError: errors.some(
+      ([workflowId, query]) => workflowId !== selectedWorkflowId && isInvocationSchemaNotFound(query?.error)
+    ),
+    hasRetryableError: errors.some(
+      ([, query]) =>
+        query?.isError && !isInvocationSchemaForbidden(query.error) && !isInvocationSchemaNotFound(query.error)
+    ),
+  }
+}
+
+function getWorkflowErrorMessage({
+  workflowsError,
+  selectedWorkflowError,
+  hasPermissionError,
+  hasNotFoundError,
+}: Readonly<{
+  workflowsError: boolean
+  selectedWorkflowError: boolean
+  hasPermissionError: boolean
+  hasNotFoundError: boolean
+}>): string {
+  if (workflowsError) return 'Unable to load workflows.'
+  if (selectedWorkflowError) return 'Unable to load the selected workflow name.'
+  if (hasPermissionError) return 'Some workflows could not be checked because of permissions.'
+  if (hasNotFoundError) return 'Some workflows are no longer published or eligible.'
+  return 'Unable to verify some workflows.'
 }
 
 export class InvocationSchemaFetchError extends Error {
@@ -63,15 +171,33 @@ export function useChildWorkflowSelector({
   const [searchTerm, setSearchTerm] = useState('')
   const nameFilter = searchTerm.trim()
 
-  const { workflowsQuery, workflows } = useWorkflowsQuery({
-    queryParams: {
-      ...(nameFilter ? { name: nameFilter } : {}),
-      is_enabled: true,
+  const workflowsQuery = useInfiniteQuery({
+    queryKey: ['child-workflows', projectId, nameFilter],
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam }) => {
+      const query: ProjectWorkflowListQuery = {
+        limit: WORKFLOW_PAGE_SIZE,
+        cursor: pageParam,
+        sort: 'name',
+        include_total: false,
+        is_enabled: true,
+        ...(nameFilter ? { 'name[contains]': nameFilter } : {}),
+      }
+      const { data, error } = await accessFetchClient.GET('/projects/{project_id}/workflows', {
+        params: { path: { project_id: projectId ?? '' }, query },
+      })
+
+      if (error || !data) throw new Error('Unable to load project workflows.')
+      return data
     },
-    isAllProjects: false,
-    stableProjectId: projectId ?? undefined,
-    projectSelectorReady: !!projectId,
+    getNextPageParam: (lastPage) => lastPage.next ?? undefined,
+    enabled: !!projectId,
   })
+
+  const workflows = useMemo(
+    () => workflowsQuery.data?.pages.flatMap((page) => page.resources ?? []) ?? [],
+    [workflowsQuery.data]
+  )
 
   const publishedWorkflows = useMemo(
     () => workflows.filter((workflow) => workflow.id && workflow.published_version_number != null),
@@ -93,42 +219,70 @@ export function useChildWorkflowSelector({
     combine: (results) => new Map(workflowIds.map((workflowId, index) => [workflowId, results[index]])),
   })
 
-  const options = useMemo<ChildWorkflowOption[]>(() => {
-    return publishedWorkflows.flatMap((workflow) => {
-      const workflowId = workflow.id
-      if (!workflowId) return []
+  const selectedWorkflowFromList = workflows.find((workflow) => workflow.id === selectedWorkflowId)
+  const selectedWorkflowQuery = workflowClient.useQuery(
+    'get',
+    '/workflows/{workflow_id}',
+    { params: { path: { workflow_id: selectedWorkflowId ?? '' } } },
+    { enabled: !!projectId && !!selectedWorkflowId && !selectedWorkflowFromList }
+  )
 
-      const invocationSchema = schemasByWorkflowId.get(workflowId)?.data
-      const triggers = invocationSchema?.triggers ?? []
-      if (!invocationSchema?.is_eligible || triggers.length === 0) return []
-
-      return [
-        {
-          value: workflowId,
-          label: `${workflow.name} (v${invocationSchema.published_version})`,
-          description: workflow.description ?? undefined,
-          triggers,
-        },
-      ]
-    })
-  }, [publishedWorkflows, schemasByWorkflowId])
+  const options = useMemo(
+    () => buildWorkflowOptions(publishedWorkflows, schemasByWorkflowId),
+    [publishedWorkflows, schemasByWorkflowId]
+  )
 
   const selectedOption = options.find((option) => option.value === selectedWorkflowId)
   const selectedSchemaQuery = selectedWorkflowId ? schemasByWorkflowId.get(selectedWorkflowId) : undefined
-  const isSchemaLoading = [...schemasByWorkflowId.values()].some((query) => query?.isPending ?? false)
-  const hasSchemaError = [...schemasByWorkflowId.values()].some(
-    (query) =>
-      query?.isError && !(query.error instanceof InvocationSchemaFetchError && [403, 404].includes(query.error.status))
-  )
+  const selectedWorkflow = selectedWorkflowFromList ?? selectedWorkflowQuery.data
+  const selectedWorkflowLabel = selectedWorkflow ? workflowLabel(selectedWorkflow) : undefined
+  const selectedSchema = selectedSchemaQuery?.data
+  const resolvedSelectedOption = selectedWorkflowOption({
+    existingOption: selectedOption,
+    workflowId: selectedWorkflowId,
+    workflow: selectedWorkflow,
+    schema: selectedSchema,
+    label: selectedWorkflowLabel,
+  })
+  const schemaLookup = getSchemaLookupState(schemasByWorkflowId, selectedWorkflowId)
+  const hasError = workflowsQuery.isError || selectedWorkflowQuery.isError || schemaLookup.hasError
+  const errorMessage = getWorkflowErrorMessage({
+    workflowsError: workflowsQuery.isError,
+    selectedWorkflowError: selectedWorkflowQuery.isError,
+    hasPermissionError: schemaLookup.hasPermissionError,
+    hasNotFoundError: schemaLookup.hasNotFoundError,
+  })
+  const errorVariant: 'danger' | 'warning' =
+    workflowsQuery.isError || selectedWorkflowQuery.isError || schemaLookup.hasRetryableError ? 'danger' : 'warning'
+
+  function retryFailedLookups(workflowId?: string) {
+    if (projectId) detachPromise(workflowsQuery.refetch())
+    if (selectedWorkflowQuery.isError) detachPromise(selectedWorkflowQuery.refetch())
+    const queries = workflowId ? [schemasByWorkflowId.get(workflowId)] : [...schemasByWorkflowId.values()]
+    for (const query of queries) {
+      if (query) detachPromise(query.refetch())
+    }
+  }
 
   return {
     options,
-    selectedOption,
-    selectedSchema: selectedSchemaQuery?.data,
+    selectedOption: resolvedSelectedOption,
+    selectedWorkflowLabel,
+    selectedSchema,
     selectedSchemaQuery,
     selectedSchemaError: selectedSchemaQuery?.error,
-    isLoading: workflowsQuery.isLoading || isSchemaLoading,
-    hasError: workflowsQuery.isError || hasSchemaError,
+    isLoading: workflowsQuery.isLoading || schemaLookup.isLoading,
+    hasNextPage: workflowsQuery.hasNextPage,
+    isFetchingNextPage: workflowsQuery.isFetchingNextPage,
+    loadMoreWorkflows: () => {
+      if (workflowsQuery.hasNextPage && !workflowsQuery.isFetchingNextPage) {
+        detachPromise(workflowsQuery.fetchNextPage())
+      }
+    },
+    hasError,
+    errorMessage,
+    errorVariant,
+    retryFailedLookups,
     searchTerm,
     setSearchTerm,
   }

@@ -4,15 +4,13 @@ import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { InputMappingFields, type VariableOption } from './InputMappingFields'
+import { InputMappingFields } from './InputMappingFields'
 import type { InvocationInputField } from './invocationSchemaUtils'
 
 const schemaFields: InvocationInputField[] = [
   { name: 'host', type: 'string', required: true, description: 'Child target host' },
   { name: 'port', type: 'integer', required: false, defaultValue: 22 },
 ]
-const variableOptions: VariableOption[] = [{ label: 'Lookup · hostname', expression: '${lookup.hostname}' }]
-
 function StatefulMapping({
   fields = schemaFields,
   initialValues = {},
@@ -30,7 +28,6 @@ function StatefulMapping({
       fields={fields}
       values={values}
       onChange={setValues}
-      variableOptions={variableOptions}
       freeformJson={freeformJson}
       onFreeformJsonChange={setFreeformJson}
       isDisabled={isDisabled}
@@ -43,15 +40,15 @@ describe('InputMappingFields', () => {
     render(<StatefulMapping />)
 
     const hostField = screen.getByRole('textbox', { name: 'host' })
-    const variableButton = screen.getByRole('button', { name: 'Insert variable for host' })
     const hostHint = screen.getByText('Child target host')
 
     expect(hostField).toBeRequired()
     expect(hostField).toHaveAccessibleDescription('Child target host')
     expect(hostHint.compareDocumentPosition(hostField) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
-    expect(hostField.compareDocumentPosition(variableButton) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
+    expect(hostField).toHaveAttribute('placeholder', 'Enter or drag and drop value')
     expect(screen.getByRole('textbox', { name: 'port' })).toHaveValue('22')
-    expect(screen.getByRole('button', { name: 'Insert variable for port' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'port' })).toHaveAttribute('placeholder', 'Enter or drag and drop value')
+    expect(screen.queryByRole('button', { name: /Insert variable/ })).not.toBeInTheDocument()
   })
 
   it('updates a child input value as the user types', async () => {
@@ -63,24 +60,33 @@ describe('InputMappingFields', () => {
     expect(screen.getByRole('textbox', { name: 'host' })).toHaveValue('server.example')
   })
 
-  it('opens the variable picker and inserts the selected expression', async () => {
+  it('allows keyboard users to enter template expressions', async () => {
     const user = userEvent.setup()
-    render(<StatefulMapping initialValues={{ host: 'server=' }} />)
+    render(<StatefulMapping />)
 
-    await user.click(screen.getByRole('button', { name: 'Insert variable for host' }))
-    await user.click(screen.getByRole('button', { name: 'Lookup · hostname' }))
+    const hostInput = screen.getByRole('textbox', { name: 'host' })
+    await user.click(hostInput)
+    await user.paste('${lookup.hostname}')
 
-    expect(screen.getByRole('textbox', { name: 'host' })).toHaveValue('server=${lookup.hostname}')
+    expect(hostInput).toHaveValue('${lookup.hostname}')
   })
 
-  it('does not duplicate an expression when the same variable is selected again', async () => {
-    const user = userEvent.setup()
-    render(<StatefulMapping initialValues={{ host: '${lookup.hostname}' }} />)
+  it('uses multiline expression fields for object and array inputs', () => {
+    render(
+      <StatefulMapping
+        fields={[
+          { name: 'config', type: 'object', required: true },
+          { name: 'tags', type: 'array', required: false },
+        ]}
+      />
+    )
 
-    await user.click(screen.getByRole('button', { name: 'Insert variable for host' }))
-    await user.click(screen.getByRole('button', { name: 'Lookup · hostname' }))
-
-    expect(screen.getByRole('textbox', { name: 'host' })).toHaveValue('${lookup.hostname}')
+    expect(screen.getByRole('textbox', { name: 'config' }).tagName).toBe('TEXTAREA')
+    expect(screen.getByRole('textbox', { name: 'tags' }).tagName).toBe('TEXTAREA')
+    expect(screen.getByRole('textbox', { name: 'config' })).toHaveAttribute(
+      'placeholder',
+      'Enter or drag and drop value'
+    )
   })
 
   it('shows free-form JSON when the child schema declares no fields', () => {
@@ -102,11 +108,11 @@ describe('InputMappingFields', () => {
     expect(mappingInput).toHaveValue('{"host":"server.example"}')
   })
 
-  it('disables fields and variable picker in version view', () => {
+  it('disables inputs in version view', () => {
     render(<StatefulMapping isDisabled />)
 
     expect(screen.getByRole('textbox', { name: 'host' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Insert variable for host' })).toBeDisabled()
+    expect(screen.getByRole('textbox', { name: 'port' })).toBeDisabled()
   })
 
   it('shows form errors for invalid free-form JSON', () => {
@@ -115,7 +121,6 @@ describe('InputMappingFields', () => {
         fields={[]}
         values={{}}
         onChange={vi.fn()}
-        variableOptions={[]}
         freeformJson="[]"
         onFreeformJsonChange={vi.fn()}
         error="Input mapping must be a JSON object."

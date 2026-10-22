@@ -8,26 +8,13 @@ import { axe } from 'vitest-axe'
 
 import { SubWorkflowNodeForm } from './SubWorkflowNodeForm'
 
-const mocks = vi.hoisted(() => ({ get: vi.fn() }))
+const mocks = vi.hoisted(() => ({ get: vi.fn(), listWorkflows: vi.fn(), workflowQuery: vi.fn() }))
 
-vi.mock('../../../client', () => ({ workflowFetchClient: { GET: mocks.get } }))
-vi.mock('../../workflows/useWorkflowsQuery', () => ({
-  useWorkflowsQuery: vi.fn(() => ({
-    workflowsQuery: { isLoading: false, isError: false },
-    workflows: [
-      {
-        id: 'workflow-1',
-        name: 'Child workflow',
-        current_version: 9,
-        published_version_number: 3,
-        is_enabled: true,
-        project_id: 'project-1',
-        created_at: '2026-01-01T00:00:00Z',
-        updated_at: '2026-01-01T00:00:00Z',
-      },
-    ],
-  })),
+vi.mock('../../../client', () => ({
+  workflowFetchClient: { GET: mocks.get },
+  workflowClient: { useQuery: mocks.workflowQuery },
 }))
+vi.mock('../../access/accessClient', () => ({ accessFetchClient: { GET: mocks.listWorkflows } }))
 vi.mock('../hooks/useWorkflowEngineDefaults', () => ({
   useWorkflowEngineDefaults: vi.fn(() => ({ defaults: { continueOnFailure: true } })),
 }))
@@ -93,6 +80,24 @@ async function selectChildWorkflow(user: ReturnType<typeof userEvent.setup>) {
 describe('SubWorkflowNodeForm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.listWorkflows.mockResolvedValue({
+      data: {
+        resources: [
+          {
+            id: 'workflow-1',
+            name: 'Child workflow',
+            current_version: 9,
+            published_version_number: 3,
+            is_enabled: true,
+            project_id: 'project-1',
+            created_at: '2026-01-01T00:00:00Z',
+            updated_at: '2026-01-01T00:00:00Z',
+          },
+        ],
+        next: null,
+      },
+    })
+    mocks.workflowQuery.mockImplementation(() => ({ data: undefined, isError: false, refetch: vi.fn() }))
     mocks.get.mockResolvedValue({ data: buildInvocationSchema(), response: new Response() })
   })
 
@@ -104,7 +109,7 @@ describe('SubWorkflowNodeForm', () => {
     expect(screen.queryByRole('textbox', { name: 'Input Mapping JSON' })).not.toBeInTheDocument()
     await selectChildWorkflow(user)
 
-    expect(screen.getByText('Inputs for Subworkflow Trigger')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Inputs' })).toBeInTheDocument()
     expect(await screen.findByRole('textbox', { name: 'host' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'port' })).toHaveValue('22')
     const triggerField = screen.getByRole('textbox', { name: 'Workflow trigger' })
@@ -263,7 +268,7 @@ describe('SubWorkflowNodeForm', () => {
 
     await user.type(screen.getByLabelText('Name'), 'JSON mapping')
     await selectChildWorkflow(user)
-    expect(screen.getByText('Inputs for Subworkflow Trigger (JSON)')).toBeInTheDocument()
+    expect(screen.getByText('Inputs (JSON)')).toBeInTheDocument()
     const mappingInput = await screen.findByRole('textbox', { name: 'Input Mapping JSON' })
     await user.clear(mappingInput)
     await user.click(mappingInput)
