@@ -12,12 +12,18 @@ from syntara.core.models import User
 from syntara.workflows.exceptions import WorkflowNotPublishedError, WorkflowPublishValidationError
 from syntara.workflows.models import Workflow
 from syntara.workflows.models.validation_finding import ValidationCategory, ValidationResult
+from syntara.workflows.models.workflow import WorkflowCreate
 from syntara.workflows.models.workflow_version import WorkflowVersion
 from syntara.workflows.services.workflow_service import WorkflowService
 from syntara.workflows.validators import validate_subworkflow_project_references
 
 
-def _definition_with_subworkflow(child_workflow_id: UUID, *, trigger_node_id: str = "child_entry") -> dict[str, Any]:
+def _definition_with_subworkflow(
+    child_workflow_id: UUID | None,
+    *,
+    trigger_node_id: str = "child_entry",
+    input_mapping: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Build a valid-shaped definition containing one selected child workflow."""
     return {
         "schema_version": "2.0.0",
@@ -29,8 +35,9 @@ def _definition_with_subworkflow(child_workflow_id: UUID, *, trigger_node_id: st
                 "name": "Call child",
                 "type": "sub_workflow",
                 "parameters": {
-                    "workflow_id": str(child_workflow_id),
+                    "workflow_id": str(child_workflow_id) if child_workflow_id is not None else "",
                     "trigger_node_id": trigger_node_id,
+                    "input_mapping": input_mapping or {},
                 },
             }
         ],
@@ -64,6 +71,8 @@ async def _create_child_workflow(
     published: bool = True,
     trigger_node_id: str = "child_entry",
     trigger_type: str = "subworkflow_trigger",
+    input_schema: dict[str, Any] | None = None,
+    additional_triggers: list[dict[str, Any]] | None = None,
 ) -> Workflow:
     child = Workflow(
         name=f"child-{uuid4().hex[:8]}",
@@ -76,6 +85,9 @@ async def _create_child_workflow(
     await session.flush()
 
     if published:
+        trigger_parameters = {"input_schema": input_schema} if input_schema is not None else {}
+        triggers = [{"id": trigger_node_id, "type": trigger_type, "parameters": trigger_parameters}]
+        triggers.extend(additional_triggers or [])
         version = WorkflowVersion(
             workflow_id=child.id,
             version=1,
@@ -83,7 +95,7 @@ async def _create_child_workflow(
             workflow_definition={
                 "schema_version": "2.0.0",
                 "name": child.name,
-                "triggers": [{"id": trigger_node_id, "type": trigger_type, "parameters": {}}],
+                "triggers": triggers,
                 "nodes": [],
                 "edges": [],
             },
@@ -153,6 +165,51 @@ async def test_cross_project_subworkflow_reference_returns_error_finding(
 
 
 @pytest.mark.asyncio
+async def test_incomplete_subworkflow_selection_is_saved_with_validation_findings(
+    test_db_session: AsyncSession,
+    test_user: User,
+    test_project_id: UUID,
+) -> None:
+    service = WorkflowService(test_db_session, test_user)
+    incomplete_definition = _definition_with_subworkflow(None, trigger_node_id="")
+    request = WorkflowCreate.model_validate(
+        {
+            "name": f"incomplete-parent-{uuid4().hex[:8]}",
+            "workflow_definition": incomplete_definition,
+            "project_id": test_project_id,
+        }
+    )
+    assert isinstance(request.workflow_definition, dict)
+
+    with (
+        patch(
+            "syntara.workflows.services.workflow_service.workflow_validator",
+            _valid_workflow_validator(),
+        ),
+        patch(
+            "syntara.workflows.services.workflow_service.get_system_continue_on_failure",
+            new_callable=AsyncMock,
+            return_value=False,
+        ),
+    ):
+        workflow, version, validation_result = await service.create_workflow(
+            name=request.name,
+            description=None,
+            labels={},
+            workflow_definition=request.workflow_definition,
+            project_id=test_project_id,
+        )
+
+    assert version is not None
+    assert workflow.has_validation_issues is True
+    assert validation_result.error_count == 2
+    assert [finding.field_path for finding in validation_result.findings] == [
+        "parameters.workflow_id",
+        "parameters.trigger_node_id",
+    ]
+
+
+@pytest.mark.asyncio
 async def test_cross_project_reference_is_reported_when_saved_and_blocks_publish(
     test_db_session: AsyncSession,
     test_user: User,
@@ -208,7 +265,86 @@ async def test_same_project_reference_can_be_saved_and_published(
     test_user: User,
     test_project_id: UUID,
 ) -> None:
-    child = await _create_child_workflow(test_db_session, test_user, test_project_id)
+    child = await _create_child_workflow(
+        test_db_session,
+        test_user,
+        test_project_id,
+        trigger_node_id="primary_entry",
+        input_schema={
+            "type": "object",
+            "properties": {"primary_input": {"type": "string"}},
+            "required": ["primary_input"],
+        },
+        additional_triggers=[
+            {
+                "id": "selected_entry",
+                "type": "subworkflow_trigger",
+                "parameters": {
+                    "input_schema": {
+                        "type": "object",
+                        "properties": {"environment": {"type": "string"}},
+                        "required": ["environment"],
+                    }
+                },
+            }
+        ],
+    )
+    service = WorkflowService(test_db_session, test_user)
+
+    with (
+        patch(
+            "syntara.workflows.services.workflow_service.workflow_validator",
+            _valid_workflow_validator(),
+        ),
+        patch(
+            "syntara.workflows.services.workflow_service.get_system_continue_on_failure",
+            new_callable=AsyncMock,
+            return_value=False,
+        ),
+    ):
+        parent, version, validation_result = await service.create_workflow(
+            name=f"parent-{uuid4().hex[:8]}",
+            description=None,
+            labels={},
+            workflow_definition=_definition_with_subworkflow(
+                child.id,
+                trigger_node_id="selected_entry",
+                input_mapping={"environment": "staging"},
+            ),
+            project_id=test_project_id,
+        )
+
+        assert parent.has_validation_issues is False
+        assert validation_result.error_count == 0
+
+        webhook_service = MagicMock()
+        webhook_service.return_value.sync_webhook_triggers = AsyncMock()
+        with patch("syntara.workflows.services.workflow_service.WebhookTriggerService", webhook_service):
+            published_workflow, published_version, _warning = await service.publish_workflow_version(
+                workflow_id=parent.id,
+                version=version.version,
+            )
+
+    assert published_workflow.published_version_id == published_version.id
+    assert published_workflow.is_enabled is True
+
+
+@pytest.mark.asyncio
+async def test_missing_required_child_inputs_warn_on_save_and_block_publish(
+    test_db_session: AsyncSession,
+    test_user: User,
+    test_project_id: UUID,
+) -> None:
+    child = await _create_child_workflow(
+        test_db_session,
+        test_user,
+        test_project_id,
+        input_schema={
+            "type": "object",
+            "properties": {"target_host": {"type": "string"}, "region": {"type": "string"}},
+            "required": ["target_host", "region"],
+        },
+    )
     service = WorkflowService(test_db_session, test_user)
 
     with (
@@ -230,19 +366,23 @@ async def test_same_project_reference_can_be_saved_and_published(
             project_id=test_project_id,
         )
 
-        assert parent.has_validation_issues is False
+        assert parent.has_validation_issues is True
         assert validation_result.error_count == 0
+        assert validation_result.warning_count == 2
+        assert [finding.field_path for finding in validation_result.findings] == [
+            "parameters.input_mapping.target_host",
+            "parameters.input_mapping.region",
+        ]
+        assert [finding.message for finding in validation_result.findings] == [
+            f"Child workflow '{child.name}' requires input 'target_host', not provided in input_mapping",
+            f"Child workflow '{child.name}' requires input 'region', not provided in input_mapping",
+        ]
 
-        webhook_service = MagicMock()
-        webhook_service.return_value.sync_webhook_triggers = AsyncMock()
-        with patch("syntara.workflows.services.workflow_service.WebhookTriggerService", webhook_service):
-            published_workflow, published_version, _warning = await service.publish_workflow_version(
-                workflow_id=parent.id,
-                version=version.version,
-            )
+        with pytest.raises(WorkflowPublishValidationError) as exc_info:
+            await service.publish_workflow_version(workflow_id=parent.id, version=version.version)
 
-    assert published_workflow.published_version_id == published_version.id
-    assert published_workflow.is_enabled is True
+    assert exc_info.value.validation_result.error_count == 0
+    assert exc_info.value.validation_result.warning_count == 2
 
 
 @pytest.mark.asyncio
