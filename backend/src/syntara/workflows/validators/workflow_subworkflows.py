@@ -84,19 +84,18 @@ async def _load_target_workflows(
     target_ids: set[UUID],
 ) -> dict[UUID, TargetWorkflow]:
     result = await session.exec(
-        select(
-            Workflow.id,
-            Workflow.name,
-            Workflow.project_id,
-            Workflow.published_version_id,
-            WorkflowVersion.workflow_definition,
-        )
+        select(Workflow, WorkflowVersion)
         .outerjoin(WorkflowVersion, col(Workflow.published_version_id) == col(WorkflowVersion.id))
         .where(col(Workflow.id).in_(target_ids))
     )
     return {
-        workflow_id: (workflow_name, target_project_id, published_version_id, workflow_definition)
-        for workflow_id, workflow_name, target_project_id, published_version_id, workflow_definition in result.all()
+        workflow.id: (
+            workflow.name,
+            workflow.project_id,
+            workflow.published_version_id,
+            published_version.workflow_definition if published_version else None,
+        )
+        for workflow, published_version in result.all()
     }
 
 
