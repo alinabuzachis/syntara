@@ -273,7 +273,7 @@ describe('SubWorkflowNodeForm', () => {
         expect.objectContaining({
           workflow_id: 'workflow-1',
           trigger_node_id: 'sub-trigger-1',
-          input_mapping: { host: 'saved-host' },
+          input_mapping: { host: 'saved-host', port: 22 },
         })
       )
     })
@@ -389,7 +389,7 @@ describe('SubWorkflowNodeForm', () => {
     })
     renderForm({ initialData: { workflow_id: 'workflow-1' } })
 
-    expect(await screen.findByText('This workflow has no eligible Subworkflow Trigger.')).toBeInTheDocument()
+    expect(await screen.findByText('This workflow has no eligible Sub-workflow Trigger.')).toBeInTheDocument()
   })
 
   it('has no accessibility violations after selecting an eligible child', async () => {

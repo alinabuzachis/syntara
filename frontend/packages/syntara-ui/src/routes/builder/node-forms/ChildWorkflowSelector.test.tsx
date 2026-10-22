@@ -172,7 +172,7 @@ describe('ChildWorkflowSelector', () => {
     render(<ChildWorkflowSelector {...buildProps({ hasNextPage: true, onLoadMore })} />)
 
     await user.click(screen.getByRole('textbox', { name: 'Workflow' }))
-    await user.click(screen.getByRole('button', { name: 'Load more workflows' }))
+    await user.click(screen.getByRole('option', { name: 'Load more workflows' }))
 
     expect(onLoadMore).toHaveBeenCalledOnce()
   })
