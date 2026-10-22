@@ -37,7 +37,10 @@ async def test_template_workflow_id_is_rejected_in_v1() -> None:
                 {
                     "id": "call_child",
                     "type": "sub_workflow",
-                    "parameters": {"workflow_id": "${parent.child_workflow_id}"},
+                    "parameters": {
+                        "workflow_id": "${parent.child_workflow_id}",
+                        "trigger_node_id": "child_trigger",
+                    },
                 }
             ]
         },
