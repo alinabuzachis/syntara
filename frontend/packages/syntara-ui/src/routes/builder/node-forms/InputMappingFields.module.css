@@ -1,4 +1,4 @@
-.sectionTitle:global(.pf-v6-c-title.pf-m-md) {
+.sectionTitle {
   margin: 0;
   font-family: var(--pf-t--global--font--family--body);
   font-size: var(--pf-t--global--font--size--body--default);

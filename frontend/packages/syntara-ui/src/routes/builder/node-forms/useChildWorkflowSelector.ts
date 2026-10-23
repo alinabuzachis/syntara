@@ -205,6 +205,7 @@ export function useChildWorkflowSelector({
     },
     getNextPageParam: (lastPage) => lastPage.next ?? undefined,
     enabled: !!projectId,
+    placeholderData: (previousData) => previousData,
   })
 
   const workflows = useMemo(

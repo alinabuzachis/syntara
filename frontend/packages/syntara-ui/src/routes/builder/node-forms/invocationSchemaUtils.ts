@@ -108,7 +108,7 @@ export function serializeInvocationInputMapping(
 ): Record<string, unknown> {
   return Object.fromEntries(
     fields.flatMap((field) => {
-      const rawValue = Object.hasOwn(values, field.name) ? values[field.name] : field.defaultValue
+      const rawValue = values[field.name]
       if (isMissing(rawValue)) return []
       return [[field.name, normalizeFieldValue(rawValue, field)]]
     })

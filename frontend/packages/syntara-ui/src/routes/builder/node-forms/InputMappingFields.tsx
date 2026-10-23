@@ -54,7 +54,7 @@ function renderSchemaInputField(
   }
 ): ReactElement {
   const { values, onChange, isDisabled } = context
-  const value = formatValue(Object.hasOwn(values, field.name) ? values[field.name] : field.defaultValue)
+  const value = formatValue(Object.hasOwn(values, field.name) ? values[field.name] : undefined)
   const fieldId = `child-input-${index}`
 
   return (
