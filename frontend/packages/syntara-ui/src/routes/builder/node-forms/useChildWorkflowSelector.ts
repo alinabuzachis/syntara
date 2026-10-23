@@ -41,14 +41,14 @@ function buildWorkflowOptions(
 ): ChildWorkflowOption[] {
   return workflows.flatMap((workflow) => {
     const invocationSchema = schemasByWorkflowId.get(workflow.id)?.data
-    if (!invocationSchema?.is_eligible || invocationSchema.triggers.length === 0) return []
+    if (!invocationSchema?.is_eligible || (invocationSchema.triggers ?? []).length === 0) return []
 
     return [
       {
         value: workflow.id,
         label: `${workflow.name} (v${invocationSchema.published_version})`,
         description: workflow.description ?? undefined,
-        triggers: invocationSchema.triggers,
+        triggers: invocationSchema.triggers ?? [],
       },
     ]
   })
@@ -68,13 +68,13 @@ function selectedWorkflowOption({
   label?: string
 }>): ChildWorkflowOption | undefined {
   if (existingOption) return existingOption
-  if (!workflowId || !workflow || !schema?.is_eligible || schema.triggers.length === 0) return undefined
+  if (!workflowId || !workflow || !schema?.is_eligible || (schema.triggers ?? []).length === 0) return undefined
 
   return {
     value: workflowId,
     label: label ?? workflow.name,
     description: workflow.description ?? undefined,
-    triggers: schema.triggers,
+    triggers: schema.triggers ?? [],
   }
 }
 

@@ -25,8 +25,10 @@ import type { ChildWorkflowOption, InvocationTrigger } from './useChildWorkflowS
 
 const DEBOUNCE_MS = 300
 const LOAD_MORE_VALUE = '__load_more_workflows__'
-const ELIGIBILITY_HELP_TEXT =
-  'Check your search. This picker shows enabled, published workflows in this project that have a Sub-workflow Trigger. To make one eligible, add a Sub-workflow Trigger to a child workflow in this project and publish it, then refresh workflows.'
+const ELIGIBILITY_HELP_TEXT_NO_SEARCH =
+  'This picker shows enabled, published workflows in this project that have a Sub-workflow Trigger. To make one eligible, add a Sub-workflow Trigger to a child workflow in this project and publish it, then refresh workflows.'
+const ELIGIBILITY_HELP_TEXT_WITH_SEARCH =
+  'No workflows match your search. This picker shows enabled, published workflows in this project that have a Sub-workflow Trigger.'
 
 export type ChildWorkflowSelectorProps = {
   options: ChildWorkflowOption[]
@@ -279,6 +281,7 @@ function WorkflowSelectorFeedback({
   errorMessage,
   hasOptions,
   showEligibilityHelp,
+  hasSearchTerm,
   onRetry,
 }: Readonly<{
   workflowError?: string
@@ -287,8 +290,10 @@ function WorkflowSelectorFeedback({
   errorMessage: string
   hasOptions: boolean
   showEligibilityHelp: boolean
+  hasSearchTerm: boolean
   onRetry: () => void
 }>) {
+  const eligibilityHelpText = hasSearchTerm ? ELIGIBILITY_HELP_TEXT_WITH_SEARCH : ELIGIBILITY_HELP_TEXT_NO_SEARCH
   return (
     <>
       {workflowError && (
@@ -308,10 +313,10 @@ function WorkflowSelectorFeedback({
       )}
       {showEligibilityHelp && (
         <HelperText>
-          <HelperTextItem>{ELIGIBILITY_HELP_TEXT}</HelperTextItem>
+          <HelperTextItem>{eligibilityHelpText}</HelperTextItem>
         </HelperText>
       )}
-      {showEligibilityHelp && (
+      {showEligibilityHelp && !hasSearchTerm && (
         <Button variant="link" type="button" onClick={onRetry}>
           Refresh workflows
         </Button>
@@ -512,6 +517,7 @@ export function ChildWorkflowSelector({
           errorMessage={errorMessage}
           hasOptions={options.length > 0}
           showEligibilityHelp={showEligibilityHelp}
+          hasSearchTerm={Boolean(searchText)}
           onRetry={onRetry}
         />
       </StackItem>

@@ -226,6 +226,26 @@ describe('ChildWorkflowSelector', () => {
     expect(onRetry).toHaveBeenCalledOnce()
   })
 
+  it('shows different help text when searching returns no results', async () => {
+    const user = userEvent.setup()
+    render(<ChildWorkflowSelector {...buildProps({ options: [] })} />)
+
+    const workflowInput = screen.getByRole('textbox', { name: 'Workflow' })
+    await user.click(workflowInput)
+    await user.type(workflowInput, 'nonexistent')
+
+    await waitFor(() => {
+      expect(screen.getByText(/No workflows match your search/)).toBeInTheDocument()
+      expect(
+        screen.getByText(
+          /This picker shows enabled, published workflows in this project that have a Sub-workflow Trigger/
+        )
+      ).toBeInTheDocument()
+    })
+
+    expect(screen.queryByRole('button', { name: 'Refresh workflows' })).not.toBeInTheDocument()
+  })
+
   it('shows loading and empty states', async () => {
     const user = userEvent.setup()
     const props = buildProps({ options: [], isLoading: true })
