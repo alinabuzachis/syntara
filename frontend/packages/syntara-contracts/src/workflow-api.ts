@@ -486,7 +486,7 @@ export interface components {
       /** Is Eligible */
       is_eligible: boolean
       /** Triggers */
-      triggers?: components['schemas']['WorkflowInvocationTriggerSchema'][]
+      triggers: components['schemas']['WorkflowInvocationTriggerSchema'][]
     }
     /**
      * PublishWorkflowVersionResponse

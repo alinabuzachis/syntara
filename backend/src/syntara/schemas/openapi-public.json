@@ -50741,7 +50741,8 @@
           "workflow_id",
           "published_version_id",
           "published_version",
-          "is_eligible"
+          "is_eligible",
+          "triggers"
         ],
         "properties": {
           "workflow_id": {

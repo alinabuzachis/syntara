@@ -34609,6 +34609,7 @@ components:
         - published_version_id
         - published_version
         - is_eligible
+        - triggers
       properties:
         workflow_id:
           type: string
