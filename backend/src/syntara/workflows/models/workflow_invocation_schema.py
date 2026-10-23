@@ -21,4 +21,4 @@ class WorkflowInvocationSchemaRead(SQLModel):
     published_version_id: UUID
     published_version: int
     is_eligible: bool
-    triggers: list[WorkflowInvocationTriggerSchema] = Field(default_factory=list)
+    triggers: list[WorkflowInvocationTriggerSchema]
