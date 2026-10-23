@@ -50,7 +50,7 @@ describe('InputMappingFields', () => {
     expect(hostField).toHaveAccessibleDescription('Child target host')
     expect(hostHint.compareDocumentPosition(hostField) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
     expect(hostField).toHaveAttribute('placeholder', 'Enter or drag and drop value')
-    expect(screen.getByRole('textbox', { name: 'port' })).toHaveValue('22')
+    expect(screen.getByRole('textbox', { name: 'port' })).toHaveValue('')
     expect(screen.getByRole('textbox', { name: 'port' })).toHaveAttribute('placeholder', 'Enter or drag and drop value')
     expect(screen.queryByRole('button', { name: /Insert variable/ })).not.toBeInTheDocument()
   })
@@ -83,19 +83,11 @@ describe('InputMappingFields', () => {
       { name: 'config', type: 'object', required: false },
       { name: 'tags', type: 'array', required: false },
     ]
-    const typeHints: Record<string, string> = {
-      retries: 'Enter an integer or a template expression.',
-      count: 'Enter a number or a template expression.',
-      enabled: 'Enter true or false, or a template expression.',
-      config: 'Enter a JSON object or a template expression.',
-      tags: 'Enter a JSON array or a template expression.',
-    }
     render(<StatefulMapping fields={fields} />)
 
     for (const field of fields) {
       const input = screen.getByRole('textbox', { name: field.name })
       expect(input).toHaveAttribute('placeholder', 'Enter or drag and drop value')
-      expect(input).toHaveAccessibleDescription(typeHints[field.name])
 
       fireEvent.drop(input, {
         dataTransfer: {

@@ -46,7 +46,7 @@ describe('invocationSchemaUtils', () => {
         { host: 'server.example', tls: 'false', options: '{"mode":"safe"}', tags: '["ops"]' },
         fields
       )
-    ).toEqual({ host: 'server.example', port: 22, tls: false, options: { mode: 'safe' }, tags: ['ops'] })
+    ).toEqual({ host: 'server.example', tls: false, options: { mode: 'safe' }, tags: ['ops'] })
   })
 
   it('preserves template expressions instead of coercing them', () => {

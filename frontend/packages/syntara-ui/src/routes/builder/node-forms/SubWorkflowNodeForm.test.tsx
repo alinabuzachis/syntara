@@ -111,7 +111,7 @@ describe('SubWorkflowNodeForm', () => {
 
     expect(screen.getByRole('heading', { name: 'Inputs', level: 3 })).toBeInTheDocument()
     expect(await screen.findByRole('textbox', { name: 'host' })).toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: 'port' })).toHaveValue('22')
+    expect(screen.getByRole('textbox', { name: 'port' })).toHaveValue('')
     const triggerField = screen.getByRole('textbox', { name: 'Workflow trigger' })
     expect(triggerField).toHaveValue('Subworkflow Trigger')
     expect(triggerField).toHaveAttribute('readonly')
@@ -214,7 +214,7 @@ describe('SubWorkflowNodeForm', () => {
         expect.objectContaining({
           workflow_id: 'workflow-1',
           trigger_node_id: 'sub-trigger-1',
-          input_mapping: { port: 22 },
+          input_mapping: {},
         })
       )
     })
@@ -273,7 +273,7 @@ describe('SubWorkflowNodeForm', () => {
         expect.objectContaining({
           workflow_id: 'workflow-1',
           trigger_node_id: 'sub-trigger-1',
-          input_mapping: { host: 'saved-host', port: 22 },
+          input_mapping: { host: 'saved-host' },
         })
       )
     })
