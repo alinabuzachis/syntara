@@ -91,15 +91,13 @@ function hasExplicitEmptyInputSchema(trigger?: InvocationTrigger): boolean {
 function handleWorkflowSelection(methods: SubWorkflowMethods, workflowId: string | null, triggerNodeId: string) {
   methods.setValue('workflow_id', workflowId ?? '', { shouldDirty: true, shouldValidate: true })
   methods.setValue('trigger_node_id', triggerNodeId, { shouldDirty: true, shouldValidate: true })
-  methods.setValue('input_mapping', {}, { shouldDirty: true })
-  methods.setValue('input_mapping_json', '{}', { shouldDirty: true })
+  // Preserve input_mapping values - serializeInvocationInputMapping filters to current schema on submit
   methods.clearErrors(['workflow_id', 'trigger_node_id', 'input_mapping', 'input_mapping_json'])
 }
 
 function handleTriggerSelection(methods: SubWorkflowMethods, triggerNodeId: string) {
   methods.setValue('trigger_node_id', triggerNodeId, { shouldDirty: true, shouldValidate: true })
-  methods.setValue('input_mapping', {}, { shouldDirty: true })
-  methods.setValue('input_mapping_json', '{}', { shouldDirty: true })
+  // Preserve input_mapping values - serializeInvocationInputMapping filters to current schema on submit
   methods.clearErrors(['trigger_node_id', 'input_mapping', 'input_mapping_json'])
 }
 

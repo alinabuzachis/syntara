@@ -321,6 +321,46 @@ describe('SubWorkflowNodeForm', () => {
     })
   })
 
+  it('preserves input mappings when switching between triggers', async () => {
+    const user = userEvent.setup()
+    mocks.get.mockResolvedValue({
+      data: buildInvocationSchema({
+        triggers: [
+          {
+            trigger_node_id: 'trigger-1',
+            name: 'One',
+            input_schema: { type: 'object', properties: { a: { type: 'string' } } },
+          },
+          {
+            trigger_node_id: 'trigger-2',
+            name: 'Two',
+            input_schema: { type: 'object', properties: { b: { type: 'string' } } },
+          },
+        ],
+      }),
+      response: new Response(),
+    })
+    renderForm()
+
+    await selectChildWorkflow(user)
+
+    // Select trigger-1 and enter value
+    await user.click(screen.getByRole('button', { name: 'Workflow trigger' }))
+    await user.click(screen.getByText('One'))
+    await user.type(await screen.findByRole('textbox', { name: 'a' }), 'first-value')
+
+    // Switch to trigger-2 and enter different value
+    await user.click(screen.getByRole('button', { name: 'Workflow trigger' }))
+    await user.click(screen.getByText('Two'))
+    await user.type(await screen.findByRole('textbox', { name: 'b' }), 'second-value')
+
+    // Switch back to trigger-1 - value should be preserved
+    await user.click(screen.getByRole('button', { name: 'Workflow trigger' }))
+    await user.click(screen.getByText('One'))
+
+    expect(await screen.findByRole('textbox', { name: 'a' })).toHaveValue('first-value')
+  })
+
   it('submits an empty trigger selection when the child has multiple triggers', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
