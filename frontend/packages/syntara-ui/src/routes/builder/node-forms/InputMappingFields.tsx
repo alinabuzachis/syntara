@@ -39,19 +39,9 @@ function updateValue(values: Record<string, unknown>, name: string, value: strin
   return { ...values, [name]: value }
 }
 
-const INPUT_FORMAT_HINTS: Partial<Record<string, string>> = {
-  integer: 'Enter an integer or a template expression.',
-  number: 'Enter a number or a template expression.',
-  boolean: 'Enter true or false, or a template expression.',
-  object: 'Enter a JSON object or a template expression.',
-  array: 'Enter a JSON array or a template expression.',
-}
-
 function getInputFieldHint(field: InvocationInputField): string | undefined {
   const description = field.description?.trim().replace(/[.\s]+$/, '')
-  const formatHint = INPUT_FORMAT_HINTS[field.type]
-  const hints = [description, formatHint].filter((hint): hint is string => Boolean(hint))
-  return hints.length > 0 ? hints.join('. ') : undefined
+  return description || undefined
 }
 
 function renderSchemaInputField(

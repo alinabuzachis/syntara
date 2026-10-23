@@ -339,6 +339,8 @@ export function SubWorkflowNodeForm({
     [control]
   )
 
+  // Pattern shared across all node forms - pass header content to parent for builder UI
+  // eslint-disable-next-line reactYouMightNotNeedAnEffect/no-pass-data-to-parent -- project-wide pattern, refactor all node forms together
   useEffect(() => {
     onHeaderContentChange?.(headerContent)
   }, [headerContent, onHeaderContentChange])

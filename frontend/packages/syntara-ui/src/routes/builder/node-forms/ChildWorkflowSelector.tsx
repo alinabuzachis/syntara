@@ -517,7 +517,7 @@ export function ChildWorkflowSelector({
           errorMessage={errorMessage}
           hasOptions={options.length > 0}
           showEligibilityHelp={showEligibilityHelp}
-          hasSearchTerm={Boolean(searchText)}
+          hasSearchTerm={Boolean(filterValue.trim())}
           onRetry={onRetry}
         />
       </StackItem>
